@@ -872,6 +872,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	return 0;
 }
 
+#ifdef CONFIG_SYSRQ_SCHED_DEBUG
 void sysrq_sched_debug_show(void)
 {
 	int cpu;
@@ -881,6 +882,7 @@ void sysrq_sched_debug_show(void)
 		print_cpu(NULL, cpu);
 
 }
+#endif
 
 /*
  * This itererator needs some explanation.
