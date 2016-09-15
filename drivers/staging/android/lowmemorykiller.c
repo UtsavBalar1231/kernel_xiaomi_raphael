@@ -64,6 +64,11 @@ static int lowmem_minfree[6] = {
 
 static int lowmem_minfree_size = 4;
 
+/*
+ * This parameter tracks the kill count per minfree since boot.
+ */
+static int lowmem_per_minfree_count[6];
+
 static unsigned long lowmem_deathpending_timeout;
 
 #define lowmem_print(level, x...)			\
@@ -105,6 +110,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 				global_node_page_state(NR_SHMEM) -
 				global_node_page_state(NR_UNEVICTABLE) -
 				total_swapcache_pages();
+	int minfree_count_offset = 0;
 
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
@@ -114,6 +120,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		minfree = lowmem_minfree[i];
 		if (other_free < minfree && other_file < minfree) {
 			min_score_adj = lowmem_adj[i];
+			minfree_count_offset = i;
 			break;
 		}
 	}
@@ -191,6 +198,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 			task_set_lmk_waiting(selected);
 		task_unlock(selected);
 		trace_lowmemory_kill(selected, cache_size, cache_limit, free);
+		lowmem_per_minfree_count[minfree_count_offset]++;
 		lowmem_print(1, "Killing '%s' (%d) (tgid %d), adj %hd,\n"
 				 "   to free %ldkB on behalf of '%s' (%d) because\n"
 				 "   cache %ldkB is below limit %ldkB for oom_score_adj %hd\n"
@@ -411,5 +419,7 @@ module_param_array_named(adj, lowmem_adj, short, &lowmem_adj_size, 0644);
 #endif
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 0644);
+module_param_array_named(lmk_count, lowmem_per_minfree_count, uint, NULL,
+			 S_IRUGO);
 module_param_named(debug_level, lowmem_debug_level, uint, 0644);
 
