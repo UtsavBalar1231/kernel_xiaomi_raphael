@@ -435,6 +435,16 @@ static int cpu_uevent(struct device *dev, struct kobj_uevent_env *env)
 }
 #endif
 
+static int cpu_dev_pm_unset_is_prepared(unsigned int cpu)
+{
+	struct device *cpu_dev = get_cpu_device(cpu);
+
+	if (cpu_dev)
+		cpu_dev->power.is_prepared = false;
+
+	return 0;
+}
+
 /*
  * register_cpu - Setup a sysfs device for a CPU.
  * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
@@ -469,7 +479,9 @@ int register_cpu(struct cpu *cpu, int num)
 	register_cpu_under_node(num, cpu_to_node(num));
 	dev_pm_qos_expose_latency_limit(&cpu->dev, 0);
 
-	return 0;
+	return cpuhp_setup_state_nocalls(CPUHP_CPUDEV_PM_PREPARE,
+				"base/cpu/dev_pm:prepare",
+				cpu_dev_pm_unset_is_prepared, NULL);
 }
 
 struct device *get_cpu_device(unsigned cpu)
