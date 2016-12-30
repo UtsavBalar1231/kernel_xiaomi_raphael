@@ -64,11 +64,11 @@ prepare_tests() {
 # Compile test cases into dtb, and do the diff things.
 compile_and_diff() {
   # Compile the base to make .base_dtb
-  dtc -O dtb -b 0 -@ -o "${OUT_DATA_DIR}/${FILENAME}.base_dtb" \
+  dtc -O dtb -b 0 -qq -@ -o "${OUT_DATA_DIR}/${FILENAME}.base_dtb" \
     "${OUT_DATA_DIR}/${FILENAME}.base_dts"
 
   # Compile the overlay to make .add_ov_dtbo
-  dtc -O dtb -b 0 -@ -o "${OUT_DATA_DIR}/${FILENAME}.add_ov_dtbo" \
+  dtc -O dtb -b 0 -qq -@ -o "${OUT_DATA_DIR}/${FILENAME}.add_ov_dtbo" \
     "${OUT_DATA_DIR}/${FILENAME}.add_ov_dts"
 
   # Run ov_test to combine .base_dtb and .add_ov_dtbo
