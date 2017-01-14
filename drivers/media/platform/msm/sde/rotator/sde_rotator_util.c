@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012, 2015-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -806,7 +806,8 @@ static int sde_mdp_put_img(struct sde_mdp_img_data *data, bool rotator,
 			data->srcp_attachment->dma_map_attrs |=
 				DMA_ATTR_DELAYED_UNMAP;
 			dma_buf_unmap_attachment(data->srcp_attachment,
-				data->srcp_table, dir);
+				data->srcp_table,
+				sde_smmu_set_dma_direction(dir));
 			dma_buf_detach(data->srcp_dma_buf,
 					data->srcp_attachment);
 			if (!(data->flags & SDE_ROT_EXT_DMA_BUF)) {
@@ -991,7 +992,8 @@ static int sde_mdp_map_buffer(struct sde_mdp_img_data *data, bool rotator,
 	return ret;
 
 err_unmap:
-	dma_buf_unmap_attachment(data->srcp_attachment, data->srcp_table, dir);
+	dma_buf_unmap_attachment(data->srcp_attachment, data->srcp_table,
+			sde_smmu_set_dma_direction(dir));
 err_detach:
 	dma_buf_detach(data->srcp_dma_buf, data->srcp_attachment);
 	if (!(data->flags & SDE_ROT_EXT_DMA_BUF)) {
