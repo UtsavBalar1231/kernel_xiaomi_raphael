@@ -47,11 +47,8 @@ main() {
     "apply_fragment" \
     "Run test about fdt_apply_fragment with phandle update"
   run_test_case \
-    "libufdt_local_fixup" \
+    "local_fixup" \
     "Run test about fdt_overlay_do_local_fixups"
-  run_test_case \
-    "dtc_local_fixup" \
-    "Run test about local fixup format consistent with current dtc"
   run_test_case \
     "local_fixup_with_offset" \
     "Run test about dealing with local fixup with offset > 0"

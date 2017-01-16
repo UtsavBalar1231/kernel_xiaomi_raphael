@@ -1,8 +1,7 @@
 /dts-v1/;
+
 / {
-  a: a {
+a: a {
     interrupt_parent = <&a>;
   };
 };
-
-
