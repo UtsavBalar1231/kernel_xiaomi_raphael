@@ -4,7 +4,7 @@ PROG_NAME=`basename $0`
 
 function usage() {
   echo "Usage:"
-  echo "  $PROG_NAME (--fdt|--ufdt) <Base DTS> <Overlay DTS> <Output DTS>"
+  echo "  $PROG_NAME (--fdt|--ufdt) (--remote) <Base DTS> <Overlay DTS> <Output DTS>"
 }
 
 function on_exit() {
@@ -27,6 +27,15 @@ else
   exit 1
 fi
 
+# --remote: run overlay on the device with adb
+if [ "$1" == "--remote" ]; then
+  shift
+  EXE_PATH="${ANDROID_PRODUCT_OUT}/obj/EXECUTABLES"
+  REMOTE_PATH="/data/local/tmp"
+  adb push "${EXE_PATH}/${OVERLAY}_intermediates/${OVERLAY}" \
+    "$REMOTE_PATH" > /dev/null
+fi
+
 if [[ $# -lt 3 ]]; then
   usage
   exit 1
@@ -43,18 +52,42 @@ trap on_exit EXIT
 
 # Compile the *-base.dts to make *-base.dtb
 BASE_DTS_NAME=`basename "$BASE_DTS"`
-BASE_DTB="$TEMP_DIR/${BASE_DTS_NAME}-base.dtb"
+BASE_DTB_NAME="${BASE_DTS_NAME}-base.dtb"
+BASE_DTB="${TEMP_DIR}/${BASE_DTB_NAME}"
 dtc -@ -qq -O dtb -o "$BASE_DTB" "$BASE_DTS"
 
 # Compile the *-overlay.dts to make *-overlay.dtb
 OVERLAY_DTS_NAME=`basename "$OVERLAY_DTS"`
-OVERLAY_DTB="$TEMP_DIR/${OVERLAY_DTS_NAME}-overlay.dtb"
+OVERLAY_DTB_NAME="${OVERLAY_DTS_NAME}-overlay.dtb"
+OVERLAY_DTB="${TEMP_DIR}/${OVERLAY_DTB_NAME}"
 dtc -@ -qq -O dtb -o "$OVERLAY_DTB" "$OVERLAY_DTS"
 
 # Run ufdt_apply_overlay to combine *-base.dtb and *-overlay.dtb
 # into *-merged.dtb
-MERGED_DTB="$TEMP_DIR/${BASE_DTS_NAME}-merged.dtb"
-"$OVERLAY" "$BASE_DTB" "$OVERLAY_DTB" "$MERGED_DTB"
+MERGED_DTB_NAME="${BASE_DTS_NAME}-merged.dtb"
+MERGED_DTB="${TEMP_DIR}/${MERGED_DTB_NAME}"
+if [ -z "$REMOTE_PATH" ]; then
+  "$OVERLAY" "$BASE_DTB" "$OVERLAY_DTB" "$MERGED_DTB"
+else
+  adb push "$BASE_DTB" "$REMOTE_PATH" > /dev/null
+  adb push "$OVERLAY_DTB" "$REMOTE_PATH" > /dev/null
+  adb shell "
+    cd "$REMOTE_PATH" &&
+    "./${OVERLAY}" "$BASE_DTB_NAME" "$OVERLAY_DTB_NAME" "$MERGED_DTB_NAME"
+  "
+  adb pull "${REMOTE_PATH}/${MERGED_DTB_NAME}" "$MERGED_DTB" > /dev/null
+fi
+
+if [ ! -z "$REMOTE_PATH" ]; then
+  # clean up
+  adb shell "
+    cd "$REMOTE_PATH" &&
+    rm -f "$OVERLAY" &&
+    rm -f "$BASE_DTB_NAME" &&
+    rm -f "$OVERLAY_DTB_NAME" &&
+    rm -f "$MERGED_DTB_NAME"
+  " > /dev/null
+fi
 
 # Dump
 dtc -s -O dts -o "$OUT_DTS" "$MERGED_DTB"
