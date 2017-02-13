@@ -29,11 +29,11 @@ TEMP_DIR=`mktemp -d`
 set -e
 trap on_exit EXIT
 
-# Finds '/dts-v1/ /plugin/;' and replace to '/* REMOVED */'
+# Finds '/dts-v1/; and /plugin/;' then replace them with '/* REMOVED */'
 OVERLAY_DTS_DIR=`dirname "$OVERLAY_DTS"`
 OVERLAY_DTS_NAME=`basename "$OVERLAY_DTS"`
 OVERLAY_DT_WO_HEADER_DTS="$TEMP_DIR/$OVERLAY_DTS_NAME"
-sed "s/^\\s*\\/dts-v1\\/\s*\\/plugin\\/\\s*;/\\/\\* REMOVED \\*\\//g" \
+sed "s/\\(\\/dts-v1\\/\\s*;\\|\\/plugin\\/\\s*;\\)/\\/\\* REMOVED \\*\\//g" \
   "$OVERLAY_DTS" > "$OVERLAY_DT_WO_HEADER_DTS"
 
 # Appends /include/ ...;
