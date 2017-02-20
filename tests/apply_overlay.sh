@@ -44,12 +44,12 @@ trap on_exit EXIT
 # Compile the *-base.dts to make *-base.dtb
 BASE_DTS_NAME=`basename "$BASE_DTS"`
 BASE_DTB="$TEMP_DIR/${BASE_DTS_NAME}-base.dtb"
-dtc -@ -s -qq -O dtb -o "$BASE_DTB" "$BASE_DTS"
+dtc -@ -qq -O dtb -o "$BASE_DTB" "$BASE_DTS"
 
 # Compile the *-overlay.dts to make *-overlay.dtb
 OVERLAY_DTS_NAME=`basename "$OVERLAY_DTS"`
 OVERLAY_DTB="$TEMP_DIR/${OVERLAY_DTS_NAME}-overlay.dtb"
-dtc -@ -s -qq -O dtb -o "$OVERLAY_DTB" "$OVERLAY_DTS"
+dtc -@ -qq -O dtb -o "$OVERLAY_DTB" "$OVERLAY_DTS"
 
 # Run ufdt_apply_overlay to combine *-base.dtb and *-overlay.dtb
 # into *-merged.dtb

@@ -45,7 +45,7 @@ echo "/include/ \"$OVERLAY_DT_WO_HEADER_DTS\"" >> "$BASE_DT_WITH_INC_DTS"
 
 # Simulate device tree overlay
 MERGED_DTB="$BASE_DT_WITH_INC_DTS.dtb"
-dtc -@ -s -i "$BASE_DTS_DIR" -i "$OVERLAY_DTS_DIR" -O dtb -o "$MERGED_DTB" "$BASE_DT_WITH_INC_DTS"
+dtc -@ -i "$BASE_DTS_DIR" -i "$OVERLAY_DTS_DIR" -O dtb -o "$MERGED_DTB" "$BASE_DT_WITH_INC_DTS"
 
 # Dump
 dtc -s -O dts -o "$OUT_DTS" "$MERGED_DTB"
