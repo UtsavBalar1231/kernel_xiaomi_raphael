@@ -1,8 +1,7 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-#include "ufdt_overlay.h"
+#include "libfdt.h"
 #include "libufdt_sysdeps.h"
 
 #include "util.h"
@@ -14,10 +13,10 @@ int apply_ovleray_files(const char *out_filename,
   int ret = 1;
   char *base_buf = NULL;
   char *overlay_buf = NULL;
-  struct fdt_header *new_blob = NULL;
+  char *merged_buf = NULL;
 
-  size_t blob_len;
-  base_buf = load_file(base_filename, &blob_len);
+  size_t base_len;
+  base_buf = load_file(base_filename, &base_len);
   if (!base_buf) {
     fprintf(stderr, "Can not load base file: %s\n", base_filename);
     goto end;
@@ -30,30 +29,26 @@ int apply_ovleray_files(const char *out_filename,
     goto end;
   }
 
-  struct fdt_header *blob = ufdt_install_blob(base_buf, blob_len);
-  if (!blob) {
-    fprintf(stderr, "ufdt_install_blob() returns null\n");
-    goto end;
-  }
+  size_t merged_buf_len = base_len + overlay_len;
+  merged_buf = dto_malloc(merged_buf_len);
+  fdt_open_into(base_buf, merged_buf, merged_buf_len);
 
   clock_t start = clock();
-  new_blob = ufdt_apply_overlay(blob, blob_len, overlay_buf, overlay_len);
+  fdt_overlay_apply(merged_buf, overlay_buf);
   clock_t end = clock();
 
-  if (write_fdt_to_file(out_filename, new_blob) != 0) {
+  if (write_fdt_to_file(out_filename, merged_buf) != 0) {
     fprintf(stderr, "Write file error: %s\n", out_filename);
     goto end;
   }
 
   // Outputs the used time.
   double cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
-  printf("ufdt_apply_overlay: took %.9f secs\n", cpu_time_used);
+  printf(" fdt_apply_overlay: took %.9f secs\n", cpu_time_used);
   ret = 0;
 
 end:
-  // Do not dto_free(blob) - it's the same as base_buf.
-
-  if (new_blob) dto_free(new_blob);
+  if (merged_buf) dto_free(merged_buf);
   if (overlay_buf) dto_free(overlay_buf);
   if (base_buf) dto_free(base_buf);
 

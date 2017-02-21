@@ -31,12 +31,12 @@ trap on_exit EXIT
 TESTCASE_NAME=$1
 BASE_DTS="$IN_DATA_DIR/${TESTCASE_NAME}-base.dts"
 OVERLAY_DTS="$IN_DATA_DIR/${TESTCASE_NAME}-overlay.dts"
-INC_MERGED_DTS="$TEMP_DIR/${TESTCASE_NAME}-inc-merged.dts"
+REF_MERGED_DTS="$TEMP_DIR/${TESTCASE_NAME}-ref-merged.dts"
 OVL_MERGED_DTS="$TEMP_DIR/${TESTCASE_NAME}-ovl-merged.dts"
 
 #
 # Complie and diff
 #
-$SCRIPT_DIR/verify_dto_inc.sh "$BASE_DTS" "$OVERLAY_DTS" "$INC_MERGED_DTS"
-$SCRIPT_DIR/verify_dto_ovl.sh "$BASE_DTS" "$OVERLAY_DTS" "$OVL_MERGED_DTS"
-dts_diff "$INC_MERGED_DTS" "$OVL_MERGED_DTS"
+$SCRIPT_DIR/apply_overlay.sh --fdt "$BASE_DTS" "$OVERLAY_DTS" "$REF_MERGED_DTS"
+$SCRIPT_DIR/apply_overlay.sh --ufdt "$BASE_DTS" "$OVERLAY_DTS" "$OVL_MERGED_DTS"
+dts_diff "$REF_MERGED_DTS" "$OVL_MERGED_DTS"
