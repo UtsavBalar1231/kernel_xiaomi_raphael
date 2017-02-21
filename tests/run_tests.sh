@@ -30,6 +30,7 @@ main() {
   fi
 
   if ! command_exists dtc ||
+     ! command_exists fdt_apply_overlay ||
      ! command_exists ufdt_apply_overlay; then
     die "Run mmma $(dirname ${SCRIPT_DIR}) yet?"
   fi
