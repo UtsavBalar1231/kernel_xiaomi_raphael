@@ -56,6 +56,10 @@ main() {
   run_test_case \
     "overlay_2_layers" \
     "Run test about dealing with overlay deep tree"
+  # looks that libfdt doesn't promise the order, the order isn't matched.
+  run_test_case \
+    "node_ordering" \
+    "Run test about node ordering"
   )
 
   if [ $? -ne 0 ]; then
