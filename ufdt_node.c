@@ -35,6 +35,7 @@ struct ufdt_node *ufdt_node_construct(void *fdtp, fdt32_t *fdt_tag_ptr) {
     res->parent.fdt_tag_ptr = fdt_tag_ptr;
     res->parent.sibling = NULL;
     res->child = NULL;
+    res->last_child_p = &res->child;
     return (struct ufdt_node *)res;
   }
 }
@@ -62,8 +63,9 @@ int ufdt_node_add_child(struct ufdt_node *parent, struct ufdt_node *child) {
   switch (child_tag) {
     case FDT_PROP:
     case FDT_BEGIN_NODE:
-      child->sibling = ((struct fdt_node_ufdt_node *)parent)->child;
-      ((struct fdt_node_ufdt_node *)parent)->child = child;
+      // Append the child node to the last child of parant node
+      *((struct fdt_node_ufdt_node *)parent)->last_child_p = child;
+      ((struct fdt_node_ufdt_node *)parent)->last_child_p = &child->sibling;
       break;
 
     default:
