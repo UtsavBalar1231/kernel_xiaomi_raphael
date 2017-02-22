@@ -63,6 +63,7 @@ struct fdt_prop_ufdt_node {
 struct fdt_node_ufdt_node {
   struct ufdt_node parent;
   struct ufdt_node *child;
+  struct ufdt_node **last_child_p;
 };
 
 struct phandle_table_entry {
