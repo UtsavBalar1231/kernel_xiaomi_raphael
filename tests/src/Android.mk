@@ -30,3 +30,16 @@ LOCAL_REQUIRED_MODULES := dtc
 include $(BUILD_HOST_EXECUTABLE)
 
 ###################################################
+
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := extract_dtb
+LOCAL_SRC_FILES := extract_dtb.c util.c
+LOCAL_STATIC_LIBRARIES := \
+    libfdt \
+    libufdt_sysdeps
+LOCAL_REQUIRED_MODULES := dtc
+
+include $(BUILD_HOST_EXECUTABLE)
+
+###################################################
