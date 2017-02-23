@@ -5,6 +5,7 @@
 
 
 char *load_file(const char *filename, size_t *pLen);
-int write_fdt_to_file(const char *filename, void *fdt);
+int write_buf_to_file(const char *filename, const void *buf, size_t buf_size);
+int write_fdt_to_file(const char *filename, const void *fdt);
 
 #endif
