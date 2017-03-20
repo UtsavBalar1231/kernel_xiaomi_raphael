@@ -60,6 +60,15 @@ main() {
   run_test_case \
     "node_ordering" \
     "Run test about node ordering"
+  run_test_case \
+    "base_no_symbols" \
+    "Run test about base dtb without __symbols__"
+  run_test_case \
+    "overlay_no_symbols" \
+    "Run test about overlay dtb without __symbols__"
+  run_test_case \
+    "empty_overlay" \
+    "Run test about overlaying with empty base and overlay dt"
   )
 
   if [ $? -ne 0 ]; then
