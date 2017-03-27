@@ -226,22 +226,28 @@ static int ufdt_do_one_fixup(struct ufdt *tree, const char *fixups,
 static int ufdt_overlay_do_fixups(struct ufdt *main_tree,
                                   struct ufdt *overlay_tree) {
   int len = 0;
-  struct ufdt_node *main_symbols_node, *overlay_fixups_node;
-
-  main_symbols_node = ufdt_get_node_by_path(main_tree, "/__symbols__");
-  overlay_fixups_node = ufdt_get_node_by_path(overlay_tree, "/__fixups__");
-
-  if (!main_symbols_node) {
-    dto_error("Bad main_symbols in ufdt_overlay_do_fixups\n");
-    return -1;
-  }
-
+  struct ufdt_node *overlay_fixups_node =
+      ufdt_get_node_by_path(overlay_tree, "/__fixups__");
   if (!overlay_fixups_node) {
-    dto_error("Bad overlay_fixups in ufdt_overlay_do_fixups\n");
-    return -1;
+    /* There is no __fixups__. Do nothing. */
+    return 0;
   }
+
+  struct ufdt_node *main_symbols_node =
+      ufdt_get_node_by_path(main_tree, "/__symbols__");
 
   struct ufdt_node **it;
+  for_each_prop(it, overlay_fixups_node) {
+    /* Find the first property */
+
+    /* Check __symbols__ is exist when we have any property in __fixups__ */
+    if (!main_symbols_node) {
+      dto_error("No node __symbols__ in main dtb.\n");
+      return -1;
+    }
+    break;
+  }
+
   for_each_prop(it, overlay_fixups_node) {
     /*
      * A property in __fixups__ looks like:
