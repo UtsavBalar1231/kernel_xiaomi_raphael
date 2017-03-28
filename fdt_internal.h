@@ -100,11 +100,26 @@ static void *_fdt_grab_space(void *fdt, size_t len) {
   return _fdt_offset_ptr_w(fdt, offset);
 }
 
-static int _fdt_add_string(void *fdt, const char *s) {
+static const char *_fdt_find_string(const char *strtab, int tabsize,
+                                    const char *s) {
+  int len = dto_strlen(s) + 1;
+  const char *last = strtab + tabsize - len;
+  const char *p;
+
+  for (p = strtab; p <= last; p++)
+    if (dto_memcmp(p, s, len) == 0) return p;
+  return NULL;
+}
+
+static int _fdt_find_add_string(void *fdt, const char *s) {
   char *strtab = (char *)fdt + fdt_totalsize(fdt);
+  const char *p;
   int strtabsize = fdt_size_dt_strings(fdt);
   int len = dto_strlen(s) + 1;
   int struct_top, offset;
+
+  p = _fdt_find_string(strtab - strtabsize, strtabsize, s);
+  if (p) return p - strtab;
 
   /* Add it */
   offset = -strtabsize - len;
@@ -128,7 +143,7 @@ static int fast_fdt_sw_property(void *fdt, const char *name, const void *val,
   FDT_SW_CHECK_HEADER(fdt);
 
   if (*pnameoff == 0) {
-    *pnameoff = _fdt_add_string(fdt, name);
+    *pnameoff = _fdt_find_add_string(fdt, name);
     if (*pnameoff == 0) return -FDT_ERR_NOSPACE;
   }
 
