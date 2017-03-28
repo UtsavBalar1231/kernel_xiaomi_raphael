@@ -69,6 +69,9 @@ main() {
   run_test_case \
     "empty_overlay" \
     "Run test about overlaying with empty base and overlay dt"
+  run_test_case \
+    "suffix_compress" \
+    "Run test about string suffix compression"
   )
 
   if [ $? -ne 0 ]; then
