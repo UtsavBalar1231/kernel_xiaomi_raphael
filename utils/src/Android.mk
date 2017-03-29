@@ -18,6 +18,7 @@ LOCAL_STATIC_LIBRARIES := \
 	libfdt \
 	libufdt_sysdeps
 LOCAL_REQUIRED_MODULES := dtc
+LOCAL_CXX_STL := none
 
 include $(BUILD_HOST_EXECUTABLE)
 
