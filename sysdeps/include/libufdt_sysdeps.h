@@ -48,6 +48,8 @@ unsigned long int dto_strtoul(const char *nptr, char **endptr, int base);
 
 size_t dto_strlen(const char *s);
 
+int dto_memcmp(const void *lhs, const void *rhs, size_t n);
+
 void *dto_memcpy(void *dest, const void *src, size_t n);
 
 int dto_strcmp(const char *s1, const char *s2);
