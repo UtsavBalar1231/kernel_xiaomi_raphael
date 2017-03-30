@@ -6,7 +6,7 @@ common_src_files := \
     ufdt_overlay.c \
     ufdt_convert.c \
     ufdt_node.c \
-    ufdt_node_dict.c
+    ufdt_prop_dict.c
 
 ###################################################
 

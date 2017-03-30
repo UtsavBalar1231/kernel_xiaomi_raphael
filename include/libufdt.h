@@ -6,79 +6,6 @@
 #include "ufdt_types.h"
 
 /*
- * BEGIN of ufdt_node_dict methods
- * Since in the current implementation, it's actually a hash table.
- * So most of operation's time complexity are O(1) with high probability
- * (w.h.p.).
- */
-
-/*
- * Allocates some new spaces and creates a new ufdt_node_dict.
- *
- * @return: a pointer to the newly created ufdt_node_dict or
- *          NULL if dto_malloc failed
- */
-struct ufdt_node_dict ufdt_node_dict_construct();
-
-/*
- * Frees all space dto_malloced, not including ufdt_nodes in the table.
- */
-void ufdt_node_dict_destruct(struct ufdt_node_dict *dict);
-
-/*
- * Adds a ufdt_node (as pointer) to the ufdt_node_dict.
- * @return: 0 if success
- *          < 0 otherwise
- *
- * @Time: O(length of node->name) w.h.p.
- */
-int ufdt_node_dict_add(struct ufdt_node_dict *dict, struct ufdt_node *node);
-
-/*
- * Returns the pointer to the entry in ufdt_node_dict with node->name =
- * name[0..len-1], for direct modification of the entry.
- * e.g., Delete an entry from the ufdt_node_dict.
- *
- * @return: a pointer to the entry in ufdt_node_dict or
- *          NULL if no such entry.
- *
- * @Time: O(len = |name|) w.h.p.
- */
-struct ufdt_node **ufdt_node_dict_find_len(struct ufdt_node_dict *dict,
-                                           const char *name, int len);
-struct ufdt_node **ufdt_node_dict_find(struct ufdt_node_dict *dict,
-                                       const char *name);
-
-/*
- * Returns the pointer to the ufdt_node with node->name =
- * name[0..len-1], for direct modification of the node.
- *
- * @return: a pointer to the node or
- *          NULL if no such node in ufdt_node_dict with same name.
- *
- * @Time: O(len = |name|) w.h.p.
- */
-struct ufdt_node *ufdt_node_dict_find_node_len(struct ufdt_node_dict *dict,
-                                               const char *name, int len);
-struct ufdt_node *ufdt_node_dict_find_node(struct ufdt_node_dict *dict,
-                                           const char *name);
-
-/*
- * Prints the each (index, node->name) pair in the dict to stdout in the
- * following format:
- * ```
- * [idx0] [name0]
- * [idx1] [name1]
- * ...
- * ```
- */
-void ufdt_node_dict_print(struct ufdt_node_dict *dict);
-
-/*
- * END of ufdt_node_dict methods
- */
-
-/*
  * BEGIN of ufdt_node methods
  */
 
@@ -95,7 +22,6 @@ struct ufdt_node *ufdt_node_construct(void *fdtp, fdt32_t *fdt_tag_ptr);
 
 /*
  * Frees all nodes in the subtree rooted at *node.
- * Also dto_frees those ufdt_node_dicts in each node.
  */
 void ufdt_node_destruct(struct ufdt_node *node);
 
@@ -214,11 +140,29 @@ uint32_t ufdt_node_get_phandle(const struct ufdt_node *node);
 struct ufdt *ufdt_construct(void *fdtp);
 
 /*
- * Frees the space occupied by the ufdt, including all ufdt_nodes and
- * ufdt_node_dicts along
+ * Frees the space occupied by the ufdt, including all ufdt_nodes
  * with static_phandle_table.
  */
 void ufdt_destruct(struct ufdt *tree);
+
+/*
+ * Add a fdt into this ufdt.
+ * Note that this function just add the given fdtp into this ufdt,
+ * and doesn't create any node.
+ *
+ * @return: 0 if success.
+ */
+int ufdt_add_fdt(struct ufdt *tree, void *fdtp);
+
+/*
+ * Calculate the offset in the string tables of the given string.
+ * All string tables will be concatenated in reversed order.
+ *
+ * @return: The offset is a negative number, base on the end position of
+ *          all concatenated string tables
+ *          Return 0 if not in any string table.
+ */
+int ufdt_get_string_off(const struct ufdt *tree, const char *s);
 
 /*
  * Gets the pointer to the ufdt_node in tree with phandle = phandle.
@@ -327,9 +271,6 @@ int merge_ufdt_into(struct ufdt_node *tree_a, struct ufdt_node *tree_b);
 
 /*
  * Builds the ufdt for FDT pointed by fdtp.
- * This including build all ufdt_nodes and ufdt_node_dicts, and builds the
- * phandle table as
- * well.
  *
  * @return: the ufdt T representing fdtp or
  *          T with T.fdtp == NULL if fdtp is unvalid.
@@ -339,41 +280,17 @@ int merge_ufdt_into(struct ufdt_node *tree_a, struct ufdt_node *tree_b);
 struct ufdt *fdt_to_ufdt(void *fdtp, size_t fdt_size);
 
 /*
- * Sequentially dumps the tree rooted at *node to FDT buffer fdtp.
- * Basically it calls functions provided by libfdt/fdt_sw.c.
- *
- * All those functions works fast.
- * But when it comes to dump property node to fdt, the function they
- * provide(fdt_property()) is really slow. Since it runs through all strings
- * stored in fdt to find the right `nameoff` for the property node.
- *
- * So we implement our own fdt_property() called `output_property_to_fdt()`, the
- * basic
- * idea is that we keep a hash table that we can search for the nameoff of the
- * string in constant time instead of O(total length of strings) search.
- *
- * @return: 0 if successfully dump or
- *          < 0 otherwise
- *
- * @Time: O(total length of all names + # of nodes in subtree rooted at *root)
- */
-int output_ufdt_node_to_fdt(struct ufdt_node *node, void *fdtp,
-                            struct ufdt_node_dict *all_props);
-
-/*
  * Sequentially dumps the whole ufdt to FDT buffer fdtp with buffer size
  * buf_size.
- * Basically it calls functions provided by libfdt/fdt_sw.c.
- * The main overhead here is to dump the tree to fdtp by calling
- * output_ufdt_node_to_fdt().
  *
+ * Basically using functions provided by libfdt/fdt_sw.c.
  *
  * @return: 0 if successfully dump or
  *          < 0 otherwise
  *
  * @Time: O(total length of all names + # of nodes in tree)
  */
-int ufdt_to_fdt(struct ufdt *tree, void *buf, int buf_size);
+int ufdt_to_fdt(const struct ufdt *tree, void *buf, int buf_size);
 
 /*
  * prints the entire subtree rooted at *node in form:
