@@ -1,6 +1,4 @@
 #include "libufdt.h"
-#include "ufdt_util.h"
-
 
 int node_cmp(const void *a, const void *b) {
   const struct ufdt_node *na = *(struct ufdt_node **)a;
@@ -23,11 +21,12 @@ bool node_name_eq(const struct ufdt_node *node, const char *name, int len) {
 struct ufdt_node *ufdt_node_construct(void *fdtp, fdt32_t *fdt_tag_ptr) {
   uint32_t tag = fdt32_to_cpu(*fdt_tag_ptr);
   if (tag == FDT_PROP) {
+    const struct fdt_property *prop = (const struct fdt_property *)fdt_tag_ptr;
     struct fdt_prop_ufdt_node *res = dto_malloc(sizeof(struct fdt_prop_ufdt_node));
     if (res == NULL) return NULL;
     res->parent.fdt_tag_ptr = fdt_tag_ptr;
     res->parent.sibling = NULL;
-    res->name = get_name(fdtp, (struct ufdt_node *)res);
+    res->name = fdt_string(fdtp, fdt32_to_cpu(prop->nameoff));
     return (struct ufdt_node *)res;
   } else {
     struct fdt_node_ufdt_node *res = dto_malloc(sizeof(struct fdt_node_ufdt_node));
@@ -191,66 +190,6 @@ struct ufdt_node *ufdt_node_get_node_by_path(const struct ufdt_node *node,
 /*
  * END of searching-in-ufdt_node methods.
  */
-
-int output_property_to_fdt(struct ufdt_node *prop_node, void *fdtp,
-                           struct ufdt_node_dict *props_dict) {
-  int err = 0;
-  int len = 0;
-  void *data = ufdt_node_get_fdt_prop_data(prop_node, &len);
-  int nameoff = 0;
-  struct ufdt_node *same_name_prop =
-      ufdt_node_dict_find_node(props_dict, name_of(prop_node));
-
-  /*
-   * There's already a property with same name, take its nameoff instead.
-   */
-  if (same_name_prop != NULL) {
-    const struct fdt_property *prop =
-        (const struct fdt_property *)same_name_prop->fdt_tag_ptr;
-    nameoff = fdt32_to_cpu(prop->nameoff);
-  }
-  /*
-   * Modifies prop_node->fdt_tag_ptr to point to the node in new fdtp.
-   */
-  err = fast_fdt_sw_property(fdtp, name_of(prop_node), data, len, &nameoff,
-                             (struct fdt_property **)&(prop_node->fdt_tag_ptr));
-
-  if (err < 0) {
-    dto_error("Not enough space for the string space: %d\n",
-              fdt_size_dt_strings(fdtp));
-  }
-  ufdt_node_dict_add(props_dict, prop_node);
-  return err;
-}
-
-int output_ufdt_node_to_fdt(struct ufdt_node *node, void *fdtp,
-                            struct ufdt_node_dict *props_dict) {
-  uint32_t tag = tag_of(node);
-
-  if (tag == FDT_PROP) {
-    int err = output_property_to_fdt(node, fdtp, props_dict);
-    return err;
-  }
-
-  int err = fdt_begin_node(fdtp, name_of(node));
-  if (err < 0) return -1;
-
-  struct ufdt_node **it;
-  for_each_prop(it, node) {
-    err = output_ufdt_node_to_fdt(*it, fdtp, props_dict);
-    if (err < 0) return -1;
-  }
-
-  for_each_node(it, node) {
-    err = output_ufdt_node_to_fdt(*it, fdtp, props_dict);
-    if (err < 0) return -1;
-  }
-
-  err = fdt_end_node(fdtp);
-  if (err < 0) return -1;
-
-  return 0;
-}
 
 #define TAB_SIZE 2
 
