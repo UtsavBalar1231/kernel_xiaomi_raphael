@@ -6,11 +6,18 @@ DTS_LIST="
   board1v1_1.dts
   board2v1.dts
 "
+DTB_LIST=(
+  "board1v1.dts.dtb"
+  "board1v1_1.dts.dtb"
+  "board2v1.dts.dtb"
+  "board1v1.dts.dtb"
+)
 CONFIG="${SRCDIR}/mkdtimg.cfg"
 
 ALIGN=4
 
 OUTDIR="out"
+OUTDTB_CFG="${OUTDIR}/dump_cfg.dtb"
 OUTDTB="${OUTDIR}/dump.dtb"
 
 mkdir -p "$OUTDIR"
@@ -23,14 +30,21 @@ done
 
 IMG="${OUTDIR}/cfg_create.img"
 mkdtimg cfg_create "$IMG" "${CONFIG}" --dtb-dir="$OUTDIR"
-mkdtimg dump "$IMG" -b "$OUTDTB" | tee "${OUTDIR}/cfg_create.dump"
+mkdtimg dump "$IMG" -b "$OUTDTB_CFG" | tee "${OUTDIR}/cfg_create.dump"
+for index in ${!DTB_LIST[@]}; do
+  diff ${OUTDIR}/${DTB_LIST[$index]} ${OUTDTB_CFG}.$index
+done
 
 IMG="${OUTDIR}/create.img"
 mkdtimg create "$IMG" \
   --page_size=4096 --id=/:board_id --rev=/:board_rev --custom0=0xabc \
   "${OUTDIR}/board1v1.dts.dtb" \
   "${OUTDIR}/board1v1_1.dts.dtb" --id=/:another_board_id \
-  "${OUTDIR}/board2v1.dts.dtb" --rev=0x201
-mkdtimg dump "$IMG" | tee "${OUTDIR}/create.dump"
+  "${OUTDIR}/board2v1.dts.dtb" --rev=0x201 \
+  "${OUTDIR}/board1v1.dts.dtb" --custom0=0xdef
+mkdtimg dump "$IMG" -b "$OUTDTB" | tee "${OUTDIR}/create.dump"
+for index in ${!DTB_LIST[@]}; do
+  diff ${OUTDIR}/${DTB_LIST[$index]} ${OUTDTB}.$index
+done
 
 diff "${OUTDIR}/cfg_create.dump" "${OUTDIR}/create.dump"
