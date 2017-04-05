@@ -15,7 +15,7 @@ include $(BUILD_HOST_EXECUTABLE)
 
 include $(CLEAR_VARS)
 
-LOCAL_MODULE := ufdt_apply_overlay
+LOCAL_MODULE := ufdt_apply_overlay_host
 LOCAL_SRC_FILES := ufdt_overlay_test_app.c util.c
 LOCAL_STATIC_LIBRARIES := \
     libufdt \
@@ -25,6 +25,8 @@ LOCAL_REQUIRED_MODULES := dtc
 LOCAL_CXX_STL := none
 
 include $(BUILD_HOST_EXECUTABLE)
+
+$(call dist-for-goals, dist_files, $(ALL_MODULES.ufdt_apply_overlay_host.BUILT):libufdt/ufdt_apply_overlay)
 
 ###################################################
 
@@ -66,6 +68,8 @@ LOCAL_REQUIRED_MODULES := dtc
 LOCAL_CXX_STL := none
 
 include $(BUILD_HOST_EXECUTABLE)
+
+$(call dist-for-goals, dist_files, $(ALL_MODULES.extract_dtb.BUILT):libufdt/extract_dtb)
 
 ###################################################
 

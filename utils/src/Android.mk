@@ -23,3 +23,5 @@ LOCAL_CXX_STL := none
 include $(BUILD_HOST_EXECUTABLE)
 
 ###################################################
+
+$(call dist-for-goals, dist_files, $(ALL_MODULES.mkdtimg.BUILT):libufdt/mkdtimg)
