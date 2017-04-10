@@ -625,10 +625,10 @@ struct fdt_header *ufdt_apply_overlay(struct fdt_header *main_fdt_header,
     return NULL;
   }
 
-  struct ufdt *main_tree, *overlay_tree;
+  struct ufdt *main_tree = NULL;
+  struct ufdt *overlay_tree = NULL;
 
   main_tree = fdt_to_ufdt(main_fdt_header, main_fdt_size);
-
   overlay_tree = fdt_to_ufdt(overlay_fdtp, overlay_size);
 
   int err = ufdt_overlay_apply(main_tree, overlay_tree, overlay_size);
@@ -642,13 +642,15 @@ struct fdt_header *ufdt_apply_overlay(struct fdt_header *main_fdt_header,
     goto fail;
   }
 
-  ufdt_destruct(main_tree);
   ufdt_destruct(overlay_tree);
+  ufdt_destruct(main_tree);
+
   return out_fdt_header;
 
 fail:
-  ufdt_destruct(main_tree);
   ufdt_destruct(overlay_tree);
+  ufdt_destruct(main_tree);
   dto_free(out_fdt_header);
+
   return NULL;
 }

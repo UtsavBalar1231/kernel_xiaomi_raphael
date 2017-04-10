@@ -15,6 +15,7 @@ struct ufdt *ufdt_construct(void *fdtp) {
 void ufdt_destruct(struct ufdt *tree) {
   ufdt_node_destruct(tree->root);
   dto_free(tree->phandle_table.data);
+  dto_free(tree);
 }
 
 static struct ufdt_node *ufdt_new_node(void *fdtp, int node_offset) {
@@ -159,6 +160,7 @@ int merge_children(struct ufdt_node *node_a, struct ufdt_node *node_b) {
       err = ufdt_node_add_child(node_a, cur_node);
     } else {
       err = merge_ufdt_into(target_node, cur_node);
+      dto_free(cur_node);
     }
     if (err < 0) return -1;
   }
