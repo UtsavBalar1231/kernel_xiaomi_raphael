@@ -6,27 +6,39 @@
 #include "libfdt.h"
 #include "libufdt_sysdeps.h"
 
-
-char *load_file(const char *filename, size_t *pLen) {
-  FILE *fp = fopen(filename, "r");
-  if (!fp) {
-    return NULL;
-  }
-
+static char *load_file_contents(FILE *fp, size_t *len_ptr) {
   // Gets the file size.
   fseek(fp, 0, SEEK_END);
   size_t len = ftell(fp);
   fseek(fp, 0, SEEK_SET);
 
-  char *buf = dto_malloc(len);
-  if (fread(buf, len, 1, fp) != 1) {
-    dto_free(buf);
+  char *buf = malloc(len);
+  if (buf == NULL) {
     return NULL;
   }
 
-  if (pLen) {
-    *pLen = len;
+  if (fread(buf, len, 1, fp) != 1) {
+    free(buf);
+    return NULL;
   }
+
+  if (len_ptr) {
+    *len_ptr = len;
+  }
+
+  return buf;
+}
+
+char *load_file(const char *filename, size_t *len_ptr) {
+  FILE *fp = fopen(filename, "r");
+  if (!fp) {
+    return NULL;
+  }
+
+  char *buf = load_file_contents(fp, len_ptr);
+
+  fclose(fp);
+
   return buf;
 }
 
