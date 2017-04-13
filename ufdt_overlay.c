@@ -540,8 +540,24 @@ static int ufdt_overlay_local_ref_update(struct ufdt *main_tree,
 
 /* END of updating local references (phandle values) in the overlay ufdt. */
 
+static int _ufdt_overlay_fdtps(struct ufdt *main_tree,
+                               const struct ufdt *overlay_tree) {
+  for (int i = 0; i < overlay_tree->num_used_fdtps; i++) {
+    void *fdt = overlay_tree->fdtps[i];
+    if (ufdt_add_fdt(main_tree, fdt) < 0) {
+      return -1;
+    }
+  }
+  return 0;
+}
+
 static int ufdt_overlay_apply(struct ufdt *main_tree, struct ufdt *overlay_tree,
                               size_t overlay_length) {
+  if (_ufdt_overlay_fdtps(main_tree, overlay_tree) < 0) {
+    dto_error("failed to add more fdt into main ufdt tree.\n");
+    return -1;
+  }
+
   if (overlay_length < sizeof(struct fdt_header)) {
     dto_error("Overlay_length %zu smaller than header size %zu\n",
               overlay_length, sizeof(struct fdt_header));
