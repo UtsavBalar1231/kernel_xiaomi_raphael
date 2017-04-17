@@ -22,9 +22,7 @@
 
 #include "util.h"
 
-
-int apply_ovleray_files(const char *out_filename,
-                        const char *base_filename,
+int apply_overlay_files(const char *out_filename, const char *base_filename,
                         const char *overlay_filename) {
   int ret = 1;
   char *base_buf = NULL;
@@ -80,7 +78,7 @@ int main(int argc, char **argv) {
   const char *base_file = argv[1];
   const char *overlay_file = argv[2];
   const char *out_file = argv[3];
-  int ret = apply_ovleray_files(out_file, base_file, overlay_file);
+  int ret = apply_overlay_files(out_file, base_file, overlay_file);
 
   return ret;
 }
