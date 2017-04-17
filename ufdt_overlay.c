@@ -304,112 +304,12 @@ static int ufdt_overlay_do_fixups(struct ufdt *main_tree,
 
 /* BEGIN of applying fragments. */
 
-/* Proptyping predefined */
-static int merge_ufdt_into(struct ufdt_node *node_a, struct ufdt_node *node_b);
-
-/*
- * Merges tree_b into tree_a with tree_b has all nodes except root disappeared.
- * Overwrite property in tree_a if there's one with same name in tree_b.
- * Otherwise add the property to tree_a.
- * For subnodes with the same name, recursively run this function.
- *
- * Ex:
- * tree_a : ta {
- *  b = "b";
- *  c = "c";
- *  d {
- *    e = "g";
- *  };
- * };
- *
- * tree_b : tb {
- *  c = "C";
- *  g = "G";
- *  d {
- *    da = "dad";
- *  };
- *  h {
- *    hh = "HH";
- *  };
- * };
- *
- * The resulting trees will be:
- *
- * tree_a : ta {
- *  b = "b";
- *  c = "C";
- *  g = "G";
- *  d {
- *    da = "dad";
- *    e = "g";
- *  };
- *  h {
- *    hh = "HH";
- *  };
- * };
- *
- * tree_b : tb {
- * };
- *
- *
- * @return: 0 if merge success
- *          < 0 otherwise
- *
- * @Time: O(# of nodes in tree_b + total length of all names in tree_b) w.h.p.
- */
-static int merge_children(struct ufdt_node *node_a, struct ufdt_node *node_b) {
-  int err = 0;
-  struct ufdt_node *it;
-  for (it = ((struct ufdt_node_fdt_node *)node_b)->child; it;) {
-    struct ufdt_node *cur_node = it;
-    it = it->sibling;
-    cur_node->sibling = NULL;
-    struct ufdt_node *target_node = NULL;
-    if (ufdt_node_tag(cur_node) == FDT_BEGIN_NODE) {
-      target_node =
-          ufdt_node_get_subnode_by_name(node_a, ufdt_node_name(cur_node));
-    } else {
-      target_node =
-          ufdt_node_get_property_by_name(node_a, ufdt_node_name(cur_node));
-    }
-    if (target_node == NULL) {
-      err = ufdt_node_add_child(node_a, cur_node);
-    } else {
-      err = merge_ufdt_into(target_node, cur_node);
-    }
-    if (err < 0) return -1;
-  }
-  /*
-   * The ufdt_node* in node_b will be copied to node_a.
-   * To prevent the ufdt_node from being freed twice
-   * (main_tree and overlay_tree) at the end of function
-   * ufdt_apply_overlay(), set this node in node_b
-   * (overlay_tree) to NULL.
-   */
-  ((struct ufdt_node_fdt_node *)node_b)->child = NULL;
-
-  return 0;
-}
-
-static int merge_ufdt_into(struct ufdt_node *node_a, struct ufdt_node *node_b) {
-  if (ufdt_node_tag(node_a) == FDT_PROP) {
-    node_a->fdt_tag_ptr = node_b->fdt_tag_ptr;
-    return 0;
-  }
-
-  int err = 0;
-  err = merge_children(node_a, node_b);
-  if (err < 0) return -1;
-
-  return 0;
-}
-
 /*
  * Overlay the overlay_node over target_node.
  */
 static int ufdt_overlay_node(struct ufdt_node *target_node,
                              struct ufdt_node *overlay_node) {
-  return merge_ufdt_into(target_node, overlay_node);
+  return ufdt_node_merge_into(target_node, overlay_node);
 }
 
 /*
