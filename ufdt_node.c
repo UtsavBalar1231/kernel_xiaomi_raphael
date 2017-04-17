@@ -16,18 +16,6 @@
 
 #include "libufdt.h"
 
-bool ufdt_node_name_eq(const struct ufdt_node *node, const char *name, int len) {
-  if (!node) return false;
-  if (!name) return false;
-  if (dto_strncmp(ufdt_node_name(node), name, len) != 0) return false;
-  if (ufdt_node_name(node)[len] != '\0') return false;
-  return true;
-}
-
-/*
- * ufdt_node methods.
- */
-
 struct ufdt_node *ufdt_node_construct(void *fdtp, fdt32_t *fdt_tag_ptr) {
   uint32_t tag = fdt32_to_cpu(*fdt_tag_ptr);
   if (tag == FDT_PROP) {
@@ -196,9 +184,64 @@ struct ufdt_node *ufdt_node_get_node_by_path(const struct ufdt_node *node,
   return ufdt_node_get_node_by_path_len(node, path, dto_strlen(path));
 }
 
+bool ufdt_node_name_eq(const struct ufdt_node *node, const char *name, int len) {
+  if (!node) return false;
+  if (!name) return false;
+  if (dto_strncmp(ufdt_node_name(node), name, len) != 0) return false;
+  if (ufdt_node_name(node)[len] != '\0') return false;
+  return true;
+}
+
 /*
  * END of searching-in-ufdt_node methods.
  */
+
+static int merge_children(struct ufdt_node *node_a, struct ufdt_node *node_b) {
+  int err = 0;
+  struct ufdt_node *it;
+  for (it = ((struct ufdt_node_fdt_node *)node_b)->child; it;) {
+    struct ufdt_node *cur_node = it;
+    it = it->sibling;
+    cur_node->sibling = NULL;
+    struct ufdt_node *target_node = NULL;
+    if (ufdt_node_tag(cur_node) == FDT_BEGIN_NODE) {
+      target_node =
+          ufdt_node_get_subnode_by_name(node_a, ufdt_node_name(cur_node));
+    } else {
+      target_node =
+          ufdt_node_get_property_by_name(node_a, ufdt_node_name(cur_node));
+    }
+    if (target_node == NULL) {
+      err = ufdt_node_add_child(node_a, cur_node);
+    } else {
+      err = ufdt_node_merge_into(target_node, cur_node);
+    }
+    if (err < 0) return -1;
+  }
+  /*
+   * The ufdt_node* in node_b will be copied to node_a.
+   * To prevent the ufdt_node from being freed twice
+   * (main_tree and overlay_tree) at the end of function
+   * ufdt_apply_overlay(), set this node in node_b
+   * (overlay_tree) to NULL.
+   */
+  ((struct ufdt_node_fdt_node *)node_b)->child = NULL;
+
+  return 0;
+}
+
+int ufdt_node_merge_into(struct ufdt_node *node_a, struct ufdt_node *node_b) {
+  if (ufdt_node_tag(node_a) == FDT_PROP) {
+    node_a->fdt_tag_ptr = node_b->fdt_tag_ptr;
+    return 0;
+  }
+
+  int err = 0;
+  err = merge_children(node_a, node_b);
+  if (err < 0) return -1;
+
+  return 0;
+}
 
 #define TAB_SIZE 2
 
