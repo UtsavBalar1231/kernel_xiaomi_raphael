@@ -216,6 +216,58 @@ struct ufdt_node *ufdt_get_node_by_path(struct ufdt *tree, const char *path);
 bool ufdt_node_name_eq(const struct ufdt_node *node, const char *name, int len);
 
 /*
+ * Merges tree_b into tree_a with tree_b has all nodes except root disappeared.
+ * Overwrite property in tree_a if there's one with same name in tree_b.
+ * Otherwise add the property to tree_a.
+ * For subnodes with the same name, recursively run this function.
+ *
+ * Ex:
+ * tree_a : ta {
+ *  b = "b";
+ *  c = "c";
+ *  d {
+ *    e = "g";
+ *  };
+ * };
+ *
+ * tree_b : tb {
+ *  c = "C";
+ *  g = "G";
+ *  d {
+ *    da = "dad";
+ *  };
+ *  h {
+ *    hh = "HH";
+ *  };
+ * };
+ *
+ * The resulting trees will be:
+ *
+ * tree_a : ta {
+ *  b = "b";
+ *  c = "C";
+ *  g = "G";
+ *  d {
+ *    da = "dad";
+ *    e = "g";
+ *  };
+ *  h {
+ *    hh = "HH";
+ *  };
+ * };
+ *
+ * tree_b : tb {
+ * };
+ *
+ *
+ * @return: 0 if merge success
+ *          < 0 otherwise
+ *
+ * @Time: O(# of nodes in tree_b + total length of all names in tree_b) w.h.p.
+ */
+int ufdt_node_merge_into(struct ufdt_node *node_a, struct ufdt_node *node_b);
+
+/*
  * END of ufdt methods.
  */
 
