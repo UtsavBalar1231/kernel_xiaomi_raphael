@@ -141,7 +141,7 @@ static fdt32_t get_fdt32_from_prop(void *fdt, const char *path, const char *prop
     return 0;
   }
 
-  fdt32_t value = fdt32_to_cpu(*prop_value_ptr);
+  fdt32_t value = *prop_value_ptr;
   /* TODO: check len */
   if (DEBUG) printf("%s:%s => %08x\n", path, prop, fdt32_to_cpu(value));
 
