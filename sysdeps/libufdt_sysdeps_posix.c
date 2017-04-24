@@ -41,8 +41,6 @@ void *dto_malloc(size_t size) { return malloc(size); }
 
 void dto_free(void *ptr) { free(ptr); }
 
-char *dto_strdup(const char *s) { return strdup(s); }
-
 char *dto_strchr(const char *s, int c) { return strchr(s, c); }
 
 unsigned long int dto_strtoul(const char *nptr, char **endptr, int base) {

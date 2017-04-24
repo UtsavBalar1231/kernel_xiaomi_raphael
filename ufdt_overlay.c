@@ -131,12 +131,18 @@ static void *ufdt_get_fixup_location(struct ufdt *tree, const char *fixup) {
   char *path, *prop_ptr, *offset_ptr, *end_ptr;
   int prop_offset, prop_len;
   const char *prop_data;
+  char path_buf[1024];
+  char *path_mem = NULL;
 
-  /*
-   * TODO(akaineko): Keep track of substring lengths so we don't have to
-   * dto_malloc a copy and split it up.
-   */
-  path = dto_strdup(fixup);
+  size_t fixup_len = strlen(fixup) + 1;
+  if (fixup_len > sizeof(path_buf)) {
+    path_mem = dto_malloc(fixup_len);
+    path = path_mem;
+  } else {
+    path = path_buf;
+  }
+  dto_memcpy(path, fixup, fixup_len);
+
   prop_ptr = dto_strchr(path, ':');
   if (prop_ptr == NULL) {
     dto_error("Missing property part in '%s'\n", path);
@@ -182,11 +188,11 @@ static void *ufdt_get_fixup_location(struct ufdt *tree, const char *fixup) {
     goto fail;
   }
 
-  dto_free(path);
+  if (path_mem) dto_free(path_mem);
   return (char *)prop_data + prop_offset;
 
 fail:
-  dto_free(path);
+  if (path_mem) dto_free(path_mem);
   return NULL;
 }
 
