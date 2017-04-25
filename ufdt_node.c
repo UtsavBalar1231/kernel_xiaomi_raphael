@@ -16,20 +16,22 @@
 
 #include "libufdt.h"
 
-struct ufdt_node *ufdt_node_construct(void *fdtp, fdt32_t *fdt_tag_ptr) {
+#include "ufdt_node_pool.h"
+
+struct ufdt_node *ufdt_node_construct(void *fdtp, fdt32_t *fdt_tag_ptr,
+                                      struct ufdt_node_pool *pool) {
+  void *buf = ufdt_node_pool_alloc(pool);
   uint32_t tag = fdt32_to_cpu(*fdt_tag_ptr);
   if (tag == FDT_PROP) {
     const struct fdt_property *prop = (const struct fdt_property *)fdt_tag_ptr;
-    struct ufdt_node_fdt_prop *res =
-        dto_malloc(sizeof(struct ufdt_node_fdt_prop));
+    struct ufdt_node_fdt_prop *res = (struct ufdt_node_fdt_prop *)buf;
     if (res == NULL) return NULL;
     res->parent.fdt_tag_ptr = fdt_tag_ptr;
     res->parent.sibling = NULL;
     res->name = fdt_string(fdtp, fdt32_to_cpu(prop->nameoff));
     return (struct ufdt_node *)res;
   } else {
-    struct ufdt_node_fdt_node *res =
-        dto_malloc(sizeof(struct ufdt_node_fdt_node));
+    struct ufdt_node_fdt_node *res = (struct ufdt_node_fdt_node *)buf;
     if (res == NULL) return NULL;
     res->parent.fdt_tag_ptr = fdt_tag_ptr;
     res->parent.sibling = NULL;
@@ -39,15 +41,16 @@ struct ufdt_node *ufdt_node_construct(void *fdtp, fdt32_t *fdt_tag_ptr) {
   }
 }
 
-void ufdt_node_destruct(struct ufdt_node *node) {
+void ufdt_node_destruct(struct ufdt_node *node, struct ufdt_node_pool *pool) {
   if (node == NULL) return;
 
   if (ufdt_node_tag(node) == FDT_BEGIN_NODE) {
-    ufdt_node_destruct(((struct ufdt_node_fdt_node *)node)->child);
+    ufdt_node_destruct(((struct ufdt_node_fdt_node *)node)->child, pool);
   }
 
-  ufdt_node_destruct(node->sibling);
-  dto_free(node);
+  ufdt_node_destruct(node->sibling, pool);
+
+  ufdt_node_pool_free(pool, node);
 }
 
 int ufdt_node_add_child(struct ufdt_node *parent, struct ufdt_node *child) {
@@ -196,7 +199,8 @@ bool ufdt_node_name_eq(const struct ufdt_node *node, const char *name, int len) 
  * END of searching-in-ufdt_node methods.
  */
 
-static int merge_children(struct ufdt_node *node_a, struct ufdt_node *node_b) {
+static int merge_children(struct ufdt_node *node_a, struct ufdt_node *node_b,
+                          struct ufdt_node_pool *pool) {
   int err = 0;
   struct ufdt_node *it;
   for (it = ((struct ufdt_node_fdt_node *)node_b)->child; it;) {
@@ -214,7 +218,8 @@ static int merge_children(struct ufdt_node *node_a, struct ufdt_node *node_b) {
     if (target_node == NULL) {
       err = ufdt_node_add_child(node_a, cur_node);
     } else {
-      err = ufdt_node_merge_into(target_node, cur_node);
+      err = ufdt_node_merge_into(target_node, cur_node, pool);
+      ufdt_node_pool_free(pool, cur_node);
     }
     if (err < 0) return -1;
   }
@@ -230,14 +235,15 @@ static int merge_children(struct ufdt_node *node_a, struct ufdt_node *node_b) {
   return 0;
 }
 
-int ufdt_node_merge_into(struct ufdt_node *node_a, struct ufdt_node *node_b) {
+int ufdt_node_merge_into(struct ufdt_node *node_a, struct ufdt_node *node_b,
+                         struct ufdt_node_pool *pool) {
   if (ufdt_node_tag(node_a) == FDT_PROP) {
     node_a->fdt_tag_ptr = node_b->fdt_tag_ptr;
     return 0;
   }
 
   int err = 0;
-  err = merge_children(node_a, node_b);
+  err = merge_children(node_a, node_b, pool);
   if (err < 0) return -1;
 
   return 0;
