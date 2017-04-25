@@ -85,4 +85,6 @@ struct ufdt {
   struct ufdt_static_phandle_table phandle_table;
 };
 
+struct ufdt_node_pool;
+
 #endif /* UFDT_TYPES_H */
