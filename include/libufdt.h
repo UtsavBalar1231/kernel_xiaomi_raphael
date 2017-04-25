@@ -33,12 +33,13 @@
  * @return: a pointer to the newly created ufdt_node or
  *          NULL if dto_malloc failed
  */
-struct ufdt_node *ufdt_node_construct(void *fdtp, fdt32_t *fdt_tag_ptr);
+struct ufdt_node *ufdt_node_construct(void *fdtp, fdt32_t *fdt_tag_ptr,
+                                      struct ufdt_node_pool *pool);
 
 /*
  * Frees all nodes in the subtree rooted at *node.
  */
-void ufdt_node_destruct(struct ufdt_node *node);
+void ufdt_node_destruct(struct ufdt_node *node, struct ufdt_node_pool *pool);
 
 /*
  * Adds the child as a subnode of the parent.
@@ -152,13 +153,13 @@ uint32_t ufdt_node_get_phandle(const struct ufdt_node *node);
  *
  * @return: an empty ufdt with base fdtp = fdtp
  */
-struct ufdt *ufdt_construct(void *fdtp);
+struct ufdt *ufdt_construct(void *fdtp, struct ufdt_node_pool *pool);
 
 /*
  * Frees the space occupied by the ufdt, including all ufdt_nodes
  * with ufdt_static_phandle_table.
  */
-void ufdt_destruct(struct ufdt *tree);
+void ufdt_destruct(struct ufdt *tree, struct ufdt_node_pool *pool);
 
 /*
  * Add a fdt into this ufdt.
@@ -265,7 +266,8 @@ bool ufdt_node_name_eq(const struct ufdt_node *node, const char *name, int len);
  *
  * @Time: O(# of nodes in tree_b + total length of all names in tree_b) w.h.p.
  */
-int ufdt_node_merge_into(struct ufdt_node *node_a, struct ufdt_node *node_b);
+int ufdt_node_merge_into(struct ufdt_node *node_a, struct ufdt_node *node_b,
+                         struct ufdt_node_pool *pool);
 
 /*
  * END of ufdt methods.
@@ -283,7 +285,8 @@ int ufdt_node_merge_into(struct ufdt_node *node_a, struct ufdt_node *node_b);
  *
  * @Time: O(fdt_size + nlogn) where n = # of nodes in fdt.
  */
-struct ufdt *ufdt_from_fdt(void *fdtp, size_t fdt_size);
+struct ufdt *ufdt_from_fdt(void *fdtp, size_t fdt_size,
+                           struct ufdt_node_pool *pool);
 
 /*
  * Sequentially dumps the whole ufdt to FDT buffer fdtp with buffer size

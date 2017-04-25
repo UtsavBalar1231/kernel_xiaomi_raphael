@@ -16,9 +16,12 @@
 
 #include "libufdt.h"
 
+#include "ufdt_node_pool.h"
 #include "ufdt_prop_dict.h"
 
-struct ufdt *ufdt_construct(void *fdtp) {
+struct ufdt *ufdt_construct(void *fdtp, struct ufdt_node_pool *pool) {
+  (void)(pool); /* unused parameter */
+
   /* Inital size is 2, will be exponentially increased when it needed later.
      (2 -> 4 -> 8 -> ...) */
   const int DEFAULT_MEM_SIZE_FDTPS = 2;
@@ -47,10 +50,10 @@ error:
   return NULL;
 }
 
-void ufdt_destruct(struct ufdt *tree) {
+void ufdt_destruct(struct ufdt *tree, struct ufdt_node_pool *pool) {
   if (tree == NULL) return;
 
-  ufdt_node_destruct(tree->root);
+  ufdt_node_destruct(tree->root, pool);
 
   dto_free(tree->fdtps);
   dto_free(tree->phandle_table.data);
@@ -105,7 +108,8 @@ int ufdt_get_string_off(const struct ufdt *tree, const char *s) {
   return 0;
 }
 
-static struct ufdt_node *ufdt_new_node(void *fdtp, int node_offset) {
+static struct ufdt_node *ufdt_new_node(void *fdtp, int node_offset,
+                                       struct ufdt_node_pool *pool) {
   if (fdtp == NULL) {
     dto_error("Failed to get new_node because tree is NULL\n");
     return NULL;
@@ -113,13 +117,13 @@ static struct ufdt_node *ufdt_new_node(void *fdtp, int node_offset) {
 
   fdt32_t *fdt_tag_ptr =
       (fdt32_t *)fdt_offset_ptr(fdtp, node_offset, sizeof(fdt32_t));
-  struct ufdt_node *res = ufdt_node_construct(fdtp, fdt_tag_ptr);
+  struct ufdt_node *res = ufdt_node_construct(fdtp, fdt_tag_ptr, pool);
   return res;
 }
 
 static struct ufdt_node *fdt_to_ufdt_tree(void *fdtp, int cur_fdt_tag_offset,
-                                          int *next_fdt_tag_offset,
-                                          int cur_tag) {
+                                          int *next_fdt_tag_offset, int cur_tag,
+                                          struct ufdt_node_pool *pool) {
   if (fdtp == NULL) {
     return NULL;
   }
@@ -137,17 +141,17 @@ static struct ufdt_node *fdt_to_ufdt_tree(void *fdtp, int cur_fdt_tag_offset,
       break;
 
     case FDT_PROP:
-      res = ufdt_new_node(fdtp, cur_fdt_tag_offset);
+      res = ufdt_new_node(fdtp, cur_fdt_tag_offset, pool);
       break;
 
     case FDT_BEGIN_NODE:
-      res = ufdt_new_node(fdtp, cur_fdt_tag_offset);
+      res = ufdt_new_node(fdtp, cur_fdt_tag_offset, pool);
 
       do {
         cur_fdt_tag_offset = *next_fdt_tag_offset;
         tag = fdt_next_tag(fdtp, cur_fdt_tag_offset, next_fdt_tag_offset);
         child_node = fdt_to_ufdt_tree(fdtp, cur_fdt_tag_offset,
-                                      next_fdt_tag_offset, tag);
+                                      next_fdt_tag_offset, tag, pool);
         ufdt_node_add_child(res, child_node);
       } while (tag != FDT_END_NODE);
       break;
@@ -279,18 +283,20 @@ struct ufdt_static_phandle_table build_phandle_table(struct ufdt *tree) {
   return res;
 }
 
-struct ufdt *ufdt_from_fdt(void *fdtp, size_t fdt_size) {
+struct ufdt *ufdt_from_fdt(void *fdtp, size_t fdt_size,
+                           struct ufdt_node_pool *pool) {
   (void)(fdt_size); /* unused parameter */
 
   int start_offset = fdt_path_offset(fdtp, "/");
   if (start_offset < 0) {
-    return ufdt_construct(NULL);
+    return ufdt_construct(NULL, pool);
   }
 
-  struct ufdt *res_tree = ufdt_construct(fdtp);
+  struct ufdt *res_tree = ufdt_construct(fdtp, pool);
   int end_offset;
   int start_tag = fdt_next_tag(fdtp, start_offset, &end_offset);
-  res_tree->root = fdt_to_ufdt_tree(fdtp, start_offset, &end_offset, start_tag);
+  res_tree->root =
+      fdt_to_ufdt_tree(fdtp, start_offset, &end_offset, start_tag, pool);
 
   res_tree->phandle_table = build_phandle_table(res_tree);
 

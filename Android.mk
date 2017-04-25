@@ -18,6 +18,7 @@ common_src_files := \
     ufdt_overlay.c \
     ufdt_convert.c \
     ufdt_node.c \
+    ufdt_node_pool.c \
     ufdt_prop_dict.c
 
 ###################################################
