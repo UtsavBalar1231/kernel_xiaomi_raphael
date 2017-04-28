@@ -40,6 +40,11 @@ struct dt_global_options {
   uint32_t page_size;
 };
 
+struct dt_image_writer_fdt_info {
+  char filename[1024];
+  uint32_t dt_offset;
+};
+
 struct dt_image_writer {
   FILE *img_fp;
 
@@ -51,8 +56,8 @@ struct dt_image_writer {
   uint32_t entry_offset;
   uint32_t dt_offset;
 
-  char (*past_filenames)[1024];
-  uint32_t *past_dt_offsets;
+  struct dt_image_writer_fdt_info *fdt_infos;
+  uint32_t fdt_info_count;
 };
 
 
@@ -181,33 +186,34 @@ static int output_img_header(FILE *img_fp,
 }
 
 static int32_t output_img_entry(FILE *img_fp, size_t entry_offset,
-                                size_t dt_offset, const char *fdt_filename,
-                                struct dt_options *options, int reuse_fdt) {
+                                struct dt_image_writer_fdt_info *fdt_info,
+                                struct dt_options *options, int output_fdt) {
   int32_t ret = -1;
   void *fdt = NULL;
 
   size_t fdt_file_size;
-  fdt = load_file(fdt_filename, &fdt_file_size);
+  fdt = load_file(fdt_info->filename, &fdt_file_size);
   if (fdt == NULL) {
-    fprintf(stderr, "Can not read file: %s\n", fdt_filename);
+    fprintf(stderr, "Can not read file: %s\n", fdt_info->filename);
     goto end;
   }
 
   if (fdt_check_header(fdt) != 0) {
-    fprintf(stderr, "Bad FDT header: \n", fdt_filename);
+    fprintf(stderr, "Bad FDT header: \n", fdt_info->filename);
     goto end;
   }
 
   size_t fdt_size = fdt_totalsize(fdt);
   if (fdt_size != fdt_file_size) {
-    fprintf(stderr, "The file size and FDT size are not matched: %s\n", fdt_filename);
+    fprintf(stderr, "The file size and FDT size are not matched: %s\n",
+            fdt_info->filename);
     goto end;
   }
 
   /* Prepare dt_table_entry and output */
   struct dt_table_entry entry;
   entry.dt_size = cpu_to_fdt32(fdt_size);
-  entry.dt_offset = cpu_to_fdt32(dt_offset);
+  entry.dt_offset = cpu_to_fdt32(fdt_info->dt_offset);
   entry.id = get_fdt32_from_number_or_prop(fdt, options->id);
   entry.rev = get_fdt32_from_number_or_prop(fdt, options->rev);
   entry.custom[0] = get_fdt32_from_number_or_prop(fdt, options->custom[0]);
@@ -217,9 +223,8 @@ static int32_t output_img_entry(FILE *img_fp, size_t entry_offset,
   fseek(img_fp, entry_offset, SEEK_SET);
   fwrite(&entry, sizeof(entry), 1, img_fp);
 
-  /* Output FDT */
-  if (!reuse_fdt) {
-    fseek(img_fp, dt_offset, SEEK_SET);
+  if (output_fdt) {
+    fseek(img_fp, fdt_info->dt_offset, SEEK_SET);
     fwrite(fdt, fdt_file_size, 1, img_fp);
     ret = fdt_file_size;
   } else {
@@ -232,15 +237,16 @@ end:
   return ret;
 }
 
-
 struct dt_image_writer *dt_image_writer_start(FILE *img_fp, uint32_t entry_count) {
-  struct dt_image_writer *writer = malloc(sizeof(struct dt_image_writer));
+  struct dt_image_writer *writer = NULL;
+  struct dt_image_writer_fdt_info *fdt_infos = NULL;
+
+  writer = malloc(sizeof(struct dt_image_writer));
   if (!writer) goto error;
-  writer->past_filenames = calloc(entry_count, sizeof(*writer->past_filenames));
-  if (!writer->past_filenames) goto error;
-  writer->past_dt_offsets =
-      calloc(entry_count, sizeof(*writer->past_dt_offsets));
-  if (!writer->past_dt_offsets) goto error;
+
+  fdt_infos = malloc(sizeof(struct dt_image_writer_fdt_info) * entry_count);
+  if (!fdt_infos) goto error;
+
   writer->img_fp = img_fp;
   init_dt_global_options(&writer->global_options);
   init_dt_options(&writer->entry_options);
@@ -249,14 +255,17 @@ struct dt_image_writer *dt_image_writer_start(FILE *img_fp, uint32_t entry_count
   writer->entry_offset = sizeof(struct dt_table_header);
   writer->dt_offset =
       writer->entry_offset + sizeof(struct dt_table_entry) * entry_count;
+  writer->fdt_infos = fdt_infos;
+  writer->fdt_info_count = 0;
+
   return writer;
 
 error:
   fprintf(stderr, "Unable to start writer\n");
-  if (!writer) return NULL;
-  if (writer->past_filenames) free(writer->past_filenames);
-  if (writer->past_dt_offsets) free(writer->past_dt_offsets);
-  free(writer);
+
+  if (fdt_infos) free(fdt_infos);
+  if (writer) free(writer);
+
   return NULL;
 }
 
@@ -299,37 +308,46 @@ int set_entry_options(struct dt_image_writer *writer,
   return set_dt_options(&writer->entry_options, option, value);
 }
 
+static struct dt_image_writer_fdt_info *search_fdt_info(
+    struct dt_image_writer *writer, const char *filename) {
+  for (uint32_t i = 0; i < writer->fdt_info_count; i++) {
+    struct dt_image_writer_fdt_info *fdt_info = &writer->fdt_infos[i];
+    if (strcmp(fdt_info->filename, filename) == 0) {
+      return fdt_info;
+    }
+  }
+  return NULL;
+}
+
+static struct dt_image_writer_fdt_info *add_fdt_info(
+    struct dt_image_writer *writer, const char *filename, uint32_t dt_offset) {
+  struct dt_image_writer_fdt_info *fdt_info =
+      &writer->fdt_infos[writer->fdt_info_count];
+
+  strncpy(fdt_info->filename, filename, sizeof(fdt_info->filename) - 1);
+  fdt_info->dt_offset = dt_offset;
+
+  writer->fdt_info_count++;
+
+  return fdt_info;
+}
+
 static int flush_entry_to_img(struct dt_image_writer *writer) {
   if (writer->entry_filename[0] == '\0') {
     return 0;
   }
 
-  int reuse_fdt;
-  int fdt_idx;
-  uint32_t dt_offset;
-
-  for (fdt_idx = 0; writer->past_filenames[fdt_idx][0] != '\0'; fdt_idx++) {
-    if (strcmp(writer->past_filenames[fdt_idx], writer->entry_filename) == 0)
-      break;
+  struct dt_image_writer_fdt_info *fdt_info =
+      search_fdt_info(writer, writer->entry_filename);
+  int output_fdt = (fdt_info == NULL);
+  if (fdt_info == NULL) {
+    fdt_info = add_fdt_info(writer, writer->entry_filename, writer->dt_offset);
   }
 
-  if (writer->past_filenames[fdt_idx][0] != '\0') {
-    reuse_fdt = 1;
-    dt_offset = writer->past_dt_offsets[fdt_idx];
-  } else {
-    reuse_fdt = 0;
-    dt_offset = writer->dt_offset;
-  }
-  int32_t dt_size = output_img_entry(writer->img_fp, writer->entry_offset,
-                                     dt_offset, writer->entry_filename,
-                                     &writer->entry_options, reuse_fdt);
+  int32_t dt_size =
+      output_img_entry(writer->img_fp, writer->entry_offset, fdt_info,
+                       &writer->entry_options, output_fdt);
   if (dt_size == -1) return -1;
-
-  if (!reuse_fdt) {
-    strncpy(writer->past_filenames[fdt_idx], writer->entry_filename,
-            sizeof(writer->past_filenames[fdt_idx]) - 1);
-    writer->past_dt_offsets[fdt_idx] = dt_offset;
-  }
 
   writer->entry_offset += sizeof(struct dt_table_entry);
   writer->dt_offset += dt_size;
@@ -375,8 +393,7 @@ int dt_image_writer_end(struct dt_image_writer *writer) {
   ret = 0;
 
 end:
-  free(writer->past_filenames);
-  free(writer->past_dt_offsets);
+  free(writer->fdt_infos);
   free(writer);
 
   return ret;
