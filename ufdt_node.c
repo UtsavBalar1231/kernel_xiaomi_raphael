@@ -45,10 +45,13 @@ void ufdt_node_destruct(struct ufdt_node *node, struct ufdt_node_pool *pool) {
   if (node == NULL) return;
 
   if (ufdt_node_tag(node) == FDT_BEGIN_NODE) {
-    ufdt_node_destruct(((struct ufdt_node_fdt_node *)node)->child, pool);
+    struct ufdt_node *it = ((struct ufdt_node_fdt_node *)node)->child;
+    while (it != NULL) {
+      struct ufdt_node *next = it->sibling;
+      ufdt_node_destruct(it, pool);
+      it = next;
+    }
   }
-
-  ufdt_node_destruct(node->sibling, pool);
 
   ufdt_node_pool_free(pool, node);
 }
