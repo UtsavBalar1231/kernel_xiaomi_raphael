@@ -15,6 +15,12 @@
 
 PROG_NAME=`basename $0`
 
+# Set to true to get more debug information
+DEBUG=false
+# Remove the comment to enable valgrind
+# Require build with $mmma external/valgrind
+#VALGRIND="valgrind --leak-check=yes --show-reachable=yes"
+
 function usage() {
   echo "Usage:"
   echo "  $PROG_NAME (--fdt|--ufdt) (--remote) <Base DTS> <Overlay DTS> <Output DTS>"
@@ -68,19 +74,27 @@ BASE_DTS_NAME=`basename "$BASE_DTS"`
 BASE_DTB_NAME="${BASE_DTS_NAME}-base.dtb"
 BASE_DTB="${TEMP_DIR}/${BASE_DTB_NAME}"
 dtc -@ -qq -O dtb -o "$BASE_DTB" "$BASE_DTS"
+if $DEBUG; then
+  echo "[base.dts]"
+  dtc -O dts "$BASE_DTB"
+fi
 
 # Compile the *-overlay.dts to make *-overlay.dtb
 OVERLAY_DTS_NAME=`basename "$OVERLAY_DTS"`
 OVERLAY_DTB_NAME="${OVERLAY_DTS_NAME}-overlay.dtb"
 OVERLAY_DTB="${TEMP_DIR}/${OVERLAY_DTB_NAME}"
 dtc -@ -qq -O dtb -o "$OVERLAY_DTB" "$OVERLAY_DTS"
+if $DEBUG; then
+  echo "[overlay.dts]"
+  dtc -O dts "$OVERLAY_DTB"
+fi
 
 # Run ufdt_apply_overlay to combine *-base.dtb and *-overlay.dtb
 # into *-merged.dtb
 MERGED_DTB_NAME="${BASE_DTS_NAME}-merged.dtb"
 MERGED_DTB="${TEMP_DIR}/${MERGED_DTB_NAME}"
 if [ -z "$REMOTE_PATH" ]; then
-  "$OVERLAY" "$BASE_DTB" "$OVERLAY_DTB" "$MERGED_DTB"
+  $VALGRIND "$OVERLAY" "$BASE_DTB" "$OVERLAY_DTB" "$MERGED_DTB"
 else
   adb push "$BASE_DTB" "$REMOTE_PATH" > /dev/null
   adb push "$OVERLAY_DTB" "$REMOTE_PATH" > /dev/null
@@ -104,3 +118,7 @@ fi
 
 # Dump
 dtc -s -O dts -o "$OUT_DTS" "$MERGED_DTB"
+if $DEBUG; then
+  echo "[merged.dts]"
+  cat $OUT_DTS
+fi
