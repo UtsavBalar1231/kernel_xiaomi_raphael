@@ -19,6 +19,9 @@
 #include "libufdt_sysdeps.h"
 #include "ufdt_types.h"
 
+/* Define DEBUG_DISABLE_POOL to use dto_malloc and dto_free directly */
+/* #define DEBUG_DISABLE_POOL */
+
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define UFDT_NODE_POOL_ENTRIES_PER_BLOCK 1024
@@ -171,6 +174,10 @@ static void _ufdt_node_pool_remove_block(
 }
 
 void *ufdt_node_pool_alloc(struct ufdt_node_pool *pool) {
+#ifdef DEBUG_DISABLE_POOL
+  return dto_malloc(UFDT_NODE_POOL_ENTRY_SIZE);
+#endif
+
   // return dto_malloc(UFDT_NODE_POOL_ENTRY_SIZE);
   // If there is no free block, create a new one
   struct ufdt_node_pool_block_header *block = pool->first_block;
@@ -209,6 +216,10 @@ static struct ufdt_node_pool_block_header **_ufdt_node_pool_search_block(
 }
 
 void ufdt_node_pool_free(struct ufdt_node_pool *pool, void *node) {
+#ifdef DEBUG_DISABLE_POOL
+  return dto_free(node);
+#endif
+
   struct ufdt_node_pool_block_header **block_ptr =
       _ufdt_node_pool_search_block(pool, node);
   if (*block_ptr == NULL) {
