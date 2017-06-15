@@ -75,7 +75,7 @@ void ufdt_node_pool_destruct(struct ufdt_node_pool *pool) {
     if (block->alloc_entry_cnt != 0) is_leak = 1;
 
     struct ufdt_node_pool_block_header *next_block = block->next_block;
-    if (!block->first_free_entry) dto_free(block);
+    dto_free(block);
     block = next_block;
   }
 
