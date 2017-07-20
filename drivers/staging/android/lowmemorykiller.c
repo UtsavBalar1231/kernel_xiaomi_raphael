@@ -87,9 +87,9 @@ static unsigned long lowmem_count(struct shrinker *s,
 }
 
 #ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE
-static struct task_struct *pick_next_from_adj_tree(struct task_struct *task);
-static struct task_struct *pick_first_task(void);
-static struct task_struct *pick_last_task(void);
+static inline struct task_struct *pick_next_from_adj_tree(struct task_struct *task);
+static inline struct task_struct *pick_first_task(void);
+static inline struct task_struct *pick_last_task(void);
 #endif
 
 static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
