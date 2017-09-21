@@ -24,6 +24,9 @@
 #include <linux/bitops.h>
 #include <linux/cpu.h>
 
+/* The anchor node sits above the top of the usable address space */
+#define IOVA_ANCHOR	~0UL
+
 static bool iova_rcache_insert(struct iova_domain *iovad,
 			       unsigned long pfn,
 			       unsigned long size);
@@ -54,6 +57,9 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->dma_32bit_pfn = pfn_32bit + 1;
 	iovad->flush_cb = NULL;
 	iovad->fq = NULL;
+	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
+	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
+	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
 	iovad->best_fit = false;
 	init_iova_rcaches(iovad);
 }
@@ -123,7 +129,7 @@ __get_cached_rbnode(struct iova_domain *iovad, unsigned long *limit_pfn)
 {
 	if ((*limit_pfn > iovad->dma_32bit_pfn) ||
 		(iovad->cached32_node == NULL))
-		return rb_last(&iovad->rbroot);
+		return rb_prev(&iovad->anchor.node);
 	else {
 		struct rb_node *prev_node = rb_prev(iovad->cached32_node);
 		struct iova *curr_iova =
@@ -350,7 +356,8 @@ EXPORT_SYMBOL(alloc_iova_mem);
 
 void free_iova_mem(struct iova *iova)
 {
-	kmem_cache_free(iova_cache, iova);
+	if (iova->pfn_lo != IOVA_ANCHOR)
+		kmem_cache_free(iova_cache, iova);
 }
 EXPORT_SYMBOL(free_iova_mem);
 
@@ -793,6 +800,10 @@ reserve_iova(struct iova_domain *iovad,
 	unsigned long flags;
 	struct iova *iova;
 	unsigned int overlap = 0;
+
+	/* Don't allow nonsensical pfns */
+	if (WARN_ON((pfn_hi | pfn_lo) > (ULLONG_MAX >> iova_shift(iovad))))
+		return NULL;
 
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	for (node = rb_first(&iovad->rbroot); node; node = rb_next(node)) {
