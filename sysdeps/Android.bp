@@ -15,6 +15,7 @@
 cc_library_static {
     name: "libufdt_sysdeps",
     host_supported: true,
+    cflags: ["-Wall", "-Werror"],
     srcs: ["libufdt_sysdeps_posix.c"],
     export_include_dirs: ["include"],
 }
