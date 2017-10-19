@@ -47,6 +47,8 @@
 #include "trace/lowmemorykiller.h"
 
 static u32 lowmem_debug_level = 1;
+extern int extra_free_kbytes;
+
 static short lowmem_adj[6] = {
 	0,
 	1,
@@ -117,7 +119,8 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	if (lowmem_minfree_size < array_size)
 		array_size = lowmem_minfree_size;
 	for (i = 0; i < array_size; i++) {
-		minfree = lowmem_minfree[i];
+		minfree = lowmem_minfree[i] +
+			  ((extra_free_kbytes * 1024) / PAGE_SIZE);
 		if (other_free < minfree && other_file < minfree) {
 			min_score_adj = lowmem_adj[i];
 			minfree_count_offset = i;
