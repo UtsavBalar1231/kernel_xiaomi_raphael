@@ -20,6 +20,7 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := ufdt_gen_test_dts
 LOCAL_SRC_FILES := ufdt_gen_test_dts.c
+LOCAL_CFLAGS := -Wall -Werror
 
 include $(BUILD_HOST_EXECUTABLE)
 
@@ -34,6 +35,7 @@ LOCAL_STATIC_LIBRARIES := \
     libfdt \
     libufdt_sysdeps
 LOCAL_REQUIRED_MODULES := dtc
+LOCAL_CFLAGS := -Wall -Werror
 
 include $(BUILD_HOST_EXECUTABLE)
 
@@ -48,6 +50,7 @@ LOCAL_STATIC_LIBRARIES := \
     libfdt \
     libufdt_sysdeps
 LOCAL_REQUIRED_MODULES := dtc
+LOCAL_CFLAGS := -Wall -Werror
 
 include $(BUILD_EXECUTABLE)
 
@@ -69,6 +72,7 @@ include $(BUILD_HOST_EXECUTABLE)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := extract_dtb
+LOCAL_CFLAGS := -Wall -Werror
 LOCAL_SRC_FILES := extract_dtb.c util.c
 LOCAL_STATIC_LIBRARIES := \
     libfdt \
@@ -87,6 +91,7 @@ LOCAL_STATIC_LIBRARIES := \
     libfdt \
     libufdt_sysdeps
 LOCAL_REQUIRED_MODULES := dtc
+LOCAL_CFLAGS := -Wall -Werror
 
 include $(BUILD_EXECUTABLE)
 
