@@ -409,6 +409,15 @@ struct ufs_hba_variant {
 	struct ufs_hba_pm_qos_variant_ops	*pm_qos_vops;
 };
 
+/* for manual gc */
+struct ufs_manual_gc {
+	int state;
+	struct hrtimer hrtimer;
+	unsigned long delay_ms;
+	struct work_struct hibern8_work;
+	struct workqueue_struct *mgc_workq;
+};
+
 struct keyslot_mgmt_ll_ops;
 struct ufs_hba_crypto_variant_ops {
 	void (*setup_rq_keyslot_manager)(struct ufs_hba *hba,
@@ -1144,6 +1153,8 @@ struct ufs_hba {
 	/* To monitor slow UFS I/O requests. */
 	u64 slowio_us;
 	u64 slowio_cnt;
+
+	struct ufs_manual_gc manual_gc;
 
 	bool reinit_g4_rate_A;
 	bool force_g4;
