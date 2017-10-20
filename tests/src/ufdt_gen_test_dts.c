@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
   if (filename) {
     fp = fopen(filename, "wt");
     if (fp == NULL) {
-      fprintf(stderr, "Can not create file: ", filename);
+      fprintf(stderr, "Can not create file: %s\n", filename);
       return -1;
     }
   }
