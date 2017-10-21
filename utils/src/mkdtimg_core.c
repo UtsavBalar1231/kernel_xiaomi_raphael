@@ -199,7 +199,7 @@ static int32_t output_img_entry(FILE *img_fp, size_t entry_offset,
   }
 
   if (fdt_check_header(fdt) != 0) {
-    fprintf(stderr, "Bad FDT header: \n", fdt_info->filename);
+    fprintf(stderr, "Bad FDT header: %s\n", fdt_info->filename);
     goto end;
   }
 
