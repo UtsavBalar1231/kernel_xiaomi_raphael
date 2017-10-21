@@ -19,6 +19,7 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := mkdtimg
+LOCAL_CFLAGS := -Wall -Werror
 LOCAL_SRC_FILES := \
 	mkdtimg.c \
 	mkdtimg_cfg_create.c \
