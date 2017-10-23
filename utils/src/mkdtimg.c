@@ -119,6 +119,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  const char *command = argv[1];
   const struct command_info *info = search_command(argv[1]);
   if (info == NULL) {
     return 1;
