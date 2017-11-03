@@ -163,7 +163,10 @@ static int dump_image_from_fp(FILE *out_fp, FILE *img_fp,
   for (i = 0; i < entry_count; i++) {
     struct dt_table_entry entry;
     fseek(img_fp, entry_offset, SEEK_SET);
-    fread(&entry, sizeof(entry), 1, img_fp);
+    if (fread(&entry, sizeof(entry), 1, img_fp) != 1) {
+      fprintf(stderr, "Read dt_table_entry error.\n");
+      return -1;
+    }
     output_table_entry(out_fp, i, &entry);
 
     uint32_t dt_size = fdt32_to_cpu(entry.dt_size);
