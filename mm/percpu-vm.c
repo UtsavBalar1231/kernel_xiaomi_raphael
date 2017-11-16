@@ -86,7 +86,7 @@ static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
 	unsigned int cpu, tcpu;
 	int i;
 
-	gfp |= GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
+	gfp |= GFP_KERNEL | __GFP_HIGHMEM;
 
 	for_each_possible_cpu(cpu) {
 		for (i = page_start; i < page_end; i++) {
