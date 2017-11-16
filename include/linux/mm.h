@@ -1733,11 +1733,21 @@ static inline int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd,
 {
 	return 0;
 }
+
+static inline unsigned long mm_nr_puds(const struct mm_struct *mm)
+{
+	return 0;
+}
+
+static inline void mm_nr_puds_init(struct mm_struct *mm) {}
+static inline void mm_inc_nr_puds(struct mm_struct *mm) {}
+static inline void mm_dec_nr_puds(struct mm_struct *mm) {}
+
 #else
 int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
 #endif
 
-#ifdef __PAGETABLE_PUD_FOLDED
+#if defined(__PAGETABLE_PUD_FOLDED) || !defined(CONFIG_MMU)
 static inline int __pud_alloc(struct mm_struct *mm, p4d_t *p4d,
 						unsigned long address)
 {
@@ -1745,6 +1755,26 @@ static inline int __pud_alloc(struct mm_struct *mm, p4d_t *p4d,
 }
 #else
 int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address);
+
+static inline void mm_nr_puds_init(struct mm_struct *mm)
+{
+	atomic_long_set(&mm->nr_puds, 0);
+}
+
+static inline unsigned long mm_nr_puds(const struct mm_struct *mm)
+{
+	return atomic_long_read(&mm->nr_puds);
+}
+
+static inline void mm_inc_nr_puds(struct mm_struct *mm)
+{
+	atomic_long_inc(&mm->nr_puds);
+}
+
+static inline void mm_dec_nr_puds(struct mm_struct *mm)
+{
+	atomic_long_dec(&mm->nr_puds);
+}
 #endif
 
 #if defined(__PAGETABLE_PMD_FOLDED) || !defined(CONFIG_MMU)
@@ -1756,7 +1786,7 @@ static inline int __pmd_alloc(struct mm_struct *mm, pud_t *pud,
 
 static inline void mm_nr_pmds_init(struct mm_struct *mm) {}
 
-static inline unsigned long mm_nr_pmds(struct mm_struct *mm)
+static inline unsigned long mm_nr_pmds(const struct mm_struct *mm)
 {
 	return 0;
 }
@@ -1772,7 +1802,7 @@ static inline void mm_nr_pmds_init(struct mm_struct *mm)
 	atomic_long_set(&mm->nr_pmds, 0);
 }
 
-static inline unsigned long mm_nr_pmds(struct mm_struct *mm)
+static inline unsigned long mm_nr_pmds(const struct mm_struct *mm)
 {
 	return atomic_long_read(&mm->nr_pmds);
 }
