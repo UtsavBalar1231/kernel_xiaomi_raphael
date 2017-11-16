@@ -261,7 +261,7 @@ static inline unsigned int optimal_redzone(unsigned int object_size)
 }
 
 void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
-			unsigned long *flags)
+			slab_flags_t *flags)
 {
 	unsigned int orig_size = *size;
 	unsigned int redzone_size;
