@@ -21,7 +21,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := mkdtimg
 ifeq ($(HOST_OS),darwin)
 # No -Werror for darwin yet. Need to fix/suppress more warnings.
-LOCAL_CFLAGS := -Wall
+LOCAL_CFLAGS := -Wall -Wno-error=format
 else
 LOCAL_CFLAGS := -Wall -Werror
 endif
