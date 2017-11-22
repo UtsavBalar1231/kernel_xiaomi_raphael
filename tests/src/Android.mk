@@ -14,11 +14,9 @@
 
 LOCAL_PATH:= $(call my-dir)
 
-ifeq ($(HOST_OS),darwin)
-# No -Werror for darwin yet. Need to fix/suppress more warnings.
-libufdt_tests_cflags := -Wall
-else
 libufdt_tests_cflags := -Wall -Werror
+ifeq ($(HOST_OS),darwin)
+libufdt_tests_cflags += -Wno-error=format
 endif
 
 ###################################################
