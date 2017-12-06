@@ -28,9 +28,9 @@
  */
 
 #include "ufdt_overlay.h"
-
 #include "libufdt.h"
 #include "ufdt_node_pool.h"
+#include "ufdt_overlay_internal.h"
 
 /*
  * The original version of fdt_overlay.c is slow in searching for particular
@@ -127,7 +127,7 @@ static void ufdt_try_increase_phandle(struct ufdt *tree, uint32_t offset) {
  * "property"=<1, 2, &ref, 4>, we can use /path/to/node:property:8 to get ref,
  * where 8 is sizeof(uint32) + sizeof(unit32).
  */
-static void *ufdt_get_fixup_location(struct ufdt *tree, const char *fixup) {
+void *ufdt_get_fixup_location(struct ufdt *tree, const char *fixup) {
   char *path, *prop_ptr, *offset_ptr, *end_ptr;
   int prop_offset, prop_len;
   const char *prop_data;
@@ -203,8 +203,8 @@ fail:
  * @fixups_len length of the fixups array in bytes.
  * @phandle is value for these locations.
  */
-static int ufdt_do_one_fixup(struct ufdt *tree, const char *fixups,
-                             int fixups_len, int phandle) {
+int ufdt_do_one_fixup(struct ufdt *tree, const char *fixups, int fixups_len,
+                      int phandle) {
   void *fixup_pos;
   uint32_t val;
 
@@ -229,8 +229,7 @@ static int ufdt_do_one_fixup(struct ufdt *tree, const char *fixups,
  * Handle __fixups__ node in overlay tree.
  */
 
-static int ufdt_overlay_do_fixups(struct ufdt *main_tree,
-                                  struct ufdt *overlay_tree) {
+int ufdt_overlay_do_fixups(struct ufdt *main_tree, struct ufdt *overlay_tree) {
   int len = 0;
   struct ufdt_node *overlay_fixups_node =
       ufdt_get_node_by_path(overlay_tree, "/__fixups__");
