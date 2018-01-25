@@ -15,6 +15,7 @@
  */
 
 #include <string>
+#include <unordered_map>
 
 extern "C" {
 
@@ -297,43 +298,121 @@ static int ufdt_overlay_verify_fragments(struct ufdt *final_tree,
     return 0;
 }
 
-static int ufdt_overlay_verify(struct ufdt *final_tree, struct ufdt *overlay_tree,
-                               struct ufdt_node_pool *pool) {
-    if (ufdt_overlay_do_fixups_and_combine(final_tree, overlay_tree, pool) < 0) {
-        dto_error("failed to perform fixups in overlay\n");
+/*
+ * Examine target nodes for fragments in all overlays and combine ones with the
+ * same target.
+ */
+static void ufdt_overlay_combine_common_nodes(struct ufdt** overlay_trees, size_t overlay_count,
+                                              struct ufdt_node_pool* pool) {
+    std::unordered_map<uint32_t, ufdt_node*> phandlemap;
+    uint32_t target = 0;
+    for (size_t i = 0; i < overlay_count; i++) {
+        struct ufdt_node **it = nullptr;
+        for_each_node(it, (overlay_trees[i]->root)) {
+            const void* val = ufdt_node_get_fdt_prop_data_by_name(*it, "target", NULL);
+            if (val) {
+                dto_memcpy(&target, val, sizeof(target));
+                target = fdt32_to_cpu(target);
+                if (phandlemap.find(target) != phandlemap.end()) {
+                    ufdt_node_merge_into(phandlemap[target], *it, pool);
+                } else {
+                    phandlemap[target] = *it;
+                }
+            }
+        }
+    }
+}
+
+/*
+ * Makes sure that all phandles in the overlays are unique since they will be
+ * combined before verification.
+ */
+int ufdt_resolve_duplicate_phandles(ufdt** overlay_tree, size_t overlay_count) {
+  size_t phandle_offset = 0;
+  for (size_t i = 0; i < overlay_count; i++) {
+        ufdt_try_increase_phandle(overlay_tree[i], phandle_offset);
+        if (ufdt_overlay_do_local_fixups(overlay_tree[i], phandle_offset) < 0) {
+            return -1;
+        }
+        phandle_offset = ufdt_get_max_phandle(overlay_tree[i]);
+  }
+
+  return 0;
+}
+
+/*
+ * Combines all overlays into a single tree at overlay_trees[0]
+ */
+int ufdt_combine_all_overlays(struct ufdt** overlay_trees, size_t overlay_count,
+                              struct ufdt* final_tree, struct ufdt_node_pool* pool) {
+    struct ufdt* combined_overlay_tree = nullptr;
+
+    if (!overlay_trees || !overlay_count || !final_tree || !pool) {
         return -1;
     }
 
-    if (ufdt_overlay_verify_fragments(final_tree, overlay_tree) < 0) {
-        dto_error("failed to apply fragments\n");
+    /*
+     * If there are duplicate phandles amongst the overlays, replace them with
+     * unique ones.
+     */
+    if (ufdt_resolve_duplicate_phandles(overlay_trees, overlay_count) < 0) {
         return -1;
     }
+
+    /*
+     * For each overlay, perform fixup for each fragment and combine the
+     * fragments that have the same target node.
+     */
+    for (size_t i = 0; i < overlay_count; i++) {
+        if (ufdt_overlay_do_fixups_and_combine(final_tree, overlay_trees[i], pool) < 0) {
+            dto_error("failed to perform fixups in overlay\n");
+            return -1;
+        }
+    }
+
+    /*
+     * Iterate through each overlay and combine all nodes with the same target
+     * node.
+     */
+    ufdt_overlay_combine_common_nodes(overlay_trees, overlay_count, pool);
+
+    /*
+     * Combine all overlays into the tree at overlay_trees[0] for easy
+     * verification.
+     */
+    combined_overlay_tree = overlay_trees[0];
+    struct ufdt_node* combined_root_node = combined_overlay_tree->root;
+
+    for (size_t i = 1; i < overlay_count; i++) {
+        struct ufdt_node** it = nullptr;
+        struct ufdt_node* root_node = overlay_trees[i]->root;
+        for_each_node(it, root_node) {
+            ufdt_node_add_child(combined_root_node, *it);
+        }
+        ((struct ufdt_node_fdt_node *)root_node)->child = nullptr;
+    }
+
+    /*
+     * Rebuild the phandle_table for the combined tree.
+     */
+    combined_overlay_tree->phandle_table = build_phandle_table(combined_overlay_tree);
 
     return 0;
 }
 
 int ufdt_verify_dtbo(struct fdt_header* final_fdt_header,
-                     size_t final_fdt_size, void* overlay_fdtp, size_t overlay_size) {
+                     size_t final_fdt_size, void** overlay_arr,
+                     size_t overlay_count) {
     const size_t min_fdt_size = 8;
     struct ufdt_node_pool pool;
     struct ufdt* final_tree = nullptr;
-    struct ufdt* overlay_tree = nullptr;
+    struct ufdt** overlay_trees = nullptr;
     int result = 1;
 
     if (final_fdt_header == NULL) {
         goto fail;
     }
 
-    if (overlay_size < sizeof(struct fdt_header)) {
-        dto_error("Overlay_length %zu smaller than header size %zu\n",
-                  overlay_size, sizeof(struct fdt_header));
-        goto fail;
-    }
-
-    if (overlay_size < min_fdt_size || overlay_size != fdt_totalsize(overlay_fdtp)) {
-        dto_error("Bad overlay size!\n");
-        goto fail;
-    }
     if (final_fdt_size < min_fdt_size || final_fdt_size != fdt_totalsize(final_fdt_header)) {
         dto_error("Bad fdt size!\n");
         goto fail;
@@ -341,12 +420,33 @@ int ufdt_verify_dtbo(struct fdt_header* final_fdt_header,
 
     ufdt_node_pool_construct(&pool);
     final_tree = ufdt_from_fdt(final_fdt_header, final_fdt_size, &pool);
-    overlay_tree = ufdt_from_fdt(overlay_fdtp, overlay_size, &pool);
 
-    result = ufdt_overlay_verify(final_tree, overlay_tree, &pool);
-    ufdt_destruct(overlay_tree, &pool);
+    overlay_trees = new ufdt*[overlay_count];
+    for (size_t i = 0; i < overlay_count; i++) {
+        size_t fdt_size = fdt_totalsize(overlay_arr[i]);
+        overlay_trees[i] = ufdt_from_fdt(overlay_arr[i], fdt_size, &pool);
+    }
+
+    if (ufdt_combine_all_overlays(overlay_trees, overlay_count, final_tree, &pool) < 0) {
+        dto_error("Unable to combine overlays\n");
+        goto fail;
+    }
+    if (ufdt_overlay_verify_fragments(final_tree, overlay_trees[0]) < 0) {
+        dto_error("Failed to verify overlay application\n");
+        goto fail;
+    } else {
+        result = 0;
+    }
+
+fail:
+    if (overlay_trees) {
+        for (size_t i = 0; i < overlay_count; i++) {
+            ufdt_destruct(overlay_trees[i], &pool);
+        }
+        delete[] overlay_trees;
+    }
+
     ufdt_destruct(final_tree, &pool);
     ufdt_node_pool_destruct(&pool);
-fail:
     return result;
 }
