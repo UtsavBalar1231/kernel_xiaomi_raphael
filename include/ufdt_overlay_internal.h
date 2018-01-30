@@ -24,4 +24,16 @@ int ufdt_do_one_fixup(struct ufdt *tree, const char *fixups, int fixups_len,
                       int phandle);
 int ufdt_overlay_do_fixups(struct ufdt *main_tree, struct ufdt *overlay_tree);
 
+enum overlay_result {
+  OVERLAY_RESULT_OK,
+  OVERLAY_RESULT_MISSING_TARGET,
+  OVERLAY_RESULT_MISSING_OVERLAY,
+  OVERLAY_RESULT_TARGET_PATH_INVALID,
+  OVERLAY_RESULT_TARGET_INVALID,
+  OVERLAY_RESULT_MERGE_FAIL,
+  OVERLAY_RESULT_VERIFY_FAIL,
+};
+enum overlay_result ufdt_overlay_get_target(struct ufdt *tree,
+                                            struct ufdt_node *frag_node,
+                                            struct ufdt_node **target_node);
 #endif /* UFDT_OVERLAY_INTERNAL_H */
