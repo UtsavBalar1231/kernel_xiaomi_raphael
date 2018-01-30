@@ -63,7 +63,6 @@ LOCAL_REQUIRED_MODULES := dtc
 include $(BUILD_EXECUTABLE)
 
 ###################################################
-
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := fdt_apply_overlay
@@ -106,5 +105,20 @@ LOCAL_STATIC_LIBRARIES := \
 LOCAL_REQUIRED_MODULES := dtc
 
 include $(BUILD_EXECUTABLE)
+
+###################################################
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := ufdt_verify_overlay_host
+LOCAL_CFLAGS := $(libufdt_tests_cflags)
+LOCAL_SRC_FILES := ufdt_verify_overlay_app.cpp
+LOCAL_STATIC_LIBRARIES := \
+    libufdt \
+    libfdt \
+    libufdt_sysdeps \
+	libufdt_verify
+LOCAL_REQUIRED_MODULES := dtc libufdt_verify
+
+include $(BUILD_HOST_EXECUTABLE)
 
 ###################################################

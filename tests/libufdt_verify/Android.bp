@@ -1,4 +1,4 @@
-// Copyright (C) 2016 The Android Open Source Project
+// Copyright (C) 2018 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-subdirs = [
-    "sysdeps",
-    "tests/libufdt_verify",
-]
-
 cc_library_static {
-    name: "libufdt",
+    name: "libufdt_verify",
     host_supported: true,
     srcs: [
-        "ufdt_overlay.c",
-        "ufdt_convert.c",
-        "ufdt_node.c",
-        "ufdt_node_pool.c",
-        "ufdt_prop_dict.c",
+        "ufdt_test_overlay.cpp",
     ],
     cflags: ["-Wall", "-Werror"],
     export_include_dirs: ["include"],
     static_libs: [
         "libfdt",
         "libufdt_sysdeps",
+        "libufdt",
     ],
 }
