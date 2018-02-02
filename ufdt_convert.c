@@ -230,7 +230,7 @@ struct ufdt_node *ufdt_get_node_by_phandle(struct ufdt *tree,
     else
       s = mid;
   }
-  if (e - s > 0) {
+  if (e - s > 0 && tree->phandle_table.data[s].phandle == phandle) {
     res = tree->phandle_table.data[s].node;
   }
   return res;
