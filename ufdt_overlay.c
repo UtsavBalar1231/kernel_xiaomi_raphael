@@ -318,18 +318,41 @@ static int ufdt_overlay_node(struct ufdt_node *target_node,
   return ufdt_node_merge_into(target_node, overlay_node, pool);
 }
 
-/*
- * Return value of ufdt_apply_fragment().
- */
+enum overlay_result ufdt_overlay_get_target(struct ufdt *tree,
+                                            struct ufdt_node *frag_node,
+                                            struct ufdt_node **target_node) {
+  uint32_t target;
+  const char *target_path;
+  const void *val;
+  *target_node = NULL;
 
-enum overlay_result {
-  OVERLAY_RESULT_OK,
-  OVERLAY_RESULT_MISSING_TARGET,
-  OVERLAY_RESULT_MISSING_OVERLAY,
-  OVERLAY_RESULT_TARGET_PATH_INVALID,
-  OVERLAY_RESULT_TARGET_INVALID,
-  OVERLAY_RESULT_MERGE_FAIL,
-};
+  val = ufdt_node_get_fdt_prop_data_by_name(frag_node, "target", NULL);
+  if (val) {
+    dto_memcpy(&target, val, sizeof(target));
+    target = fdt32_to_cpu(target);
+    *target_node = ufdt_get_node_by_phandle(tree, target);
+    if (*target_node == NULL) {
+      dto_error("failed to find target %04x\n", target);
+      return OVERLAY_RESULT_TARGET_INVALID;
+    }
+  }
+
+  if (*target_node == NULL) {
+    target_path =
+        ufdt_node_get_fdt_prop_data_by_name(frag_node, "target-path", NULL);
+    if (target_path == NULL) {
+      return OVERLAY_RESULT_MISSING_TARGET;
+    }
+
+    *target_node = ufdt_get_node_by_path(tree, target_path);
+    if (*target_node == NULL) {
+      dto_error("failed to find target-path %s\n", target_path);
+      return OVERLAY_RESULT_TARGET_PATH_INVALID;
+    }
+  }
+
+  return OVERLAY_RESULT_OK;
+}
 
 /*
  * Apply one overlay fragment (subtree).
@@ -337,35 +360,13 @@ enum overlay_result {
 static enum overlay_result ufdt_apply_fragment(struct ufdt *tree,
                                                struct ufdt_node *frag_node,
                                                struct ufdt_node_pool *pool) {
-  uint32_t target;
-  const char *target_path;
-  const void *val;
   struct ufdt_node *target_node = NULL;
   struct ufdt_node *overlay_node = NULL;
 
-  val = ufdt_node_get_fdt_prop_data_by_name(frag_node, "target", NULL);
-  if (val) {
-    dto_memcpy(&target, val, sizeof(target));
-    target = fdt32_to_cpu(target);
-    target_node = ufdt_get_node_by_phandle(tree, target);
-    if (target_node == NULL) {
-      dto_error("failed to find target %04x\n", target);
-      return OVERLAY_RESULT_TARGET_INVALID;
-    }
-  }
-
+  enum overlay_result result =
+      ufdt_overlay_get_target(tree, frag_node, &target_node);
   if (target_node == NULL) {
-    target_path =
-        ufdt_node_get_fdt_prop_data_by_name(frag_node, "target-path", NULL);
-    if (target_path == NULL) {
-      return OVERLAY_RESULT_MISSING_TARGET;
-    }
-
-    target_node = ufdt_get_node_by_path(tree, target_path);
-    if (target_node == NULL) {
-      dto_error("failed to find target-path %s\n", target_path);
-      return OVERLAY_RESULT_TARGET_PATH_INVALID;
-    }
+    return result;
   }
 
   overlay_node = ufdt_node_get_node_by_path(frag_node, "__overlay__");
