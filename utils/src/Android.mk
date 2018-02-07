@@ -38,6 +38,15 @@ LOCAL_CXX_STL := none
 
 include $(BUILD_HOST_EXECUTABLE)
 
-###################################################
-
 $(call dist-for-goals, dist_files, $(ALL_MODULES.mkdtimg.BUILT):libufdt/mkdtimg)
+###################################################
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := mkdtboimg.py
+LOCAL_SRC_FILES := mkdtboimg.py
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_IS_HOST_MODULE := true
+LOCAL_MODULE_TAGS := optional
+
+include $(BUILD_PREBUILT)
+
