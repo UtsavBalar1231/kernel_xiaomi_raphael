@@ -33,7 +33,12 @@ enum overlay_result {
   OVERLAY_RESULT_MERGE_FAIL,
   OVERLAY_RESULT_VERIFY_FAIL,
 };
+
 enum overlay_result ufdt_overlay_get_target(struct ufdt *tree,
                                             struct ufdt_node *frag_node,
                                             struct ufdt_node **target_node);
+void ufdt_try_increase_phandle(struct ufdt *tree, uint32_t offset);
+uint32_t ufdt_get_max_phandle(struct ufdt *tree);
+struct ufdt_static_phandle_table build_phandle_table(struct ufdt *tree);
+int ufdt_overlay_do_local_fixups(struct ufdt *tree, uint32_t phandle_offset);
 #endif /* UFDT_OVERLAY_INTERNAL_H */
