@@ -45,9 +45,9 @@ size_t read_file_to_buf(const char *filename, char** buf) {
 }
 
 int verify_overlay_files(const char *final_filename,
-                         const char *overlay_filename) {
-    char *final_buf = nullptr;
-    char *overlay_buf = nullptr;
+                         char** overlay_filenames, size_t overlay_count) {
+    char* final_buf = nullptr;
+    void** overlay_buf_array = new void*[overlay_count];
     struct fdt_header *blob = nullptr;
     int result = 1;
     size_t final_size = 0, overlay_size = 0;
@@ -58,10 +58,13 @@ int verify_overlay_files(const char *final_filename,
         goto end;
     }
 
-    overlay_size = read_file_to_buf(overlay_filename, &overlay_buf);
-    if (overlay_size == 0) {
-        fprintf(stderr, "Cannot load DTB Overlay: %s\n", overlay_filename);
-        goto end;
+    for (size_t i = 0; i < overlay_count; i++) {
+        overlay_size = read_file_to_buf(overlay_filenames[i],
+                                        reinterpret_cast<char**>(&overlay_buf_array[i]));
+        if (overlay_size == 0) {
+            fprintf(stderr, "Cannot load DTB Overlay: %s\n", overlay_filenames[i]);
+            goto end;
+        }
     }
 
     blob = ufdt_install_blob(final_buf, final_size);
@@ -70,29 +73,37 @@ int verify_overlay_files(const char *final_filename,
         goto end;
     }
 
-    result = ufdt_verify_dtbo(blob, final_size, overlay_buf, overlay_size);
+    result = ufdt_verify_dtbo(blob, final_size, overlay_buf_array, overlay_count);
 
     if (result != 0) {
-        fprintf(stderr, "bad overlay error: %s\n", overlay_filename);
+        fprintf(stderr, "bad overlay error");
     }
 
 end:
     // Do not dto_free(blob) - it's the same as final_buf.
-    if (overlay_buf) dto_free(overlay_buf);
+    for (size_t i = 0; i < overlay_count; i++) {
+        if (overlay_buf_array[i]) dto_free(overlay_buf_array[i]);
+    }
+    delete[] overlay_buf_array;
+
     if (final_buf) dto_free(final_buf);
 
     return result;
 }
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    fprintf(stderr, "Usage: %s <final_file> <overlay_file>\n", argv[0]);
-    return 1;
-  }
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <final_file> <overlay_file1> <overlay_file2> ..\n", argv[0]);
+        return 1;
+    }
 
-  const char *final_file = argv[1];
-  const char *overlay_file = argv[2];
-  int ret = verify_overlay_files(final_file, overlay_file);
+    const char *final_file = argv[1];
+    char** overlay_file_names = new char*[argc - 2];
 
-  return ret == 0 ? ret : 1;
+    for(int argv_idx = 2; argv_idx < argc; argv_idx++) {
+        overlay_file_names[argv_idx - 2] = argv[argv_idx];
+    }
+    int ret = verify_overlay_files(final_file, overlay_file_names, argc - 2);
+
+    return ret == 0 ? ret : 1;
 }

@@ -67,7 +67,7 @@ static void fdt_increase_u32(void *pos, uint32_t offset) {
 /*
  * Gets the max phandle of a given ufdt.
  */
-static uint32_t ufdt_get_max_phandle(struct ufdt *tree) {
+uint32_t ufdt_get_max_phandle(struct ufdt *tree) {
   struct ufdt_static_phandle_table sorted_table = tree->phandle_table;
   if (sorted_table.len > 0)
     return sorted_table.data[sorted_table.len - 1].phandle;
@@ -96,7 +96,7 @@ static void ufdt_node_try_increase_phandle(struct ufdt_node *node,
  * Increases all phandles by offset in a ufdt
  * in O(n) time.
  */
-static void ufdt_try_increase_phandle(struct ufdt *tree, uint32_t offset) {
+void ufdt_try_increase_phandle(struct ufdt *tree, uint32_t offset) {
   struct ufdt_static_phandle_table sorted_table = tree->phandle_table;
   int i;
 
@@ -517,8 +517,7 @@ static int ufdt_local_fixup_node(struct ufdt_node *target_node,
  * which follows the dtc patch from:
  * https://marc.info/?l=devicetree&m=144061468601974&w=4
  */
-static int ufdt_overlay_do_local_fixups(struct ufdt *tree,
-                                        uint32_t phandle_offset) {
+int ufdt_overlay_do_local_fixups(struct ufdt *tree, uint32_t phandle_offset) {
   struct ufdt_node *overlay_node = ufdt_get_node_by_path(tree, "/");
   struct ufdt_node *local_fixups_node =
       ufdt_get_node_by_path(tree, "/__local_fixups__");

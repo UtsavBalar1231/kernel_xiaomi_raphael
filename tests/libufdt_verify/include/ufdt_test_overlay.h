@@ -23,15 +23,15 @@ extern "C" {
 
 /*
  * Verifies that the FDT described by 'main_fdt_header' has been correctly
- * overlaid by the overlays described in 'overlay_fdtp'.
+ * overlaid by the overlays contained in 'overlay_array'
  *
  * @param main_fdt_header Buffer describing the final FDT.
  * @param main_fdt_size Size of main_fdt_header.
- * @param overlay_fdtp Buffer describing the overlay FDT.
- * @param overlay_size Size of overlay_fdtp.
+ * @param overlay_array Array of buffers containg overlay FDTs.
+ * @param overlay_count Number of overlays.
  *
  * @return Will return 0 if the verification is successful.
  */
 int ufdt_verify_dtbo(struct fdt_header *main_fdt_header, size_t main_fdt_size,
-                     void *overlay_fdtp, size_t overlay_size);
+                     void **overlay_array, size_t overlay_count);
 #endif /* UFDT_TEST_OVERLAY_H */
