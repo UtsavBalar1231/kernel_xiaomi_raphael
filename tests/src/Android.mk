@@ -116,8 +116,8 @@ LOCAL_STATIC_LIBRARIES := \
     libufdt \
     libfdt \
     libufdt_sysdeps \
-	libufdt_verify
-LOCAL_REQUIRED_MODULES := dtc libufdt_verify
+    libufdt_verify
+LOCAL_REQUIRED_MODULES := dtc
 
 include $(BUILD_HOST_EXECUTABLE)
 
