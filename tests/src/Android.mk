@@ -122,3 +122,18 @@ LOCAL_REQUIRED_MODULES := dtc
 include $(BUILD_HOST_EXECUTABLE)
 
 ###################################################
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := ufdt_verify_overlay
+LOCAL_CFLAGS := $(libufdt_tests_cflags)
+LOCAL_SRC_FILES := ufdt_verify_overlay_app.cpp
+LOCAL_STATIC_LIBRARIES := \
+    libufdt \
+    libfdt \
+    libufdt_sysdeps \
+    libufdt_verify
+LOCAL_REQUIRED_MODULES := dtc
+
+include $(BUILD_NATIVE_TEST)
+
+###################################################
