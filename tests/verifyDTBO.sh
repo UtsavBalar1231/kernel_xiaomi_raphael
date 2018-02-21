@@ -5,7 +5,7 @@ if [ -z "${ANDROID_HOST_OUT}" ]; then
   exit 1
 fi
 
-ANDROID_VTS_HOST_BIN_LOCATION=${ANDROID_HOST_OUT}/vts/android-vts/testcases/host/bin
+ANDROID_HOST_BIN_LOCATION=${ANDROID_HOST_OUT}/bin
 
 adb root
 
@@ -24,15 +24,20 @@ adb pull $dtbo_path dtbo.img > /dev/null
 adb pull /sys/firmware/fdt final_dt > /dev/null
 
 #decompile the DTBO image
-mkdtimg_path="${ANDROID_VTS_HOST_BIN_LOCATION}/mkdtimg"
+mkdtimg_path="${ANDROID_HOST_BIN_LOCATION}/mkdtimg"
 $mkdtimg_path dump dtbo.img -b dumped_dtbo > /dev/null
 
 #Get the index of the overlay applied from the kernel command line
-overlay_idx=$(adb shell cat /proc/cmdline | grep -o "androidboot.dtbo_idx=\w*" | cut -d "=" -f 2)
+overlay_idx=$(adb shell cat /proc/cmdline | grep -o "androidboot.dtbo_idx=[^ ]*" | cut -d "=" -f 2)
+arg=""
+for idx in ${overlay_idx//,/ }
+do
+  arg="${arg}dumped_dtbo.${idx} "
+done
 
 #verify that the overlay was correctly applied
-verify_bin_path="${ANDROID_VTS_HOST_BIN_LOCATION}/ufdt_verify_overlay_host"
-$verify_bin_path final_dt dumped_dtbo.$overlay_idx
+verify_bin_path="${ANDROID_HOST_BIN_LOCATION}/ufdt_verify_overlay_host"
+$verify_bin_path final_dt $arg
 result=$?
 
 if [[ "$result" -eq "0" ]]; then
