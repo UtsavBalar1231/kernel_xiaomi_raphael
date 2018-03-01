@@ -198,49 +198,56 @@ fail:
 }
 
 /*
- * Method to combine fragments fixing up to the same target node.
+ * Creates a table of node paths to their corresponding phandles by walking
+ * through the 'symbols' node of the main device tree. The table would be
+ * used in combining overlay nodes that map to the same nodes in the
+ * main device tree.
  */
-static void ufdt_combine_one_fixup(struct ufdt *tree, const char *fixups,
-                                  int fixups_len, struct ufdt_node_pool *pool) {
-    struct ufdt_node* prev_node = NULL;
-
-    while (fixups_len > 0) {
-        ufdt_combine_fixup(tree, fixups, &prev_node, pool);
-        fixups_len -= dto_strlen(fixups) + 1;
-        fixups += dto_strlen(fixups) + 1;
+void create_path_phandle_map(std::unordered_map<uint32_t, std::string>* phandle_path_map,
+                             struct ufdt* main_tree) {
+    int len = 0;
+    struct ufdt_node *main_symbols_node =
+            ufdt_get_node_by_path(main_tree, "/__symbols__");
+    if (!main_symbols_node) {
+        dto_error("No node __symbols__ in main dtb.\n");
+        return;
     }
 
-    return;
+    struct ufdt_node **it = nullptr;
+    for_each_prop(it, main_symbols_node) {
+        const char* symbol_path = ufdt_node_get_fdt_prop_data(*it, &len);
+        struct ufdt_node* symbol_node = ufdt_get_node_by_path(main_tree, symbol_path);
+        uint32_t phandle = ufdt_node_get_phandle(symbol_node);
+        (*phandle_path_map)[phandle] = std::string(symbol_path);
+    }
 }
 
 /*
- * Handle __fixups__ node in overlay tree. Majority of the code reused from
- * ufdt_overlay.c
+ * Recursively checks whether a node from another overlay fragment had overlaid the
+ * target node and if so merges the node into the previous node.
  */
-static int ufdt_overlay_do_fixups_and_combine(struct ufdt *final_tree,
-                                              struct ufdt *overlay_tree,
-                                              struct ufdt_node_pool *pool) {
-    if (ufdt_overlay_do_fixups(final_tree, overlay_tree)) {
-        return -1;
+static void combine_overlay_node(std::unordered_map<std::string,
+                                 struct ufdt_node*>* path_node_map,
+                                 std::string path,
+                                 struct ufdt_node* node,
+                                 struct ufdt_node_pool* pool) {
+    struct ufdt_node **it = nullptr;
+    for_each_node(it, node) {
+        //skips properties
+        if (ufdt_node_tag(*it) == FDT_BEGIN_NODE) {
+            combine_overlay_node(path_node_map, path + "/" + ufdt_node_name(*it), *it, pool);
+        }
     }
 
-    int len = 0;
-    struct ufdt_node *overlay_fixups_node =
-            ufdt_get_node_by_path(overlay_tree, "/__fixups__");
-
-    /*
-     * Combine all fragments with the same fixup.
-     */
-
-    struct ufdt_node** it;
-    for_each_prop(it, overlay_fixups_node) {
-        struct ufdt_node *fixups = *it;
-        const char *fixups_paths = ufdt_node_get_fdt_prop_data(fixups, &len);
-        ufdt_combine_one_fixup(overlay_tree, fixups_paths, len, pool);
+    if (path_node_map->find(path) != path_node_map->end()) {
+        ufdt_node_merge_into((*path_node_map)[path], node, pool);
+    } else {
+        //This is the first node overlaying the target node, add the same to the
+        //table.
+        (*path_node_map)[path] = node;
     }
-
-    return 0;
 }
+
 /* END of doing fixup in the overlay ufdt. */
 
 static bool ufdt_verify_overlay_node(struct ufdt_node *target_node,
@@ -302,21 +309,28 @@ static int ufdt_overlay_verify_fragments(struct ufdt *final_tree,
  * Examine target nodes for fragments in all overlays and combine ones with the
  * same target.
  */
-static void ufdt_overlay_combine_common_nodes(struct ufdt** overlay_trees, size_t overlay_count,
-                                              struct ufdt_node_pool* pool) {
-    std::unordered_map<uint32_t, ufdt_node*> phandlemap;
-    uint32_t target = 0;
+static void ufdt_overlay_combine_common_nodes(struct ufdt** overlay_trees,
+                                              size_t overlay_count,
+                                              struct ufdt* final_tree,
+                                              struct ufdt_node_pool* pool
+                                             ) {
+    std::unordered_map<std::string, struct ufdt_node*> path_node_map;
+    std::unordered_map<uint32_t, std::string> phandle_path_map;
+
+    create_path_phandle_map(&phandle_path_map, final_tree);
+
+    struct ufdt_node **it = nullptr;
     for (size_t i = 0; i < overlay_count; i++) {
-        struct ufdt_node **it = nullptr;
-        for_each_node(it, (overlay_trees[i]->root)) {
+        for_each_node(it, overlay_trees[i]->root) {
+            uint32_t target = 0;
             const void* val = ufdt_node_get_fdt_prop_data_by_name(*it, "target", NULL);
             if (val) {
                 dto_memcpy(&target, val, sizeof(target));
                 target = fdt32_to_cpu(target);
-                if (phandlemap.find(target) != phandlemap.end()) {
-                    ufdt_node_merge_into(phandlemap[target], *it, pool);
-                } else {
-                    phandlemap[target] = *it;
+                std::string path = phandle_path_map[target];
+                struct ufdt_node* overlay_node = ufdt_node_get_node_by_path(*it, "__overlay__");
+                if (overlay_node != nullptr) {
+                    combine_overlay_node(&path_node_map, path, overlay_node, pool);
                 }
             }
         }
@@ -360,11 +374,10 @@ int ufdt_combine_all_overlays(struct ufdt** overlay_trees, size_t overlay_count,
     }
 
     /*
-     * For each overlay, perform fixup for each fragment and combine the
-     * fragments that have the same target node.
+     * For each overlay, perform fixup for each fragment.
      */
     for (size_t i = 0; i < overlay_count; i++) {
-        if (ufdt_overlay_do_fixups_and_combine(final_tree, overlay_trees[i], pool) < 0) {
+        if (ufdt_overlay_do_fixups(final_tree, overlay_trees[i]) < 0) {
             dto_error("failed to perform fixups in overlay\n");
             return -1;
         }
@@ -374,7 +387,7 @@ int ufdt_combine_all_overlays(struct ufdt** overlay_trees, size_t overlay_count,
      * Iterate through each overlay and combine all nodes with the same target
      * node.
      */
-    ufdt_overlay_combine_common_nodes(overlay_trees, overlay_count, pool);
+    ufdt_overlay_combine_common_nodes(overlay_trees, overlay_count, final_tree, pool);
 
     /*
      * Combine all overlays into the tree at overlay_trees[0] for easy
