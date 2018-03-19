@@ -84,3 +84,4 @@ obj-$(CONFIG_AXP288_FUEL_GAUGE) += axp288_fuel_gauge.o
 obj-$(CONFIG_AXP288_CHARGER)	+= axp288_charger.o
 obj-$(CONFIG_CHARGER_NU1618)	+= rx1618.o
 obj-$(CONFIG_ARCH_QCOM)		+= qcom/
+obj-$(CONFIG_USB_OVERHEAT_MITIGATION)	+= overheat_mitigation.o
