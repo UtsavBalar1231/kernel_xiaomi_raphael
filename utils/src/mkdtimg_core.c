@@ -38,6 +38,7 @@ struct dt_options {
 struct dt_global_options {
   struct dt_options default_options;
   uint32_t page_size;
+  uint32_t version;
 };
 
 struct dt_image_writer_fdt_info {
@@ -68,6 +69,7 @@ static void init_dt_options(struct dt_options *options) {
 static void init_dt_global_options(struct dt_global_options *options) {
   init_dt_options(&options->default_options);
   options->page_size = DT_TABLE_DEFAULT_PAGE_SIZE;
+  options->version = DT_TABLE_DEFAULT_VERSION;
 }
 
 static void copy_dt_options(struct dt_options *target, struct dt_options *options) {
@@ -178,6 +180,7 @@ static int output_img_header(FILE *img_fp,
   header.dt_entry_count = cpu_to_fdt32(entry_count);
   header.total_size = cpu_to_fdt32(total_size);
   header.page_size = cpu_to_fdt32(options->page_size);
+  header.version = cpu_to_fdt32(options->version);
 
   fseek(img_fp, 0, SEEK_SET);
   fwrite(&header, sizeof(header), 1, img_fp);
@@ -296,6 +299,8 @@ int set_global_options(struct dt_image_writer *writer,
 
   if (strcmp(option, "page_size") == 0) {
     global_options->page_size = strtoul(value, NULL, 0);
+  } else if (strcmp(option, "version") == 0) {
+    global_options->version = strtoul(value, NULL, 0);
   } else {
     return set_dt_options(&global_options->default_options, option, value);
   }

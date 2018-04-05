@@ -96,7 +96,8 @@ void handle_usage_create(FILE *out_fp, const char *prog_name) {
   fprintf(out_fp, "  %s create <image_file> (<global_option>...) (<dtb_file> (<entry_option>...) ...)\n\n", prog_name);
   fprintf(out_fp,
     "    global_options:\n"
-    "      --page_size <number>     Output file name. Default: 2048\n"
+    "      --page_size <number>     Output page size. Default: 2048\n"
+    "      --version <version>      DTBO version. Default: 0\n"
     "      --id=<number|path>       The default value to set property id in dt_table_entry. Default: 0\n"
     "      --rev=<number|path>\n"
     "      --custom0=<number|path>\n"
