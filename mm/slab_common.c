@@ -1121,7 +1121,7 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 		struct kmem_cache *s = kmalloc_caches[KMALLOC_NORMAL][i];
 
 		if (s) {
-			int size = kmalloc_size(i);
+			unsigned int size = kmalloc_size(i);
 			const char *n = kmalloc_cache_name("dma-kmalloc", size);
 
 			BUG_ON(!n);
