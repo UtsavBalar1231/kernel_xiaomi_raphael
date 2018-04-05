@@ -325,7 +325,7 @@ static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
  * 2 = 129 .. 192 bytes
  * n = 2^(n-1)+1 .. 2^n
  */
-static __always_inline int kmalloc_index(size_t size)
+static __always_inline unsigned int kmalloc_index(size_t size)
 {
 	if (!size)
 		return 0;
@@ -564,7 +564,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 #ifndef CONFIG_SLOB
 	if (__builtin_constant_p(size) &&
 		size <= KMALLOC_MAX_CACHE_SIZE) {
-		int i = kmalloc_index(size);
+		unsigned int i = kmalloc_index(size);
 
 		if (!i)
 			return ZERO_SIZE_PTR;
