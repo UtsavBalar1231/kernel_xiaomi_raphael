@@ -1122,6 +1122,7 @@ struct ufs_hba {
 
 	/* sync b/w diff contexts */
 	struct rw_semaphore lock;
+	struct rw_semaphore query_lock;
 	unsigned long shutdown_in_prog;
 
 	/* If set, don't gate device ref_clk during clock gating */
