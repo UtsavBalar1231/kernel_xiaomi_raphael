@@ -25,6 +25,7 @@
 
 #define DT_TABLE_MAGIC 0xd7b7ab1e
 #define DT_TABLE_DEFAULT_PAGE_SIZE 2048
+#define DT_TABLE_DEFAULT_VERSION 0
 
 struct dt_table_header {
   uint32_t magic;             /* DT_TABLE_MAGIC */
@@ -40,7 +41,9 @@ struct dt_table_header {
                                  no padding is appended */
 
   uint32_t page_size;         /* flash page size we assume */
-  uint32_t reserved[1];       /* must be zero */
+  uint32_t version;           /* DTBO image version, the current version is 0.
+                                 The version will be incremented when the dt_table_header
+                                 struct is updated. */
 };
 
 struct dt_table_entry {

@@ -186,7 +186,7 @@ class Dtbo(object):
                          self.total_size, self.header_size,
                          self.dt_entry_size, self.dt_entry_count,
                          self.dt_entries_offset, self.page_size,
-                         self.reserved)
+                         self.version)
 
     def _update_dt_entry_header(self, dt_entry, metadata_offset):
         """Converts each DT entry header entry into binary data for DTBO file.
@@ -231,7 +231,7 @@ class Dtbo(object):
         """
         (self.magic, self.total_size, self.header_size,
          self.dt_entry_size, self.dt_entry_count, self.dt_entries_offset,
-         self.page_size, self.reserved) = struct.unpack_from('>8I', buf, 0)
+         self.page_size, self.version) = struct.unpack_from('>8I', buf, 0)
 
         # verify the header
         if self.magic != self._DTBO_MAGIC:
@@ -245,10 +245,6 @@ class Dtbo(object):
         if self.dt_entry_size != self._DT_ENTRY_HEADER_SIZE:
             raise ValueError('Invalid DT entry header size (%d) in DTBO file' %
                              (self.dt_entry_size))
-
-        if self.reserved:
-            raise ValueError('Invalid reserved field (%d) in DTBO header' %
-                             (self.reserved))
 
     def _read_dt_entries_from_metadata(self):
         """Reads individual DT entry headers from metadata buffer.
@@ -321,7 +317,7 @@ class Dtbo(object):
                 return entry
         return None
 
-    def __init__(self, file_handle, page_size=None):
+    def __init__(self, file_handle, page_size=None, version=0):
         """Constructor for Dtbo Object
 
         Args:
@@ -345,7 +341,7 @@ class Dtbo(object):
             self.dt_entry_count = 0
             self.dt_entries_offset = self._DT_TABLE_HEADER_SIZE
             self.page_size = page_size
-            self.reserved = 0
+            self.version = version
             self.__metadata_size = self._DT_TABLE_HEADER_SIZE
         else:
             self._read_dtbo_image()
@@ -354,7 +350,7 @@ class Dtbo(object):
         sb = []
         sb.append('dt_table_header:')
         _keys = ('magic', 'total_size', 'header_size', 'dt_entry_size',
-                 'dt_entry_count', 'dt_entries_offset', 'page_size')
+                 'dt_entry_count', 'dt_entries_offset', 'page_size', 'version')
         for key in _keys:
             if key == 'magic':
                 sb.append('{key:>20} = {value:08x}'.format(key=key,
@@ -362,8 +358,6 @@ class Dtbo(object):
             else:
                 sb.append('{key:>20} = {value:d}'.format(key=key,
                                                          value=self.__dict__[key]))
-        sb.append('{key:>20} = {value:08d}'.format(key='reserved[0]',
-                                                   value=self.reserved))
         count = 0
         for dt_entry in self.__dt_entries:
             sb.append('dt_table_entry[{0:d}]:'.format(count))
@@ -591,6 +585,7 @@ def parse_config_file(fin, dt_keys, global_keys):
     # set all global defaults
     global_args = dict((k, '0') for k in dt_keys)
     global_args['page_size'] = 2048
+    global_args['version'] = 0
 
     dt_args = []
     found_dt_entry = False
@@ -639,6 +634,8 @@ def parse_create_args(arg_list):
     parser = argparse.ArgumentParser(prog='create', add_help=False)
     parser.add_argument('--page_size', type=int, dest='page_size',
                         action='store', default=2048)
+    parser.add_argument('--version', type=int, dest='version',
+                        action='store', default=0)
     parser.add_argument('--id', type=str, dest='global_id',
                         action='store', default='0')
     parser.add_argument('--rev', type=str, dest='global_rev',
@@ -705,7 +702,7 @@ def create_dtbo_image(fout, argv):
     if not remainder:
         raise ValueError('List of dtimages to add to DTBO not provided')
     dt_entries = parse_dt_entries(global_args, remainder)
-    dtbo = Dtbo(fout, global_args.page_size)
+    dtbo = Dtbo(fout, global_args.page_size, global_args.version)
     dtbo.add_dt_entries(dt_entries)
     dtbo.commit()
     fout.close()
@@ -743,7 +740,7 @@ def create_dtbo_image_from_config(fout, argv):
         raise ValueError('Configuration file must be provided')
 
     _DT_KEYS = ('id', 'rev', 'custom0', 'custom1', 'custom2', 'custom3')
-    _GLOBAL_KEYS = ('page_size')
+    _GLOBAL_KEYS = ('page_size', 'version')
 
     global_args, dt_args = parse_config_file(args.conf_file,
                                              _DT_KEYS, _GLOBAL_KEYS)
@@ -762,7 +759,7 @@ def create_dtbo_image_from_config(fout, argv):
         dt_entries.append(DtEntry(**params))
 
     # Create and write DTBO file
-    dtbo = Dtbo(fout, global_args['page_size'])
+    dtbo = Dtbo(fout, global_args['page_size'], global_args['version'])
     dtbo.add_dt_entries(dt_entries)
     dtbo.commit()
     fout.close()
@@ -804,7 +801,8 @@ def print_create_usage(progname):
     sb = []
     sb.append('  ' + progname + ' create <image_file> (<global_option>...) (<dtb_file> (<entry_option>...) ...)\n')
     sb.append('    global_options:')
-    sb.append('      --page_size <number>     Output file name. Default: 2048')
+    sb.append('      --page_size <number>     Page size. Default: 2048')
+    sb.append('      --version <number>       DTBO version. Default: 0')
     sb.append('      --id <number>       The default value to set property id in dt_table_entry. Default: 0')
     sb.append('      --rev <number>')
     sb.append('      --custom0=<number>')
