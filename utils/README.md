@@ -195,7 +195,8 @@ dt_table_header:
       dt_entry_count = 3
    dt_entries_offset = 32
            page_size = 2048
-         reserved[0] = 00000000
+             version = 0
+
 dt_table_entry[0]:
              dt_size = 380
            dt_offset = 128

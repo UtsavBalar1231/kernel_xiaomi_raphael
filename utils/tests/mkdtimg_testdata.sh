@@ -50,7 +50,7 @@ done
 
 IMG="${OUTDIR}/create.img"
 mkdtimg create "$IMG" \
-  --page_size=4096 --id=/:board_id --rev=/:board_rev --custom0=0xabc \
+  --page_size=4096 --id=/:board_id --rev=/:board_rev --custom0=0xabc --version=1 \
   "${OUTDIR}/board1v1.dts.dtb" \
   "${OUTDIR}/board1v1_1.dts.dtb" --id=/:another_board_id \
   "${OUTDIR}/board2v1.dts.dtb" --rev=0x201 \
