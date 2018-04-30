@@ -5604,7 +5604,7 @@ static int fts_drm_state_chg_callback(struct notifier_block *nb,
 		logError(1, "%s %s: val:%lu,blank:%u\n", tag, __func__, val, blank);
 
 		if (val == MSM_DRM_EARLY_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
-				blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
+				blank == MSM_DRM_BLANK_LP)) {
 			if (info->sensor_sleep)
 				return NOTIFY_OK;
 

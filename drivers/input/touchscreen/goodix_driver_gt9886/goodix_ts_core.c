@@ -1752,7 +1752,7 @@ int goodix_ts_msm_drm_notifier_callback(struct notifier_block *self,
 		blank = *(int *)(msm_drm_event->data);
 		flush_workqueue(core_data->event_wq);
 		if (event == MSM_DRM_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
-			blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
+			blank == MSM_DRM_BLANK_LP)) {
 			ts_info("touchpanel suspend .....blank=%d\n", blank);
 			ts_info("touchpanel suspend .....suspend_stat=%d\n", atomic_read(&core_data->suspend_stat));
 			if (atomic_read(&core_data->suspend_stat))
