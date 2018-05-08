@@ -403,8 +403,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	}
 
 	clk_cnt = of_count_phandle_with_args(node, "clocks", "#clock-cells");
-	pd = devm_kzalloc(pmu->dev,
-			  sizeof(*pd) + clk_cnt * sizeof(pd->clks[0]),
+	pd = devm_kzalloc(pmu->dev, struct_size(pd, clks, clk_cnt),
 			  GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
@@ -637,8 +636,7 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	pmu_info = match->data;
 
 	pmu = devm_kzalloc(dev,
-			   sizeof(*pmu) +
-				pmu_info->num_domains * sizeof(pmu->domains[0]),
+			   struct_size(pmu, domains, pmu_info->num_domains),
 			   GFP_KERNEL);
 	if (!pmu)
 		return -ENOMEM;
