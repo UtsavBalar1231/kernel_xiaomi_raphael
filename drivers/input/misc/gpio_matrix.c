@@ -327,8 +327,8 @@ int gpio_event_matrix_func(struct gpio_event_input_devs *input_devs,
 		}
 		key_count = mi->ninputs * mi->noutputs;
 
-		*data = kp = kzalloc(sizeof(*kp) + sizeof(kp->keys_pressed[0]) *
-				     BITS_TO_LONGS(key_count), GFP_KERNEL);
+		*data = kp = kzalloc(struct_size(kp, keys_pressed, BITS_TO_LONGS(key_count)),
+				     GFP_KERNEL);
 		if (kp == NULL) {
 			err = -ENOMEM;
 			pr_err("gpiomatrix: Failed to allocate private data\n");

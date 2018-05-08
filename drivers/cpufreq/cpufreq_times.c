@@ -489,8 +489,7 @@ void cpufreq_times_create_policy(struct cpufreq_policy *policy)
 	cpufreq_for_each_valid_entry(pos, table)
 		count++;
 
-	tmp =  kzalloc(sizeof(*freqs) + sizeof(freqs->freq_table[0]) * count,
-		       GFP_KERNEL);
+	tmp =  kzalloc(struct_size(freqs, freq_table, count), GFP_KERNEL);
 	if (!tmp)
 		return;
 

@@ -287,8 +287,8 @@ int gpio_event_input_func(struct gpio_event_input_devs *input_devs,
 		if (ktime_to_ns(di->poll_time) <= 0)
 			di->poll_time = ktime_set(0, 20 * NSEC_PER_MSEC);
 
-		*data = ds = kzalloc(sizeof(*ds) + sizeof(ds->key_state[0]) *
-					di->keymap_size, GFP_KERNEL);
+		*data = ds = kzalloc(struct_size(ds, key_state, di->keymap_size),
+				     GFP_KERNEL);
 		if (ds == NULL) {
 			ret = -ENOMEM;
 			pr_err("gpio_event_input_func: "

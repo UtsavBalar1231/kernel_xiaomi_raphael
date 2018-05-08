@@ -2223,9 +2223,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		 * Allocate here so if allocation fails we can bail out early
 		 * before starting the BA session in the firmware
 		 */
-		baid_data = kzalloc(sizeof(*baid_data) +
-				    mvm->trans->num_rx_queues *
-				    sizeof(baid_data->reorder_buf[0]),
+		baid_data = kzalloc(struct_size(baid_data, reorder_buf, mvm->trans->num_rx_queues),
 				    GFP_KERNEL);
 		if (!baid_data)
 			return -ENOMEM;

@@ -62,7 +62,7 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 
 	if (num_mon >= CEPH_MAX_MON)
 		goto bad;
-	m = kmalloc(sizeof(*m) + sizeof(m->mon_inst[0])*num_mon, GFP_NOFS);
+	m = kmalloc(struct_size(m, mon_inst, num_mon), GFP_NOFS);
 	if (m == NULL)
 		return ERR_PTR(-ENOMEM);
 	m->fsid = fsid;
