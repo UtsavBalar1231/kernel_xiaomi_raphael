@@ -557,8 +557,9 @@ static int gf_open(struct inode *inode, struct file *filp)
 			gpio_direction_input(gf_dev->irq_gpio);
 
 			rc = request_threaded_irq(gf_dev->irq, NULL, gf_irq,
-					  IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					  "gf", gf_dev);
+					IRQF_TRIGGER_RISING |
+					IRQF_ONESHOT | IRQF_PRIME_AFFINE,
+					"gf", gf_dev);
 			if (!rc) {
 				enable_irq_wake(gf_dev->irq);
 				gf_dev->irq_enabled = 1;
