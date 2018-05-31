@@ -16,7 +16,7 @@ cd $tmpdir
 
 #find out the location to read the DTBO image from
 boot_suffix=$(adb wait-for-device shell getprop ro.boot.slot_suffix)
-dtbo_partition="/dev/block/bootdevice/by-name/dtbo"
+dtbo_partition="/dev/block/by-name/dtbo"
 dtbo_path=$dtbo_partition$boot_suffix
 
 #read the dtbo image and the final device tree from device
