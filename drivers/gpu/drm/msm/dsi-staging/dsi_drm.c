@@ -240,11 +240,18 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 									rc);
 	if (c_bridge->display->is_prim_display)
 		atomic_set(&prim_panel_is_on, true);
+
+	if (c_bridge->display && c_bridge->display->drm_conn) {
+		sde_connector_helper_bridge_enable(c_bridge->display->drm_conn);
+		if (c_bridge->dsi_mode.dsi_mode_flags & DSI_MODE_FLAG_POMS)
+			sde_connector_schedule_status_work(c_bridge->display->drm_conn,
+				true);
+	}
 }
 
 /**
  *  dsi_bridge_interface_enable - Panel light on interface for fingerprint
- *  In order to improve panel light on performance when unlock device by
+	 *  In order to improve panel light on performance when unlock device by
  *  fingerprint, export this interface for fingerprint.Once finger touch
  *  happened, it could light on LCD panel in advance of android resume.
  *
@@ -308,13 +315,6 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 	if (rc)
 		pr_err("[%d] DSI display post enabled failed, rc=%d\n",
 		       c_bridge->id, rc);
-
-	if (display && display->drm_conn) {
-		sde_connector_helper_bridge_enable(display->drm_conn);
-		if (c_bridge->dsi_mode.dsi_mode_flags & DSI_MODE_FLAG_POMS)
-			sde_connector_schedule_status_work(display->drm_conn,
-				true);
-	}
 }
 
 static void dsi_bridge_disable(struct drm_bridge *bridge)
