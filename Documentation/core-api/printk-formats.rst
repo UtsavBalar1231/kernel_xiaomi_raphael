@@ -432,7 +432,7 @@ struct clk
 
 For printing struct clk structures. %pC and %pCn print the name
 (Common Clock Framework) or address (legacy clock framework) of the
-structure; %pCr prints the current clock rate.
+structure.
 
 Passed by reference.
 
