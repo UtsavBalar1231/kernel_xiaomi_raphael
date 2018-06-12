@@ -680,7 +680,7 @@ static int glink_pkt_init_rpmsg(struct glink_pkt_device *gpdev)
 	char *drv_name;
 
 	/* zalloc array of two to NULL terminate the match list */
-	match = devm_kzalloc(dev, 2 * sizeof(*match), GFP_KERNEL);
+	match = devm_kcalloc(dev, 2, sizeof(*match), GFP_KERNEL);
 	if (!match)
 		return -ENOMEM;
 	snprintf(match->name, RPMSG_NAME_SIZE, "%s", gpdev->ch_name);

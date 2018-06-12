@@ -732,10 +732,12 @@ static void mdss_spi_parse_esd_params(struct device_node *np,
 
 	ctrl->status_cmds_rlen = (!rc ? tmp : 1);
 
-	ctrl->exp_status_value = devm_kzalloc(&mdss_pdev->dev, sizeof(u8) *
-				 (ctrl->status_cmds_rlen + 1), GFP_KERNEL);
-	ctrl->act_status_value = devm_kzalloc(&mdss_pdev->dev, sizeof(u8) *
-				(ctrl->status_cmds_rlen + 1), GFP_KERNEL);
+	ctrl->exp_status_value = devm_kzalloc(&mdss_pdev->dev,
+					      ctrl->status_cmds_rlen + 1,
+					      GFP_KERNEL);
+	ctrl->act_status_value = devm_kzalloc(&mdss_pdev->dev,
+					      ctrl->status_cmds_rlen + 1,
+					      GFP_KERNEL);
 
 	if (!ctrl->exp_status_value || !ctrl->act_status_value) {
 		pinfo->esd_check_enabled = false;

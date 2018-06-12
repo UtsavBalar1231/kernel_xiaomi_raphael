@@ -427,8 +427,8 @@ static int qcom_llcc_erp_probe(struct platform_device *pdev)
 	drv->num_banks = num_banks;
 	drv->llcc_map = llcc_map;
 
-	drv->llcc_banks = devm_kzalloc(&pdev->dev,
-		sizeof(u32) * drv->num_banks, GFP_KERNEL);
+	drv->llcc_banks = devm_kcalloc(&pdev->dev,
+		drv->num_banks, sizeof(u32), GFP_KERNEL);
 
 	if (!drv->llcc_banks) {
 		dev_err(dev, "Cannot allocate memory for llcc_banks\n");

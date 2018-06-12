@@ -517,15 +517,15 @@ static int msm_gladiator_hang_detect_probe(struct platform_device *pdev)
 		hang_attr_group.attrs = hang_attrs_v3;
 	}
 
-	hang_det->threshold = devm_kzalloc(&pdev->dev,
-			sizeof(phys_addr_t)*NR_GLA_REG, GFP_KERNEL);
+	hang_det->threshold = devm_kcalloc(&pdev->dev,
+			NR_GLA_REG, sizeof(phys_addr_t), GFP_KERNEL);
 
 	if (!hang_det->threshold) {
 		pr_err("Can't allocate hang_detect threshold memory\n");
 		return -ENOMEM;
 	}
 
-	treg = devm_kzalloc(&pdev->dev, sizeof(u32)*NR_GLA_REG, GFP_KERNEL);
+	treg = devm_kcalloc(&pdev->dev, NR_GLA_REG, sizeof(u32), GFP_KERNEL);
 
 	if (!treg)
 		return -ENOMEM;

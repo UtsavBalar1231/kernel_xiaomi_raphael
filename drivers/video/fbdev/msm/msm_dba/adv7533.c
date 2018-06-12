@@ -449,12 +449,13 @@ static void adv7533_parse_vreg_dt(struct device *dev,
 		goto end;
 	}
 	mp->num_vreg = dt_vreg_total;
-	mp->vreg_config = devm_kzalloc(dev, sizeof(struct dss_vreg) *
-			dt_vreg_total, GFP_KERNEL);
+	mp->vreg_config = devm_kcalloc(dev,
+				       dt_vreg_total, sizeof(struct dss_vreg),
+				       GFP_KERNEL);
 	if (!mp->vreg_config)
 		goto end;
 
-	val_array = devm_kzalloc(dev, sizeof(u32) * dt_vreg_total, GFP_KERNEL);
+	val_array = devm_kcalloc(dev, dt_vreg_total, sizeof(u32), GFP_KERNEL);
 	if (!val_array)
 		goto end;
 

@@ -3383,8 +3383,9 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 		snd_soc_dapm_sync(dapm);
 	}
 
-	rt5645->eq_param = devm_kzalloc(codec->dev,
-		RT5645_HWEQ_NUM * sizeof(struct rt5645_eq_param_s), GFP_KERNEL);
+	rt5645->eq_param = devm_kcalloc(codec->dev,
+		RT5645_HWEQ_NUM, sizeof(struct rt5645_eq_param_s),
+		GFP_KERNEL);
 
 	return 0;
 }

@@ -492,8 +492,8 @@ static int msm_dai_slim_populate_dai_data(struct device *dev,
 		SET_DAI_STATE(dai_data_t->status,
 			      DAI_STATE_INITIALIZED);
 
-		dai_data_t->chan_h = devm_kzalloc(dev,
-					sizeof(u16) * num_ch,
+		dai_data_t->chan_h = devm_kcalloc(dev,
+					num_ch, sizeof(u16),
 					GFP_KERNEL);
 		if (!dai_data_t->chan_h) {
 			dev_err(dev,
@@ -503,8 +503,8 @@ static int msm_dai_slim_populate_dai_data(struct device *dev,
 			goto err_mem_alloc;
 		}
 
-		dai_data_t->sh_ch = devm_kzalloc(dev,
-					sizeof(u16) * num_ch,
+		dai_data_t->sh_ch = devm_kcalloc(dev,
+					num_ch, sizeof(u16),
 					GFP_KERNEL);
 		if (!dai_data_t->sh_ch) {
 			dev_err(dev,

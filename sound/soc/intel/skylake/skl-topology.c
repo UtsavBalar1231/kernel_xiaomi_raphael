@@ -2334,8 +2334,10 @@ static int skl_tplg_get_token(struct device *dev,
 
 	case SKL_TKN_U8_DYN_IN_PIN:
 		if (!mconfig->m_in_pin)
-			mconfig->m_in_pin = devm_kzalloc(dev, MAX_IN_QUEUE *
-					sizeof(*mconfig->m_in_pin), GFP_KERNEL);
+			mconfig->m_in_pin = devm_kcalloc(dev,
+							 MAX_IN_QUEUE,
+							 sizeof(*mconfig->m_in_pin),
+							 GFP_KERNEL);
 		if (!mconfig->m_in_pin)
 			return -ENOMEM;
 
@@ -2345,8 +2347,10 @@ static int skl_tplg_get_token(struct device *dev,
 
 	case SKL_TKN_U8_DYN_OUT_PIN:
 		if (!mconfig->m_out_pin)
-			mconfig->m_out_pin = devm_kzalloc(dev, MAX_IN_QUEUE *
-					sizeof(*mconfig->m_in_pin), GFP_KERNEL);
+			mconfig->m_out_pin = devm_kcalloc(dev,
+							  MAX_IN_QUEUE,
+							  sizeof(*mconfig->m_in_pin),
+							  GFP_KERNEL);
 		if (!mconfig->m_out_pin)
 			return -ENOMEM;
 

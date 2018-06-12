@@ -602,7 +602,7 @@ static int bfin_bf54x_probe(struct platform_device *pdev)
 
 	fbinfo->fbops = &bfin_bf54x_fb_ops;
 
-	fbinfo->pseudo_palette = devm_kzalloc(&pdev->dev, sizeof(u32) * 16,
+	fbinfo->pseudo_palette = devm_kcalloc(&pdev->dev, 16, sizeof(u32),
 					      GFP_KERNEL);
 	if (!fbinfo->pseudo_palette) {
 		printk(KERN_ERR DRIVER_NAME

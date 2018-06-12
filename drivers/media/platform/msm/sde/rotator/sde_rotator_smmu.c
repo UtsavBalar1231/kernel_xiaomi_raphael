@@ -117,8 +117,8 @@ static int sde_smmu_util_parse_dt_clock(struct platform_device *pdev,
 	}
 
 	mp->num_clk = num_clk;
-	mp->clk_config = devm_kzalloc(&pdev->dev,
-			sizeof(struct sde_clk) * mp->num_clk, GFP_KERNEL);
+	mp->clk_config = devm_kcalloc(&pdev->dev,
+			mp->num_clk, sizeof(struct sde_clk), GFP_KERNEL);
 	if (num_clk && !mp->clk_config) {
 		rc = -ENOMEM;
 		mp->num_clk = 0;

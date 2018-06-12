@@ -3312,8 +3312,8 @@ static int cam_alloc_smmu_context_banks(struct device *dev)
 	}
 
 	/* allocate memory for the context banks */
-	iommu_cb_set.cb_info = devm_kzalloc(dev,
-		iommu_cb_set.cb_num * sizeof(struct cam_context_bank_info),
+	iommu_cb_set.cb_info = devm_kcalloc(dev,
+		iommu_cb_set.cb_num, sizeof(struct cam_context_bank_info),
 		GFP_KERNEL);
 
 	if (!iommu_cb_set.cb_info) {

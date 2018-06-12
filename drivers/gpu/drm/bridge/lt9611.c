@@ -1343,8 +1343,10 @@ static int lt9611_get_dt_supply(struct device *dev,
 	}
 
 	pr_debug("vreg found. count=%d\n", pdata->num_vreg);
-	pdata->vreg_config = devm_kzalloc(dev, sizeof(struct lt9611_vreg) *
-			pdata->num_vreg, GFP_KERNEL);
+	pdata->vreg_config = devm_kcalloc(dev,
+					  pdata->num_vreg,
+					  sizeof(struct lt9611_vreg),
+					  GFP_KERNEL);
 	if (!pdata->vreg_config)
 		return -ENOMEM;
 

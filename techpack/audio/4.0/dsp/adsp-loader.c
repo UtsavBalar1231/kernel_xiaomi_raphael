@@ -371,8 +371,8 @@ static int adsp_loader_probe(struct platform_device *pdev)
 		goto wqueue;
 	}
 
-	adsp_fw_bit_values = devm_kzalloc(&pdev->dev,
-				adsp_fw_cnt * sizeof(u32), GFP_KERNEL);
+	adsp_fw_bit_values = devm_kcalloc(&pdev->dev,
+				adsp_fw_cnt, sizeof(u32), GFP_KERNEL);
 	if (!adsp_fw_bit_values)
 		goto wqueue;
 
@@ -387,8 +387,8 @@ static int adsp_loader_probe(struct platform_device *pdev)
 		goto wqueue;
 	}
 
-	adsp_fw_name_array = devm_kzalloc(&pdev->dev,
-				adsp_fw_cnt * sizeof(char *), GFP_KERNEL);
+	adsp_fw_name_array = devm_kcalloc(&pdev->dev,
+				adsp_fw_cnt, sizeof(char *), GFP_KERNEL);
 	if (!adsp_fw_name_array)
 		goto wqueue;
 

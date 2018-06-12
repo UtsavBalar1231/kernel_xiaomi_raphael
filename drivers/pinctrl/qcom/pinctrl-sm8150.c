@@ -1985,8 +1985,9 @@ static int sm8150_pinctrl_dir_conn_probe(struct platform_device *pdev)
 
 	dir_conn_length = length / sizeof(u32);
 
-	dir_conn_entries = devm_kzalloc(&pdev->dev,
-				dir_conn_length*sizeof(uint32_t), GFP_KERNEL);
+	dir_conn_entries = devm_kcalloc(&pdev->dev,
+				dir_conn_length, sizeof(uint32_t),
+				GFP_KERNEL);
 	if (!dir_conn_entries)
 		return -ENOMEM;
 
@@ -1995,8 +1996,8 @@ static int sm8150_pinctrl_dir_conn_probe(struct platform_device *pdev)
 
 	num_dir_conns = (dir_conn_length / 3);
 
-	dir_conn_list = devm_kzalloc(&pdev->dev,
-			num_dir_conns * sizeof(*dir_conn_list), GFP_KERNEL);
+	dir_conn_list = devm_kcalloc(&pdev->dev,
+			num_dir_conns, sizeof(*dir_conn_list), GFP_KERNEL);
 	if (!dir_conn_list)
 		return -ENOMEM;
 

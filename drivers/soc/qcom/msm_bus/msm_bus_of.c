@@ -149,8 +149,10 @@ static struct msm_bus_scale_pdata *get_pdata(struct device *dev,
 
 	for (i = 0; i < num_usecases; i++) {
 		usecase[i].num_paths = num_paths;
-		usecase[i].vectors = devm_kzalloc(dev, num_paths *
-			sizeof(struct msm_bus_vectors), GFP_KERNEL);
+		usecase[i].vectors = devm_kcalloc(dev,
+						  num_paths,
+						  sizeof(struct msm_bus_vectors),
+						  GFP_KERNEL);
 		if (!usecase[i].vectors) {
 			mem_err = true;
 			pr_err("Error: Mem alloc failure in vectors\n");
@@ -415,8 +417,9 @@ static struct msm_bus_node_info *get_nodes(struct device_node *of_node,
 
 	pdata->len = i;
 	info = (struct msm_bus_node_info *)
-		devm_kzalloc(&pdev->dev, sizeof(struct msm_bus_node_info) *
-			pdata->len, GFP_KERNEL);
+		devm_kcalloc(&pdev->dev,
+			     pdata->len, sizeof(struct msm_bus_node_info),
+			     GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(info)) {
 		pr_err("Failed to alloc memory for nodes: %d\n", pdata->len);
 		goto err;

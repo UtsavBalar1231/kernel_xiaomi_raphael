@@ -157,8 +157,8 @@ static int create_lvl_avail_nodes(const char *name,
 		goto failed;
 	}
 
-	attr = devm_kzalloc(&lpm_pdev->dev,
-		sizeof(*attr) * (LPM_TYPE_NR + 1), GFP_KERNEL);
+	attr = devm_kcalloc(&lpm_pdev->dev,
+		LPM_TYPE_NR + 1, sizeof(*attr), GFP_KERNEL);
 	if (!attr) {
 		ret = -ENOMEM;
 		goto failed;
@@ -218,8 +218,10 @@ static int create_cpu_lvl_nodes(struct lpm_cluster *p, struct kobject *parent)
 	int ret = 0;
 	struct list_head *pos;
 
-	cpu_kobj = devm_kzalloc(&lpm_pdev->dev, sizeof(*cpu_kobj) *
-			cpumask_weight(&p->child_cpus), GFP_KERNEL);
+	cpu_kobj = devm_kcalloc(&lpm_pdev->dev,
+				cpumask_weight(&p->child_cpus),
+				sizeof(*cpu_kobj),
+				GFP_KERNEL);
 	if (!cpu_kobj)
 		return -ENOMEM;
 
@@ -236,8 +238,8 @@ static int create_cpu_lvl_nodes(struct lpm_cluster *p, struct kobject *parent)
 				goto release_kobj;
 			}
 
-			level_list = devm_kzalloc(&lpm_pdev->dev,
-					lpm_cpu->nlevels * sizeof(*level_list),
+			level_list = devm_kcalloc(&lpm_pdev->dev,
+					lpm_cpu->nlevels, sizeof(*level_list),
 					GFP_KERNEL);
 			if (!level_list) {
 				ret = -ENOMEM;

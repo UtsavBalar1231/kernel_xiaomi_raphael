@@ -75,8 +75,8 @@ static int generic_vdd_parse_regulators(struct device *dev,
 		return -EINVAL;
 	}
 
-	vdd->regulator = devm_kzalloc(dev,
-				sizeof(*vdd->regulator) * num_regulators,
+	vdd->regulator = devm_kcalloc(dev,
+				num_regulators, sizeof(*vdd->regulator),
 				GFP_KERNEL);
 	if (!vdd->regulator) {
 		dt_err(np, "memory alloc failure\n");
@@ -121,10 +121,10 @@ static int generic_vdd_parse_levels(struct device *dev,
 	}
 
 	vdd->num_levels = len / vdd->num_regulators;
-	vdd->vdd_uv = devm_kzalloc(dev, len * sizeof(*vdd->vdd_uv),
+	vdd->vdd_uv = devm_kcalloc(dev, len, sizeof(*vdd->vdd_uv),
 						GFP_KERNEL);
-	vdd->level_votes = devm_kzalloc(dev,
-				vdd->num_levels * sizeof(*vdd->level_votes),
+	vdd->level_votes = devm_kcalloc(dev,
+				vdd->num_levels, sizeof(*vdd->level_votes),
 				GFP_KERNEL);
 
 	if (!vdd->vdd_uv || !vdd->level_votes) {
@@ -150,7 +150,7 @@ static int generic_vdd_parse_levels(struct device *dev,
 		return -EINVAL;
 	}
 
-	vdd->vdd_ua = devm_kzalloc(dev, len * sizeof(*vdd->vdd_ua),
+	vdd->vdd_ua = devm_kcalloc(dev, len, sizeof(*vdd->vdd_ua),
 						GFP_KERNEL);
 	if (!vdd->vdd_ua)
 		return -ENOMEM;
@@ -290,7 +290,8 @@ static int generic_clk_parse_fmax(struct device *dev, struct clk *c,
 		return rc;
 	}
 
-	c->fmax = devm_kzalloc(dev, sizeof(*c->fmax) * c->num_fmax, GFP_KERNEL);
+	c->fmax = devm_kcalloc(dev, c->num_fmax, sizeof(*c->fmax),
+			       GFP_KERNEL);
 	if (!c->fmax)
 		return -ENOMEM;
 

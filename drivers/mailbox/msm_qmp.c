@@ -831,7 +831,8 @@ static int qmp_mbox_init(struct device_node *n, struct qmp_device *mdev)
 	mbox->desc = mdev->msgram + desc_of;
 	num_chans = get_mbox_num_chans(n);
 	mbox->rx_disabled = (num_chans > 1) ? true : false;
-	chans = devm_kzalloc(mdev->dev, sizeof(*chans) * num_chans, GFP_KERNEL);
+	chans = devm_kcalloc(mdev->dev, num_chans, sizeof(*chans),
+			     GFP_KERNEL);
 	if (!chans)
 		return -ENOMEM;
 

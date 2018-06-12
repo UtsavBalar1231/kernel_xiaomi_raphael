@@ -1525,14 +1525,14 @@ static struct subsys_soc_restart_order *ssr_parse_restart_orders(struct
 	if (!order)
 		return ERR_PTR(-ENOMEM);
 
-	order->subsys_ptrs = devm_kzalloc(dev,
-				count * sizeof(struct subsys_device *),
+	order->subsys_ptrs = devm_kcalloc(dev,
+				count, sizeof(struct subsys_device *),
 				GFP_KERNEL);
 	if (!order->subsys_ptrs)
 		return ERR_PTR(-ENOMEM);
 
-	order->device_ptrs = devm_kzalloc(dev,
-				count * sizeof(struct device_node *),
+	order->device_ptrs = devm_kcalloc(dev,
+				count, sizeof(struct device_node *),
 				GFP_KERNEL);
 	if (!order->device_ptrs)
 		return ERR_PTR(-ENOMEM);

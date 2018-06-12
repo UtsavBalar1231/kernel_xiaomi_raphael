@@ -1428,8 +1428,8 @@ static int tfa98xx_create_controls(struct tfa98xx *tfa98xx)
 			nr_controls++; /* Playback Volume control */
 	}
 
-	tfa98xx_controls = devm_kzalloc(tfa98xx->codec->dev,
-		nr_controls * sizeof(tfa98xx_controls[0]), GFP_KERNEL);
+	tfa98xx_controls = devm_kcalloc(tfa98xx->codec->dev,
+			nr_controls, sizeof(tfa98xx_controls[0]), GFP_KERNEL);
 	if (!tfa98xx_controls)
 		return -ENOMEM;
 

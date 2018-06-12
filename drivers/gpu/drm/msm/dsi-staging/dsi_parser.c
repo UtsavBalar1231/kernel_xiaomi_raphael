@@ -254,7 +254,7 @@ static bool dsi_parser_parse_prop(struct device *dev,
 	if (dsi_parser_get_strings(dev, prop, buf))
 		goto end;
 
-	prop->items = devm_kzalloc(dev, strlen(buf) * 2, GFP_KERNEL);
+	prop->items = devm_kcalloc(dev, strlen(buf), 2, GFP_KERNEL);
 	if (!prop->items)
 		goto end;
 

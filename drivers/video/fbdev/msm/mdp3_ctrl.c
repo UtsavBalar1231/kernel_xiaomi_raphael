@@ -2222,22 +2222,22 @@ static int mdp3_alloc_lut_buffer(struct platform_device *pdev, void **cmap)
 
 	memset(map, 0, sizeof(struct fb_cmap));
 
-	map->red = devm_kzalloc(&pdev->dev, MDP_LUT_SIZE * sizeof(u16),
+	map->red = devm_kcalloc(&pdev->dev, MDP_LUT_SIZE, sizeof(u16),
 				GFP_KERNEL);
 	if (map->red == NULL)
 		goto exit_red;
 
 	memset(map->red, 0, sizeof(u16) * MDP_LUT_SIZE);
 
-	map->green = devm_kzalloc(&pdev->dev, MDP_LUT_SIZE * sizeof(u16),
-				GFP_KERNEL);
+	map->green = devm_kcalloc(&pdev->dev, MDP_LUT_SIZE, sizeof(u16),
+				  GFP_KERNEL);
 	if (map->green == NULL)
 		goto exit_green;
 
 	memset(map->green, 0, sizeof(u16) * MDP_LUT_SIZE);
 
-	map->blue = devm_kzalloc(&pdev->dev, MDP_LUT_SIZE * sizeof(u16),
-				GFP_KERNEL);
+	map->blue = devm_kcalloc(&pdev->dev, MDP_LUT_SIZE, sizeof(u16),
+				 GFP_KERNEL);
 	if (map->blue == NULL)
 		goto exit_blue;
 

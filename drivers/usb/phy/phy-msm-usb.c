@@ -3734,8 +3734,8 @@ struct msm_otg_platform_data *msm_otg_dt_to_pdata(struct platform_device *pdev)
 	len = of_property_count_elems_of_size(node,
 			"qcom,hsusb-otg-phy-init-seq", sizeof(len));
 	if (len > 0) {
-		pdata->phy_init_seq = devm_kzalloc(&pdev->dev,
-						len * sizeof(len), GFP_KERNEL);
+		pdata->phy_init_seq = devm_kcalloc(&pdev->dev,
+						len, sizeof(len), GFP_KERNEL);
 		if (!pdata->phy_init_seq)
 			return NULL;
 		of_property_read_u32_array(node, "qcom,hsusb-otg-phy-init-seq",

@@ -1619,8 +1619,8 @@ static int jtag_mm_etm_probe(struct platform_device *pdev, uint32_t cpu)
 		etmdata->save_restore_disabled = 1;
 
 	/* Allocate etm state save space per core */
-	etmdata->state = devm_kzalloc(dev,
-				      MAX_ETM_STATE_SIZE * sizeof(uint64_t),
+	etmdata->state = devm_kcalloc(dev,
+				      MAX_ETM_STATE_SIZE, sizeof(uint64_t),
 				      GFP_KERNEL);
 	if (!etmdata->state)
 		return -ENOMEM;

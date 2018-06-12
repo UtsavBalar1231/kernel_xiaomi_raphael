@@ -726,9 +726,10 @@ static void cnss_pci_dump_shadow_reg(struct cnss_pci_data *pci_priv)
 		gfp = GFP_ATOMIC;
 
 	if (!pci_priv->debug_reg) {
-		pci_priv->debug_reg = devm_kzalloc(&pci_priv->pci_dev->dev,
-						   sizeof(*pci_priv->debug_reg)
-						   * array_size, gfp);
+		pci_priv->debug_reg = devm_kcalloc(&pci_priv->pci_dev->dev,
+						   array_size,
+						   sizeof(*pci_priv->debug_reg),
+						   gfp);
 		if (!pci_priv->debug_reg)
 			return;
 	}
@@ -2604,9 +2605,10 @@ static void cnss_pci_dump_qdss_reg(struct cnss_pci_data *pci_priv)
 		gfp = GFP_ATOMIC;
 
 	if (!plat_priv->qdss_reg) {
-		plat_priv->qdss_reg = devm_kzalloc(&pci_priv->pci_dev->dev,
-						   sizeof(*plat_priv->qdss_reg)
-						   * array_size, gfp);
+		plat_priv->qdss_reg = devm_kcalloc(&pci_priv->pci_dev->dev,
+						   array_size,
+						   sizeof(*plat_priv->qdss_reg),
+						   gfp);
 		if (!plat_priv->qdss_reg)
 			return;
 	}

@@ -772,8 +772,8 @@ static int gdsc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	sc->clocks = devm_kzalloc(&pdev->dev,
-			sizeof(struct clk *) * sc->clock_count, GFP_KERNEL);
+	sc->clocks = devm_kcalloc(&pdev->dev,
+			sc->clock_count, sizeof(struct clk *), GFP_KERNEL);
 	if (!sc->clocks)
 		return -ENOMEM;
 
@@ -938,9 +938,9 @@ static int gdsc_probe(struct platform_device *pdev)
 			goto err;
 		}
 
-		sc->reset_clocks = devm_kzalloc(&pdev->dev,
-			sizeof(struct reset_control *) * sc->reset_count,
-							GFP_KERNEL);
+		sc->reset_clocks = devm_kcalloc(&pdev->dev,
+			sc->reset_count, sizeof(struct reset_control *),
+			GFP_KERNEL);
 		if (!sc->reset_clocks) {
 			ret = -ENOMEM;
 			goto err;

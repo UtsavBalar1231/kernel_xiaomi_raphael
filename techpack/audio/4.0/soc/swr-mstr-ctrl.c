@@ -3204,8 +3204,8 @@ static int swrm_alloc_port_mem(struct device *dev, struct swr_mstr_ctrl *swrm,
 				u32 uc, u32 size)
 {
 	if (!swrm->port_param) {
-		swrm->port_param = devm_kzalloc(dev,
-					sizeof(swrm->port_param) * SWR_UC_MAX,
+		swrm->port_param = devm_kcalloc(dev,
+					SWR_UC_MAX, sizeof(swrm->port_param),
 					GFP_KERNEL);
 		if (!swrm->port_param)
 			return -ENOMEM;

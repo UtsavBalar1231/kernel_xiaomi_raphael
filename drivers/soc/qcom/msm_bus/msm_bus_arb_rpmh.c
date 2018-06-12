@@ -140,9 +140,9 @@ static void bcm_add_bus_req(struct device *dev)
 		bcm_dev = to_msm_bus_node(cur_dev->node_info->bcm_devs[i]);
 		max_num_lnodes = bcm_dev->bcmdev->num_bus_devs;
 		if (!bcm_dev->num_lnodes) {
-			bcm_dev->lnode_list = devm_kzalloc(dev,
-				sizeof(struct link_node) * max_num_lnodes,
-								GFP_KERNEL);
+			bcm_dev->lnode_list = devm_kcalloc(dev,
+				max_num_lnodes, sizeof(struct link_node),
+				GFP_KERNEL);
 			if (!bcm_dev->lnode_list)
 				goto exit_bcm_add_bus_req;
 
@@ -211,9 +211,9 @@ static int gen_lnode(struct device *dev,
 	}
 
 	if (!cur_dev->num_lnodes) {
-		cur_dev->lnode_list = devm_kzalloc(dev,
-				sizeof(struct link_node) * NUM_LNODES,
-								GFP_KERNEL);
+		cur_dev->lnode_list = devm_kcalloc(dev,
+				NUM_LNODES, sizeof(struct link_node),
+				GFP_KERNEL);
 		if (!cur_dev->lnode_list)
 			goto exit_gen_lnode;
 

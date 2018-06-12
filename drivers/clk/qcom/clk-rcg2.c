@@ -1620,8 +1620,9 @@ int clk_rcg2_get_dfs_clock_rate(struct clk_rcg2 *clk, struct device *dev,
 	if (!(val & SE_CMD_DFS_EN))
 		return ret;
 
-	dfs_freq_tbl = devm_kzalloc(dev, MAX_PERF_LEVEL *
-				sizeof(struct freq_tbl), GFP_KERNEL);
+	dfs_freq_tbl = devm_kcalloc(dev,
+				    MAX_PERF_LEVEL, sizeof(struct freq_tbl),
+				    GFP_KERNEL);
 	if (!dfs_freq_tbl)
 		return -ENOMEM;
 

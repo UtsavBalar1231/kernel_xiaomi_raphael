@@ -1027,7 +1027,7 @@ static int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
 		goto out;
 	}
 
-	chip->cc_attrs_tbl = devm_kzalloc(&chip->dev, 4 * nr_commands,
+	chip->cc_attrs_tbl = devm_kcalloc(&chip->dev, 4, nr_commands,
 					  GFP_KERNEL);
 	if (!chip->cc_attrs_tbl) {
 		rc = -ENOMEM;

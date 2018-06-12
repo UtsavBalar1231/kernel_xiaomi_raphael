@@ -140,7 +140,8 @@ static int mlxcpld_hotplug_attr_init(struct mlxcpld_hotplug_priv_data *priv)
 			priv->plat->fan_count;
 	int i;
 
-	priv->group.attrs = devm_kzalloc(&priv->pdev->dev, num_attrs *
+	priv->group.attrs = devm_kcalloc(&priv->pdev->dev,
+					 num_attrs,
 					 sizeof(struct attribute *),
 					 GFP_KERNEL);
 	if (!priv->group.attrs)

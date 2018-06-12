@@ -4437,7 +4437,8 @@ static int tpdm_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->nr_tclk = of_property_count_strings(adev->dev.of_node,
 						     "qcom,tpdm-clks");
 	if (drvdata->nr_tclk > 0) {
-		drvdata->tclk = devm_kzalloc(dev, drvdata->nr_tclk *
+		drvdata->tclk = devm_kcalloc(dev,
+					     drvdata->nr_tclk,
 					     sizeof(*drvdata->tclk),
 					     GFP_KERNEL);
 		if (!drvdata->tclk)
@@ -4459,7 +4460,8 @@ static int tpdm_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->nr_treg = of_property_count_strings(adev->dev.of_node,
 						     "qcom,tpdm-regs");
 	if (drvdata->nr_treg > 0) {
-		drvdata->treg = devm_kzalloc(dev, drvdata->nr_treg *
+		drvdata->treg = devm_kcalloc(dev,
+					     drvdata->nr_treg,
 					     sizeof(*drvdata->treg),
 					     GFP_KERNEL);
 		if (!drvdata->treg)

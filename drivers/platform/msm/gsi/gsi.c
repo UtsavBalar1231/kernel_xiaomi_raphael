@@ -2374,8 +2374,8 @@ int gsi_alloc_channel(struct gsi_chan_props *props, unsigned long dev_hdl,
 	if (props->prot == GSI_CHAN_PROT_GCI)
 		user_data_size += GSI_VEID_MAX;
 
-	user_data = devm_kzalloc(gsi_ctx->dev,
-		user_data_size * sizeof(*user_data),
+	user_data = devm_kcalloc(gsi_ctx->dev,
+		user_data_size, sizeof(*user_data),
 		GFP_KERNEL);
 	if (user_data == NULL) {
 		GSIERR("context not allocated\n");

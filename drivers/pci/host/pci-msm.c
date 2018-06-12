@@ -3776,8 +3776,9 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 			"iommu-map", (u32 *)map, size / sizeof(u32));
 
 		dev->sid_info_len = map_len;
-		dev->sid_info = devm_kzalloc(&pdev->dev,
-			dev->sid_info_len * sizeof(*dev->sid_info), GFP_KERNEL);
+		dev->sid_info = devm_kcalloc(&pdev->dev,
+			dev->sid_info_len, sizeof(*dev->sid_info),
+			GFP_KERNEL);
 		if (!dev->sid_info) {
 			devm_kfree(&pdev->dev, map);
 			ret = -ENOMEM;

@@ -317,8 +317,8 @@ int mdss_mdp_video_addr_setup(struct mdss_data_type *mdata,
 	struct mdss_mdp_video_ctx *head;
 	u32 i;
 
-	head = devm_kzalloc(&mdata->pdev->dev,
-			sizeof(struct mdss_mdp_video_ctx) * count, GFP_KERNEL);
+	head = devm_kcalloc(&mdata->pdev->dev,
+			count, sizeof(struct mdss_mdp_video_ctx), GFP_KERNEL);
 	if (!head)
 		return -ENOMEM;
 

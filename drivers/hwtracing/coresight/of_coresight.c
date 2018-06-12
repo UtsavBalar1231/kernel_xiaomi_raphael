@@ -85,27 +85,31 @@ static int of_coresight_alloc_memory(struct device *dev,
 			struct coresight_platform_data *pdata)
 {
 	/* List of output port on this component */
-	pdata->outports = devm_kzalloc(dev, pdata->nr_outport *
+	pdata->outports = devm_kcalloc(dev,
+				       pdata->nr_outport,
 				       sizeof(*pdata->outports),
 				       GFP_KERNEL);
 	if (!pdata->outports)
 		return -ENOMEM;
 
-	pdata->source_names = devm_kzalloc(dev, pdata->nr_outport *
-					sizeof(*pdata->source_names),
-					GFP_KERNEL);
+	pdata->source_names = devm_kcalloc(dev,
+					   pdata->nr_outport,
+					   sizeof(*pdata->source_names),
+					   GFP_KERNEL);
 	if (!pdata->source_names)
 		return -ENOMEM;
 
 	/* Children connected to this component via @outports */
-	pdata->child_names = devm_kzalloc(dev, pdata->nr_outport *
+	pdata->child_names = devm_kcalloc(dev,
+					  pdata->nr_outport,
 					  sizeof(*pdata->child_names),
 					  GFP_KERNEL);
 	if (!pdata->child_names)
 		return -ENOMEM;
 
 	/* Port number on the child this component is connected to */
-	pdata->child_ports = devm_kzalloc(dev, pdata->nr_outport *
+	pdata->child_ports = devm_kcalloc(dev,
+					  pdata->nr_outport,
 					  sizeof(*pdata->child_ports),
 					  GFP_KERNEL);
 	if (!pdata->child_ports)
@@ -149,8 +153,9 @@ of_coresight_get_reg_clk(struct device *dev, const struct device_node *node)
 	reg_clk->nr_reg = nr_reg;
 	reg_clk->nr_clk = nr_clk;
 	if (nr_reg > 0) {
-		reg_clk->reg = devm_kzalloc(dev, nr_reg *
-			sizeof(reg_clk->reg), GFP_KERNEL);
+		reg_clk->reg = devm_kcalloc(dev,
+					    nr_reg, sizeof(reg_clk->reg),
+					    GFP_KERNEL);
 		if (!reg_clk->reg)
 			return ERR_PTR(-ENOMEM);
 
@@ -165,8 +170,9 @@ of_coresight_get_reg_clk(struct device *dev, const struct device_node *node)
 		}
 	}
 	if (nr_clk > 0) {
-		reg_clk->clk = devm_kzalloc(dev, nr_clk *
-			sizeof(reg_clk->clk), GFP_KERNEL);
+		reg_clk->clk = devm_kcalloc(dev,
+					    nr_clk, sizeof(reg_clk->clk),
+					    GFP_KERNEL);
 		if (!reg_clk->clk)
 			return ERR_PTR(-ENOMEM);
 
@@ -336,7 +342,8 @@ struct coresight_cti_data *of_get_coresight_cti_data(
 		return ERR_PTR(-EINVAL);
 
 	if (ctidata->nr_ctis) {
-		ctidata->names = devm_kzalloc(dev, ctidata->nr_ctis *
+		ctidata->names = devm_kcalloc(dev,
+					      ctidata->nr_ctis,
 					      sizeof(*ctidata->names),
 					      GFP_KERNEL);
 		if (!ctidata->names)

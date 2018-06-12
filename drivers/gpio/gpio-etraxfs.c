@@ -380,7 +380,8 @@ static int etraxfs_gpio_probe(struct platform_device *pdev)
 
 	info = match->data;
 
-	chips = devm_kzalloc(dev, sizeof(*chips) * info->num_ports, GFP_KERNEL);
+	chips = devm_kcalloc(dev, info->num_ports, sizeof(*chips),
+			     GFP_KERNEL);
 	if (!chips)
 		return -ENOMEM;
 

@@ -164,8 +164,9 @@ static int sde_power_parse_dt_supply(struct platform_device *pdev,
 	}
 
 	pr_debug("vreg found. count=%d\n", mp->num_vreg);
-	mp->vreg_config = devm_kzalloc(&pdev->dev, sizeof(struct dss_vreg) *
-						mp->num_vreg, GFP_KERNEL);
+	mp->vreg_config = devm_kcalloc(&pdev->dev,
+				       mp->num_vreg, sizeof(struct dss_vreg),
+				       GFP_KERNEL);
 	if (!mp->vreg_config) {
 		rc = -ENOMEM;
 		return rc;
@@ -299,8 +300,8 @@ static int sde_power_parse_dt_clock(struct platform_device *pdev,
 	}
 
 	mp->num_clk = num_clk;
-	mp->clk_config = devm_kzalloc(&pdev->dev,
-			sizeof(struct dss_clk) * num_clk, GFP_KERNEL);
+	mp->clk_config = devm_kcalloc(&pdev->dev,
+			num_clk, sizeof(struct dss_clk), GFP_KERNEL);
 	if (!mp->clk_config) {
 		rc = -ENOMEM;
 		mp->num_clk = 0;

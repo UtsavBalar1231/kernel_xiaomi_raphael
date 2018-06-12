@@ -458,34 +458,39 @@ static int tgu_probe(struct amba_device *adev, const struct amba_id *id)
 		return -EINVAL;
 
 	/* Alloc memory for Grps, Conditions and Steps */
-	drvdata->grp_data = devm_kzalloc(dev, MAX_GROUP_SETS *
-				       sizeof(*drvdata->grp_data),
-				       GFP_KERNEL);
+	drvdata->grp_data = devm_kcalloc(dev,
+					 MAX_GROUP_SETS,
+					 sizeof(*drvdata->grp_data),
+					 GFP_KERNEL);
 	if (!drvdata->grp_data)
 		return -ENOMEM;
 
-	drvdata->condition_data = devm_kzalloc(dev, MAX_CONDITION_SETS *
-				       sizeof(*drvdata->condition_data),
-				       GFP_KERNEL);
+	drvdata->condition_data = devm_kcalloc(dev,
+					       MAX_CONDITION_SETS,
+					       sizeof(*drvdata->condition_data),
+					       GFP_KERNEL);
 
 	if (!drvdata->condition_data)
 		return -ENOMEM;
 
-	drvdata->select_data = devm_kzalloc(dev, MAX_CONDITION_SETS *
-				       sizeof(*drvdata->select_data),
-				       GFP_KERNEL);
+	drvdata->select_data = devm_kcalloc(dev,
+					    MAX_CONDITION_SETS,
+					    sizeof(*drvdata->select_data),
+					    GFP_KERNEL);
 	if (!drvdata->select_data)
 		return -ENOMEM;
 
-	drvdata->timer_data = devm_kzalloc(dev, MAX_TIMER_COUNTER_SETS *
-				       sizeof(*drvdata->timer_data),
-				       GFP_KERNEL);
+	drvdata->timer_data = devm_kcalloc(dev,
+					   MAX_TIMER_COUNTER_SETS,
+					   sizeof(*drvdata->timer_data),
+					   GFP_KERNEL);
 	if (!drvdata->timer_data)
 		return -ENOMEM;
 
-	drvdata->counter_data = devm_kzalloc(dev, MAX_TIMER_COUNTER_SETS *
-				       sizeof(*drvdata->counter_data),
-				       GFP_KERNEL);
+	drvdata->counter_data = devm_kcalloc(dev,
+					     MAX_TIMER_COUNTER_SETS,
+					     sizeof(*drvdata->counter_data),
+					     GFP_KERNEL);
 	if (!drvdata->counter_data)
 		return -ENOMEM;
 

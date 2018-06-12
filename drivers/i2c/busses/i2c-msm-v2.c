@@ -1598,11 +1598,11 @@ static int i2c_msm_clk_path_init_structs(struct i2c_msm_ctrl *ctrl)
 
 	i2c_msm_dbg(ctrl, MSM_PROF, "initializes path clock voting structs\n");
 
-	paths = devm_kzalloc(ctrl->dev, sizeof(*paths) * 2, GFP_KERNEL);
+	paths = devm_kcalloc(ctrl->dev, 2, sizeof(*paths), GFP_KERNEL);
 	if (!paths)
 		return -ENOMEM;
 
-	usecases = devm_kzalloc(ctrl->dev, sizeof(*usecases) * 2, GFP_KERNEL);
+	usecases = devm_kcalloc(ctrl->dev, 2, sizeof(*usecases), GFP_KERNEL);
 	if (!usecases)
 		goto path_init_err;
 

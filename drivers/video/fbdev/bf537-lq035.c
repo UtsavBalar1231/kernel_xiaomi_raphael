@@ -737,8 +737,8 @@ static int bfin_lq035_probe(struct platform_device *pdev)
 	bfin_lq035_fb.flags = FBINFO_DEFAULT;
 
 
-	bfin_lq035_fb.pseudo_palette = devm_kzalloc(&pdev->dev,
-						    sizeof(u32) * 16,
+	bfin_lq035_fb.pseudo_palette = devm_kcalloc(&pdev->dev,
+						    16, sizeof(u32),
 						    GFP_KERNEL);
 	if (bfin_lq035_fb.pseudo_palette == NULL) {
 		pr_err("failed to allocate pseudo_palette\n");

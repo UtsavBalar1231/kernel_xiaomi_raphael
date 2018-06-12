@@ -127,9 +127,9 @@ static int gen_lnode(struct device *dev,
 	}
 
 	if (!cur_dev->num_lnodes) {
-		cur_dev->lnode_list = devm_kzalloc(dev,
-				sizeof(struct link_node) * NUM_LNODES,
-								GFP_KERNEL);
+		cur_dev->lnode_list = devm_kcalloc(dev,
+				NUM_LNODES, sizeof(struct link_node),
+				GFP_KERNEL);
 		if (!cur_dev->lnode_list)
 			goto exit_gen_lnode;
 

@@ -331,7 +331,8 @@ static int wcd_pinctrl_probe(struct platform_device *pdev)
 		goto err_name_alloc;
 	}
 	for (i = 0; i < npins; i++, pindesc++) {
-		name[i] = devm_kzalloc(dev, sizeof(char) * WCD_GPIO_STRING_LEN,
+		name[i] = devm_kzalloc(dev,
+				       WCD_GPIO_STRING_LEN,
 				       GFP_KERNEL);
 		if (!name[i]) {
 			ret = -ENOMEM;

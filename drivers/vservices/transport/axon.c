@@ -3056,8 +3056,8 @@ static int transport_axon_setup_descs(struct vs_transport_axon *transport)
 	}
 
 	/* Array of pointers to the source TX pool for each outgoing buffer. */
-	transport->tx_pools = devm_kzalloc(transport->axon_dev,
-			sizeof(*transport->tx_pools) * transport->queue_size,
+	transport->tx_pools = devm_kcalloc(transport->axon_dev,
+			transport->queue_size, sizeof(*transport->tx_pools),
 			GFP_KERNEL);
 	if (!transport->tx_pools) {
 		err = -ENOMEM;

@@ -1861,8 +1861,10 @@ static struct msm_bus_scale_pdata *ab_ib_register(struct platform_device *pdev,
 
 	for (i = 0; i < pdata->num_usecases; i++) {
 		usecase[i].num_paths = host->num_paths;
-		usecase[i].vectors = devm_kzalloc(dev, host->num_paths *
-			sizeof(struct msm_bus_vectors), GFP_KERNEL);
+		usecase[i].vectors = devm_kcalloc(dev,
+						  host->num_paths,
+						  sizeof(struct msm_bus_vectors),
+						  GFP_KERNEL);
 		if (!usecase[i].vectors) {
 			mem_err = true;
 			pr_err("Error: Mem alloc failure in vectors\n");

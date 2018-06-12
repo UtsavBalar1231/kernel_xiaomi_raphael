@@ -327,8 +327,9 @@ static int tps65218_regulator_probe(struct platform_device *pdev)
 	config.regmap = tps->regmap;
 
 	/* Allocate memory for strobes */
-	tps->strobes = devm_kzalloc(&pdev->dev, sizeof(u8) *
-				    TPS65218_NUM_REGULATOR, GFP_KERNEL);
+	tps->strobes = devm_kcalloc(&pdev->dev,
+				    TPS65218_NUM_REGULATOR, sizeof(u8),
+				    GFP_KERNEL);
 
 	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
 		rdev = devm_regulator_register(&pdev->dev, &regulators[i],

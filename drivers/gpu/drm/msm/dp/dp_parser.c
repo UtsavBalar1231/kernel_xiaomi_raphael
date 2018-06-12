@@ -43,8 +43,8 @@ static int dp_parser_reg(struct dp_parser *parser)
 	}
 
 	io->len = reg_count;
-	io->data = devm_kzalloc(dev, sizeof(struct dp_io_data) * reg_count,
-			GFP_KERNEL);
+	io->data = devm_kcalloc(dev, reg_count, sizeof(struct dp_io_data),
+				GFP_KERNEL);
 	if (!io->data)
 		return -ENOMEM;
 
@@ -287,8 +287,8 @@ static int dp_parser_gpio(struct dp_parser *parser)
 
 	if (of_find_property(of_node, "qcom,dp-gpio-aux-switch", NULL))
 		parser->gpio_aux_switch = true;
-	mp->gpio_config = devm_kzalloc(dev,
-		sizeof(struct dss_gpio) * ARRAY_SIZE(dp_gpios), GFP_KERNEL);
+	mp->gpio_config = devm_kcalloc(dev,
+		ARRAY_SIZE(dp_gpios), sizeof(struct dss_gpio), GFP_KERNEL);
 	if (!mp->gpio_config)
 		return -ENOMEM;
 
@@ -354,8 +354,8 @@ static int dp_parser_get_vreg(struct dp_parser *parser,
 		pr_debug("vreg found. count=%d\n", mp->num_vreg);
 	}
 
-	mp->vreg_config = devm_kzalloc(&parser->pdev->dev,
-		sizeof(struct dss_vreg) * mp->num_vreg, GFP_KERNEL);
+	mp->vreg_config = devm_kcalloc(&parser->pdev->dev,
+		mp->num_vreg, sizeof(struct dss_vreg), GFP_KERNEL);
 	if (!mp->vreg_config) {
 		rc = -ENOMEM;
 		goto error;
@@ -558,8 +558,8 @@ static int dp_parser_init_clk_data(struct dp_parser *parser)
 	}
 
 	core_power->num_clk = core_clk_count;
-	core_power->clk_config = devm_kzalloc(dev,
-			sizeof(struct dss_clk) * core_power->num_clk,
+	core_power->clk_config = devm_kcalloc(dev,
+			core_power->num_clk, sizeof(struct dss_clk),
 			GFP_KERNEL);
 	if (!core_power->clk_config) {
 		rc = -EINVAL;
@@ -571,8 +571,8 @@ static int dp_parser_init_clk_data(struct dp_parser *parser)
 		pr_debug("no strm0 clocks are defined\n");
 	} else {
 		strm0_power->num_clk = strm0_clk_count;
-		strm0_power->clk_config = devm_kzalloc(dev,
-			sizeof(struct dss_clk) * strm0_power->num_clk,
+		strm0_power->clk_config = devm_kcalloc(dev,
+			strm0_power->num_clk, sizeof(struct dss_clk),
 			GFP_KERNEL);
 		if (!strm0_power->clk_config) {
 			strm0_power->num_clk = 0;
@@ -586,8 +586,8 @@ static int dp_parser_init_clk_data(struct dp_parser *parser)
 		pr_debug("no strm1 clocks are defined\n");
 	} else {
 		strm1_power->num_clk = strm1_clk_count;
-		strm1_power->clk_config = devm_kzalloc(dev,
-			sizeof(struct dss_clk) * strm1_power->num_clk,
+		strm1_power->clk_config = devm_kcalloc(dev,
+			strm1_power->num_clk, sizeof(struct dss_clk),
 			GFP_KERNEL);
 		if (!strm1_power->clk_config) {
 			strm1_power->num_clk = 0;
@@ -604,8 +604,8 @@ static int dp_parser_init_clk_data(struct dp_parser *parser)
 	}
 
 	link_power->num_clk = link_clk_count;
-	link_power->clk_config = devm_kzalloc(dev,
-			sizeof(struct dss_clk) * link_power->num_clk,
+	link_power->clk_config = devm_kcalloc(dev,
+			link_power->num_clk, sizeof(struct dss_clk),
 			GFP_KERNEL);
 	if (!link_power->clk_config) {
 		link_power->num_clk = 0;

@@ -2485,7 +2485,7 @@ struct clk_src *msmclk_parse_clk_src(struct device *dev,
 	}
 	num_parents = prop_len / len;
 
-	clks = devm_kzalloc(dev, sizeof(*clks) * num_parents, GFP_KERNEL);
+	clks = devm_kcalloc(dev, num_parents, sizeof(*clks), GFP_KERNEL);
 	if (!clks)
 		return ERR_PTR(-ENOMEM);
 
@@ -2538,8 +2538,8 @@ static int rcg_parse_freq_tbl(struct device *dev,
 
 	num_rows = prop_len / 6;
 	/* Array is null terminated. */
-	rcg->freq_tbl = devm_kzalloc(dev,
-				sizeof(*rcg->freq_tbl) * (num_rows + 1),
+	rcg->freq_tbl = devm_kcalloc(dev,
+				num_rows + 1, sizeof(*rcg->freq_tbl),
 				GFP_KERNEL);
 
 	if (!rcg->freq_tbl) {
@@ -2646,8 +2646,8 @@ static int parse_rec_parents(struct device *dev,
 	if (mux->num_rec_parents <= 0)
 		return 0;
 
-	mux->rec_parents = devm_kzalloc(dev,
-			sizeof(*mux->rec_parents) * mux->num_rec_parents,
+	mux->rec_parents = devm_kcalloc(dev,
+			mux->num_rec_parents, sizeof(*mux->rec_parents),
 			GFP_KERNEL);
 
 	if (!mux->rec_parents) {

@@ -94,8 +94,8 @@ int cam_ahb_clk_init(struct platform_device *pdev)
 
 	CDBG("number of bus vectors: %d\n", data.cnt);
 
-	data.vectors = devm_kzalloc(&pdev->dev,
-		sizeof(struct cam_bus_vector) * cnt,
+	data.vectors = devm_kcalloc(&pdev->dev,
+		cnt, sizeof(struct cam_bus_vector),
 		GFP_KERNEL);
 	if (!data.vectors)
 		return -ENOMEM;
@@ -111,16 +111,16 @@ int cam_ahb_clk_init(struct platform_device *pdev)
 		}
 	}
 
-	data.paths = devm_kzalloc(&pdev->dev,
-		sizeof(struct msm_bus_vectors) * cnt,
+	data.paths = devm_kcalloc(&pdev->dev,
+		cnt, sizeof(struct msm_bus_vectors),
 		GFP_KERNEL);
 	if (!data.paths) {
 		rc = -ENOMEM;
 		goto err1;
 	}
 
-	data.usecases = devm_kzalloc(&pdev->dev,
-		sizeof(struct msm_bus_paths) * cnt,
+	data.usecases = devm_kcalloc(&pdev->dev,
+		cnt, sizeof(struct msm_bus_paths),
 		GFP_KERNEL);
 	if (!data.usecases) {
 		rc = -ENOMEM;
@@ -135,8 +135,8 @@ int cam_ahb_clk_init(struct platform_device *pdev)
 		goto err3;
 	}
 
-	data.votes = devm_kzalloc(&pdev->dev, sizeof(u32) * cnt,
-		GFP_KERNEL);
+	data.votes = devm_kcalloc(&pdev->dev, cnt, sizeof(u32),
+				  GFP_KERNEL);
 	if (!data.votes) {
 		rc = -ENOMEM;
 		goto err4;

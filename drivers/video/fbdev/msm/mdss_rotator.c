@@ -1942,8 +1942,8 @@ static int mdss_rotator_open_session(struct mdss_rot_mgr *mgr,
 		return -ENOMEM;
 
 	ATRACE_BEGIN(__func__); /* Open session votes for bw */
-	perf->work_distribution = devm_kzalloc(&mgr->pdev->dev,
-		sizeof(u32) * mgr->queue_count, GFP_KERNEL);
+	perf->work_distribution = devm_kcalloc(&mgr->pdev->dev,
+		mgr->queue_count, sizeof(u32), GFP_KERNEL);
 	if (!perf->work_distribution) {
 		ret = -ENOMEM;
 		goto alloc_err;
@@ -2696,8 +2696,9 @@ static int mdss_rotator_get_dt_vreg_data(struct device *dev,
 		return 0;
 	}
 	mp->num_vreg = dt_vreg_total;
-	mp->vreg_config = devm_kzalloc(dev, sizeof(struct dss_vreg) *
-		dt_vreg_total, GFP_KERNEL);
+	mp->vreg_config = devm_kcalloc(dev,
+				       dt_vreg_total, sizeof(struct dss_vreg),
+				       GFP_KERNEL);
 	if (!mp->vreg_config) {
 		DEV_ERR("%s: can't alloc vreg mem\n", __func__);
 		return -ENOMEM;

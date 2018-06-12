@@ -1155,7 +1155,7 @@ static int bimc_bwmon_driver_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		m->clks = devm_kzalloc(dev, sizeof(struct clk *) * m->nr_clks,
+		m->clks = devm_kcalloc(dev, m->nr_clks, sizeof(struct clk *),
 					GFP_KERNEL);
 		if (!m->clks)
 			return -ENOMEM;

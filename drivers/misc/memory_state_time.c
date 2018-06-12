@@ -301,13 +301,13 @@ static int get_bw_buckets(struct device *dev)
 		return -ENODATA;
 	}
 
-	bandwidths = devm_kzalloc(dev,
-			sizeof(*bandwidths) * num_sources, GFP_KERNEL);
+	bandwidths = devm_kcalloc(dev,
+			num_sources, sizeof(*bandwidths), GFP_KERNEL);
 	if (!bandwidths)
 		return -ENOMEM;
 	lenb /= sizeof(*bw_buckets);
-	bw_buckets = devm_kzalloc(dev, lenb * sizeof(*bw_buckets),
-			GFP_KERNEL);
+	bw_buckets = devm_kcalloc(dev, lenb, sizeof(*bw_buckets),
+				  GFP_KERNEL);
 	if (!bw_buckets) {
 		devm_kfree(dev, bandwidths);
 		return -ENOMEM;
@@ -342,8 +342,8 @@ static int freq_buckets_init(struct device *dev)
 	}
 
 	lenf /= sizeof(*freq_buckets);
-	freq_buckets = devm_kzalloc(dev, lenf * sizeof(*freq_buckets),
-			GFP_KERNEL);
+	freq_buckets = devm_kcalloc(dev, lenf, sizeof(*freq_buckets),
+				    GFP_KERNEL);
 	if (!freq_buckets)
 		return -ENOMEM;
 	pr_debug("freqs found len %d\n", lenf);
@@ -364,8 +364,9 @@ static int freq_buckets_init(struct device *dev)
 				GFP_KERNEL);
 		if (!freq_entry)
 			return -ENOMEM;
-		freq_entry->buckets = devm_kzalloc(dev, sizeof(u64)*num_buckets,
-				GFP_KERNEL);
+		freq_entry->buckets = devm_kcalloc(dev,
+						   num_buckets, sizeof(u64),
+						   GFP_KERNEL);
 		if (!freq_entry->buckets) {
 			devm_kfree(dev, freq_entry);
 			return -ENOMEM;

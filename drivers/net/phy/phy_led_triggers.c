@@ -99,9 +99,9 @@ int phy_led_triggers_register(struct phy_device *phy)
 	if (!phy->phy_num_led_triggers)
 		return 0;
 
-	phy->phy_led_triggers = devm_kzalloc(&phy->mdio.dev,
-					    sizeof(struct phy_led_trigger) *
-						   phy->phy_num_led_triggers,
+	phy->phy_led_triggers = devm_kcalloc(&phy->mdio.dev,
+					    phy->phy_num_led_triggers,
+					    sizeof(struct phy_led_trigger),
 					    GFP_KERNEL);
 	if (!phy->phy_led_triggers) {
 		err = -ENOMEM;

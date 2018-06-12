@@ -4313,9 +4313,9 @@ static int msm_anlg_cdc_init_supplies(struct sdm660_cdc_priv *sdm660_cdc,
 	int ret;
 	int i;
 
-	sdm660_cdc->supplies = devm_kzalloc(sdm660_cdc->dev,
-					sizeof(struct regulator_bulk_data) *
+	sdm660_cdc->supplies = devm_kcalloc(sdm660_cdc->dev,
 					ARRAY_SIZE(pdata->regulator),
+					sizeof(struct regulator_bulk_data),
 					GFP_KERNEL);
 	if (!sdm660_cdc->supplies) {
 		ret = -ENOMEM;

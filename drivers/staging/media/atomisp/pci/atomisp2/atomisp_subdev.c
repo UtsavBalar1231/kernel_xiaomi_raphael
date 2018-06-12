@@ -1414,8 +1414,10 @@ int atomisp_subdev_init(struct atomisp_device *isp)
 	 * multiple streams
 	 */
 	isp->num_of_streams = 2;
-	isp->asd = devm_kzalloc(isp->dev, sizeof(struct atomisp_sub_device) *
-			       isp->num_of_streams, GFP_KERNEL);
+	isp->asd = devm_kcalloc(isp->dev,
+				isp->num_of_streams,
+				sizeof(struct atomisp_sub_device),
+				GFP_KERNEL);
 	if (!isp->asd)
 		return -ENOMEM;
 	for (i = 0; i < isp->num_of_streams; i++) {

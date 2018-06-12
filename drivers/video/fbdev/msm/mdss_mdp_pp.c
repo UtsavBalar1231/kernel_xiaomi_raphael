@@ -3186,9 +3186,9 @@ int mdss_mdp_pp_init(struct device *dev)
 				goto pp_exit;
 			}
 			pp_ops = pp_driver_ops.pp_ops;
-			hist = devm_kzalloc(dev,
-					sizeof(struct pp_hist_col_info) *
+			hist = devm_kcalloc(dev,
 					mdata->ndspp,
+					sizeof(struct pp_hist_col_info),
 					GFP_KERNEL);
 			if (hist == NULL) {
 				pr_err("dspp histogram allocation failed!\n");
@@ -6805,8 +6805,8 @@ int mdss_mdp_ad_addr_setup(struct mdss_data_type *mdata, u32 *ad_offsets)
 	u32 i;
 	int rc = 0;
 
-	mdata->ad_off = devm_kzalloc(&mdata->pdev->dev,
-				sizeof(struct mdss_mdp_ad) * mdata->nad_cfgs,
+	mdata->ad_off = devm_kcalloc(&mdata->pdev->dev,
+				mdata->nad_cfgs, sizeof(struct mdss_mdp_ad),
 				GFP_KERNEL);
 
 	if (!mdata->ad_off) {
@@ -6814,8 +6814,8 @@ int mdss_mdp_ad_addr_setup(struct mdss_data_type *mdata, u32 *ad_offsets)
 		return -ENOMEM;
 	}
 
-	mdata->ad_cfgs = devm_kzalloc(&mdata->pdev->dev,
-			sizeof(struct mdss_ad_info) * mdata->nad_cfgs,
+	mdata->ad_cfgs = devm_kcalloc(&mdata->pdev->dev,
+			mdata->nad_cfgs, sizeof(struct mdss_ad_info),
 			GFP_KERNEL);
 
 	if (!mdata->ad_cfgs) {

@@ -382,7 +382,7 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 	if (nf == 0)
 		return ERR_PTR(-EINVAL);
 
-	data = devm_kzalloc(dev, nf * sizeof(*data), GFP_KERNEL);
+	data = devm_kcalloc(dev, nf, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
@@ -390,7 +390,7 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ftbl = devm_kzalloc(dev, (nf + 1) * sizeof(*ftbl), GFP_KERNEL);
+	ftbl = devm_kcalloc(dev, nf + 1, sizeof(*ftbl), GFP_KERNEL);
 	if (!ftbl)
 		return ERR_PTR(-ENOMEM);
 

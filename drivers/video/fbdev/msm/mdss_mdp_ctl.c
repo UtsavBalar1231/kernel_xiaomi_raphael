@@ -5248,8 +5248,8 @@ int mdss_mdp_mixer_addr_setup(struct mdss_data_type *mdata,
 			(mdata->wfd_mode == MDSS_MDP_WFD_SHARED))
 		size++;
 
-	head = devm_kzalloc(&mdata->pdev->dev, sizeof(struct mdss_mdp_mixer) *
-			size, GFP_KERNEL);
+	head = devm_kcalloc(&mdata->pdev->dev,
+			    size, sizeof(struct mdss_mdp_mixer), GFP_KERNEL);
 
 	if (!head) {
 		pr_err("unable to setup mixer type=%d :kzalloc fail\n",
@@ -5319,8 +5319,8 @@ int mdss_mdp_ctl_addr_setup(struct mdss_data_type *mdata,
 		mutex_init(shared_lock);
 	}
 
-	head = devm_kzalloc(&mdata->pdev->dev, sizeof(struct mdss_mdp_ctl) *
-			size, GFP_KERNEL);
+	head = devm_kcalloc(&mdata->pdev->dev,
+			    size, sizeof(struct mdss_mdp_ctl), GFP_KERNEL);
 
 	if (!head) {
 		pr_err("unable to setup ctl and wb: kzalloc fail\n");
@@ -5355,10 +5355,10 @@ int mdss_mdp_wb_addr_setup(struct mdss_data_type *mdata,
 	u32 total, i;
 
 	total = num_block_wb + num_intf_wb;
-	wb = devm_kzalloc(&mdata->pdev->dev, sizeof(struct mdss_mdp_writeback) *
-			total, GFP_KERNEL);
-	if (!wb) {
-		pr_err("unable to setup wb: kzalloc fail\n");
+	wb = devm_kcalloc(&mdata->pdev->dev,
+			  total, sizeof(struct mdss_mdp_writeback),
+			  GFP_KERNEL);
+	if (!wb)
 		return -ENOMEM;
 	}
 

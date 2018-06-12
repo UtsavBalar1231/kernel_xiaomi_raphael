@@ -484,8 +484,9 @@ static int pca9956b_probe(struct i2c_client *client,
 	if (!chip)
 		return -ENOMEM;
 
-	chip->leds = devm_kzalloc(&client->dev, sizeof(*led)*PCA9956B_LED_NUM,
-				GFP_KERNEL);
+	chip->leds = devm_kcalloc(&client->dev,
+				  PCA9956B_LED_NUM, sizeof(*led),
+				  GFP_KERNEL);
 	if (!chip->leds) {
 		devm_kfree(&client->dev, chip);
 		return -ENOMEM;

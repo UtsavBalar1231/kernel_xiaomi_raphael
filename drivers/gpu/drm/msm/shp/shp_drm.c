@@ -428,8 +428,8 @@ static int shp_parse(struct platform_device *pdev, struct shp_device *shp)
 
 	system_count = priv->num_planes;
 	total_count = dup_count + system_count;
-	shp->planes = devm_kzalloc(&pdev->dev,
-			sizeof(*shp_plane) * total_count, GFP_KERNEL);
+	shp->planes = devm_kcalloc(&pdev->dev,
+			total_count, sizeof(*shp_plane), GFP_KERNEL);
 	if (!shp->planes) {
 		rc = -ENOMEM;
 		goto out;
