@@ -576,8 +576,9 @@ static int f2fs_compress_pages(struct compress_ctx *cc)
 	max_len = COMPRESS_HEADER_SIZE + cc->clen;
 	cc->nr_cpages = DIV_ROUND_UP(max_len, PAGE_SIZE);
 
-	cc->cpages = f2fs_kzalloc(sbi, sizeof(struct page *) *
-					cc->nr_cpages, GFP_NOFS);
+	cc->cpages = f2fs_kzalloc(sbi,
+				  array_size(sizeof(struct page *), cc->nr_cpages),
+				  GFP_NOFS);
 	if (!cc->cpages) {
 		ret = -ENOMEM;
 		goto destroy_compress_ctx;
@@ -1450,8 +1451,9 @@ struct decompress_io_ctx *f2fs_alloc_dic(struct compress_ctx *cc)
 		dic->rpages[i] = cc->rpages[i];
 	dic->nr_rpages = cc->cluster_size;
 
-	dic->cpages = f2fs_kzalloc(sbi, sizeof(struct page *) *
-					dic->nr_cpages, GFP_NOFS);
+	dic->cpages = f2fs_kzalloc(sbi,
+				   array_size(sizeof(struct page *), dic->nr_cpages),
+				   GFP_NOFS);
 	if (!dic->cpages)
 		goto out_free;
 
