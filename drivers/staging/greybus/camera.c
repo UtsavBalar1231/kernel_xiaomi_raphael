@@ -1181,8 +1181,7 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 		return PTR_ERR(gcam->debugfs.root);
 	}
 
-	gcam->debugfs.buffers = vmalloc(sizeof(*gcam->debugfs.buffers) *
-					GB_CAMERA_DEBUGFS_BUFFER_MAX);
+	gcam->debugfs.buffers = vmalloc(array_size(GB_CAMERA_DEBUGFS_BUFFER_MAX, sizeof(*gcam->debugfs.buffers)));
 	if (!gcam->debugfs.buffers)
 		return -ENOMEM;
 

@@ -90,7 +90,7 @@ static int pblk_l2p_init(struct pblk *pblk)
 	if (pblk->ppaf_bitsize < 32)
 		entry_size = 4;
 
-	pblk->trans_map = vmalloc(entry_size * pblk->rl.nr_secs);
+	pblk->trans_map = vmalloc(array_size(entry_size, pblk->rl.nr_secs));
 	if (!pblk->trans_map)
 		return -ENOMEM;
 

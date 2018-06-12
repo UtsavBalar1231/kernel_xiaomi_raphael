@@ -110,7 +110,7 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 
 	bm->page_list = vzalloc(sizeof(*buf) * n_pages);
 	if (bm->page_list)
-		pages = vmalloc(sizeof(struct page *) * n_pages);
+		pages = vmalloc(array_size(n_pages, sizeof(struct page *)));
 
 	if (!pages)
 		return;

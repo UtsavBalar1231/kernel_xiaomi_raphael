@@ -1906,9 +1906,8 @@ int snd_emu10k1_create(struct snd_card *card,
 		goto error;
 	}
 
-	emu->page_ptr_table = vmalloc(emu->max_cache_pages * sizeof(void *));
-	emu->page_addr_table = vmalloc(emu->max_cache_pages *
-				       sizeof(unsigned long));
+	emu->page_ptr_table = vmalloc(array_size(sizeof(void *), emu->max_cache_pages));
+	emu->page_addr_table = vmalloc(array_size(sizeof(unsigned long), emu->max_cache_pages));
 	if (emu->page_ptr_table == NULL || emu->page_addr_table == NULL) {
 		err = -ENOMEM;
 		goto error;
@@ -2064,7 +2063,7 @@ static int alloc_pm_buffer(struct snd_emu10k1 *emu)
 	size = ARRAY_SIZE(saved_regs);
 	if (emu->audigy)
 		size += ARRAY_SIZE(saved_regs_audigy);
-	emu->saved_ptr = vmalloc(4 * NUM_G * size);
+	emu->saved_ptr = vmalloc(array3_size(4, NUM_G, size));
 	if (!emu->saved_ptr)
 		return -ENOMEM;
 	if (snd_emu10k1_efx_alloc_pm_buffer(emu) < 0)

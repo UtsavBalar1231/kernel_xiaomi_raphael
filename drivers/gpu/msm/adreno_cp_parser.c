@@ -1019,8 +1019,7 @@ int adreno_ib_create_object_list(struct kgsl_device *device,
 	if (!ib_obj_list)
 		return -ENOMEM;
 
-	ib_obj_list->obj_list = vmalloc(MAX_IB_OBJS *
-					sizeof(struct adreno_ib_object));
+	ib_obj_list->obj_list = vmalloc(array_size(MAX_IB_OBJS, sizeof(struct adreno_ib_object)));
 
 	if (!ib_obj_list->obj_list) {
 		kfree(ib_obj_list);

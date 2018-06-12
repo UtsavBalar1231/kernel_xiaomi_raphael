@@ -442,7 +442,7 @@ av8l_fast_prepopulate_pgtables(struct av8l_fast_io_pgtable *data,
 							__GFP_NORETRY);
 
 	if (!pages)
-		pages = vmalloc(sizeof(*pages) * NUM_PGTBL_PAGES);
+		pages = vmalloc(array_size(NUM_PGTBL_PAGES, sizeof(*pages)));
 
 	if (!pages)
 		return -ENOMEM;

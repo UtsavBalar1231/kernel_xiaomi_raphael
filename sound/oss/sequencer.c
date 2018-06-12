@@ -1636,13 +1636,13 @@ void sequencer_init(void)
 {
 	if (sequencer_ok)
 		return;
-	queue = vmalloc(SEQ_MAX_QUEUE * EV_SZ);
+	queue = vmalloc(array_size(EV_SZ, SEQ_MAX_QUEUE));
 	if (queue == NULL)
 	{
 		printk(KERN_ERR "sequencer: Can't allocate memory for sequencer output queue\n");
 		return;
 	}
-	iqueue = vmalloc(SEQ_MAX_QUEUE * IEV_SZ);
+	iqueue = vmalloc(array_size(IEV_SZ, SEQ_MAX_QUEUE));
 	if (iqueue == NULL)
 	{
 		printk(KERN_ERR "sequencer: Can't allocate memory for sequencer input queue\n");

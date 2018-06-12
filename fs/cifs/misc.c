@@ -815,7 +815,7 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 				   GFP_KERNEL);
 
 	if (!bv) {
-		bv = vmalloc(max_pages * sizeof(struct bio_vec));
+		bv = vmalloc(array_size(max_pages, sizeof(struct bio_vec)));
 		if (!bv)
 			return -ENOMEM;
 	}
@@ -825,7 +825,7 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 				      GFP_KERNEL);
 
 	if (!pages) {
-		pages = vmalloc(max_pages * sizeof(struct page *));
+		pages = vmalloc(array_size(max_pages, sizeof(struct page *)));
 		if (!pages) {
 			kvfree(bv);
 			return -ENOMEM;

@@ -72,7 +72,7 @@ static int pblk_gc_move_valid_secs(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 	unsigned int secs_to_gc;
 	int ret = 0;
 
-	data = vmalloc(gc_rq->nr_secs * geo->sec_size);
+	data = vmalloc(array_size(gc_rq->nr_secs, geo->sec_size));
 	if (!data) {
 		ret = -ENOMEM;
 		goto out;

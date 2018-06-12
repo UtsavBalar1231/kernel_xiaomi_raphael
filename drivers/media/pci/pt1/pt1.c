@@ -443,7 +443,7 @@ static int pt1_init_tables(struct pt1 *pt1)
 	int i, ret;
 	u32 first_pfn, pfn;
 
-	tables = vmalloc(sizeof(struct pt1_table) * pt1_nr_tables);
+	tables = vmalloc(array_size(pt1_nr_tables, sizeof(struct pt1_table)));
 	if (tables == NULL)
 		return -ENOMEM;
 

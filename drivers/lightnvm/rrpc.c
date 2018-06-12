@@ -1144,8 +1144,7 @@ static int rrpc_map_init(struct rrpc *rrpc)
 	if (!rrpc->trans_map)
 		return -ENOMEM;
 
-	rrpc->rev_trans_map = vmalloc(sizeof(struct rrpc_rev_addr)
-							* rrpc->nr_sects);
+	rrpc->rev_trans_map = vmalloc(array_size(sizeof(struct rrpc_rev_addr), rrpc->nr_sects));
 	if (!rrpc->rev_trans_map)
 		return -ENOMEM;
 

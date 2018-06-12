@@ -491,8 +491,7 @@ static int pp_gamut_cache_params_v1_7(struct mdp_gamut_cfg_data *config,
 	}
 	/* Allocate for fine mode other modes will fit */
 	if (!tbl_gamut)
-		tbl_gamut = vmalloc(GAMUT_TOTAL_TABLE_SIZE_V1_7 *
-				    sizeof(u32));
+		tbl_gamut = vmalloc(array_size(GAMUT_TOTAL_TABLE_SIZE_V1_7, sizeof(u32)));
 	if (!tbl_gamut) {
 		pr_err("failed to allocate buffer for gamut size %zd",
 			(GAMUT_TOTAL_TABLE_SIZE_V1_7 * sizeof(u32)));

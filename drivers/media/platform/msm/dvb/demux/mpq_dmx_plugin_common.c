@@ -3723,8 +3723,7 @@ static int mpq_sdmx_filter_setup(struct mpq_demux *mpq_demux,
 		MPQ_DVB_DBG_PRINT("%s: SDMX_PES_FILTER\n", __func__);
 	}
 
-	data_buff_desc = vmalloc(
-			sizeof(*data_buff_desc)*DMX_MAX_DECODER_BUFFER_NUM);
+	data_buff_desc = vmalloc(array_size(DMX_MAX_DECODER_BUFFER_NUM, sizeof(*data_buff_desc)));
 	if (!data_buff_desc) {
 		MPQ_DVB_ERR_PRINT(
 			"%s: failed to allocate memory for data buffer\n",

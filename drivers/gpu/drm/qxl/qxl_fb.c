@@ -243,7 +243,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	QXL_INFO(qdev, "%s: %dx%d %d\n", __func__, mode_cmd.width,
 		 mode_cmd.height, mode_cmd.pitches[0]);
 
-	shadow = vmalloc(mode_cmd.pitches[0] * mode_cmd.height);
+	shadow = vmalloc(array_size(mode_cmd.pitches[0], mode_cmd.height));
 	/* TODO: what's the usual response to memory allocation errors? */
 	BUG_ON(!shadow);
 	QXL_INFO(qdev,
