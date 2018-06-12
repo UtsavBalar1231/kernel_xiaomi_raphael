@@ -2352,7 +2352,8 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!dev)
 		return -ENOMEM;
 
-	dev->queues = kzalloc_node((num_possible_cpus() + 1) * sizeof(struct nvme_queue),
+	dev->queues = kcalloc_node(num_possible_cpus() + 1,
+							sizeof(struct nvme_queue),
 							GFP_KERNEL, node);
 	if (!dev->queues)
 		goto free;

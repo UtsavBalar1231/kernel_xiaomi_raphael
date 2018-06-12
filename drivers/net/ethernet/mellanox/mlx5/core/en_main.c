@@ -449,14 +449,14 @@ static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq,
 	int mtt_alloc = mtt_sz + MLX5_UMR_ALIGN - 1;
 	int i;
 
-	rq->mpwqe.info = kzalloc_node(wq_sz * sizeof(*rq->mpwqe.info),
+	rq->mpwqe.info = kcalloc_node(wq_sz, sizeof(*rq->mpwqe.info),
 				      GFP_KERNEL, cpu_to_node(c->cpu));
 	if (!rq->mpwqe.info)
 		goto err_out;
 
 	/* We allocate more than mtt_sz as we will align the pointer */
-	rq->mpwqe.mtt_no_align = kzalloc_node(mtt_alloc * wq_sz, GFP_KERNEL,
-					cpu_to_node(c->cpu));
+	rq->mpwqe.mtt_no_align = kcalloc_node(wq_sz, mtt_alloc, GFP_KERNEL,
+					      cpu_to_node(c->cpu));
 	if (unlikely(!rq->mpwqe.mtt_no_align))
 		goto err_free_wqe_info;
 
@@ -629,7 +629,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
 		rq->wqe.frag_info =
-			kzalloc_node(wq_sz * sizeof(*rq->wqe.frag_info),
+			kcalloc_node(wq_sz, sizeof(*rq->wqe.frag_info),
 				     GFP_KERNEL, cpu_to_node(c->cpu));
 		if (!rq->wqe.frag_info) {
 			err = -ENOMEM;
@@ -975,7 +975,7 @@ static int mlx5e_alloc_xdpsq_db(struct mlx5e_xdpsq *sq, int numa)
 {
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 
-	sq->db.di = kzalloc_node(sizeof(*sq->db.di) * wq_sz,
+	sq->db.di = kcalloc_node(wq_sz, sizeof(*sq->db.di),
 				     GFP_KERNEL, numa);
 	if (!sq->db.di) {
 		mlx5e_free_xdpsq_db(sq);
@@ -1033,7 +1033,7 @@ static int mlx5e_alloc_icosq_db(struct mlx5e_icosq *sq, int numa)
 {
 	u8 wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 
-	sq->db.ico_wqe = kzalloc_node(sizeof(*sq->db.ico_wqe) * wq_sz,
+	sq->db.ico_wqe = kcalloc_node(wq_sz, sizeof(*sq->db.ico_wqe),
 				      GFP_KERNEL, numa);
 	if (!sq->db.ico_wqe)
 		return -ENOMEM;
@@ -1090,9 +1090,9 @@ static int mlx5e_alloc_txqsq_db(struct mlx5e_txqsq *sq, int numa)
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 	int df_sz = wq_sz * MLX5_SEND_WQEBB_NUM_DS;
 
-	sq->db.dma_fifo = kzalloc_node(df_sz * sizeof(*sq->db.dma_fifo),
+	sq->db.dma_fifo = kcalloc_node(df_sz, sizeof(*sq->db.dma_fifo),
 					   GFP_KERNEL, numa);
-	sq->db.wqe_info = kzalloc_node(wq_sz * sizeof(*sq->db.wqe_info),
+	sq->db.wqe_info = kcalloc_node(wq_sz, sizeof(*sq->db.wqe_info),
 					   GFP_KERNEL, numa);
 	if (!sq->db.dma_fifo || !sq->db.wqe_info) {
 		mlx5e_free_txqsq_db(sq);
