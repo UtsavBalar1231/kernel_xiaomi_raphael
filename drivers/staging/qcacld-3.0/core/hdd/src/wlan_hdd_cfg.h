@@ -163,6 +163,7 @@ static const char wlan_cfg[] = {
 	"drop_bcn_on_chan_mismatch=0\n"
 	"enable_rtt_mac_randomization=1\n"
 	"gDualMacFeatureDisable=0\n"
+	"gEnableConcurrentSTA=wlan1\n"
 	"gEnableSNRMonitoring=1\n"
 	"wlm_latency_enable=1\n"
 	"wlm_latency_flags_ultralow=0xe03\n"
