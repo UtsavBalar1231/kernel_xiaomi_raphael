@@ -415,7 +415,7 @@ vs_devio_check_iov(struct vs_ioctl_iovec *io, bool is_send, ssize_t *total)
 	if (io->iovcnt > UIO_MAXIOV)
 		return ERR_PTR(-EINVAL);
 
-	iov = kmalloc(sizeof(*iov) * io->iovcnt, GFP_KERNEL);
+	iov = kmalloc_array(io->iovcnt, sizeof(*iov), GFP_KERNEL);
 	if (!iov)
 		return ERR_PTR(-ENOMEM);
 

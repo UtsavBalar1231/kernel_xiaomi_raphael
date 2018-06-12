@@ -268,7 +268,7 @@ void uvc_simplify_fraction(uint32_t *numerator, uint32_t *denominator,
 	uint32_t x, y, r;
 	unsigned int i, n;
 
-	an = kmalloc(n_terms * sizeof *an, GFP_KERNEL);
+	an = kmalloc_array(n_terms, sizeof(*an), GFP_KERNEL);
 	if (an == NULL)
 		return;
 

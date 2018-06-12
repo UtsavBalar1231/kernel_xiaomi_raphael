@@ -2387,8 +2387,9 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	 * Not sure how the USB core will handle a hub with no ports...
 	 */
 	if (xhci->num_usb2_ports) {
-		xhci->usb2_ports = kmalloc(sizeof(*xhci->usb2_ports)*
-				xhci->num_usb2_ports, flags);
+		xhci->usb2_ports = kmalloc_array(xhci->num_usb2_ports,
+						 sizeof(*xhci->usb2_ports),
+						 flags);
 		if (!xhci->usb2_ports)
 			return -ENOMEM;
 
@@ -2412,8 +2413,9 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		}
 	}
 	if (xhci->num_usb3_ports) {
-		xhci->usb3_ports = kmalloc(sizeof(*xhci->usb3_ports)*
-				xhci->num_usb3_ports, flags);
+		xhci->usb3_ports = kmalloc_array(xhci->num_usb3_ports,
+						 sizeof(*xhci->usb3_ports),
+						 flags);
 		if (!xhci->usb3_ports)
 			return -ENOMEM;
 

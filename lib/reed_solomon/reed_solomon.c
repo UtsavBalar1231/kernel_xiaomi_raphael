@@ -85,15 +85,15 @@ static struct rs_control *rs_init(int symsize, int gfpoly, int (*gffunc)(int),
 	rs->gffunc = gffunc;
 
 	/* Allocate the arrays */
-	rs->alpha_to = kmalloc(sizeof(uint16_t) * (rs->nn + 1), GFP_KERNEL);
+	rs->alpha_to = kmalloc_array(rs->nn + 1, sizeof(uint16_t), GFP_KERNEL);
 	if (rs->alpha_to == NULL)
 		goto errrs;
 
-	rs->index_of = kmalloc(sizeof(uint16_t) * (rs->nn + 1), GFP_KERNEL);
+	rs->index_of = kmalloc_array(rs->nn + 1, sizeof(uint16_t), GFP_KERNEL);
 	if (rs->index_of == NULL)
 		goto erralp;
 
-	rs->genpoly = kmalloc(sizeof(uint16_t) * (rs->nroots + 1), GFP_KERNEL);
+	rs->genpoly = kmalloc_array(rs->nroots + 1, sizeof(uint16_t), GFP_KERNEL);
 	if(rs->genpoly == NULL)
 		goto erridx;
 

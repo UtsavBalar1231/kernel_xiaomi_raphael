@@ -201,8 +201,8 @@ static int bfin_kpad_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bf54x_kpad);
 
 	/* Allocate memory for keymap followed by private LUT */
-	bf54x_kpad->keycode = kmalloc(pdata->keymapsize *
-					sizeof(unsigned short) * 2, GFP_KERNEL);
+	bf54x_kpad->keycode = kmalloc(array3_size(pdata->keymapsize, sizeof(unsigned short), 2),
+				      GFP_KERNEL);
 	if (!bf54x_kpad->keycode) {
 		error = -ENOMEM;
 		goto out;

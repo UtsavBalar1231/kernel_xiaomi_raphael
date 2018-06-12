@@ -98,8 +98,9 @@ static struct v4l2_ctrl **get_super_cluster(struct msm_vidc_inst *inst,
 				int num_ctrls)
 {
 	int c = 0;
-	struct v4l2_ctrl **cluster = kmalloc(sizeof(struct v4l2_ctrl *) *
-			num_ctrls, GFP_KERNEL);
+	struct v4l2_ctrl **cluster = kmalloc_array(num_ctrls,
+						   sizeof(struct v4l2_ctrl *),
+						   GFP_KERNEL);
 
 	if (!cluster || !inst) {
 		kfree(cluster);

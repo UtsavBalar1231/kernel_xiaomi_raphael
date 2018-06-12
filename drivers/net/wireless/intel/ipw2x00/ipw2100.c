@@ -3446,8 +3446,9 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
 	dma_addr_t p;
 
 	priv->msg_buffers =
-	    kmalloc(IPW_COMMAND_POOL_SIZE * sizeof(struct ipw2100_tx_packet),
-		    GFP_KERNEL);
+	    kmalloc_array(IPW_COMMAND_POOL_SIZE,
+			  sizeof(struct ipw2100_tx_packet),
+			  GFP_KERNEL);
 	if (!priv->msg_buffers)
 		return -ENOMEM;
 
@@ -4589,9 +4590,9 @@ static int ipw2100_rx_allocate(struct ipw2100_priv *priv)
 	/*
 	 * allocate packets
 	 */
-	priv->rx_buffers = kmalloc(RX_QUEUE_LENGTH *
-				   sizeof(struct ipw2100_rx_packet),
-				   GFP_KERNEL);
+	priv->rx_buffers = kmalloc_array(RX_QUEUE_LENGTH,
+					 sizeof(struct ipw2100_rx_packet),
+					 GFP_KERNEL);
 	if (!priv->rx_buffers) {
 		IPW_DEBUG_INFO("can't allocate rx packet buffer table\n");
 

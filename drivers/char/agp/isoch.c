@@ -93,7 +93,7 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	 * We'll work with an array of isoch_data's (one for each
 	 * device in dev_list) throughout this function.
 	 */
-	if ((master = kmalloc(ndevs * sizeof(*master), GFP_KERNEL)) == NULL) {
+	if ((master = kmalloc_array(ndevs, sizeof(*master), GFP_KERNEL)) == NULL) {
 		ret = -ENOMEM;
 		goto get_out;
 	}

@@ -438,10 +438,9 @@ static int32_t msm_ois_control(struct msm_ois_ctrl_t *o_ctrl,
 	if (set_info->ois_params.setting_size > 0 &&
 		set_info->ois_params.setting_size
 		< MAX_OIS_REG_SETTINGS) {
-		settings = kmalloc(
-			sizeof(struct reg_settings_ois_t) *
-			(set_info->ois_params.setting_size),
-			GFP_KERNEL);
+		settings = kmalloc_array(set_info->ois_params.setting_size,
+					 sizeof(struct reg_settings_ois_t),
+					 GFP_KERNEL);
 		if (settings == NULL) {
 			pr_err("Error allocating memory\n");
 			return -EFAULT;

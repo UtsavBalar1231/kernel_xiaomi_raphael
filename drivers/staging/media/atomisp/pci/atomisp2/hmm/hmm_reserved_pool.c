@@ -97,8 +97,8 @@ static int hmm_reserved_pool_setup(struct hmm_reserved_pool_info **repool_info,
 		return -ENOMEM;
 	}
 
-	pool_info->pages = kmalloc(sizeof(struct page *) * pool_size,
-			GFP_KERNEL);
+	pool_info->pages = kmalloc_array(pool_size, sizeof(struct page *),
+					 GFP_KERNEL);
 	if (unlikely(!pool_info->pages)) {
 		dev_err(atomisp_dev, "out of memory for repool_info->pages.\n");
 		kfree(pool_info);

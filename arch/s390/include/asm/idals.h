@@ -77,8 +77,8 @@ set_normalized_cda(struct ccw1 * ccw, void *vaddr)
 		return -EINVAL;
 	nridaws = idal_nr_words(vaddr, ccw->count);
 	if (nridaws > 0) {
-		idal = kmalloc(nridaws * sizeof(unsigned long),
-			       GFP_ATOMIC | GFP_DMA );
+		idal = kmalloc_array(nridaws, sizeof(unsigned long),
+				     GFP_ATOMIC | GFP_DMA );
 		if (idal == NULL)
 			return -ENOMEM;
 		idal_create_words(idal, vaddr, ccw->count);

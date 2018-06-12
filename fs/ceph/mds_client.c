@@ -2981,8 +2981,9 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 encode_again:
 		ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
-		flocks = kmalloc((num_fcntl_locks+num_flock_locks) *
-				 sizeof(struct ceph_filelock), GFP_NOFS);
+		flocks = kmalloc_array(num_fcntl_locks + num_flock_locks,
+				       sizeof(struct ceph_filelock),
+				       GFP_NOFS);
 		if (!flocks) {
 			err = -ENOMEM;
 			goto out_free;

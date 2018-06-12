@@ -32,8 +32,8 @@ static int __init kfree_table_init(struct kfree_table *kft)
 {
 	kft->total = 32;
 	kft->num = 0;
-	kft->table = kmalloc(kft->total * sizeof(*kft->table),
-			     GFP_KERNEL);
+	kft->table = kmalloc_array(kft->total, sizeof(*kft->table),
+				   GFP_KERNEL);
 	if (!kft->table)
 		return -ENOMEM;
 

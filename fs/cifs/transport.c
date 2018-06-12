@@ -822,7 +822,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	struct kvec *new_iov;
 	int rc;
 
-	new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1), GFP_KERNEL);
+	new_iov = kmalloc_array(n_vec + 1, sizeof(struct kvec), GFP_KERNEL);
 	if (!new_iov)
 		return -ENOMEM;
 

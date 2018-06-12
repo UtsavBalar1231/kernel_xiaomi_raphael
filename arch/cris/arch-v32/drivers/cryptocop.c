@@ -1533,7 +1533,9 @@ int cryptocop_new_session(cryptocop_session_id *sid, struct cryptocop_transform_
 		return -ENOMEM;
 	}
 
-	sess->tfrm_ctx = kmalloc(no_tfrms * sizeof(struct cryptocop_transform_ctx), alloc_flag);
+	sess->tfrm_ctx = kmalloc_array(no_tfrms,
+				       sizeof(struct cryptocop_transform_ctx),
+				       alloc_flag);
 	if (!sess->tfrm_ctx) {
 		DEBUG_API(printk("cryptocop_new_session, kmalloc cryptocop_transform_ctx\n"));
 		kfree(sess);
@@ -2698,7 +2700,7 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 	/* Map user pages for in and out data of the operation. */
 	noinpages = (((unsigned long int)(oper.indata + prev_ix) & ~PAGE_MASK) + oper.inlen - 1 - prev_ix + ~PAGE_MASK) >> PAGE_SHIFT;
 	DEBUG(printk("cryptocop_ioctl_process: noinpages=%d\n", noinpages));
-	inpages = kmalloc(noinpages * sizeof(struct page*), GFP_KERNEL);
+	inpages = kmalloc_array(noinpages, sizeof(struct page *), GFP_KERNEL);
 	if (!inpages){
 		DEBUG_API(printk("cryptocop_ioctl_process: kmalloc inpages\n"));
 		nooutpages = noinpages = 0;
@@ -2708,7 +2710,8 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 	if (oper.do_cipher){
 		nooutpages = (((unsigned long int)oper.cipher_outdata & ~PAGE_MASK) + oper.cipher_outlen - 1 + ~PAGE_MASK) >> PAGE_SHIFT;
 		DEBUG(printk("cryptocop_ioctl_process: nooutpages=%d\n", nooutpages));
-		outpages = kmalloc(nooutpages * sizeof(struct page*), GFP_KERNEL);
+		outpages = kmalloc_array(nooutpages, sizeof(struct page *),
+					 GFP_KERNEL);
 		if (!outpages){
 			DEBUG_API(printk("cryptocop_ioctl_process: kmalloc outpages\n"));
 			nooutpages = noinpages = 0;
@@ -2752,8 +2755,11 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 
 	/* Add 6 to nooutpages to make room for possibly inserted buffers for storing digest and
 	 * csum output and splits when units are (dis-)connected. */
-	cop->tfrm_op.indata = kmalloc((noinpages) * sizeof(struct iovec), GFP_KERNEL);
-	cop->tfrm_op.outdata = kmalloc((6 + nooutpages) * sizeof(struct iovec), GFP_KERNEL);
+	cop->tfrm_op.indata = kmalloc_array(noinpages, sizeof(struct iovec),
+					    GFP_KERNEL);
+	cop->tfrm_op.outdata = kmalloc_array(6 + nooutpages,
+					     sizeof(struct iovec),
+					     GFP_KERNEL);
 	if (!cop->tfrm_op.indata || !cop->tfrm_op.outdata) {
 		DEBUG_API(printk("cryptocop_ioctl_process: kmalloc iovecs\n"));
 		err = -ENOMEM;

@@ -438,7 +438,7 @@ av8l_fast_prepopulate_pgtables(struct av8l_fast_io_pgtable *data,
 	dma_addr_t pud, pmd;
 	int pmd_pg_index;
 
-	pages = kmalloc(sizeof(*pages) * NUM_PGTBL_PAGES, __GFP_NOWARN |
+	pages = kmalloc_array(NUM_PGTBL_PAGES, sizeof(*pages), __GFP_NOWARN |
 							__GFP_NORETRY);
 
 	if (!pages)

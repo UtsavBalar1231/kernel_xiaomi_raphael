@@ -262,7 +262,8 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 	if (IS_ERR(rdwr_pa))
 		return PTR_ERR(rdwr_pa);
 
-	data_ptrs = kmalloc(rdwr_arg.nmsgs * sizeof(u8 __user *), GFP_KERNEL);
+	data_ptrs = kmalloc_array(rdwr_arg.nmsgs, sizeof(u8 __user *),
+				  GFP_KERNEL);
 	if (data_ptrs == NULL) {
 		kfree(rdwr_pa);
 		return -ENOMEM;

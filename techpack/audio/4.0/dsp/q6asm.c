@@ -309,7 +309,7 @@ static ssize_t audio_output_latency_dbgfs_write(struct file *file,
 		pr_err("%s: err count is more %zd\n", __func__, count);
 		return -EINVAL;
 	}
-	temp  = kmalloc(2*sizeof(char), GFP_KERNEL);
+	temp  = kmalloc(2, GFP_KERNEL);
 
 	out_cold_index = 0;
 
@@ -365,7 +365,7 @@ static ssize_t audio_input_latency_dbgfs_write(struct file *file,
 		pr_err("%s: err count is more %zd\n", __func__, count);
 		return -EINVAL;
 	}
-	temp  = kmalloc(2*sizeof(char), GFP_KERNEL);
+	temp  = kmalloc(2, GFP_KERNEL);
 
 	if (temp) {
 		if (copy_from_user(temp, buf, 2*sizeof(char))) {

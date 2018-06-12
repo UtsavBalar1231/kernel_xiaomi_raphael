@@ -178,7 +178,9 @@ void irlmp_expire_discoveries(hashbin_t *log, __u32 saddr, int force)
 			if(buffer == NULL) {
 				/* Create the client specific buffer */
 				n = HASHBIN_GET_SIZE(log);
-				buffer = kmalloc(n * sizeof(struct irda_device_info), GFP_ATOMIC);
+				buffer = kmalloc_array(n,
+						       sizeof(struct irda_device_info),
+						       GFP_ATOMIC);
 				if (buffer == NULL) {
 					spin_unlock_irqrestore(&log->hb_spinlock, flags);
 					return;
@@ -290,7 +292,9 @@ struct irda_device_info *irlmp_copy_discoveries(hashbin_t *log, int *pn,
 			if(buffer == NULL) {
 				/* Create the client specific buffer */
 				n = HASHBIN_GET_SIZE(log);
-				buffer = kmalloc(n * sizeof(struct irda_device_info), GFP_ATOMIC);
+				buffer = kmalloc_array(n,
+						       sizeof(struct irda_device_info),
+						       GFP_ATOMIC);
 				if (buffer == NULL) {
 					spin_unlock_irqrestore(&log->hb_spinlock, flags);
 					return NULL;

@@ -126,7 +126,7 @@ static int alloc_and_prep_cprbmem(size_t paramblen,
 	 * allocate consecutive memory for request CPRB, request param
 	 * block, reply CPRB and reply param block
 	 */
-	cprbmem = kmalloc(2 * cprbplusparamblen, GFP_KERNEL);
+	cprbmem = kmalloc_array(2, cprbplusparamblen, GFP_KERNEL);
 	if (!cprbmem)
 		return -ENOMEM;
 	memset(cprbmem, 0, 2 * cprbplusparamblen);

@@ -222,7 +222,7 @@ int ocfs2_filecheck_create_sysfs(struct super_block *sb)
 	if (!ocfs2_kset)
 		return -ENOMEM;
 
-	attrs = kmalloc(sizeof(struct attribute *) * 4, GFP_NOFS);
+	attrs = kmalloc_array(4, sizeof(struct attribute *), GFP_NOFS);
 	if (!attrs) {
 		ret = -ENOMEM;
 		goto error;

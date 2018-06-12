@@ -4599,8 +4599,10 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 					    sizeof(struct ring_desc_ex) * (ring->rx_pending + ring->tx_pending),
 					    &ring_addr);
 	}
-	rx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->rx_pending, GFP_KERNEL);
-	tx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->tx_pending, GFP_KERNEL);
+	rx_skbuff = kmalloc_array(ring->rx_pending, sizeof(struct nv_skb_map),
+				  GFP_KERNEL);
+	tx_skbuff = kmalloc_array(ring->tx_pending, sizeof(struct nv_skb_map),
+				  GFP_KERNEL);
 	if (!rxtx_ring || !rx_skbuff || !tx_skbuff) {
 		/* fall back to old rings */
 		if (!nv_optimized(np)) {
