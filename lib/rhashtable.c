@@ -87,7 +87,8 @@ static int alloc_bucket_locks(struct rhashtable *ht, struct bucket_table *tbl,
 
 	if (sizeof(spinlock_t) != 0) {
 		if (gfpflags_allow_blocking(gfp))
-			tbl->locks = kvmalloc(size * sizeof(spinlock_t), gfp);
+			tbl->locks = kvmalloc_array(size, sizeof(spinlock_t),
+						    gfp);
 		else
 			tbl->locks = kmalloc_array(size, sizeof(spinlock_t),
 						   gfp);
