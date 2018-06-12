@@ -912,11 +912,11 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 
 	usb_bufs->num_bufs = num_bufs;
 
-	usb_bufs->urb = kzalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
+	usb_bufs->urb = kcalloc(num_bufs, sizeof(void *),  GFP_KERNEL);
 	if (!usb_bufs->urb)
 		return -ENOMEM;
 
-	usb_bufs->transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
+	usb_bufs->transfer_buffer = kcalloc(num_bufs, sizeof(void *),
 					     GFP_KERNEL);
 	if (!usb_bufs->transfer_buffer) {
 		kfree(usb_bufs->urb);

@@ -1828,7 +1828,7 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
 	if (!cfg->fc_mx)
 		return 0;
 
-	mp = kzalloc(sizeof(u32) * RTAX_MAX, GFP_KERNEL);
+	mp = kcalloc(RTAX_MAX, sizeof(u32), GFP_KERNEL);
 	if (unlikely(!mp))
 		return -ENOMEM;
 

@@ -749,8 +749,8 @@ static const struct sde_format_extended *sde_hw_rot_get_format_caps(
 	sde_rotator_inline_get_pixfmt_caps(pdev, true, v4l_pixfmts, len);
 
 	/* allocate one more to indicate termination */
-	drm_pixfmts = kzalloc((len + 1) * sizeof(struct sde_format_extended),
-			GFP_KERNEL);
+	drm_pixfmts = kcalloc(len + 1, sizeof(struct sde_format_extended),
+			      GFP_KERNEL);
 	if (!drm_pixfmts)
 		goto done;
 

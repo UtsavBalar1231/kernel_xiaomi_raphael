@@ -1634,7 +1634,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	}
 
 	esw->offloads.vport_reps =
-		kzalloc(total_vports * sizeof(struct mlx5_eswitch_rep),
+		kcalloc(total_vports, sizeof(struct mlx5_eswitch_rep),
 			GFP_KERNEL);
 	if (!esw->offloads.vport_reps) {
 		err = -ENOMEM;

@@ -3578,8 +3578,9 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 	cnt = of_property_count_elems_of_size((&pdev->dev)->of_node,
 			"max-clock-frequency-hz", sizeof(u32));
 	if (cnt > 0) {
-		clkfreq = kzalloc((MSM_PCIE_MAX_CLK + MSM_PCIE_MAX_PIPE_CLK) *
-					sizeof(*clkfreq), GFP_KERNEL);
+		clkfreq = kcalloc(MSM_PCIE_MAX_CLK + MSM_PCIE_MAX_PIPE_CLK,
+				  sizeof(*clkfreq),
+				  GFP_KERNEL);
 		if (!clkfreq) {
 			PCIE_ERR(dev, "PCIe: memory alloc failed for RC%d\n",
 					dev->rc_idx);

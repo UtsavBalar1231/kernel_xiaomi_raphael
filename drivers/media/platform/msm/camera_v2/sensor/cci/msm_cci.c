@@ -1174,8 +1174,9 @@ static int32_t msm_cci_i2c_write_async(struct v4l2_subdev *sd,
 	}
 
 	cci_i2c_write_cfg_w->reg_setting =
-		kzalloc(sizeof(struct msm_camera_i2c_reg_array)*
-		cci_i2c_write_cfg->size, GFP_KERNEL);
+		kcalloc(cci_i2c_write_cfg->size,
+			sizeof(struct msm_camera_i2c_reg_array),
+			GFP_KERNEL);
 	if (!cci_i2c_write_cfg_w->reg_setting) {
 		pr_err("%s: %d Couldn't allocate memory\n", __func__, __LINE__);
 		kfree(write_async);
@@ -1904,7 +1905,7 @@ static int32_t msm_cci_init_gpio_params(struct cci_device *cci_dev)
 	}
 
 	gpio_tbl = cci_dev->cci_gpio_tbl =
-		kzalloc(sizeof(struct gpio) * tbl_size, GFP_KERNEL);
+		kcalloc(tbl_size, sizeof(struct gpio), GFP_KERNEL);
 	if (!gpio_tbl) {
 		pr_err("%s failed %d\n", __func__, __LINE__);
 		return 0;

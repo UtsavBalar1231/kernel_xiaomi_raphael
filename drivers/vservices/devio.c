@@ -816,11 +816,11 @@ vs_devio_check_compat_iov(struct vs_compat_ioctl_iovec *c_io,
 	if (c_io->iovcnt > UIO_MAXIOV)
 		return ERR_PTR(-EINVAL);
 
-	c_iov = kzalloc(sizeof(*c_iov) * c_io->iovcnt, GFP_KERNEL);
+	c_iov = kcalloc(c_io->iovcnt, sizeof(*c_iov), GFP_KERNEL);
 	if (!c_iov)
 		return ERR_PTR(-ENOMEM);
 
-	iov = kzalloc(sizeof(*iov) * c_io->iovcnt, GFP_KERNEL);
+	iov = kcalloc(c_io->iovcnt, sizeof(*iov), GFP_KERNEL);
 	if (!iov) {
 		kfree(c_iov);
 		return ERR_PTR(-ENOMEM);

@@ -1903,7 +1903,7 @@ static int cpr_pvs_per_corner_init(struct device_node *of_node,
 			"fuse position for init voltages is invalid\n");
 		return -EINVAL;
 	}
-	fuse_sel = kzalloc(sizeof(u32) * size, GFP_KERNEL);
+	fuse_sel = kcalloc(size, sizeof(u32), GFP_KERNEL);
 	if (!fuse_sel)
 		return -ENOMEM;
 	rc = of_property_read_u32_array(of_node, init_volt_str,
@@ -1923,8 +1923,8 @@ static int cpr_pvs_per_corner_init(struct device_node *of_node,
 		return rc;
 	}
 
-	ref_uv = kzalloc((cpr_vreg->num_fuse_corners + 1) * sizeof(*ref_uv),
-			GFP_KERNEL);
+	ref_uv = kcalloc(cpr_vreg->num_fuse_corners + 1, sizeof(*ref_uv),
+			 GFP_KERNEL);
 	if (!ref_uv) {
 		kfree(fuse_sel);
 		return -ENOMEM;
@@ -2036,7 +2036,8 @@ static int cpr_pvs_single_bin_init(struct device_node *of_node,
 				((1 << pvs_fuse[2]) - 1);
 	pvs_bins = 1 << pvs_fuse[2];
 	stripe_size = cpr_vreg->num_fuse_corners;
-	tmp = kzalloc(sizeof(u32) * pvs_bins * stripe_size, GFP_KERNEL);
+	tmp = kzalloc(array3_size(pvs_bins, stripe_size, sizeof(u32)),
+		      GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -2392,7 +2393,7 @@ static int cpr_get_open_loop_voltage(struct cpr_regulator *cpr_vreg,
 	}
 
 	max_factor
-	       = kzalloc(sizeof(*max_factor) * (cpr_vreg->num_fuse_corners + 1),
+	       = kcalloc(cpr_vreg->num_fuse_corners + 1, sizeof(*max_factor),
 			 GFP_KERNEL);
 	if (!max_factor)
 		return -ENOMEM;
@@ -2604,7 +2605,7 @@ static int cpr_get_fuse_quot_offset(struct cpr_regulator *cpr_vreg,
 		return -EINVAL;
 	}
 
-	fuse_sel = kzalloc(sizeof(u32) * size, GFP_KERNEL);
+	fuse_sel = kcalloc(size, sizeof(u32), GFP_KERNEL);
 	if (!fuse_sel)
 		return -ENOMEM;
 
@@ -2636,9 +2637,9 @@ static int cpr_get_fuse_quot_offset(struct cpr_regulator *cpr_vreg,
 			return -EINVAL;
 		}
 
-		offset_multiplier = kzalloc(sizeof(*offset_multiplier)
-					* (cpr_vreg->num_fuse_corners + 1),
-					GFP_KERNEL);
+		offset_multiplier = kcalloc(cpr_vreg->num_fuse_corners + 1,
+					    sizeof(*offset_multiplier),
+					    GFP_KERNEL);
 		if (!offset_multiplier) {
 			kfree(fuse_sel);
 			return -ENOMEM;
@@ -3208,8 +3209,8 @@ static int cpr_read_ro_select(struct platform_device *pdev,
 	int i;
 
 	bp_ro_sel
-		= kzalloc((cpr_vreg->num_fuse_corners + 1) * sizeof(*bp_ro_sel),
-			GFP_KERNEL);
+		= kcalloc(cpr_vreg->num_fuse_corners + 1, sizeof(*bp_ro_sel),
+			  GFP_KERNEL);
 	if (!bp_ro_sel)
 		return -ENOMEM;
 
@@ -4824,7 +4825,7 @@ static int cpr_remap_efuse_data(struct platform_device *pdev,
 		return rc;
 	}
 
-	temp = kzalloc(sizeof(*temp) * size * 4, GFP_KERNEL);
+	temp = kzalloc(array3_size(sizeof(*temp), size, 4), GFP_KERNEL);
 	if (!temp)
 		return -ENOMEM;
 

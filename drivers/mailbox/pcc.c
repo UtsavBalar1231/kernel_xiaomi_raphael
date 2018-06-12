@@ -477,8 +477,8 @@ static int __init acpi_pcc_probe(void)
 		return -EINVAL;
 	}
 
-	pcc_mbox_channels = kzalloc(sizeof(struct mbox_chan) *
-			sum, GFP_KERNEL);
+	pcc_mbox_channels = kcalloc(sum, sizeof(struct mbox_chan),
+				    GFP_KERNEL);
 	if (!pcc_mbox_channels) {
 		pr_err("Could not allocate space for PCC mbox channels\n");
 		return -ENOMEM;

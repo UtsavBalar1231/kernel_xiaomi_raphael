@@ -576,8 +576,8 @@ static int __init vs_serial_init(void)
 	if (max_ttys == 0)
 		return -EINVAL;
 
-	alloced_ttys = kzalloc(sizeof(unsigned long) * BITS_TO_LONGS(max_ttys),
-			GFP_KERNEL);
+	alloced_ttys = kcalloc(BITS_TO_LONGS(max_ttys), sizeof(unsigned long),
+			       GFP_KERNEL);
 	if (!alloced_ttys) {
 		err = -ENOMEM;
 		goto fail_alloc_ttys;

@@ -1062,8 +1062,8 @@ static int ipa_eth_net_cb_map_ch_mem(struct ipa_eth_device *eth_dev,
 		return -EEXIST;
 	}
 
-	ch_mem->cb_mem = kzalloc(sizeof(*ch_mem->cb_mem) * IPA_SMMU_CB_MAX,
-				GFP_KERNEL);
+	ch_mem->cb_mem = kcalloc(IPA_SMMU_CB_MAX, sizeof(*ch_mem->cb_mem),
+				 GFP_KERNEL);
 	if (!ch_mem->cb_mem) {
 		ipa_eth_dev_err(eth_dev, "Failed to alloc CB mem resource");
 		return -ENOMEM;

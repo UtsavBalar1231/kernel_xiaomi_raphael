@@ -1024,8 +1024,8 @@ static struct rpmh_mbox *get_mbox(struct platform_device *pdev,
 
 	rpmh = &mbox_ctrlr[i];
 
-	rpmh->msg_pool = kzalloc(sizeof(struct rpmh_msg) *
-				RPMH_MAX_FAST_RES, GFP_KERNEL);
+	rpmh->msg_pool = kcalloc(RPMH_MAX_FAST_RES, sizeof(struct rpmh_msg),
+				 GFP_KERNEL);
 	if (!rpmh->msg_pool) {
 		of_node_put(spec.np);
 		return ERR_PTR(-ENOMEM);

@@ -1794,7 +1794,7 @@ static int ngd_slim_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no memory for MSM slimbus controller\n");
 		return PTR_ERR(dev);
 	}
-	dev->wr_comp = kzalloc(sizeof(struct completion *) * MSM_TX_BUFS,
+	dev->wr_comp = kcalloc(MSM_TX_BUFS, sizeof(struct completion *),
 				GFP_KERNEL);
 	if (!dev->wr_comp) {
 		ret = -ENOMEM;

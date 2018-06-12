@@ -544,9 +544,9 @@ static int32_t msm_ois_config(struct msm_ois_ctrl_t *o_ctrl,
 			rc = -EFAULT;
 			break;
 		}
-		reg_setting = kzalloc(conf_array.size *
-			(sizeof(struct msm_camera_i2c_seq_reg_array)),
-			GFP_KERNEL);
+		reg_setting = kcalloc(conf_array.size,
+				      sizeof(struct msm_camera_i2c_seq_reg_array),
+				      GFP_KERNEL);
 		if (!reg_setting) {
 			pr_err("%s:%d failed\n", __func__, __LINE__);
 			rc = -ENOMEM;

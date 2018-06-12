@@ -567,7 +567,7 @@ static int s3c_cpufreq_build_freq(void)
 	size = cpu_cur.info->calc_freqtable(&cpu_cur, NULL, 0);
 	size++;
 
-	ftab = kzalloc(sizeof(*ftab) * size, GFP_KERNEL);
+	ftab = kcalloc(size, sizeof(*ftab), GFP_KERNEL);
 	if (!ftab) {
 		pr_err("%s: no memory for tables\n", __func__);
 		return -ENOMEM;

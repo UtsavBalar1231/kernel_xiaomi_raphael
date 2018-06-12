@@ -863,9 +863,9 @@ int diagfwd_peripheral_init(void)
 	struct diagfwd_info *fwd_info = NULL;
 
 	for (transport = 0; transport < NUM_TRANSPORT; transport++) {
-		early_init_info[transport] = kzalloc(
-				sizeof(struct diagfwd_info) * NUM_PERIPHERALS,
-				GFP_KERNEL);
+		early_init_info[transport] = kcalloc(NUM_PERIPHERALS,
+						     sizeof(struct diagfwd_info),
+						     GFP_KERNEL);
 		if (!early_init_info[transport])
 			return -ENOMEM;
 		kmemleak_not_leak(early_init_info[transport]);

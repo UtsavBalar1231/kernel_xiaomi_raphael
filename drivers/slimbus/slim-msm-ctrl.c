@@ -838,9 +838,9 @@ static void slim_sat_rxprocess(struct work_struct *work)
 				continue;
 			}
 			/* Satellite-channels */
-			sat->satch = kzalloc(MSM_MAX_SATCH *
-					sizeof(struct msm_sat_chan),
-					GFP_KERNEL);
+			sat->satch = kcalloc(MSM_MAX_SATCH,
+					     sizeof(struct msm_sat_chan),
+					     GFP_KERNEL);
 send_capability:
 			txn.mc = SLIM_USR_MC_MASTER_CAPABILITY;
 			txn.mt = SLIM_MSG_MT_SRC_REFERRED_USER;
@@ -1198,7 +1198,7 @@ static int msm_slim_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_get_res_failed;
 	}
-	dev->wr_comp = kzalloc(sizeof(struct completion *) * MSM_TX_BUFS,
+	dev->wr_comp = kcalloc(MSM_TX_BUFS, sizeof(struct completion *),
 				GFP_KERNEL);
 	if (!dev->wr_comp)
 		return -ENOMEM;

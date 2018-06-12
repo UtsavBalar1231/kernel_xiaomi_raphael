@@ -5620,8 +5620,9 @@ int mdss_mdp_hist_collect(struct mdp_histogram_data *hist)
 			goto hist_collect_exit;
 		}
 		if (pipe_cnt > 1) {
-			hist_concat = kzalloc(HIST_V_SIZE * pipe_cnt *
-						sizeof(u32), GFP_KERNEL);
+			hist_concat = kcalloc(HIST_V_SIZE * pipe_cnt,
+					      sizeof(u32),
+					      GFP_KERNEL);
 			if (!hist_concat) {
 				ret = -ENOMEM;
 				goto hist_collect_exit;

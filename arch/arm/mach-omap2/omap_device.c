@@ -148,7 +148,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	hwmods = kzalloc(sizeof(struct omap_hwmod *) * oh_cnt, GFP_KERNEL);
+	hwmods = kcalloc(oh_cnt, sizeof(struct omap_hwmod *), GFP_KERNEL);
 	if (!hwmods) {
 		ret = -ENOMEM;
 		goto odbfd_exit;
@@ -468,7 +468,7 @@ struct omap_device *omap_device_alloc(struct platform_device *pdev,
 	}
 
 	/* Allocate resources memory to account for new resources */
-	res = kzalloc(sizeof(struct resource) * res_count, GFP_KERNEL);
+	res = kcalloc(res_count, sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		goto oda_exit3;
 

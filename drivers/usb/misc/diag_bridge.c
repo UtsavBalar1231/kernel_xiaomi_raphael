@@ -389,7 +389,7 @@ static ssize_t diag_read_stats(struct file *file, char __user *ubuf,
 	char			*buf;
 	int			i, ret = 0;
 
-	buf = kzalloc(sizeof(char) * DEBUG_BUF_SIZE, GFP_KERNEL);
+	buf = kzalloc(DEBUG_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

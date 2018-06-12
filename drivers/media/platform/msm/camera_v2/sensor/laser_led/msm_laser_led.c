@@ -212,8 +212,9 @@ static int32_t msm_laser_led_control32(
 		return -EFAULT;
 	}
 
-	conf_array.reg_setting = kzalloc(conf_array.size *
-		(sizeof(struct msm_camera_i2c_reg_array)), GFP_KERNEL);
+	conf_array.reg_setting = kcalloc(conf_array.size,
+					 sizeof(struct msm_camera_i2c_reg_array),
+					 GFP_KERNEL);
 	if (!conf_array.reg_setting)
 		return -ENOMEM;
 
@@ -226,8 +227,9 @@ static int32_t msm_laser_led_control32(
 		return -EFAULT;
 	}
 	if (laser_led_data.debug_reg_size <= sizeof(uint32_t)) {
-		debug_reg = kzalloc(laser_led_data.debug_reg_size *
-			(sizeof(uint32_t)), GFP_KERNEL);
+		debug_reg = kcalloc(laser_led_data.debug_reg_size,
+				    sizeof(uint32_t),
+				    GFP_KERNEL);
 		if (!debug_reg) {
 			kfree(conf_array.reg_setting);
 			return -ENOMEM;
@@ -350,8 +352,9 @@ static int32_t msm_laser_led_control(
 		return -EFAULT;
 	}
 
-	conf_array.reg_setting = kzalloc(conf_array.size *
-		(sizeof(struct msm_camera_i2c_reg_array)), GFP_KERNEL);
+	conf_array.reg_setting = kcalloc(conf_array.size,
+					 sizeof(struct msm_camera_i2c_reg_array),
+					 GFP_KERNEL);
 	if (!conf_array.reg_setting)
 		return -ENOMEM;
 
@@ -364,8 +367,9 @@ static int32_t msm_laser_led_control(
 		return -EFAULT;
 	}
 	if (laser_led_data.debug_reg_size <= sizeof(uint32_t)) {
-		debug_reg = kzalloc(laser_led_data.debug_reg_size *
-			(sizeof(uint32_t)), GFP_KERNEL);
+		debug_reg = kcalloc(laser_led_data.debug_reg_size,
+				    sizeof(uint32_t),
+				    GFP_KERNEL);
 		if (!debug_reg) {
 			kfree(conf_array.reg_setting);
 			return -ENOMEM;

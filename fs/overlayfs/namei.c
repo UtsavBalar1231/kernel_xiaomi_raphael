@@ -489,7 +489,7 @@ int ovl_get_index_name(struct dentry *origin, struct qstr *name)
 		return PTR_ERR(fh);
 
 	err = -ENOMEM;
-	n = kzalloc(fh->len * 2, GFP_KERNEL);
+	n = kcalloc(fh->len, 2, GFP_KERNEL);
 	if (n) {
 		s  = bin2hex(n, fh, fh->len);
 		*name = (struct qstr) QSTR_INIT(n, s - n);

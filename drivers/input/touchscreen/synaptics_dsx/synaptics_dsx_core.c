@@ -2724,7 +2724,7 @@ static int synaptics_rmi4_f1a_alloc_mem(struct synaptics_rmi4_data *rmi4_data,
 
 	f1a->max_count = f1a->button_query.max_button_count + 1;
 
-	f1a->button_control.txrx_map = kzalloc(f1a->max_count * 2, GFP_KERNEL);
+	f1a->button_control.txrx_map = kcalloc(f1a->max_count, 2, GFP_KERNEL);
 	if (!f1a->button_control.txrx_map) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to alloc mem for tx rx mapping\n",

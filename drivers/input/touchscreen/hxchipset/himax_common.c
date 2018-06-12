@@ -885,7 +885,9 @@ int himax_report_data_init(void)
 	D("%s: g_hx_rawdata_size:%d, hx_touch_data->touch_info_size:%d\n",
 		__func__, hx_touch_data->rawdata_size,
 		hx_touch_data->touch_info_size);
-	hx_touch_data->hx_coord_buf = kzalloc(sizeof(uint8_t) * (hx_touch_data->touch_info_size), GFP_KERNEL);
+	hx_touch_data->hx_coord_buf = kcalloc(hx_touch_data->touch_info_size,
+					      sizeof(uint8_t),
+					      GFP_KERNEL);
 
 	if (hx_touch_data->hx_coord_buf == NULL)
 		goto mem_alloc_fail;
@@ -893,29 +895,38 @@ int himax_report_data_init(void)
 	g_target_report_data = kzalloc(sizeof(struct himax_target_report_data), GFP_KERNEL);
 	if (g_target_report_data == NULL)
 		goto mem_alloc_fail;
-	g_target_report_data->x = kzalloc(sizeof(int)*(ic_data->HX_MAX_PT), GFP_KERNEL);
+	g_target_report_data->x = kcalloc(ic_data->HX_MAX_PT, sizeof(int),
+					  GFP_KERNEL);
 	if (g_target_report_data->x == NULL)
 		goto mem_alloc_fail;
-	g_target_report_data->y = kzalloc(sizeof(int)*(ic_data->HX_MAX_PT), GFP_KERNEL);
+	g_target_report_data->y = kcalloc(ic_data->HX_MAX_PT, sizeof(int),
+					  GFP_KERNEL);
 	if (g_target_report_data->y == NULL)
 		goto mem_alloc_fail;
-	g_target_report_data->w = kzalloc(sizeof(int)*(ic_data->HX_MAX_PT), GFP_KERNEL);
+	g_target_report_data->w = kcalloc(ic_data->HX_MAX_PT, sizeof(int),
+					  GFP_KERNEL);
 	if (g_target_report_data->w == NULL)
 		goto mem_alloc_fail;
-	g_target_report_data->finger_id = kzalloc(sizeof(int)*(ic_data->HX_MAX_PT), GFP_KERNEL);
+	g_target_report_data->finger_id = kcalloc(ic_data->HX_MAX_PT,
+						  sizeof(int),
+						  GFP_KERNEL);
 	if (g_target_report_data->finger_id == NULL)
 		goto mem_alloc_fail;
 #ifdef HX_SMART_WAKEUP
 	g_target_report_data->SMWP_event_chk = 0;
 #endif
 
-	hx_touch_data->hx_rawdata_buf = kzalloc(sizeof(uint8_t) * (hx_touch_data->touch_all_size - hx_touch_data->touch_info_size), GFP_KERNEL);
+	hx_touch_data->hx_rawdata_buf = kcalloc(hx_touch_data->touch_all_size - hx_touch_data->touch_info_size,
+						sizeof(uint8_t),
+						GFP_KERNEL);
 
 	if (hx_touch_data->hx_rawdata_buf == NULL)
 		goto mem_alloc_fail;
 
 #if defined(HX_SMART_WAKEUP)
-	hx_touch_data->hx_event_buf = kzalloc(sizeof(uint8_t) * (hx_touch_data->event_size), GFP_KERNEL);
+	hx_touch_data->hx_event_buf = kcalloc(hx_touch_data->event_size,
+					      sizeof(uint8_t),
+					      GFP_KERNEL);
 
 	if (hx_touch_data->hx_event_buf == NULL)
 		goto mem_alloc_fail;

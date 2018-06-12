@@ -54,7 +54,7 @@ static struct page **vdso_setup(void *vdso_kbase, unsigned int pages)
 	int i;
 	struct page **pagelist;
 
-	pagelist = kzalloc(sizeof(struct page *) * (pages + 1), GFP_KERNEL);
+	pagelist = kcalloc(pages + 1, sizeof(struct page *), GFP_KERNEL);
 	BUG_ON(pagelist == NULL);
 	for (i = 0; i < pages - 1; i++) {
 		struct page *pg = virt_to_page(vdso_kbase + i*PAGE_SIZE);

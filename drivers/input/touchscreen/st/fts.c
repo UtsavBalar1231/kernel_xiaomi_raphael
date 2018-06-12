@@ -3470,8 +3470,9 @@ static int fts_interrupt_install(struct fts_ts_info *info)
 {
 	int i, error = 0;
 
-	info->event_dispatch_table = kzalloc(sizeof(event_dispatch_handler_t)
-				* EVENTID_LAST, GFP_KERNEL);
+	info->event_dispatch_table = kcalloc(EVENTID_LAST,
+					     sizeof(event_dispatch_handler_t),
+					     GFP_KERNEL);
 
 	if (!info->event_dispatch_table) {
 		logError(1, "%s OOM allocating event dispatch table\n", tag);

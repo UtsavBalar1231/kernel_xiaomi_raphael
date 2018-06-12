@@ -1990,7 +1990,7 @@ static ssize_t usb_cser_status_show(struct config_item *item, char *page)
 	int temp = 0;
 	int ret;
 
-	buf = kzalloc(sizeof(char) * 512, GFP_KERNEL);
+	buf = kzalloc(512, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

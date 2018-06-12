@@ -146,8 +146,9 @@ static int ipa_test_hw_stats_add_FnR(void *priv)
 		IPA_UT_DBG("no mem\n");
 		return -ENOMEM;
 	}
-	rt_rule->rules = (uint64_t)kzalloc(1 *
-		sizeof(struct ipa_rt_rule_add_v2), GFP_KERNEL);
+	rt_rule->rules = (uint64_t) kcalloc(1,
+					    sizeof(struct ipa_rt_rule_add_v2),
+					    GFP_KERNEL);
 	if (!rt_rule->rules) {
 		IPA_UT_DBG("no mem\n");
 		ret = -ENOMEM;
@@ -160,8 +161,9 @@ static int ipa_test_hw_stats_add_FnR(void *priv)
 		ret = -ENOMEM;
 		goto free_rt;
 	}
-	flt_rule->rules = (uint64_t)kzalloc(1 *
-		sizeof(struct ipa_flt_rule_add_v2), GFP_KERNEL);
+	flt_rule->rules = (uint64_t) kcalloc(1,
+					     sizeof(struct ipa_flt_rule_add_v2),
+					     GFP_KERNEL);
 	if (!flt_rule->rules) {
 		IPA_UT_DBG("no mem\n");
 		ret = -ENOMEM;

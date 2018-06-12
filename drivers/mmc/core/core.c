@@ -678,10 +678,9 @@ out:
 	 * freq_table in clk_scaling is un32. Here allocates an individual
 	 * memory space for it and release it when exit clock scaling.
 	 */
-	clk_scaling->devfreq_profile.freq_table =  kzalloc(
-			clk_scaling->freq_table_sz *
-			sizeof(*(clk_scaling->devfreq_profile.freq_table)),
-			GFP_KERNEL);
+	clk_scaling->devfreq_profile.freq_table =  kcalloc(clk_scaling->freq_table_sz,
+							   sizeof(*(clk_scaling->devfreq_profile.freq_table)),
+							   GFP_KERNEL);
 	if (!clk_scaling->devfreq_profile.freq_table)
 		return -ENOMEM;
 	clk_scaling->devfreq_profile.max_state = clk_scaling->freq_table_sz;

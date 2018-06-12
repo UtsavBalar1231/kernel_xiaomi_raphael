@@ -929,7 +929,7 @@ struct sport_device *sport_init(struct platform_device *pdev,
 	if (L1_DATA_A_LENGTH)
 		sport->dummy_buf = l1_data_sram_zalloc(param.dummy_count * 2);
 	else
-		sport->dummy_buf = kzalloc(param.dummy_count * 2, GFP_KERNEL);
+		sport->dummy_buf = kcalloc(param.dummy_count, 2, GFP_KERNEL);
 	if (sport->dummy_buf == NULL) {
 		dev_err(dev, "failed to allocate dummy buffer\n");
 		goto __error1;

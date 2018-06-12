@@ -735,7 +735,8 @@ static u32 gen_new_kid(struct tc_u_hnode *ht, u32 handle)
 {
 	struct tc_u_knode *n;
 	unsigned long i;
-	unsigned long *bitmap = kzalloc(BITS_TO_LONGS(NR_U32_NODE) * sizeof(unsigned long),
+	unsigned long *bitmap = kcalloc(BITS_TO_LONGS(NR_U32_NODE),
+					sizeof(unsigned long),
 					GFP_KERNEL);
 	if (!bitmap)
 		return handle | 0xFFF;

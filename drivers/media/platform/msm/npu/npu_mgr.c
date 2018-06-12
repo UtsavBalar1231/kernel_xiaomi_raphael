@@ -1013,7 +1013,7 @@ static void host_session_msg_hdlr(struct npu_device *npu_dev)
 	uint32_t *msg;
 	struct npu_host_ctx *host_ctx = &npu_dev->host_ctx;
 
-	msg = kzalloc(sizeof(uint32_t) * NPU_IPC_BUF_LENGTH, GFP_KERNEL);
+	msg = kcalloc(NPU_IPC_BUF_LENGTH, sizeof(uint32_t), GFP_KERNEL);
 	if (!msg)
 		return;
 
@@ -1059,7 +1059,7 @@ static void host_session_log_hdlr(struct npu_device *npu_dev)
 	uint32_t *msg;
 	struct npu_host_ctx *host_ctx = &npu_dev->host_ctx;
 
-	msg = kzalloc(sizeof(uint32_t) * NPU_IPC_BUF_LENGTH, GFP_KERNEL);
+	msg = kcalloc(NPU_IPC_BUF_LENGTH, sizeof(uint32_t), GFP_KERNEL);
 
 	if (!msg)
 		return;

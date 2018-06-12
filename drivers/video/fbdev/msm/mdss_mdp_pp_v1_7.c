@@ -1834,7 +1834,7 @@ static int pp_igc_get_config(char __iomem *base_addr, void *cfg_data,
 		goto exit;
 	}
 	/* Allocate for c0c1 and c2 tables */
-	c0c1_data = kzalloc(sz * 2, GFP_KERNEL);
+	c0c1_data = kcalloc(sz, 2, GFP_KERNEL);
 	if (!c0c1_data) {
 		pr_err("allocation failed for c0c1 size %d\n", sz * 2);
 		ret = -ENOMEM;
@@ -1994,9 +1994,8 @@ static int pp_pgc_get_config(char __iomem *base_addr, void *cfg_data,
 			PGC_LUT_ENTRIES);
 		return -EFAULT;
 	}
-	c0_data = kzalloc(sz * 3, GFP_KERNEL);
-	if (!c0_data) {
-		pr_err("memory allocation failure sz %d", sz * 3);
+	c0_data = kcalloc(sz, 3, GFP_KERNEL);
+	if (!c0_data)
 		return -ENOMEM;
 	}
 	c1_data = c0_data + PGC_LUT_ENTRIES;

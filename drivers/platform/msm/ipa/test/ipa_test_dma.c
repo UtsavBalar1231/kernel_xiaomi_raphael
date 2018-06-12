@@ -969,8 +969,9 @@ static int ipa_test_dma_parallel_async_memcpy_in_loop(void *priv)
 		return rc;
 	}
 
-	udata = kzalloc(IPA_DMA_TEST_ASYNC_PARALLEL_LOOP_NUM *
-		sizeof(struct ipa_test_dma_async_user_data), GFP_KERNEL);
+	udata = kcalloc(IPA_DMA_TEST_ASYNC_PARALLEL_LOOP_NUM,
+			sizeof(struct ipa_test_dma_async_user_data),
+			GFP_KERNEL);
 	if (!udata) {
 		IPA_UT_ERR("fail allocate user_data array\n");
 		(void)ipa_dma_disable();

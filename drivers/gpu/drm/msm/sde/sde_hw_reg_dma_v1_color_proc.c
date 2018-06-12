@@ -1944,7 +1944,7 @@ static int reg_dmav1_setup_vig_igc_common(struct sde_hw_reg_dma_ops *dma_ops,
 				hw_cfg->len, sizeof(struct drm_msm_igc_lut));
 	}
 
-	data = kzalloc(VIG_1D_LUT_IGC_LEN * sizeof(u32), GFP_KERNEL);
+	data = kcalloc(VIG_1D_LUT_IGC_LEN, sizeof(u32), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -2205,7 +2205,7 @@ void reg_dmav1_setup_dma_igcv5(struct sde_hw_pipe *ctx, void *cfg,
 		return;
 	}
 
-	data = kzalloc(DMA_1D_LUT_IGC_LEN * sizeof(u32), GFP_KERNEL);
+	data = kcalloc(DMA_1D_LUT_IGC_LEN, sizeof(u32), GFP_KERNEL);
 	if (!data) {
 		DRM_ERROR("failed to allocate memory for igc\n");
 		return;

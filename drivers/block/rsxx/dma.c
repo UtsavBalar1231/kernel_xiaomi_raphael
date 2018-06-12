@@ -1039,7 +1039,7 @@ int rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card)
 	struct rsxx_dma *dma;
 	struct list_head *issued_dmas;
 
-	issued_dmas = kzalloc(sizeof(*issued_dmas) * card->n_targets,
+	issued_dmas = kcalloc(card->n_targets, sizeof(*issued_dmas),
 			      GFP_KERNEL);
 	if (!issued_dmas)
 		return -ENOMEM;

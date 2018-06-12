@@ -152,16 +152,18 @@ int cam_irq_controller_init(const char       *name,
 		return -ENOMEM;
 	}
 
-	controller->irq_register_arr = kzalloc(register_info->num_registers *
-		sizeof(struct cam_irq_register_obj), GFP_KERNEL);
+	controller->irq_register_arr = kcalloc(register_info->num_registers,
+					       sizeof(struct cam_irq_register_obj),
+					       GFP_KERNEL);
 	if (!controller->irq_register_arr) {
 		CAM_DBG(CAM_IRQ_CTRL, "Failed to allocate IRQ register Arr");
 		rc = -ENOMEM;
 		goto reg_alloc_error;
 	}
 
-	controller->irq_status_arr = kzalloc(register_info->num_registers *
-		sizeof(uint32_t), GFP_KERNEL);
+	controller->irq_status_arr = kcalloc(register_info->num_registers,
+					     sizeof(uint32_t),
+					     GFP_KERNEL);
 	if (!controller->irq_status_arr) {
 		CAM_DBG(CAM_IRQ_CTRL, "Failed to allocate IRQ status Arr");
 		rc = -ENOMEM;
@@ -169,8 +171,8 @@ int cam_irq_controller_init(const char       *name,
 	}
 
 	controller->th_payload.evt_status_arr =
-		kzalloc(register_info->num_registers * sizeof(uint32_t),
-		GFP_KERNEL);
+		kcalloc(register_info->num_registers, sizeof(uint32_t),
+			GFP_KERNEL);
 	if (!controller->th_payload.evt_status_arr) {
 		CAM_DBG(CAM_IRQ_CTRL,
 			"Failed to allocate BH payload bit mask Arr");
@@ -293,8 +295,9 @@ int cam_irq_controller_subscribe_irq(void *irq_controller,
 		return -ENOMEM;
 	}
 
-	evt_handler->evt_bit_mask_arr = kzalloc(sizeof(uint32_t) *
-		controller->num_registers, GFP_KERNEL);
+	evt_handler->evt_bit_mask_arr = kcalloc(controller->num_registers,
+						sizeof(uint32_t),
+						GFP_KERNEL);
 	if (!evt_handler->evt_bit_mask_arr) {
 		CAM_DBG(CAM_IRQ_CTRL, "Error allocating hlist_node");
 		rc = -ENOMEM;

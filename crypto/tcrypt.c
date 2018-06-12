@@ -430,7 +430,7 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 	unsigned int i, j, k;
 	int ret;
 
-	data = kzalloc(sizeof(*data) * 8, GFP_KERNEL);
+	data = kcalloc(8, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return;
 

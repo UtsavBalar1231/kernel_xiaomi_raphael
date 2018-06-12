@@ -129,7 +129,7 @@ static int wcd9xxx_slim_multi_reg_write(struct wcd9xxx *wcd9xxx,
 	if (num_regs == 0)
 		return -EINVAL;
 
-	bulk_reg = kzalloc(num_regs * (sizeof(struct wcd9xxx_reg_val)),
+	bulk_reg = kcalloc(num_regs, sizeof(struct wcd9xxx_reg_val),
 			   GFP_KERNEL);
 	if (!bulk_reg)
 		return -ENOMEM;
@@ -435,7 +435,7 @@ int wcd9xxx_slim_bulk_write(struct wcd9xxx *wcd9xxx,
 		return 0;
 	}
 
-	msgs = kzalloc(size * (sizeof(struct slim_val_inf)), GFP_KERNEL);
+	msgs = kcalloc(size, sizeof(struct slim_val_inf), GFP_KERNEL);
 	if (!msgs) {
 		ret = -ENOMEM;
 		goto mem_fail;

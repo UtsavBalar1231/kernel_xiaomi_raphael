@@ -1640,8 +1640,8 @@ static int __cam_req_mgr_create_subdevs(
 {
 	int rc = 0;
 	*l_dev = (struct cam_req_mgr_connected_device *)
-		kzalloc(sizeof(struct cam_req_mgr_connected_device) * num_dev,
-		GFP_KERNEL);
+		kcalloc(num_dev, sizeof(struct cam_req_mgr_connected_device),
+			GFP_KERNEL);
 	if (!*l_dev)
 		rc = -ENOMEM;
 

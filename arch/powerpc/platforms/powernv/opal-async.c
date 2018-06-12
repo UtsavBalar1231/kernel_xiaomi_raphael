@@ -189,9 +189,9 @@ int __init opal_async_comp_init(void)
 		goto out_opal_node;
 	}
 
-	opal_async_responses = kzalloc(
-			sizeof(*opal_async_responses) * opal_max_async_tokens,
-			GFP_KERNEL);
+	opal_async_responses = kcalloc(opal_max_async_tokens,
+				       sizeof(*opal_async_responses),
+				       GFP_KERNEL);
 	if (!opal_async_responses) {
 		pr_err("%s: Out of memory, failed to do asynchronous "
 				"completion init\n", __func__);

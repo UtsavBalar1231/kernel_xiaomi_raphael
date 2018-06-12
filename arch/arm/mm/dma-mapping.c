@@ -2398,8 +2398,8 @@ iommu_init_mapping(struct device *dev, struct dma_iommu_mapping *mapping)
 	}
 
 	mapping->bitmap_size = bitmap_size;
-	mapping->bitmaps = kzalloc(extensions * sizeof(unsigned long *),
-			GFP_KERNEL);
+	mapping->bitmaps = kcalloc(extensions, sizeof(unsigned long *),
+				   GFP_KERNEL);
 
 	if (!mapping->bitmaps)
 		return -ENOMEM;

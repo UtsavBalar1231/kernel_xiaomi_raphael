@@ -1482,8 +1482,9 @@ static int32_t cam_cci_i2c_write_async(struct v4l2_subdev *sd,
 	}
 
 	cci_i2c_write_cfg_w->reg_setting =
-		kzalloc(sizeof(struct cam_sensor_i2c_reg_array)*
-		cci_i2c_write_cfg->size, GFP_KERNEL);
+		kcalloc(cci_i2c_write_cfg->size,
+			sizeof(struct cam_sensor_i2c_reg_array),
+			GFP_KERNEL);
 	if (!cci_i2c_write_cfg_w->reg_setting) {
 		CAM_ERR(CAM_CCI, "Couldn't allocate memory");
 		kfree(write_async);

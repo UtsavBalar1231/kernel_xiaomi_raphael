@@ -77,8 +77,8 @@ static int at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 	 * frequency table.
 	 */
 	steps = fls(frequency / min_freq) + 1;
-	freq_table = kzalloc(steps * sizeof(struct cpufreq_frequency_table),
-			GFP_KERNEL);
+	freq_table = kcalloc(steps, sizeof(struct cpufreq_frequency_table),
+			     GFP_KERNEL);
 	if (!freq_table) {
 		retval = -ENOMEM;
 		goto out_err_put_clk;

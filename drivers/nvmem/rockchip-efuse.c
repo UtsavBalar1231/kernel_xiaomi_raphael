@@ -112,7 +112,8 @@ static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 	addr_offset = offset % RK3399_NBYTES;
 	addr_len = addr_end - addr_start;
 
-	buf = kzalloc(sizeof(*buf) * addr_len * RK3399_NBYTES, GFP_KERNEL);
+	buf = kzalloc(array3_size(addr_len, RK3399_NBYTES, sizeof(*buf)),
+		      GFP_KERNEL);
 	if (!buf) {
 		clk_disable_unprepare(efuse->clk);
 		return -ENOMEM;

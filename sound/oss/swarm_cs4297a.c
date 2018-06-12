@@ -630,7 +630,8 @@ static int init_serdma(serdma_t *dma)
 
         /* Descriptors */
         dma->ringsz = DMA_DESCR;
-        dma->descrtab = kzalloc(dma->ringsz * sizeof(serdma_descr_t), GFP_KERNEL);
+        dma->descrtab = kcalloc(dma->ringsz, sizeof(serdma_descr_t),
+                                GFP_KERNEL);
         if (!dma->descrtab) {
                 printk(KERN_ERR "cs4297a: kzalloc descrtab failed\n");
                 return -1;

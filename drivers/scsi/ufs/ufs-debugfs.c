@@ -803,13 +803,13 @@ static int ufshcd_init_statistics(struct ufs_hba *hba)
 	int i;
 
 	stats->enabled = false;
-	stats->tag_stats = kzalloc(sizeof(*stats->tag_stats) * hba->nutrs,
-			GFP_KERNEL);
+	stats->tag_stats = kcalloc(hba->nutrs, sizeof(*stats->tag_stats),
+				   GFP_KERNEL);
 	if (!hba->ufs_stats.tag_stats)
 		goto no_mem;
 
-	stats->tag_stats[0] = kzalloc(sizeof(**stats->tag_stats) *
-			TS_NUM_STATS * hba->nutrs, GFP_KERNEL);
+	stats->tag_stats[0] = kzalloc(array3_size(sizeof(**stats->tag_stats), TS_NUM_STATS, hba->nutrs),
+				      GFP_KERNEL);
 	if (!stats->tag_stats[0])
 		goto no_mem;
 

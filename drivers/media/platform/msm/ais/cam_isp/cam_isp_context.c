@@ -3431,8 +3431,7 @@ static int __cam_isp_ctx_acquire_dev_in_available(struct cam_context *ctx,
 		goto end;
 	}
 
-	isp_res = kzalloc(
-		sizeof(*isp_res)*cmd->num_resources, GFP_KERNEL);
+	isp_res = kcalloc(cmd->num_resources, sizeof(*isp_res), GFP_KERNEL);
 	if (!isp_res) {
 		rc = -ENOMEM;
 		goto end;

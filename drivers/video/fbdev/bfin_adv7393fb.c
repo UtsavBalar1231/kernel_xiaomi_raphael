@@ -459,7 +459,7 @@ static int bfin_adv7393_fb_probe(struct i2c_client *client,
 	fbdev->info.par = &bfin_par;
 	fbdev->info.flags = FBINFO_DEFAULT;
 
-	fbdev->info.pseudo_palette = kzalloc(sizeof(u32) * 16, GFP_KERNEL);
+	fbdev->info.pseudo_palette = kcalloc(16, sizeof(u32), GFP_KERNEL);
 	if (!fbdev->info.pseudo_palette) {
 		dev_err(&client->dev, "failed to allocate pseudo_palette\n");
 		ret = -ENOMEM;

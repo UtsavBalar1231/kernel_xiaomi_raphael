@@ -2261,8 +2261,9 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	if (modes[n] == NULL)
 		return best_score;
 
-	crtcs = kzalloc(fb_helper->connector_count *
-			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
+	crtcs = kcalloc(fb_helper->connector_count,
+			sizeof(struct drm_fb_helper_crtc *),
+			GFP_KERNEL);
 	if (!crtcs)
 		return best_score;
 

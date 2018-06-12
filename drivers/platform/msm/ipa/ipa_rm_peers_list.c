@@ -63,8 +63,9 @@ int ipa_rm_peers_list_create(int max_peers,
 	}
 
 	(*peers_list)->max_peers = max_peers;
-	(*peers_list)->peers = kzalloc((*peers_list)->max_peers *
-			sizeof(*((*peers_list)->peers)), GFP_ATOMIC);
+	(*peers_list)->peers = kcalloc((*peers_list)->max_peers,
+				       sizeof(*((*peers_list)->peers)),
+				       GFP_ATOMIC);
 	if (!((*peers_list)->peers)) {
 		IPA_RM_ERR("no mem\n");
 		result = -ENOMEM;

@@ -456,8 +456,9 @@ static int mlx5e_init_pin_config(struct mlx5e_tstamp *tstamp)
 	int i;
 
 	tstamp->ptp_info.pin_config =
-		kzalloc(sizeof(*tstamp->ptp_info.pin_config) *
-			       tstamp->ptp_info.n_pins, GFP_KERNEL);
+		kcalloc(tstamp->ptp_info.n_pins,
+			sizeof(*tstamp->ptp_info.pin_config),
+			GFP_KERNEL);
 	if (!tstamp->ptp_info.pin_config)
 		return -ENOMEM;
 	tstamp->ptp_info.enable = mlx5e_ptp_enable;

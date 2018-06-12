@@ -306,7 +306,7 @@ struct us_client *q6usm_us_client_alloc(
 	if (usc == NULL)
 		return NULL;
 
-	p_mem_handle = kzalloc(sizeof(uint32_t) * 4, GFP_KERNEL);
+	p_mem_handle = kcalloc(4, sizeof(uint32_t), GFP_KERNEL);
 	if (p_mem_handle == NULL) {
 		kfree(usc);
 		return NULL;

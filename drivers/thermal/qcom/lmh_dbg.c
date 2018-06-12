@@ -198,8 +198,8 @@ static int lmh_parse_and_extract(const char __user *user_buf, size_t count,
 			ret = -EINVAL;
 			goto dfs_cfg_write_exit;
 		}
-		config_buf = kzalloc((++data_ct) * sizeof(uint32_t),
-				GFP_KERNEL);
+		config_buf = kcalloc(++data_ct, sizeof(uint32_t),
+				     GFP_KERNEL);
 		if (!config_buf) {
 			ret = -ENOMEM;
 			goto dfs_cfg_write_exit;

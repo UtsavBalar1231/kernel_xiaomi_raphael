@@ -483,7 +483,7 @@ static int32_t msm_sensor_get_pw_settings_compat(
 {
 	int32_t rc = 0, i = 0;
 	struct msm_sensor_power_setting32 *ps32 =
-		kzalloc(sizeof(*ps32) * size, GFP_KERNEL);
+		kcalloc(size, sizeof(*ps32), GFP_KERNEL);
 
 	if (!ps32) {
 		pr_err("failed: no memory ps32");
@@ -832,9 +832,8 @@ int32_t msm_sensor_driver_probe(void *setting,
 		} else {
 			id_info = &(slave_info->sensor_id_info);
 			reg_setting =
-				kzalloc(id_info->setting.size *
-					(sizeof
-					(struct msm_camera_i2c_reg_array)),
+				kcalloc(id_info->setting.size,
+					sizeof(struct msm_camera_i2c_reg_array),
 					GFP_KERNEL);
 			if (!reg_setting) {
 				kfree(slave_info32);
@@ -901,9 +900,8 @@ int32_t msm_sensor_driver_probe(void *setting,
 		} else {
 			id_info = &(slave_info->sensor_id_info);
 			reg_setting =
-				kzalloc(id_info->setting.size *
-					(sizeof
-					(struct msm_camera_i2c_reg_array)),
+				kcalloc(id_info->setting.size,
+					sizeof(struct msm_camera_i2c_reg_array),
 					GFP_KERNEL);
 			if (!reg_setting) {
 				rc = -ENOMEM;

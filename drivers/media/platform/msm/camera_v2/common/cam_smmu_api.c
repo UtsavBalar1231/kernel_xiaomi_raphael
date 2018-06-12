@@ -820,7 +820,7 @@ static int cam_smmu_send_syscall_pix_intf(int vmid, int idx)
 	uint32_t *sid_info = NULL;
 	struct cam_context_bank_info *cb = &iommu_cb_set.cb_info[idx];
 
-	sid_info = kzalloc(sizeof(uint32_t) * 2, GFP_KERNEL);
+	sid_info = kcalloc(2, sizeof(uint32_t), GFP_KERNEL);
 	if (!sid_info)
 		return -ENOMEM;
 

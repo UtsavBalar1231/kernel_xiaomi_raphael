@@ -4331,8 +4331,8 @@ int atomisp_css_create_acc_pipe(struct atomisp_sub_device *asd)
 
 	pipe_config = &stream_env->pipe_configs[CSS_PIPE_ID_ACC];
 	ia_css_pipe_config_defaults(pipe_config);
-	asd->acc.acc_stages = kzalloc(MAX_ACC_STAGES *
-				sizeof(void *), GFP_KERNEL);
+	asd->acc.acc_stages = kcalloc(MAX_ACC_STAGES, sizeof(void *),
+				      GFP_KERNEL);
 	if (!asd->acc.acc_stages)
 		return -ENOMEM;
 	pipe_config->acc_stages = asd->acc.acc_stages;

@@ -468,12 +468,12 @@ static int setup_glists(struct lio *lio, int num_iqs)
 	int i, j;
 
 	lio->glist_lock =
-	    kzalloc(sizeof(*lio->glist_lock) * num_iqs, GFP_KERNEL);
+	    kcalloc(num_iqs, sizeof(*lio->glist_lock), GFP_KERNEL);
 	if (!lio->glist_lock)
 		return -ENOMEM;
 
 	lio->glist =
-	    kzalloc(sizeof(*lio->glist) * num_iqs, GFP_KERNEL);
+	    kcalloc(num_iqs, sizeof(*lio->glist), GFP_KERNEL);
 	if (!lio->glist) {
 		kfree(lio->glist_lock);
 		lio->glist_lock = NULL;

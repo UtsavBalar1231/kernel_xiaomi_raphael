@@ -462,7 +462,7 @@ static int __init igafb_init(void)
 	 * one additional region with size == 0. 
 	 */
 
-	par->mmap_map = kzalloc(4 * sizeof(*par->mmap_map), GFP_ATOMIC);
+	par->mmap_map = kcalloc(4, sizeof(*par->mmap_map), GFP_ATOMIC);
 	if (!par->mmap_map) {
 		printk("igafb_init: can't alloc mmap_map\n");
 		iounmap((void *)par->io_base);

@@ -1022,8 +1022,9 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 			/* free earlier iface limits memory */
 			kfree(mac->macinfo.limits);
 			mac->macinfo.limits =
-				kzalloc(sizeof(*mac->macinfo.limits) *
-					record_count, GFP_KERNEL);
+				kcalloc(record_count,
+					sizeof(*mac->macinfo.limits),
+					GFP_KERNEL);
 
 			if (unlikely(!mac->macinfo.limits))
 				return -ENOMEM;

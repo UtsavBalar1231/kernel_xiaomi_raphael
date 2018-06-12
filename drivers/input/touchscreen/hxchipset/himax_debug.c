@@ -853,19 +853,22 @@ void setYChannel(uint8_t y)
 }
 void setMutualBuffer(void)
 {
-	diag_mutual = kzalloc(x_channel * y_channel * sizeof(int32_t), GFP_KERNEL);
+	diag_mutual = kcalloc(x_channel * y_channel, sizeof(int32_t),
+		              GFP_KERNEL);
 	if (!diag_mutual)
 		E("%s: allocate memory failed!\n", __func__);
 }
 void setMutualNewBuffer(void)
 {
-	diag_mutual_new = kzalloc(x_channel * y_channel * sizeof(int32_t), GFP_KERNEL);
+	diag_mutual_new = kcalloc(x_channel * y_channel, sizeof(int32_t),
+				  GFP_KERNEL);
 	if (!diag_mutual_new)
 		E("%s: allocate memory failed!\n", __func__);
 }
 void setMutualOldBuffer(void)
 {
-	diag_mutual_old = kzalloc(x_channel * y_channel * sizeof(int32_t), GFP_KERNEL);
+	diag_mutual_old = kcalloc(x_channel * y_channel, sizeof(int32_t),
+				  GFP_KERNEL);
 	if (!diag_mutual_old)
 		E("%s: allocate memory failed!\n", __func__);
 }
@@ -898,7 +901,8 @@ void setYChannel_2(uint8_t y)
 
 void setMutualBuffer_2(void)
 {
-	diag_mutual_2 = kzalloc(x_channel_2 * y_channel_2 * sizeof(int32_t), GFP_KERNEL);
+	diag_mutual_2 = kcalloc(x_channel_2 * y_channel_2, sizeof(int32_t),
+				GFP_KERNEL);
 }
 #endif
 

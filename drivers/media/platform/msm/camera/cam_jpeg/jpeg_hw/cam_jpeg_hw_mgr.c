@@ -1510,8 +1510,9 @@ static int cam_jpeg_setup_workqs(void)
 
 	g_jpeg_hw_mgr.process_frame_work_data =
 		(struct cam_jpeg_process_frame_work_data_t *)
-		kzalloc(sizeof(struct cam_jpeg_process_frame_work_data_t) *
-			CAM_JPEG_WORKQ_NUM_TASK, GFP_KERNEL);
+		kcalloc(CAM_JPEG_WORKQ_NUM_TASK,
+			sizeof(struct cam_jpeg_process_frame_work_data_t),
+			GFP_KERNEL);
 	if (!g_jpeg_hw_mgr.process_frame_work_data) {
 		rc = -ENOMEM;
 		goto work_process_frame_data_failed;
@@ -1519,8 +1520,9 @@ static int cam_jpeg_setup_workqs(void)
 
 	g_jpeg_hw_mgr.process_irq_cb_work_data =
 		(struct cam_jpeg_process_irq_work_data_t *)
-		kzalloc(sizeof(struct cam_jpeg_process_irq_work_data_t) *
-			CAM_JPEG_WORKQ_NUM_TASK, GFP_KERNEL);
+		kcalloc(CAM_JPEG_WORKQ_NUM_TASK,
+			sizeof(struct cam_jpeg_process_irq_work_data_t),
+			GFP_KERNEL);
 	if (!g_jpeg_hw_mgr.process_irq_cb_work_data) {
 		rc = -ENOMEM;
 		goto work_process_irq_cb_data_failed;
@@ -1589,8 +1591,9 @@ static int cam_jpeg_init_devices(struct device_node *of_node,
 		CAM_ERR(CAM_JPEG, "read num enc devices failed %d", rc);
 		goto num_enc_failed;
 	}
-	g_jpeg_hw_mgr.devices[CAM_JPEG_DEV_ENC] = kzalloc(
-		sizeof(struct cam_hw_intf *) * num_dev, GFP_KERNEL);
+	g_jpeg_hw_mgr.devices[CAM_JPEG_DEV_ENC] = kcalloc(num_dev,
+							  sizeof(struct cam_hw_intf *),
+							  GFP_KERNEL);
 	if (!g_jpeg_hw_mgr.devices[CAM_JPEG_DEV_ENC]) {
 		rc = -ENOMEM;
 		CAM_ERR(CAM_JPEG, "getting number of dma dev nodes failed");
@@ -1603,8 +1606,9 @@ static int cam_jpeg_init_devices(struct device_node *of_node,
 		goto num_dma_failed;
 	}
 
-	g_jpeg_hw_mgr.devices[CAM_JPEG_DEV_DMA] = kzalloc(
-		sizeof(struct cam_hw_intf *) * num_dma_dev, GFP_KERNEL);
+	g_jpeg_hw_mgr.devices[CAM_JPEG_DEV_DMA] = kcalloc(num_dma_dev,
+							  sizeof(struct cam_hw_intf *),
+							  GFP_KERNEL);
 	if (!g_jpeg_hw_mgr.devices[CAM_JPEG_DEV_DMA]) {
 		rc = -ENOMEM;
 		goto num_dma_failed;

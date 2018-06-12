@@ -1165,8 +1165,9 @@ static int alloc_handle_lst(int size)
 	struct msm_bus_client **t_cl_list;
 
 	if (!handle_list.num_entries) {
-		t_cl_list = kzalloc(sizeof(struct msm_bus_client *)
-			* NUM_CL_HANDLES, GFP_KERNEL);
+		t_cl_list = kcalloc(NUM_CL_HANDLES,
+				    sizeof(struct msm_bus_client *),
+				    GFP_KERNEL);
 		if (ZERO_OR_NULL_PTR(t_cl_list)) {
 			ret = -ENOMEM;
 			MSM_BUS_ERR("%s: Failed to allocate handles list",

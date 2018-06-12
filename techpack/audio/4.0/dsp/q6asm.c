@@ -8472,7 +8472,7 @@ static int q6asm_memory_map_regions(struct audio_client *ac, int dir,
 		return -EINVAL;
 	}
 
-	buffer_node = kzalloc(sizeof(struct asm_buffer_node) * bufcnt,
+	buffer_node = kcalloc(bufcnt, sizeof(struct asm_buffer_node),
 				GFP_KERNEL);
 	if (!buffer_node)
 		return -ENOMEM;

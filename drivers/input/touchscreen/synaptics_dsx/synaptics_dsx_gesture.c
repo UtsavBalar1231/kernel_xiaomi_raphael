@@ -2011,9 +2011,9 @@ static int synaptics_rmi4_udg_init(struct synaptics_rmi4_data *rmi4_data)
 	}
 
 #ifdef STORE_GESTURES
-	udg->storage_buf = kzalloc(
-			udg->template_data_size * udg->gestures_to_store,
-			GFP_KERNEL);
+	udg->storage_buf = kcalloc(udg->template_data_size,
+				   udg->gestures_to_store,
+				   GFP_KERNEL);
 	if (!udg->storage_buf) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to alloc mem for storage_buf\n",
