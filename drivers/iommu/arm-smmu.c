@@ -4539,13 +4539,14 @@ static int arm_smmu_parse_impl_def_registers(struct arm_smmu_device *smmu)
 		return -EINVAL;
 	}
 
-	regs = devm_kmalloc(
-		dev, sizeof(*smmu->impl_def_attach_registers) * ntuples,
+	regs = devm_kmalloc_array(
+		dev, ntuples, sizeof(*smmu->impl_def_attach_registers),
 		GFP_KERNEL);
 	if (!regs)
 		return -ENOMEM;
 
-	tuples = devm_kmalloc(dev, sizeof(u32) * ntuples * 2, GFP_KERNEL);
+	tuples = devm_kmalloc(dev, array3_size(sizeof(u32), ntuples, 2),
+			      GFP_KERNEL);
 	if (!tuples)
 		return -ENOMEM;
 

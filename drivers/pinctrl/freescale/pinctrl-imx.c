@@ -691,8 +691,9 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	if (!ipctl)
 		return -ENOMEM;
 
-	info->pin_regs = devm_kmalloc(&pdev->dev, sizeof(*info->pin_regs) *
-				      info->npins, GFP_KERNEL);
+	info->pin_regs = devm_kmalloc_array(&pdev->dev,
+				      info->npins, sizeof(*info->pin_regs),
+				      GFP_KERNEL);
 	if (!info->pin_regs)
 		return -ENOMEM;
 
