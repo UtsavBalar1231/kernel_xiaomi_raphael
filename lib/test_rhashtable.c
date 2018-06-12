@@ -383,10 +383,10 @@ static int __init test_rht_init(void)
 	pr_info("Testing concurrent rhashtable access from %d threads\n",
 	        tcount);
 	sema_init(&prestart_sem, 1 - tcount);
-	tdata = vzalloc(tcount * sizeof(struct thread_data));
+	tdata = vzalloc(array_size(tcount, sizeof(struct thread_data)));
 	if (!tdata)
 		return -ENOMEM;
-	objs  = vzalloc(tcount * entries * sizeof(struct test_obj));
+	objs  = vzalloc(array_size(sizeof(struct test_obj), (tcount * entries)));
 	if (!objs) {
 		vfree(tdata);
 		return -ENOMEM;

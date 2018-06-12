@@ -1866,8 +1866,7 @@ static int cache_alloc(struct cache *ca)
 	    !init_fifo(&ca->free[RESERVE_NONE], free, GFP_KERNEL) ||
 	    !init_fifo(&ca->free_inc,	free << 2, GFP_KERNEL) ||
 	    !init_heap(&ca->heap,	free << 3, GFP_KERNEL) ||
-	    !(ca->buckets	= vzalloc(sizeof(struct bucket) *
-					  ca->sb.nbuckets)) ||
+	    !(ca->buckets	= vzalloc(array_size(sizeof(struct bucket), ca->sb.nbuckets))) ||
 	    !(ca->prio_buckets	= kzalloc(array3_size(sizeof(uint64_t), prio_buckets(ca), 2), GFP_KERNEL)) ||
 	    !(ca->disk_buckets	= alloc_bucket_pages(GFP_KERNEL, ca)))
 		return -ENOMEM;

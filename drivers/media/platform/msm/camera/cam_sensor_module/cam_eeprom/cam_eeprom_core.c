@@ -580,9 +580,7 @@ static int32_t cam_eeprom_init_pkt_parser(struct cam_eeprom_ctrl_t *e_ctrl,
 		(struct cam_eeprom_soc_private *)e_ctrl->soc_info.soc_private;
 	struct cam_sensor_power_ctrl_t *power_info = &soc_private->power_info;
 
-	e_ctrl->cal_data.map = vzalloc((MSM_EEPROM_MEMORY_MAP_MAX_SIZE *
-		MSM_EEPROM_MAX_MEM_MAP_CNT) *
-		(sizeof(struct cam_eeprom_memory_map_t)));
+	e_ctrl->cal_data.map = vzalloc(array_size(sizeof(struct cam_eeprom_memory_map_t), (MSM_EEPROM_MEMORY_MAP_MAX_SIZE * MSM_EEPROM_MAX_MEM_MAP_CNT)));
 	if (!e_ctrl->cal_data.map) {
 		rc = -ENOMEM;
 		CAM_ERR(CAM_EEPROM, "failed");

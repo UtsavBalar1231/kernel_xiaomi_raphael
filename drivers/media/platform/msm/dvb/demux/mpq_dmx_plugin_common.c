@@ -831,7 +831,7 @@ int mpq_dmx_plugin_init(mpq_dmx_init dmx_init_func,
 
 	/* Allocate memory for all MPQ devices */
 	mpq_dmx_info.devices =
-		vzalloc(mpq_demux_device_num*sizeof(struct mpq_demux));
+		vzalloc(array_size(mpq_demux_device_num, sizeof(struct mpq_demux)));
 
 	if (!mpq_dmx_info.devices) {
 		result = -ENOMEM;

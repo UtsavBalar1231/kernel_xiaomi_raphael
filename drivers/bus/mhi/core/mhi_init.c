@@ -1289,8 +1289,7 @@ static int of_parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 	if (!of_node)
 		return -EINVAL;
 
-	mhi_cntrl->mhi_chan = vzalloc(mhi_cntrl->max_chan *
-				      sizeof(*mhi_cntrl->mhi_chan));
+	mhi_cntrl->mhi_chan = vzalloc(array_size(sizeof(*mhi_cntrl->mhi_chan), mhi_cntrl->max_chan));
 	if (!mhi_cntrl->mhi_chan)
 		return -ENOMEM;
 

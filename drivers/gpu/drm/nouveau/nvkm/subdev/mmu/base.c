@@ -382,7 +382,7 @@ nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	vm->fpde = offset >> (mmu->func->pgt_bits + 12);
 	vm->lpde = (offset + length - 1) >> (mmu->func->pgt_bits + 12);
 
-	vm->pgt  = vzalloc((vm->lpde - vm->fpde + 1) * sizeof(*vm->pgt));
+	vm->pgt  = vzalloc(array_size(sizeof(*vm->pgt), (vm->lpde - vm->fpde + 1)));
 	if (!vm->pgt) {
 		kfree(vm);
 		return -ENOMEM;

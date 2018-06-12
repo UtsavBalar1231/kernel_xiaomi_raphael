@@ -108,7 +108,7 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 		/* Need ref to hardware device to free buffer later. */
 		bm->dma_hw_dev = get_device(dev->hw_dev);
 
-	bm->page_list = vzalloc(sizeof(*buf) * n_pages);
+	bm->page_list = vzalloc(array_size(n_pages, sizeof(*buf)));
 	if (bm->page_list)
 		pages = vmalloc(array_size(n_pages, sizeof(struct page *)));
 

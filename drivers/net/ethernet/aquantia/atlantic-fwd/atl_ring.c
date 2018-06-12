@@ -1476,7 +1476,7 @@ static int atl_alloc_ring(struct atl_desc_ring *ring, size_t buf_size,
 		return ret;
 	}
 
-	ring->bufs = vzalloc(ring->hw.size * buf_size);
+	ring->bufs = vzalloc(array_size(ring->hw.size, buf_size));
 	if (!ring->bufs) {
 		atl_nic_err("Couldn't alloc %s[%d] %sbufs\n", type, idx, type);
 		ret = -ENOMEM;

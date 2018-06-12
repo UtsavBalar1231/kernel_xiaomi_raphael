@@ -660,7 +660,7 @@ static int __kexec_load_purgatory(struct kimage *image, unsigned long min,
 	 * ->sh_offset fields to keep track of permanent and temporary
 	 * locations of sections.
 	 */
-	sechdrs = vzalloc(pi->ehdr->e_shnum * sizeof(Elf_Shdr));
+	sechdrs = vzalloc(array_size(sizeof(Elf_Shdr), pi->ehdr->e_shnum));
 	if (!sechdrs)
 		return -ENOMEM;
 

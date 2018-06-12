@@ -4508,8 +4508,7 @@ megasas_alloc_fusion_context(struct megasas_instance *instance)
 		(struct LD_LOAD_BALANCE_INFO *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 		fusion->load_balance_info_pages);
 	if (!fusion->load_balance_info) {
-		fusion->load_balance_info = vzalloc(MAX_LOGICAL_DRIVES_EXT *
-			sizeof(struct LD_LOAD_BALANCE_INFO));
+		fusion->load_balance_info = vzalloc(array_size(MAX_LOGICAL_DRIVES_EXT, sizeof(struct LD_LOAD_BALANCE_INFO)));
 		if (!fusion->load_balance_info)
 			dev_err(&instance->pdev->dev, "Failed to allocate load_balance_info, "
 				"continuing without Load Balance support\n");

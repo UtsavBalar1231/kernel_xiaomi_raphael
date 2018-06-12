@@ -1201,7 +1201,7 @@ static int spmi_sim_probe(struct platform_device *pdev)
 		}
 		sim->range[i].start = res->start;
 		sim->range[i].end = res->end;
-		sim->range[i].reg = vzalloc(len * sizeof(*sim->range[i].reg));
+		sim->range[i].reg = vzalloc(array_size(len, sizeof(*sim->range[i].reg)));
 		if (!sim->range[i].reg) {
 			rc = -ENOMEM;
 			goto err_free_ranges;

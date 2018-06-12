@@ -389,7 +389,7 @@ static int __igt_reserve(unsigned int count, u64 size)
 	if (!order)
 		goto err;
 
-	nodes = vzalloc(sizeof(*nodes) * count);
+	nodes = vzalloc(array_size(count, sizeof(*nodes)));
 	if (!nodes)
 		goto err_order;
 
@@ -887,7 +887,7 @@ static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(count * sizeof(*nodes));
+	nodes = vzalloc(array_size(count, sizeof(*nodes)));
 	if (!nodes)
 		goto err;
 
@@ -1042,7 +1042,7 @@ static int igt_align(void *ignored)
 	 * meets our requirements.
 	 */
 
-	nodes = vzalloc(max_count * sizeof(*nodes));
+	nodes = vzalloc(array_size(max_count, sizeof(*nodes)));
 	if (!nodes)
 		goto err;
 
@@ -1411,7 +1411,7 @@ static int igt_evict(void *ignored)
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(size * sizeof(*nodes));
+	nodes = vzalloc(array_size(size, sizeof(*nodes)));
 	if (!nodes)
 		goto err;
 
@@ -1521,7 +1521,7 @@ static int igt_evict_range(void *ignored)
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(size * sizeof(*nodes));
+	nodes = vzalloc(array_size(size, sizeof(*nodes)));
 	if (!nodes)
 		goto err;
 
@@ -1622,7 +1622,7 @@ static int igt_topdown(void *ignored)
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(count * sizeof(*nodes));
+	nodes = vzalloc(array_size(count, sizeof(*nodes)));
 	if (!nodes)
 		goto err;
 
@@ -1736,7 +1736,7 @@ static int igt_bottomup(void *ignored)
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(count * sizeof(*nodes));
+	nodes = vzalloc(array_size(count, sizeof(*nodes)));
 	if (!nodes)
 		goto err;
 
@@ -2093,7 +2093,7 @@ static int igt_color_evict(void *ignored)
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(total_size * sizeof(*nodes));
+	nodes = vzalloc(array_size(total_size, sizeof(*nodes)));
 	if (!nodes)
 		goto err;
 
@@ -2194,7 +2194,7 @@ static int igt_color_evict_range(void *ignored)
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(total_size * sizeof(*nodes));
+	nodes = vzalloc(array_size(total_size, sizeof(*nodes)));
 	if (!nodes)
 		goto err;
 

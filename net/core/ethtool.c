@@ -1832,7 +1832,7 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 
 	gstrings.len = ret;
 	if (gstrings.len) {
-		data = vzalloc(gstrings.len * ETH_GSTRING_LEN);
+		data = vzalloc(array_size(gstrings.len, ETH_GSTRING_LEN));
 		if (!data)
 			return -ENOMEM;
 
@@ -1936,7 +1936,7 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 
 	stats.n_stats = n_stats;
 	if (n_stats) {
-		data = vzalloc(n_stats * sizeof(u64));
+		data = vzalloc(array_size(n_stats, sizeof(u64)));
 		if (!data)
 			return -ENOMEM;
 		ops->get_ethtool_stats(dev, &stats, data);
@@ -1979,7 +1979,7 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 
 	stats.n_stats = n_stats;
 	if (n_stats) {
-		data = vzalloc(n_stats * sizeof(u64));
+		data = vzalloc(array_size(n_stats, sizeof(u64)));
 		if (!data)
 			return -ENOMEM;
 
