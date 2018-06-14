@@ -169,6 +169,12 @@ enum {
 	POWER_RESUME,
 };
 
+#ifdef CONFIG_SOUND_CONTROL
+static struct snd_soc_codec *sound_control_codec_ptr;
+static int custom_hp_left = 0;
+static int custom_hp_right = 0;
+#endif
+
 static int dig_core_collapse_enable = 1;
 module_param(dig_core_collapse_enable, int, 0664);
 MODULE_PARM_DESC(dig_core_collapse_enable, "enable/disable power gating");
@@ -1476,6 +1482,13 @@ rtn:
 	mutex_unlock(&tavil_p->codec_mutex);
 	snd_soc_dapm_mux_update_power(widget->dapm, kcontrol,
 				      rx_port_value, e, update);
+
+#ifdef CONFIG_SOUND_CONTROL
+	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_MIX_CTL, custom_hp_left);
+	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_MIX_CTL, custom_hp_right);
+	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_CTL, custom_hp_left);
+	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_CTL, custom_hp_right);
+#endif
 
 	return 0;
 err:
@@ -10332,7 +10345,6 @@ done:
 }
 
 #ifdef CONFIG_SOUND_CONTROL
-static struct snd_soc_codec *sound_control_codec_ptr;
 static int speaker_gain_val = 6;
 int sound_control_speaker_gain(int gain);
 
@@ -10358,6 +10370,9 @@ static ssize_t headphone_gain_store(struct kobject *kobj,
 
 	if (input_r < -84 || input_r > 20)
 		input_r = 0;
+
+	custom_hp_left = input_l;
+	custom_hp_right = input_r;
 
 	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_MIX_CTL, input_l);
 	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_MIX_CTL, input_r);
