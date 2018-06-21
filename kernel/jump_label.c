@@ -208,7 +208,7 @@ static bool static_key_slow_try_dec(struct static_key *key)
 {
 	int val;
 
-	val = __atomic_add_unless(&key->enabled, -1, 1);
+	val = atomic_fetch_add_unless(&key->enabled, -1, 1);
 	if (val == 1)
 		return false;
 
