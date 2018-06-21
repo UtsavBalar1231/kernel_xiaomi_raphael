@@ -183,5 +183,7 @@
 
 #define atomic64_andnot			atomic64_andnot
 
+#define atomic64_dec_if_positive	atomic64_dec_if_positive
+
 #endif
 #endif
