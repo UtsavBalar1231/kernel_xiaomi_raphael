@@ -55,14 +55,16 @@ echo "Creating dtbo image with mkdtbimg"
 mkdtimg create ${MKDTIMG_OUT}/create.img --page_size=4096 --id=0x100 --version=1\
     --rev=0x100 --custom0=0xabc "${OUTDIR}/board1v1.dts.dtb" "${OUTDIR}/board1v1_1.dts.dtb" \
     --id=0xddccbbaa --rev=0x01000100 "${OUTDIR}/board2v1.dts.dtb" --id=0x200 \
-    --rev=0x201 "${OUTDIR}/board1v1.dts.dtb" --custom0=0xdef > /dev/null
+    --rev=0x201 "${OUTDIR}/board1v1.dts.dtb" --custom0=0xdef \
+    "${OUTDIR}/board1v1.dts.dtb" --custom0=0xdef > /dev/null
 
 echo "Creating dtbo image with mkdtboimg"
 ../src/mkdtboimg.py create  ${MKDTBOIMG_OUTCREATE}/create.img --page_size=4096 \
-    --id=0x100 --rev=0x100 --custom0=0xabc --version=1 "${OUTDIR}/board1v1.dts.dtb" \
+    --id=0x100 --rev=0x100 --flags=0xabc0 --version=1 "${OUTDIR}/board1v1.dts.dtb" \
     "${OUTDIR}/board1v1_1.dts.dtb" --id=0xddccbbaa --rev=0x01000100 \
     "${OUTDIR}/board2v1.dts.dtb" --id=0x200 --rev=0x201 \
-    "${OUTDIR}/board1v1.dts.dtb" --custom0=0xdef > /dev/null
+    "${OUTDIR}/board1v1.dts.dtb" --flags=0xd01 \
+    "${OUTDIR}/board1v1.dts.dtb" --flags=0xd02 > /dev/null
 
 echo "Creating dtbo image with ${PYCONFIG} config file"
 ../src/mkdtboimg.py cfg_create ${MKDTBOIMG_OUTCFG}/create.img ${PYCONFIG} --dtb-dir "${OUTDIR}"
@@ -71,10 +73,10 @@ echo "Dumping fragments from mkdtimg tool image"
 mkdtimg dump ${MKDTIMG_OUT}/create.img -b "${MKDTIMG_DUMP}"| grep -v 'FDT' > ${MKDTIMG_OUT}/create.dump
 
 echo "Dumping fragments from mkdtboimg.py tool for image generated with 'create'"
-../src/mkdtboimg.py dump ${MKDTBOIMG_OUTCREATE}/create.img --output ${MKDTBOIMG_OUTCREATE}/create.dump -b "${MKDTBOIMG_CREATEDUMP}"
+../src/mkdtboimg.py dump ${MKDTBOIMG_OUTCREATE}/create.img --output ${MKDTBOIMG_OUTCREATE}/create.dump -b "${MKDTBOIMG_CREATEDUMP}" --decompress
 
 echo "Dumping fragments from mkdtboimg.py tool for image generated with 'cfg_create'"
-../src/mkdtboimg.py dump ${MKDTBOIMG_OUTCFG}/create.img --output ${MKDTBOIMG_OUTCFG}/create.dump -b "${MKDTBOIMG_CFGDUMP}"
+../src/mkdtboimg.py dump ${MKDTBOIMG_OUTCFG}/create.img --output ${MKDTBOIMG_OUTCFG}/create.dump -b "${MKDTBOIMG_CFGDUMP}" --decompress
 
 echo "======================================================================================"
 echo "Testing differences between image created by 'create' for 'mkdtimg' and 'mkdtboimg.py'"
@@ -89,8 +91,6 @@ do
     echo "diff $x vs ${MKDTBOIMG_OUTCREATE}/$file"
     diff $x ${MKDTBOIMG_OUTCREATE}/$file
 done
-echo "diff ${MKDTIMG_OUT}/create.dump vs ${MKDTBOIMG_OUTCREATE}/create.dump";
-diff ${MKDTIMG_OUT}/create.dump ${MKDTBOIMG_OUTCREATE}/create.dump
 echo "=========================================================================================="
 echo "Testing differences between image created by 'cfg_create' for 'mkdtimg' and 'mkdtboimg.py'"
 echo "=========================================================================================="
@@ -104,5 +104,3 @@ do
     echo "diff $x vs ${MKDTBOIMG_OUTCFG}/$file"
     diff $x ${MKDTBOIMG_OUTCFG}/$file
 done
-echo "diff ${MKDTIMG_OUT}/create.dump vs ${MKDTBOIMG_OUTCFG}/create.dump";
-diff ${MKDTIMG_OUT}/create.dump ${MKDTBOIMG_OUTCFG}/create.dump
