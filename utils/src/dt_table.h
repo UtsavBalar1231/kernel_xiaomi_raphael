@@ -46,6 +46,12 @@ struct dt_table_header {
                                  struct is updated. */
 };
 
+enum dt_compression_info {
+    NO_COMPRESSION,
+    ZLIB_COMPRESSION,
+    GZIP_COMPRESSION
+};
+
 struct dt_table_entry {
   uint32_t dt_size;
   uint32_t dt_offset;         /* offset from head of dt_table_header */
@@ -53,6 +59,18 @@ struct dt_table_entry {
   uint32_t id;                /* optional, must be zero if unused */
   uint32_t rev;               /* optional, must be zero if unused */
   uint32_t custom[4];         /* optional, must be zero if unused */
+};
+
+struct dt_table_entry_v1 {
+  uint32_t dt_size;
+  uint32_t dt_offset;         /* offset from head of dt_table_header */
+
+  uint32_t id;                /* optional, must be zero if unused */
+  uint32_t rev;               /* optional, must be zero if unused */
+  uint32_t flags;             /* For version 1 of dt_table_header, the 4 least significant bits
+                                 of 'flags' will be used indicate the compression
+                                 format of the DT entry as per the enum 'dt_compression_info' */
+  uint32_t custom[3];         /* optional, must be zero if unused */
 };
 
 void dt_table_header_init(struct dt_table_header *header);
