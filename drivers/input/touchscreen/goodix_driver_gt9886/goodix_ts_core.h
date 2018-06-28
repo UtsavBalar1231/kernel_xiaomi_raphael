@@ -51,6 +51,7 @@
 #include <linux/notifier.h>
 #include <linux/fb.h>
 #endif
+#include <linux/pm_qos.h>
 
 /* macros definition */
 #define GOODIX_CORE_DRIVER_NAME		"goodix_ts"
@@ -491,6 +492,7 @@ struct goodix_ts_core {
 	int dbclick_count;
 #endif
 
+	struct pm_qos_request pm_touch_req;
 };
 
 struct goodix_mode_switch {
