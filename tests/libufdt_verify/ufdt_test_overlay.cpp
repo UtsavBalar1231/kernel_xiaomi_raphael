@@ -431,6 +431,12 @@ int ufdt_verify_dtbo(struct fdt_header* final_fdt_header,
         goto fail;
     }
 
+    for (size_t i = 0; i < overlay_count; i++) {
+        if ((fdt_magic(overlay_arr[i]) != FDT_MAGIC) || !fdt_totalsize(overlay_arr[i])) {
+            dto_error("Corrupted or empty overlay\n");
+            goto fail;
+        }
+    }
     ufdt_node_pool_construct(&pool);
     final_tree = ufdt_from_fdt(final_fdt_header, final_fdt_size, &pool);
 
