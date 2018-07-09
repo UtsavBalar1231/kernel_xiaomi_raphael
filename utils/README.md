@@ -3,7 +3,7 @@ libufdt `utils` folder
 
 This folder contains utilities for device tree overlay.
 
-mkdtimg
+mkdtimg (DEPRECATED, use mkdtboimg.py instead.)
 -------
 
 If your DTB/DTBO is in an unique partition, e.g. `dtb` and `dtbo` partition.
