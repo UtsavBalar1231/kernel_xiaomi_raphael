@@ -24,7 +24,7 @@ adb pull $dtbo_path dtbo.img > /dev/null
 adb pull /sys/firmware/fdt final_dt > /dev/null
 
 #decompile the DTBO image
-mkdtimg_path="${ANDROID_HOST_BIN_LOCATION}/mkdtimg"
+mkdtimg_path="${ANDROID_HOST_BIN_LOCATION}/mkdtboimg.py"
 $mkdtimg_path dump dtbo.img -b dumped_dtbo > /dev/null
 
 #Get the index of the overlay applied from the kernel command line
