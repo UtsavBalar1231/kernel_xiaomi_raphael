@@ -5193,6 +5193,62 @@ static ssize_t sysfs_fod_ui_read(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", status);
 }
 
+static ssize_t sysfs_hbm_read(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dsi_display *display = dev_get_drvdata(dev);
+	if (!display->panel)
+		return 0;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", display->panel->hbm_mode);
+}
+
+static ssize_t sysfs_hbm_write(struct device *dev,
+	    struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct dsi_display *display = dev_get_drvdata(dev);
+	int ret, hbm_mode;
+
+	if (!display->panel)
+		return -EINVAL;
+
+	ret = kstrtoint(buf, 10, &hbm_mode);
+	if (ret) {
+		pr_err("kstrtoint failed. ret=%d\n", ret);
+		return ret;
+	}
+
+	mutex_lock(&display->display_lock);
+
+	display->panel->hbm_mode = hbm_mode;
+	if (!dsi_panel_initialized(display->panel)) {
+		goto error;
+	}
+
+	ret = dsi_display_clk_ctrl(display->dsi_clk_handle,
+			DSI_CORE_CLK, DSI_CLK_ON);
+	if (ret) {
+		pr_err("[%s] failed to enable DSI core clocks, rc=%d\n",
+		       display->name, ret);
+		goto error;
+	}
+
+	ret = dsi_panel_apply_hbm_mode(display->panel);
+	if (ret)
+		pr_err("unable to set hbm mode\n");
+
+	ret = dsi_display_clk_ctrl(display->dsi_clk_handle,
+			DSI_CORE_CLK, DSI_CLK_OFF);
+	if (ret) {
+		pr_err("[%s] failed to disable DSI core clocks, rc=%d\n",
+		       display->name, ret);
+		goto error;
+	}
+error:
+	mutex_unlock(&display->display_lock);
+	return ret == 0 ? count : ret;
+}
+
 static DEVICE_ATTR(doze_status, 0644,
 			sysfs_doze_status_read,
 			sysfs_doze_status_write);
@@ -5205,10 +5261,13 @@ static DEVICE_ATTR(fod_ui, 0444,
 			sysfs_fod_ui_read,
 			NULL);
 
+static DEVICE_ATTR(hbm, 0644, sysfs_hbm_read, sysfs_hbm_write);
+
 static struct attribute *display_fs_attrs[] = {
 	&dev_attr_doze_status.attr,
 	&dev_attr_doze_mode.attr,
 	&dev_attr_fod_ui.attr,
+	&dev_attr_hbm.attr,
 	NULL,
 };
 static struct attribute_group display_fs_attrs_group = {
