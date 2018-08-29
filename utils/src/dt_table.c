@@ -18,16 +18,20 @@
 
 #include <memory.h>
 
+#include "libacpi.h"
 #include "libfdt.h"
 #include "libufdt_sysdeps.h"
 
-
-void dt_table_header_init(struct dt_table_header *header) {
+void dt_table_header_init(struct dt_table_header *header, enum DT_TYPE dt_type) {
   const uint32_t header_size = sizeof(struct dt_table_header);
   const uint32_t entry_size = sizeof(struct dt_table_entry);
 
   dto_memset(header, 0, header_size);
-  header->magic = cpu_to_fdt32(DT_TABLE_MAGIC);
+  if (dt_type == ACPI)
+    header->magic = cpu_to_fdt32(ACPI_TABLE_MAGIC);
+  else
+    header->magic = cpu_to_fdt32(DT_TABLE_MAGIC);
+
   header->total_size = cpu_to_fdt32(header_size);
   header->header_size = cpu_to_fdt32(header_size);
   header->dt_entry_size = cpu_to_fdt32(entry_size);

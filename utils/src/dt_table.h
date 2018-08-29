@@ -72,7 +72,8 @@ struct dt_table_entry_v1 {
                                  format of the DT entry as per the enum 'dt_compression_info' */
   uint32_t custom[3];         /* optional, must be zero if unused */
 };
+enum DT_TYPE { DTB, ACPI };
 
-void dt_table_header_init(struct dt_table_header *header);
+void dt_table_header_init(struct dt_table_header *header, enum DT_TYPE dt_type);
 
 #endif
