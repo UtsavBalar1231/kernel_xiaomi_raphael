@@ -668,12 +668,14 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 			return EVT_CONTINUE;
 		}
 
+	msleep(60);
 	ret = goodix_set_suspend_func(core_data);
 	if (ret != 0) {
 		ts_err("Send doze command error");
 		return 0;
 	} else {
 		ts_info("Set IC in doze mode");
+		msleep(20);
 		atomic_set(&core_data->suspended, 1);
 		return EVT_CANCEL_SUSPEND;
 	}
