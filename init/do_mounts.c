@@ -100,6 +100,28 @@ no_match:
 	return 0;
 }
 
+/**
+ * match_dev_by_label - callback for finding a partition using its label
+ * @dev:	device passed in by the caller
+ * @data:	opaque pointer to the desired string label to match
+ *
+ * Returns 1 if the device matches, and 0 otherwise.
+ */
+static int match_dev_by_label(struct device *dev, const void *data)
+{
+	const char *cmp = data;
+	struct hd_struct *part = dev_to_part(dev);
+
+	if (!part->info || !part->info->volname[0])
+		goto no_match;
+
+	if (strcmp(cmp, part->info->volname))
+		goto no_match;
+
+	return 1;
+no_match:
+	return 0;
+}
 
 /**
  * devt_from_partuuid - looks up the dev_t of a partition by its UUID
@@ -178,6 +200,61 @@ done:
 	}
 	return res;
 }
+
+/**
+ * devt_from_partlabel - looks up the dev_t of a partition by its label
+ * @label_str:	char array containing ascii label
+ *
+ * The function will return the first partition which contains a matching
+ * label value in its partition_meta_info struct.  This does not search
+ * by filesystem label.
+ *
+ * Returns the matching dev_t on success or 0 on failure.
+ */
+static dev_t devt_from_partlabel(const char *label_str)
+{
+	dev_t res = 0;
+	struct device *dev = NULL;
+	struct gendisk *disk;
+	struct hd_struct *part;
+	int offset = 0;
+	bool clear_root_wait = false;
+
+	if (!label_str || !label_str[0]) {
+		clear_root_wait = true;
+		goto done;
+	}
+
+	dev = class_find_device(&block_class, NULL, label_str,
+				&match_dev_by_label);
+	if (!dev)
+		goto done;
+
+	res = dev->devt;
+
+	/* Attempt to find the partition by offset. */
+	if (!offset)
+		goto no_offset;
+
+	res = 0;
+	disk = part_to_disk(dev_to_part(dev));
+	part = disk_get_part(disk, dev_to_part(dev)->partno + offset);
+	if (part) {
+		res = part_devt(part);
+		put_device(part_to_dev(part));
+	}
+
+no_offset:
+	put_device(dev);
+done:
+	if (clear_root_wait) {
+		pr_err("VFS: PARTLABEL= is invalid.\n");
+		if (root_wait)
+			pr_err("Disabling rootwait; root= is invalid.\n");
+		root_wait = 0;
+	}
+	return res;
+}
 #endif
 
 /*
@@ -219,6 +296,14 @@ dev_t name_to_dev_t(const char *name)
 	if (strncmp(name, "PARTUUID=", 9) == 0) {
 		name += 9;
 		res = devt_from_partuuid(name);
+		if (!res)
+			goto fail;
+		goto done;
+	}
+
+	if (strncmp(name, "PARTLABEL=", 10) == 0) {
+		name += 10;
+		res = devt_from_partlabel(name);
 		if (!res)
 			goto fail;
 		goto done;
