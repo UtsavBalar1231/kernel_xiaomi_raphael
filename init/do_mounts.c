@@ -40,7 +40,7 @@ int __initdata rd_doload;	/* 1 = load RAM disk, 0 = don't load */
 
 int root_mountflags = MS_RDONLY | MS_SILENT;
 static char * __initdata root_device_name;
-static char __initdata saved_root_name[64];
+static char __initdata saved_root_name[64] = "PARTLABEL=system";
 static int root_wait;
 
 dev_t ROOT_DEV;
@@ -378,11 +378,11 @@ EXPORT_SYMBOL_GPL(name_to_dev_t);
 
 static int __init root_dev_setup(char *line)
 {
-	strlcpy(saved_root_name, line, sizeof(saved_root_name));
+	strncat(saved_root_name, line, 3);
 	return 1;
 }
 
-__setup("root=", root_dev_setup);
+__setup("androidboot.slot_suffix=", root_dev_setup);
 
 static int __init rootwait_setup(char *str)
 {
