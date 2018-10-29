@@ -398,7 +398,7 @@ parse_fail:
 	       dm_setup_args.minor, dm_setup_args.name);
 }
 
-__setup("dm=", dm_setup);
+// __setup("dm=", dm_setup); // root is mounted directly
 
 void __init dm_run_setup(void)
 {
