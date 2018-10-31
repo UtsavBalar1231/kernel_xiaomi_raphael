@@ -4451,6 +4451,7 @@ static struct platform_driver fastrpc_driver = {
 		.owner = THIS_MODULE,
 		.of_match_table = fastrpc_match_table,
 		.suppress_bind_attrs = true,
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 #ifdef CONFIG_PM_SLEEP
 		.pm = &fastrpc_pm,
 #endif
