@@ -615,10 +615,17 @@ bool driver_allows_async_probing(struct device_driver *drv)
 		if (cmdline_requested_async_probing(drv->name))
 			return true;
 
+#ifdef CONFIG_BUILTINS_ASYNC_PROBE
+		if (drv->owner)
+			return drv->owner->async_probe_requested;
+		else
+			return IS_ENABLED(CONFIG_BUILTINS_ASYNC_PROBE);
+#else
 		if (module_requested_async_probing(drv->owner))
 			return true;
 
 		return false;
+#endif
 	}
 }
 
