@@ -615,10 +615,7 @@ config CHARGER_NU1618
 	help
 	  say y here to enable support for nu1618 charger driver.
 
-config USB_OVERHEAT_MITIGATION
-	tristate "Google USB Overheat Mitigation"
-	help
-	  Say Y here to enable Google USB overheat mitigation
+source "drivers/power/supply/google/Kconfig"
 
 source "drivers/power/supply/qcom/Kconfig"
 
