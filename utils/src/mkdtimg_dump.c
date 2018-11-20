@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "libacpi.h"
 #include "libfdt.h"
 
 #include "dt_table.h"
@@ -31,12 +32,9 @@ struct dump_params {
 };
 
 static const char short_options[] = "o:b:";
-static struct option options[] = {
-  { "output",   required_argument, NULL, 'o' },
-  { "dtb",      required_argument, NULL, 'b' },
-  { 0,          0,                 NULL, 0 }
-};
-
+static struct option options[] = {{"output", required_argument, NULL, 'o'},
+                                  {"dtb", required_argument, NULL, 'b'},
+                                  {0, 0, NULL, 0}};
 
 static void *read_fdt_from_image(FILE *img_fp,
                                  uint32_t dt_offset, uint32_t dt_size) {
@@ -55,7 +53,8 @@ static void *read_fdt_from_image(FILE *img_fp,
   return fdt;
 }
 
-static int write_fdt_to_file(const char *filename, const void *fdt) {
+static int write_fdt_to_file(const char *filename, const void *fdt,
+                             uint32_t (*get_fdt_size)(const void *)) {
   int ret = -1;
   FILE *out_fp = NULL;
 
@@ -65,7 +64,7 @@ static int write_fdt_to_file(const char *filename, const void *fdt) {
     goto end;
   }
 
-  size_t fdt_size = fdt_totalsize(fdt);
+  uint32_t fdt_size = get_fdt_size(fdt);
   if (fwrite(fdt, fdt_size, 1, out_fp) < 1) {
     fprintf(stderr, "Write FDT data error.\n");
     goto end;
@@ -129,8 +128,10 @@ static void output_table_entry(FILE *out_fp, int index, const struct dt_table_en
   output_prop_hex(out_fp, "custom[3]", entry->custom[3]);
 }
 
-static int output_fdt_info(FILE *out_fp, void *fdt) {
-  size_t fdt_size = fdt_totalsize(fdt);
+static int output_fdt_info(FILE *out_fp, void *fdt,
+                           uint32_t (*get_fdt_size)(const void *)) {
+  uint32_t fdt_size = get_fdt_size(fdt);
+
   output_prop_int_cpu(out_fp, "(FDT)size", fdt_size);
 
   int root_node_off = fdt_path_offset(fdt, "/");
@@ -146,6 +147,14 @@ static int output_fdt_info(FILE *out_fp, void *fdt) {
   return 0;
 }
 
+static inline uint32_t get_acpi_file_size(const void *acpi) {
+  return acpi_length(acpi);
+}
+
+static inline uint32_t get_fdt_file_size(const void *fdt) {
+  return fdt_totalsize(fdt);
+}
+
 static int dump_image_from_fp(FILE *out_fp, FILE *img_fp,
                               const struct dump_params *params) {
   struct dt_table_header header;
@@ -155,6 +164,13 @@ static int dump_image_from_fp(FILE *out_fp, FILE *img_fp,
   }
   /* TODO: check header */
   output_table_header(out_fp, &header);
+
+  uint32_t (*get_fdt_size)(const void *);
+  uint32_t entry_magic = fdt32_to_cpu(header.magic);
+  if (entry_magic == ACPI_TABLE_MAGIC)
+    get_fdt_size = get_acpi_file_size;
+  else
+    get_fdt_size = get_fdt_file_size;
 
   uint32_t entry_size = fdt32_to_cpu(header.dt_entry_size);
   uint32_t entry_offset = fdt32_to_cpu(header.dt_entries_offset);
@@ -173,13 +189,13 @@ static int dump_image_from_fp(FILE *out_fp, FILE *img_fp,
     uint32_t dt_offset = fdt32_to_cpu(entry.dt_offset);
     if (dt_size > 0 && dt_offset > 0) {
       void *fdt = read_fdt_from_image(img_fp, dt_offset, dt_size);
-      output_fdt_info(out_fp, fdt);
+      output_fdt_info(out_fp, fdt, get_fdt_size);
 
       if (params->out_dtb_filename != NULL) {
         char filename[256];
         snprintf(filename, sizeof(filename), "%s.%d",
                  params->out_dtb_filename, i);
-        write_fdt_to_file(filename, fdt);
+        write_fdt_to_file(filename, fdt, get_fdt_size);
       }
 
       free_fdt(fdt);

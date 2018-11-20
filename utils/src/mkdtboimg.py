@@ -189,6 +189,8 @@ class Dtbo(object):
 
     Attributes:
         _DTBO_MAGIC: Device tree table header magic.
+        _ACPIO_MAGIC: Advanced Configuration and Power Interface table header
+                      magic.
         _DT_TABLE_HEADER_SIZE: Size of Device tree table header.
         _DT_TABLE_HEADER_INTS: Number of integers in DT table header.
         _DT_ENTRY_HEADER_SIZE: Size of Device tree entry header within a DTBO.
@@ -198,6 +200,7 @@ class Dtbo(object):
     """
 
     _DTBO_MAGIC = 0xd7b7ab1e
+    _ACPIO_MAGIC = 0x41435049
     _DT_TABLE_HEADER_SIZE = struct.calcsize('>8I')
     _DT_TABLE_HEADER_INTS = 8
     _DT_ENTRY_HEADER_SIZE = struct.calcsize('>8I')
@@ -263,16 +266,16 @@ class Dtbo(object):
          self.page_size, self.version) = struct.unpack_from('>8I', buf, 0)
 
         # verify the header
-        if self.magic != self._DTBO_MAGIC:
-            raise ValueError('Invalid magic number 0x%x in DTBO file' %
+        if self.magic != self._DTBO_MAGIC and self.magic != self._ACPIO_MAGIC:
+            raise ValueError('Invalid magic number 0x%x in DTBO/ACPIO file' %
                              (self.magic))
 
         if self.header_size != self._DT_TABLE_HEADER_SIZE:
-            raise ValueError('Invalid header size (%d) in DTBO file' %
+            raise ValueError('Invalid header size (%d) in DTBO/ACPIO file' %
                              (self.header_size))
 
         if self.dt_entry_size != self._DT_ENTRY_HEADER_SIZE:
-            raise ValueError('Invalid DT entry header size (%d) in DTBO file' %
+            raise ValueError('Invalid DT entry header size (%d) in DTBO/ACPIO file' %
                              (self.dt_entry_size))
 
     def _read_dt_entries_from_metadata(self):
@@ -346,7 +349,7 @@ class Dtbo(object):
                 return entry
         return None
 
-    def __init__(self, file_handle, page_size=None, version=0):
+    def __init__(self, file_handle, dt_type='dtb', page_size=None, version=0):
         """Constructor for Dtbo Object
 
         Args:
@@ -363,7 +366,10 @@ class Dtbo(object):
         # if page_size is given, assume the object is being instantiated to
         # create a DTBO file
         if page_size:
-            self.magic = self._DTBO_MAGIC
+            if dt_type == 'acpi':
+                self.magic = self._ACPIO_MAGIC
+            else:
+                self.magic = self._DTBO_MAGIC
             self.total_size = self._DT_TABLE_HEADER_SIZE
             self.header_size = self._DT_TABLE_HEADER_SIZE
             self.dt_entry_size = self._DT_ENTRY_HEADER_SIZE
@@ -621,7 +627,7 @@ def parse_dt_entries(global_args, arg_list):
 
     return dt_entries
 
-def parse_config_option(line, is_global, dt_keys, global_keys):
+def parse_config_option(line, is_global, dt_keys, global_key_types):
     """Parses a single line from the configuration file.
 
     Args:
@@ -630,8 +636,9 @@ def parse_config_option(line, is_global, dt_keys, global_keys):
             specific option.
         dt_keys: Tuple containing all valid DT entry and global option strings
             in configuration file.
-        global_keys: Tuple containing all exclusive valid global option strings
-            in configuration file that are not repeated in dt entry options.
+        global_key_types: A dict of global options and their corresponding types. It
+            contains all exclusive valid global option strings in configuration
+            file that are not repeated in dt entry options.
 
     Returns:
         Returns a tuple for parsed key and value for the option. Also, checks
@@ -642,15 +649,15 @@ def parse_config_option(line, is_global, dt_keys, global_keys):
         raise ValueError('Invalid line (%s) in configuration file' % line)
 
     key, value = (x.strip() for x in line.split('='))
-    if key not in dt_keys:
-        if is_global and key in global_keys:
+    if is_global and key in global_key_types:
+        if global_key_types[key] is int:
             value = int(value)
-        else:
-            raise ValueError('Invalid option (%s) in configuration file' % key)
+    elif key not in dt_keys:
+        raise ValueError('Invalid option (%s) in configuration file' % key)
 
     return key, value
 
-def parse_config_file(fin, dt_keys, global_keys):
+def parse_config_file(fin, dt_keys, global_key_types):
     """Parses the configuration file for creating DTBO image.
 
     Args:
@@ -659,8 +666,9 @@ def parse_config_file(fin, dt_keys, global_keys):
             specific option.
         dt_keys: Tuple containing all valid DT entry and global option strings
             in configuration file.
-        global_keys: Tuple containing all exclusive valid global option strings
-            in configuration file that are not repeated in dt entry options.
+        global_key_types: A dict of global options and their corresponding types. It
+            contains all exclusive valid global option strings in configuration
+            file that are not repeated in dt entry options.
 
     Returns:
         global_args, dt_args: Tuple of a dictionary with global arguments
@@ -678,6 +686,7 @@ def parse_config_file(fin, dt_keys, global_keys):
 
     # set all global defaults
     global_args = dict((k, '0') for k in dt_keys)
+    global_args['dt_type'] = 'dtb'
     global_args['page_size'] = 2048
     global_args['version'] = 0
 
@@ -692,12 +701,12 @@ def parse_config_file(fin, dt_keys, global_keys):
         line = line if comment_idx == -1 else line[0:comment_idx]
         if not line or line.isspace():
             continue
-        if line.startswith(' ') and not found_dt_entry:
+        if line.startswith((' ', '\t')) and not found_dt_entry:
             # This is a global argument
-            key, value = parse_config_option(line, True, dt_keys, global_keys)
+            key, value = parse_config_option(line, True, dt_keys, global_key_types)
             global_args[key] = value
         elif line.find('=') != -1:
-            key, value = parse_config_option(line, False, dt_keys, global_keys)
+            key, value = parse_config_option(line, False, dt_keys, global_key_types)
             dt_args[-1][key] = value
         else:
             found_dt_entry = True
@@ -726,6 +735,8 @@ def parse_create_args(arg_list):
     argv = arg_list[0:image_arg_index]
     remainder = arg_list[image_arg_index:]
     parser = argparse.ArgumentParser(prog='create', add_help=False)
+    parser.add_argument('--dt_type', type=str, dest='dt_type',
+                        action='store', default='dtb')
     parser.add_argument('--page_size', type=int, dest='page_size',
                         action='store', default=2048)
     parser.add_argument('--version', type=int, dest='version',
@@ -797,7 +808,7 @@ def create_dtbo_image(fout, argv):
     if not remainder:
         raise ValueError('List of dtimages to add to DTBO not provided')
     dt_entries = parse_dt_entries(global_args, remainder)
-    dtbo = Dtbo(fout, global_args.page_size, global_args.version)
+    dtbo = Dtbo(fout, global_args.dt_type, global_args.page_size, global_args.version)
     dt_entry_buf = dtbo.add_dt_entries(dt_entries)
     dtbo.commit(dt_entry_buf)
     fout.close()
@@ -835,10 +846,10 @@ def create_dtbo_image_from_config(fout, argv):
         raise ValueError('Configuration file must be provided')
 
     _DT_KEYS = ('id', 'rev', 'flags', 'custom0', 'custom1', 'custom2')
-    _GLOBAL_KEYS = ('page_size', 'version')
+    _GLOBAL_KEY_TYPES = {'dt_type': str, 'page_size': int, 'version': int}
 
     global_args, dt_args = parse_config_file(args.conf_file,
-                                             _DT_KEYS, _GLOBAL_KEYS)
+                                             _DT_KEYS, _GLOBAL_KEY_TYPES)
     params = {}
     dt_entries = []
     for dt_arg in dt_args:
@@ -854,7 +865,7 @@ def create_dtbo_image_from_config(fout, argv):
         dt_entries.append(DtEntry(**params))
 
     # Create and write DTBO file
-    dtbo = Dtbo(fout, global_args['page_size'], global_args['version'])
+    dtbo = Dtbo(fout, global_args['dt_type'], global_args['page_size'], global_args['version'])
     dt_entry_buf = dtbo.add_dt_entries(dt_entries)
     dtbo.commit(dt_entry_buf)
     fout.close()
@@ -896,10 +907,11 @@ def print_create_usage(progname):
     sb = []
     sb.append('  ' + progname + ' create <image_file> (<global_option>...) (<dtb_file> (<entry_option>...) ...)\n')
     sb.append('    global_options:')
-    sb.append('      --page_size <number>     Page size. Default: 2048')
-    sb.append('      --version <number>       DTBO version. Default: 0')
-    sb.append('      --id <number>       The default value to set property id in dt_table_entry. Default: 0')
-    sb.append('      --rev <number>')
+    sb.append('      --dt_type=<type>         Device Tree Type (dtb|acpi). Default: dtb')
+    sb.append('      --page_size=<number>     Page size. Default: 2048')
+    sb.append('      --version=<number>       DTBO/ACPIO version. Default: 0')
+    sb.append('      --id=<number>       The default value to set property id in dt_table_entry. Default: 0')
+    sb.append('      --rev=<number>')
     sb.append('      --flags=<number>')
     sb.append('      --custom0=<number>')
     sb.append('      --custom1=<number>')

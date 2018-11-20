@@ -144,9 +144,15 @@ static int process_command_cfg_create(const struct cfg_create_params *params) {
   }
 
   ret = output_img_with_config(img_fp, cfg_fp);
+  if (ret < 0)
+    fprintf(stderr, "Can not output image with config: %s\n",
+            params->cfg_filename);
 
 end:
-  if (img_fp) fclose(img_fp);
+  if (img_fp) {
+    fclose(img_fp);
+    if (ret < 0) unlink(params->img_filename);
+  }
   if (cfg_fp) fclose(cfg_fp);
 
   return ret;
