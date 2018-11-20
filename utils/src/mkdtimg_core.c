@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#include "libacpi.h"
 #include "libfdt.h"
 
 #include "dt_table.h"
@@ -37,6 +38,7 @@ struct dt_options {
 
 struct dt_global_options {
   struct dt_options default_options;
+  enum DT_TYPE dt_type;
   uint32_t page_size;
   uint32_t version;
 };
@@ -68,6 +70,7 @@ static void init_dt_options(struct dt_options *options) {
 
 static void init_dt_global_options(struct dt_global_options *options) {
   init_dt_options(&options->default_options);
+  options->dt_type = DTB;
   options->page_size = DT_TABLE_DEFAULT_PAGE_SIZE;
   options->version = DT_TABLE_DEFAULT_VERSION;
 }
@@ -176,7 +179,8 @@ static int output_img_header(FILE *img_fp,
                              uint32_t entry_count, uint32_t total_size,
                              struct dt_global_options *options) {
   struct dt_table_header header;
-  dt_table_header_init(&header);
+  dt_table_header_init(&header, options->dt_type);
+
   header.dt_entry_count = cpu_to_fdt32(entry_count);
   header.total_size = cpu_to_fdt32(total_size);
   header.page_size = cpu_to_fdt32(options->page_size);
@@ -189,6 +193,7 @@ static int output_img_header(FILE *img_fp,
 }
 
 static int32_t output_img_entry(FILE *img_fp, size_t entry_offset,
+                                int (*fdt_verifier)(void *, size_t),
                                 struct dt_image_writer_fdt_info *fdt_info,
                                 struct dt_options *options, int output_fdt) {
   int32_t ret = -1;
@@ -201,21 +206,15 @@ static int32_t output_img_entry(FILE *img_fp, size_t entry_offset,
     goto end;
   }
 
-  if (fdt_check_header(fdt) != 0) {
-    fprintf(stderr, "Bad FDT header: %s\n", fdt_info->filename);
-    goto end;
-  }
-
-  size_t fdt_size = fdt_totalsize(fdt);
-  if (fdt_size != fdt_file_size) {
-    fprintf(stderr, "The file size and FDT size are not matched: %s\n",
-            fdt_info->filename);
+  ret = fdt_verifier(fdt, fdt_file_size);
+  if (ret < 0) {
+    fprintf(stderr, "File '%s' verification failed.\n", fdt_info->filename);
     goto end;
   }
 
   /* Prepare dt_table_entry and output */
   struct dt_table_entry entry;
-  entry.dt_size = cpu_to_fdt32(fdt_size);
+  entry.dt_size = cpu_to_fdt32(fdt_file_size);
   entry.dt_offset = cpu_to_fdt32(fdt_info->dt_offset);
   entry.id = get_fdt32_from_number_or_prop(fdt, options->id);
   entry.rev = get_fdt32_from_number_or_prop(fdt, options->rev);
@@ -301,6 +300,12 @@ int set_global_options(struct dt_image_writer *writer,
     global_options->page_size = strtoul(value, NULL, 0);
   } else if (strcmp(option, "version") == 0) {
     global_options->version = strtoul(value, NULL, 0);
+  } else if (strcmp(option, "dt_type") == 0) {
+    if (!strcmp(value, "acpi")) {
+      global_options->dt_type = ACPI;
+    } else {
+      global_options->dt_type = DTB;
+    }
   } else {
     return set_dt_options(&global_options->default_options, option, value);
   }
@@ -337,6 +342,38 @@ static struct dt_image_writer_fdt_info *add_fdt_info(
   return fdt_info;
 }
 
+static int acpi_file_verifier(void *acpi, size_t acpi_file_size) {
+  size_t acpi_size;
+  acpi_size = acpi_length(acpi);
+  if (acpi_size != acpi_file_size) {
+    fprintf(stderr, "The file size and ACPI/ACPIO size are not matched.\n");
+    return -1;
+  }
+
+  if (acpi_csum(acpi, acpi_size)) {
+    fprintf(stderr, "ACPI/ACPIO CRC checksum failed.\n");
+    return -1;
+  }
+
+  return 0;
+}
+
+static int fdt_file_verifier(void *fdt, size_t fdt_file_size) {
+  if (fdt_check_header(fdt) != 0) {
+    fprintf(stderr, "Bad FDT header.\n");
+    return -1;
+  }
+
+  size_t fdt_size;
+  fdt_size = fdt_totalsize(fdt);
+  if (fdt_size != fdt_file_size) {
+    fprintf(stderr, "The file size and FDT size are not matched.\n");
+    return -1;
+  }
+
+  return 0;
+}
+
 static int flush_entry_to_img(struct dt_image_writer *writer) {
   if (writer->entry_filename[0] == '\0') {
     return 0;
@@ -349,9 +386,16 @@ static int flush_entry_to_img(struct dt_image_writer *writer) {
     fdt_info = add_fdt_info(writer, writer->entry_filename, writer->dt_offset);
   }
 
+  int (*fdt_verifier)(void *fdt, size_t fdt_file_size);
+  if (writer->global_options.dt_type == ACPI) {
+    fdt_verifier = acpi_file_verifier;
+  } else {
+    fdt_verifier = fdt_file_verifier;
+  }
+
   int32_t dt_size =
-      output_img_entry(writer->img_fp, writer->entry_offset, fdt_info,
-                       &writer->entry_options, output_fdt);
+      output_img_entry(writer->img_fp, writer->entry_offset, fdt_verifier,
+                       fdt_info, &writer->entry_options, output_fdt);
   if (dt_size == -1) return -1;
 
   writer->entry_offset += sizeof(struct dt_table_entry);
