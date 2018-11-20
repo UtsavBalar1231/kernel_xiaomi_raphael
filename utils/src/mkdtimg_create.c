@@ -95,19 +95,24 @@ static int output_img_with_args(FILE *img_fp, int argc, char *argv[], int arg_st
 void handle_usage_create(FILE *out_fp, const char *prog_name) {
   fprintf(out_fp, "  %s create <image_file> (<global_option>...) (<dtb_file> (<entry_option>...) ...)\n\n", prog_name);
   fprintf(out_fp,
-    "    global_options:\n"
-    "      --page_size <number>     Output page size. Default: 2048\n"
-    "      --version <version>      DTBO version. Default: 0\n"
-    "      --id=<number|path>       The default value to set property id in dt_table_entry. Default: 0\n"
-    "      --rev=<number|path>\n"
-    "      --custom0=<number|path>\n"
-    "      --custom1=<number|path>\n"
-    "      --custom2=<number|path>\n"
-    "      --custom3=<number|path>\n\n"
-    "      The value could be a number or a DT node path.\n"
-    "      <number> could be a 32-bits digit or hex value, ex. 68000, 0x6800.\n"
-    "      <path> format is <full_node_path>:<property_name>, ex. /board/:id,\n"
-    "      will read the value in given FTB file with the path.\n");
+          "    global_options:\n"
+          "      --dt_type=<type>         Device Tree type (dtb|acpi). Default:"
+          " dtb\n"
+          "      --page_size=<number>     Output page size. Default: 2048\n"
+          "      --version=<version>      DTBO version. Default: 0\n"
+          "      --id=<number|path>       The default value to set property id "
+          "in dt_table_entry. Default: 0\n"
+          "      --rev=<number|path>\n"
+          "      --custom0=<number|path>\n"
+          "      --custom1=<number|path>\n"
+          "      --custom2=<number|path>\n"
+          "      --custom3=<number|path>\n\n"
+          "      The value could be a number or a DT node path.\n"
+          "      <number> could be a 32-bits digit or hex value, ex. 68000, "
+          "0x6800.\n"
+          "      <path> format is <full_node_path>:<property_name>, ex. "
+          "/board/:id,\n"
+          "      will read the value in given FTB file with the path.\n");
 }
 
 int handle_command_create(int argc, char *argv[], int arg_start) {
@@ -130,9 +135,13 @@ int handle_command_create(int argc, char *argv[], int arg_start) {
   }
 
   ret = output_img_with_args(img_fp, argc, argv, arg_start + 1);
+  if (ret < 0) fprintf(stderr, "Can not output image with args\n");
 
 end:
-  if (img_fp) fclose(img_fp);
+  if (img_fp) {
+    fclose(img_fp);
+    if (ret < 0) unlink(img_filename);
+  }
 
   return ret;
 }
