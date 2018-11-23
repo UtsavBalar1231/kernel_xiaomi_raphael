@@ -3817,13 +3817,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		goto uninit_iommu;
 	}
 
-	ret = of_platform_populate(node, NULL, NULL, &pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev,
-				"failed to add create dwc3 core\n");
-		of_node_put(dwc3_node);
-		goto uninit_iommu;
-	}
+	of_platform_device_create(dwc3_node, NULL, &pdev->dev);
 
 	mdwc->dwc3 = of_find_device_by_node(dwc3_node);
 	of_node_put(dwc3_node);
