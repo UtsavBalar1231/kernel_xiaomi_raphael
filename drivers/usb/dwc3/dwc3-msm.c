@@ -3823,7 +3823,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	of_node_put(dwc3_node);
 	if (!mdwc->dwc3) {
 		dev_err(&pdev->dev, "failed to get dwc3 platform device\n");
-		goto put_dwc3;
+		goto uninit_iommu;
 	}
 
 	mdwc->hs_phy = devm_usb_get_phy_by_phandle(&mdwc->dwc3->dev,
@@ -3831,14 +3831,14 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	if (IS_ERR(mdwc->hs_phy)) {
 		dev_err(&pdev->dev, "unable to get hsphy device\n");
 		ret = PTR_ERR(mdwc->hs_phy);
-		goto put_dwc3;
+		goto uninit_iommu;
 	}
 	mdwc->ss_phy = devm_usb_get_phy_by_phandle(&mdwc->dwc3->dev,
 							"usb-phy", 1);
 	if (IS_ERR(mdwc->ss_phy)) {
 		dev_err(&pdev->dev, "unable to get ssphy device\n");
 		ret = PTR_ERR(mdwc->ss_phy);
-		goto put_dwc3;
+		goto uninit_iommu;
 	}
 
 	/* use default as nominal bus voting */
