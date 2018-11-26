@@ -1102,17 +1102,16 @@ static int tz_log_probe(struct platform_device *pdev)
 
 	tzdbg.diag_buf = (struct tzdbg_t *)ptr;
 
-	if (tzdbgfs_init(pdev))
-		goto err;
+	if (tzdbgfs_init(pdev)) {
+		kfree(tzdbg.diag_buf);
+		tzdbg.diag_buf = NULL;
+	}
 
 	tzdbg_register_qsee_log_buf(pdev);
 
 	tzdbg_get_tz_version();
 
 	return 0;
-err:
-	kfree(tzdbg.diag_buf);
-	return -ENXIO;
 }
 
 
