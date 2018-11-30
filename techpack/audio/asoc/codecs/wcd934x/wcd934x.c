@@ -10345,9 +10345,6 @@ done:
 }
 
 #ifdef CONFIG_SOUND_CONTROL
-static int speaker_gain_val = 6;
-int sound_control_speaker_gain(int gain);
-
 static ssize_t headphone_gain_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -10441,39 +10438,10 @@ static struct kobj_attribute earpiece_gain_attribute =
 		earpiece_gain_show,
 		earpiece_gain_store);
 
-//0:mute  1:+3db  2:+6db  3:+9db  4:+12db  5:+15db  6:+18db
-static ssize_t speaker_gain_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n",	speaker_gain_val);
-}
-
-static ssize_t speaker_gain_store(struct kobject *kobj,
-		struct kobj_attribute *attr, const char *buf, size_t count)
-{
-	int input;
-
-	sscanf(buf, "%d", &input);
-
-	if (input >= 0 && input <= 6)
-		speaker_gain_val = sound_control_speaker_gain(input);
-	else
-		speaker_gain_val = sound_control_speaker_gain(6);
-
-	return count;
-}
-
-static struct kobj_attribute speaker_gain_attribute =
-	__ATTR(speaker_gain,
-		0664,
-		speaker_gain_show,
-		speaker_gain_store);
-
 static struct attribute *sound_control_attrs[] = {
 		&headphone_gain_attribute.attr,
 		&mic_gain_attribute.attr,
 		&earpiece_gain_attribute.attr,
-		&speaker_gain_attribute.attr,
 		NULL,
 };
 
