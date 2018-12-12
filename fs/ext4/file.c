@@ -405,7 +405,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			ext4_journal_stop(handle);
 		}
 	}
-	if (ext4_encrypted_inode(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		ret = fscrypt_get_encryption_info(inode);
 		if (ret)
 			return -EACCES;
@@ -414,7 +414,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	}
 
 	dir = dget_parent(file_dentry(filp));
-	if (ext4_encrypted_inode(d_inode(dir)) &&
+	if (IS_ENCRYPTED(d_inode(dir)) &&
 			!fscrypt_has_permitted_context(d_inode(dir), inode)) {
 		ext4_warning(inode->i_sb,
 			     "Inconsistent encryption contexts: %lu/%lu",
