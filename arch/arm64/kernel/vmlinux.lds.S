@@ -113,6 +113,8 @@ SECTIONS
 
 	.head.text : {
 		_text = .;
+		PROVIDE(__efistub__text = .);
+
 		HEAD_TEXT
 	}
 	.text : {			/* Real text segment		*/
@@ -228,6 +230,7 @@ SECTIONS
 	PECOFF_EDATA_PADDING
 	__pecoff_data_rawsize = ABSOLUTE(. - __initdata_begin);
 	_edata = .;
+	PROVIDE(__efistub__edata = .);
 
 	BSS_SECTION(0, 0, 0)
 
@@ -249,6 +252,7 @@ SECTIONS
 
 	__pecoff_data_size = ABSOLUTE(. - __initdata_begin);
 	_end = .;
+	PROVIDE(__efistub__end = .);
 
 	STABS_DEBUG
 
@@ -258,6 +262,8 @@ SECTIONS
          RTIC_BSS
 	}
 }
+
+PROVIDE(__efistub_stext_offset = stext - _text);
 
 /*
  * The HYP init code and ID map text can't be longer than a page each,
