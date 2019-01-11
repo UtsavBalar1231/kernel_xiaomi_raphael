@@ -188,7 +188,7 @@ static int crus_afe_get_param(int port, int module, int param, int length,
 	int index = afe_get_port_index(port);
 	int ret = 0, count = 0;
 
-	pr_info("CRUS_SP: (get_param) module = 0x%08x, port = 0x%08x, param = 0x%08x\n",
+	pr_debug("CRUS_SP: (get_param) module = 0x%08x, port = 0x%08x, param = 0x%08x\n",
 		module, port, param);
 
 	config = (struct afe_custom_crus_get_config_v2_t *)
@@ -1114,8 +1114,8 @@ void msm_crus_pb_add_controls(struct snd_soc_platform *platform)
 }
 
 EXPORT_SYMBOL(msm_crus_pb_add_controls);
-int crus_afe_port_start(u16 port_id)
-{
+
+int crus_afe_port_start(u16 port_id) {
 	pr_info("%s: 0x%x\n", __func__, port_id);
 
 //CSPL do not be involved in AFE
