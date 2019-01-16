@@ -25,7 +25,7 @@ dtc -@ -qq -O dtb -o "${tmpdir}/${OVERLAY_DT_4}.dtb" "${IN_DATA_DIR}/${OVERLAY_D
 
 cd $tmpdir
 
-apply_bin_path="${ANDROID_HOST_BIN_LOCATION}/ufdt_apply_overlay_host"
+apply_bin_path="${ANDROID_HOST_BIN_LOCATION}/ufdt_apply_overlay"
 $apply_bin_path "${BASE_DT_NAME}.dtb" "${OVERLAY_DT_1}.dtb" final_dt.dtb > /dev/null
 $apply_bin_path final_dt.dtb "${OVERLAY_DT_2}.dtb" final_dt.dtb > /dev/null
 $apply_bin_path final_dt.dtb "${OVERLAY_DT_3}.dtb" final_dt.dtb > /dev/null
