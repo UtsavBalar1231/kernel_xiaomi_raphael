@@ -1187,8 +1187,6 @@ static int clk_core_round_rate_nolock(struct clk_core *core,
 	struct clk_core *parent;
 	long rate;
 
-	lockdep_assert_held(&prepare_lock);
-
 	if (!core)
 		return 0;
 
