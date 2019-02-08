@@ -547,7 +547,7 @@ void cpufreq_times_record_transition(struct cpufreq_policy *policy,
 	if (!freqs)
 		return;
 
-	index = cpufreq_times_get_index(freqs, new_freq);
+	index = cpufreq_frequency_table_get_index(policy, new_freq);
 	if (index >= 0)
 		WRITE_ONCE(freqs->last_index, index);
 }
