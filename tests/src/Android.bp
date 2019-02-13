@@ -26,6 +26,7 @@ cc_binary_host {
 
 cc_binary {
     name: "ufdt_apply_overlay",
+    host_supported: true,
     cflags: libufdt_tests_cflags,
     srcs: [
         "ufdt_overlay_test_app.c",
