@@ -19,6 +19,10 @@ WLAN_COMMON_ROOT ?= ../qca-wifi-host-cmn
 WLAN_COMMON_INC ?= $(WLAN_ROOT)/$(WLAN_COMMON_ROOT)
 
 CONFIG_QCA_CLD_WLAN_PROFILE ?= default
+
+# Force user build
+TARGET_BUILD_VARIANT := user
+
 ifeq ($(KERNEL_BUILD), n)
 ifneq ($(ANDROID_BUILD_TOP),)
       override WLAN_ROOT := $(ANDROID_BUILD_TOP)/$(WLAN_ROOT)
