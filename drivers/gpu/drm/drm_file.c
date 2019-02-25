@@ -45,7 +45,7 @@
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
 
-#define MAX_DRM_OPEN_COUNT		20
+#define MAX_DRM_OPEN_COUNT		1024
 
 /**
  * DOC: file operations
@@ -152,6 +152,7 @@ int drm_open(struct inode *inode, struct file *filp)
 		need_setup = 1;
 
 	if (dev->open_count >= MAX_DRM_OPEN_COUNT) {
+		pr_err("drm open count exceed count %d\n", dev->open_count);
 		retcode = -EPERM;
 		goto err_undo;
 	}
