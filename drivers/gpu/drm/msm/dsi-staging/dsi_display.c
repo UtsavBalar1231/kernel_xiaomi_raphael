@@ -386,36 +386,56 @@ end:
 static irqreturn_t dsi_display_panel_te_irq_handler(int irq, void *data)
 {
 	struct dsi_display *display = (struct dsi_display *)data;
+	struct dsi_display_te_listener *tl;
 
-	/*
-	 * This irq handler is used for sole purpose of identifying
-	 * ESD attacks on panel and we can safely assume IRQ_HANDLED
-	 * in case of display not being initialized yet
-	 */
-	if (!display)
+	if (unlikely(!display))
 		return IRQ_HANDLED;
 
 	SDE_EVT32(SDE_EVTLOG_FUNC_CASE1);
-	complete_all(&display->esd_te_gate);
+
+	spin_lock(&display->te_lock);
+	list_for_each_entry(tl, &display->te_listeners, head)
+		tl->handler(tl);
+	spin_unlock(&display->te_lock);
+
 	return IRQ_HANDLED;
 }
 
-static void dsi_display_change_te_irq_status(struct dsi_display *display,
-					bool enable)
+int dsi_display_add_te_listener(struct dsi_display *display,
+				struct dsi_display_te_listener *tl)
 {
-	if (!display) {
-		pr_err("Invalid params\n");
-		return;
-	}
+	unsigned long flags;
+	bool needs_enable;
 
-	/* Handle unbalanced irq enable/disbale calls */
-	if (enable && !display->is_te_irq_enabled) {
+	if (!display || !tl)
+		return -ENOENT;
+
+	spin_lock_irqsave(&display->te_lock, flags);
+	needs_enable = list_empty(&display->te_listeners);
+	list_add(&tl->head, &display->te_listeners);
+	spin_unlock_irqrestore(&display->te_lock, flags);
+
+	if (needs_enable)
 		enable_irq(gpio_to_irq(display->disp_te_gpio));
-		display->is_te_irq_enabled = true;
-	} else if (!enable && display->is_te_irq_enabled) {
-		disable_irq(gpio_to_irq(display->disp_te_gpio));
-		display->is_te_irq_enabled = false;
-	}
+
+	return 0;
+}
+
+int dsi_display_remove_te_listener(struct dsi_display *display,
+				   struct dsi_display_te_listener *tl)
+{
+	unsigned long flags;
+
+	if (!display || !tl)
+		return -ENOENT;
+
+	spin_lock_irqsave(&display->te_lock, flags);
+	list_del(&tl->head);
+	if (list_empty(&display->te_listeners))
+		disable_irq_nosync(gpio_to_irq(display->disp_te_gpio));
+	spin_unlock_irqrestore(&display->te_lock, flags);
+
+	return 0;
 }
 
 static void dsi_display_register_te_irq(struct dsi_display *display)
@@ -442,15 +462,16 @@ static void dsi_display_register_te_irq(struct dsi_display *display)
 		goto error;
 	}
 
-	init_completion(&display->esd_te_gate);
 	te_irq = gpio_to_irq(display->disp_te_gpio);
+
+	spin_lock_init(&display->te_lock);
+	INIT_LIST_HEAD(&display->te_listeners);
 
 	/* Avoid deferred spurious irqs with disable_irq() */
 	irq_set_status_flags(te_irq, IRQ_DISABLE_UNLAZY);
 
 	rc = devm_request_irq(dev, te_irq, dsi_display_panel_te_irq_handler,
-			      IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-			      "TE_GPIO", display);
+			IRQF_TRIGGER_RISING, "TE_GPIO", display);
 	if (rc) {
 		pr_err("TE request_irq failed for ESD rc:%d\n", rc);
 		irq_clear_status_flags(te_irq, IRQ_DISABLE_UNLAZY);
@@ -458,7 +479,6 @@ static void dsi_display_register_te_irq(struct dsi_display *display)
 	}
 
 	disable_irq(te_irq);
-	display->is_te_irq_enabled = false;
 
 	return;
 
@@ -752,21 +772,31 @@ static int dsi_display_status_bta_request(struct dsi_display *display)
 	return rc;
 }
 
+static void _handle_esd_te(struct dsi_display_te_listener *tl)
+{
+	struct completion *esd_te_gate = tl->data;
+
+	complete(esd_te_gate);
+}
+
 static int dsi_display_status_check_te(struct dsi_display *display)
 {
 	int rc = 1;
 	int const esd_te_timeout = msecs_to_jiffies(3*20);
+	DECLARE_COMPLETION(esd_te_gate);
+	struct dsi_display_te_listener tl = {
+		.handler = _handle_esd_te,
+		.data = &esd_te_gate,
+	};
 
-	dsi_display_change_te_irq_status(display, true);
+	dsi_display_add_te_listener(display, &tl);
 
-	reinit_completion(&display->esd_te_gate);
-	if (!wait_for_completion_timeout(&display->esd_te_gate,
-				esd_te_timeout)) {
+	if (!wait_for_completion_timeout(&esd_te_gate, esd_te_timeout)) {
 		pr_err("TE check failed\n");
 		rc = -EINVAL;
 	}
 
-	dsi_display_change_te_irq_status(display, false);
+	dsi_display_remove_te_listener(display, &tl);
 
 	return rc;
 }
@@ -1402,7 +1432,6 @@ static ssize_t debugfs_alter_esd_check_mode(struct file *file,
 	if (!strcmp(buf, "te_signal_check\n")) {
 		pr_info("ESD check is switched to TE mode by user\n");
 		esd_config->status_mode = ESD_MODE_PANEL_TE;
-		dsi_display_change_te_irq_status(display, true);
 	}
 
 	if (!strcmp(buf, "reg_read\n")) {
@@ -1415,8 +1444,6 @@ static ssize_t debugfs_alter_esd_check_mode(struct file *file,
 			goto error;
 		}
 		esd_config->status_mode = ESD_MODE_REG_READ;
-		if (dsi_display_is_te_based_esd(display))
-			dsi_display_change_te_irq_status(display, false);
 	}
 
 	if (!strcmp(buf, "esd_sw_sim_success\n"))
