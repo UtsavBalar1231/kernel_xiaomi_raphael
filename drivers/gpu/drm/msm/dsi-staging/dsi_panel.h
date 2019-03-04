@@ -217,8 +217,25 @@ struct dsi_panel {
 	enum dsi_dms_mode dms_mode;
 
 	bool sync_broadcast_en;
+
+	const struct dsi_panel_funcs *funcs;
+	void *private_data;
+
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;
+};
+
+/**
+ * struct dsi_panel_funcs - functions that handle panel switch operations
+ *
+ * @panel_switch: called when a mode switch is happening
+ * @pre_disable: called before panel is about to be disabled
+ *
+ * Note: none of these functions should be called while holding panel_lock
+ */
+struct dsi_panel_funcs {
+	int (*pre_disable)(struct dsi_panel *);
+	int (*mode_switch)(struct dsi_panel *);
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
@@ -345,4 +362,7 @@ int dsi_panel_parse_dt_cmd_set(struct device_node *of_node,
 			       const char *cmd_str,
 			       const char *cmd_state_str,
 			       struct dsi_panel_cmd_set *cmd);
+
+int dsi_panel_switch_init(struct dsi_panel *panel);
+void dsi_panel_switch_destroy(struct dsi_panel *panel);
 #endif /* _DSI_PANEL_H_ */
