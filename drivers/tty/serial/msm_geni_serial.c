@@ -342,6 +342,11 @@ static int vote_clock_off(struct uart_port *uport)
 	}
 	wait_for_transfers_inflight(uport);
 	port->ioctl_count--;
+	if (port->ioctl_count < 0) {
+		dev_err(uport->dev, "%s: ioctl_count < 0(%d), fixing it to 0\n",
+				__func__, port->ioctl_count);
+		port->ioctl_count = 0;
+	}
 	dev_info(uport->dev,
 		"pid: %d, comm: %s voted clock to be off, "
 		"ioctl_count: %d\n",
