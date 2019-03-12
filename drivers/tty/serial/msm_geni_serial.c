@@ -315,6 +315,10 @@ static int vote_clock_on(struct uart_port *uport)
 		return ret;
 	}
 	port->ioctl_count++;
+	dev_info(uport->dev,
+		"pid: %d, comm: %s voted clock to be on, "
+		"ioctl_count: %d\n",
+			current->pid, current->comm, port->ioctl_count);
 
 	return 0;
 }
@@ -334,6 +338,10 @@ static int vote_clock_off(struct uart_port *uport)
 	}
 	wait_for_transfers_inflight(uport);
 	port->ioctl_count--;
+	dev_info(uport->dev,
+		"pid: %d, comm: %s voted clock to be off, "
+		"ioctl_count: %d\n",
+			current->pid, current->comm, port->ioctl_count);
 	msm_geni_serial_power_off(uport);
 
 	return 0;
