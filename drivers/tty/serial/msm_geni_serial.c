@@ -1539,6 +1539,8 @@ static irqreturn_t msm_geni_wakeup_isr(int isr, void *dev)
 		port->edge_count = 0;
 		tty_flip_buffer_push(tty->port);
 		__pm_wakeup_event(&port->geni_wake, WAKEBYTE_TIMEOUT_MSEC);
+		dev_info(uport->dev, "%s: Holding wakelock for %d ms\n",
+					__func__, WAKEBYTE_TIMEOUT_MSEC);
 	} else if (port->edge_count < 2) {
 		port->edge_count++;
 	}
