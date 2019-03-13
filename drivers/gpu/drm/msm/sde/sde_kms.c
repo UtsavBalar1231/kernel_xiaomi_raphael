@@ -2761,8 +2761,13 @@ retry:
 	}
 
 	crtc_state->active = true;
-	drm_atomic_set_crtc_for_connector(conn_state, enc->crtc);
-	drm_atomic_commit(state);
+	ret = drm_atomic_set_crtc_for_connector(conn_state, enc->crtc);
+	if (ret)
+		SDE_ERROR("error %d setting the crtc\n", ret);
+
+	ret = drm_atomic_commit(state);
+	if (ret)
+		SDE_ERROR("Error %d doing the atomic commit\n", ret);
 
 end:
 	if (state)
