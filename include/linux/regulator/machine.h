@@ -225,10 +225,14 @@ struct regulator_init_data {
 
 #ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
+void regulator_debug_print_enabled(void);
 int regulator_suspend_prepare(suspend_state_t state);
 int regulator_suspend_finish(void);
 #else
 static inline void regulator_has_full_constraints(void)
+{
+}
+static void regulator_debug_print_enabled(void)
 {
 }
 static inline int regulator_suspend_prepare(suspend_state_t state)
@@ -240,5 +244,4 @@ static inline int regulator_suspend_finish(void)
 	return 0;
 }
 #endif
-
 #endif
