@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -660,7 +660,13 @@ static void configure_phy_rx_tx_delay(struct DWC_ETH_QOS_prv_data *pdata)
 
 	case SPEED_100:
 	case SPEED_10:
-		if (pdata->io_macro_tx_mode_non_id ||
+		if (pdata->emac_hw_version_type == EMAC_HW_v2_1_0 ||
+			pdata->emac_hw_version_type == EMAC_HW_v2_1_2) {
+			if (pdata->io_macro_tx_mode_non_id)
+				set_phy_rx_tx_delay(pdata, DISABLE_RX_DELAY, ENABLE_TX_DELAY);
+		} else {
+
+			if (pdata->io_macro_tx_mode_non_id ||
 				pdata->io_macro_phy_intf == MII_MODE) {
 				/* Settings for Non-ID mode or MII mode */
 				set_phy_rx_tx_delay(pdata, DISABLE_RX_DELAY, ENABLE_TX_DELAY);
@@ -1104,27 +1110,16 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 #endif
 
 	if (pdata->interface == PHY_INTERFACE_MODE_GMII ||
-		pdata->interface == PHY_INTERFACE_MODE_RGMII) {
-		phydev->supported = PHY_DEFAULT_FEATURES;
-		phydev->supported |= SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full | SUPPORTED_1000baseT_Full;
-
-#ifdef DWC_ETH_QOS_CERTIFICATION_PKTBURSTCNT_HALFDUPLEX
-		phydev->supported &= ~SUPPORTED_1000baseT_Full;
-#endif
+	    pdata->interface == PHY_INTERFACE_MODE_RGMII) {
+		phy_set_max_speed(phydev, SPEED_1000);
+		/* Half duplex not supported */
+		phydev->supported &= ~(SUPPORTED_10baseT_Half | SUPPORTED_100baseT_Half | SUPPORTED_1000baseT_Half);
 	} else if ((pdata->interface == PHY_INTERFACE_MODE_MII) ||
-		(pdata->interface == PHY_INTERFACE_MODE_RMII)) {
-		phydev->supported = PHY_DEFAULT_FEATURES;
-		phydev->supported |= SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full;
+		   (pdata->interface == PHY_INTERFACE_MODE_RMII)) {
+		phy_set_max_speed(phydev, SPEED_100);
+		/* Half duplex is not supported */
+		phydev->supported &= ~(SUPPORTED_10baseT_Half | SUPPORTED_100baseT_Half);
 	}
-
-#ifndef DWC_ETH_QOS_CONFIG_PGTEST
-	phydev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
-#endif
-
-    /* Lets Make the code support for both 100M and Giga bit */
-/* #ifdef DWC_ETH_QOS_CONFIG_PGTEST */
-/* phydev->supported = PHY_BASIC_FEATURES; */
-/* #endif */
 
 	phydev->advertising = phydev->supported;
 
