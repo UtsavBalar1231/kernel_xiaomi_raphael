@@ -1228,6 +1228,7 @@ typedef struct sSirSmeAssocInd {
 	uint8_t ecsa_capable;
 	tDot11fIEHTCaps HTCaps;
 	tDot11fIEVHTCaps VHTCaps;
+	tSirMacCapabilityInfo capability_info;
 } tSirSmeAssocInd, *tpSirSmeAssocInd;
 
 /* / Definition for Association confirm */
@@ -2923,6 +2924,7 @@ typedef struct sSirRoamOffloadScanReq {
 	/* bss load triggered roam related params */
 	bool bss_load_trig_enabled;
 	struct wmi_bss_load_config bss_load_config;
+	bool roaming_scan_policy;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {
@@ -4923,9 +4925,9 @@ struct sir_wifi_peer_signal_stats {
 	/* Background noise */
 	int32_t nf[WIFI_MAX_CHAINS];
 
-	int32_t per_ant_rx_mpdus[WIFI_MAX_CHAINS];
-	int32_t per_ant_tx_mpdus[WIFI_MAX_CHAINS];
-	int32_t num_chain;
+	uint32_t per_ant_rx_mpdus[WIFI_MAX_CHAINS];
+	uint32_t per_ant_tx_mpdus[WIFI_MAX_CHAINS];
+	uint32_t num_chain;
 };
 
 #define WIFI_VDEV_NUM           4
@@ -7025,12 +7027,14 @@ struct sir_rssi_disallow_lst {
  * struct chain_rssi_result - chain rssi result
  * num_chains_valid: valid chain num
  * @chain_rssi: chain rssi result as dBm unit
+ * @chain_evm: error vector magnitude
  * @ant_id: antenna id
  */
 #define CHAIN_MAX_NUM 8
 struct chain_rssi_result {
 	uint32_t num_chains_valid;
 	uint32_t chain_rssi[CHAIN_MAX_NUM];
+	int32_t chain_evm[CHAIN_MAX_NUM];
 	uint32_t ant_id[CHAIN_MAX_NUM];
 };
 

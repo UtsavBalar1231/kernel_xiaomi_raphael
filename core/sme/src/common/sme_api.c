@@ -593,10 +593,9 @@ QDF_STATUS sme_ser_handle_active_cmd(struct wlan_serialization_command *cmd)
 	return status;
 }
 
-QDF_STATUS sme_ser_cmd_callback(void *buf,
+QDF_STATUS sme_ser_cmd_callback(struct wlan_serialization_command *cmd,
 				enum wlan_serialization_cb_reason reason)
 {
-	struct wlan_serialization_command *cmd = buf;
 	tHalHandle hal;
 	tpAniSirGlobal mac_ctx;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -2365,6 +2364,12 @@ QDF_STATUS sme_process_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
 		if (pMac->sme.bt_activity_info_cb)
 			pMac->sme.bt_activity_info_cb(pMac->hdd_handle,
 						      pMsg->bodyval);
+		break;
+	case eWNI_SME_HIDDEN_SSID_RESTART_RSP:
+		if (pMac->sme.hidden_ssid_cb)
+			pMac->sme.hidden_ssid_cb(pMac->hdd_handle, pMsg->bodyval);
+		else
+			sme_err("callback is NULL");
 		break;
 	default:
 
@@ -5617,23 +5622,20 @@ uint8_t sme_get_infra_operation_channel(tHalHandle hHal, uint8_t sessionId)
 	return channel;
 }
 
-/* This routine will return poerating channel on which other BSS is operating
- * to be used for concurrency mode. If other BSS is not up or not connected it
- * will return 0
- */
-uint8_t sme_get_concurrent_operation_channel(tHalHandle hHal)
+uint8_t sme_get_beaconing_concurrent_operation_channel(tHalHandle hal,
+						       uint8_t vdev_id_to_skip)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
 	uint8_t channel = 0;
 
-	status = sme_acquire_global_lock(&pMac->sme);
+	status = sme_acquire_global_lock(&mac->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-
-		channel = csr_get_concurrent_operation_channel(pMac);
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
-			"%s: Other Concurrent Channel: %d", __func__, channel);
-		sme_release_global_lock(&pMac->sme);
+		channel = csr_get_beaconing_concurrent_channel(mac,
+							       vdev_id_to_skip);
+		sme_info("Other Concurrent Channel: %d skipped vdev_id %d",
+			 channel, vdev_id_to_skip);
+		sme_release_global_lock(&mac->sme);
 	}
 
 	return channel;
@@ -14957,10 +14959,8 @@ QDF_STATUS sme_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
 	}
 
 	roam_profile = session->pCurRoamProfile;
-	if (roam_profile->supplicant_disabled_roaming ||
-	    roam_profile->driver_disabled_roaming) {
-		sme_debug("roaming status in Supplicant %d and in driver %d",
-			  roam_profile->supplicant_disabled_roaming,
+	if (roam_profile->driver_disabled_roaming) {
+		sme_debug("roaming status in driver %d",
 			  roam_profile->driver_disabled_roaming);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -15081,7 +15081,10 @@ send_flush_cmd:
 				   QDF_MODULE_ID_WMA,
 				   QDF_MODULE_ID_WMA, &msg)) {
 		sme_err("Not able to post message to WDA");
-		qdf_mem_free(pmk_cache);
+		if (pmk_cache) {
+			qdf_mem_zero(pmk_cache, sizeof(*pmk_cache));
+			qdf_mem_free(pmk_cache);
+		}
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -16065,6 +16068,21 @@ sme_get_roam_scan_stats(tHalHandle hal, roam_scan_stats_cb cb, void *context,
 	} else {
 		sme_err("sme_acquire_global_lock failed");
 		qdf_mem_free(req);
+	}
+
+	return status;
+}
+
+QDF_STATUS sme_update_hidden_ssid_status_cb(mac_handle_t mac_handle,
+					    hidden_ssid_cb cb)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac = MAC_CONTEXT(mac_handle);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.hidden_ssid_cb = cb;
+		sme_release_global_lock(&mac->sme);
 	}
 
 	return status;
