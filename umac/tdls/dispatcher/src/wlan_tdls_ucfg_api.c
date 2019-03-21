@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -118,30 +118,12 @@ QDF_STATUS ucfg_tdls_deinit(void)
 
 static QDF_STATUS tdls_global_init(struct tdls_soc_priv_obj *soc_obj)
 {
-	uint8_t sta_idx;
-	uint32_t feature;
 
 	soc_obj->connected_peer_count = 0;
 	soc_obj->tdls_nss_switch_in_progress = false;
 	soc_obj->tdls_teardown_peers_cnt = 0;
 	soc_obj->tdls_nss_teardown_complete = false;
 	soc_obj->tdls_nss_transition_mode = TDLS_NSS_TRANSITION_S_UNKNOWN;
-
-	feature = soc_obj->tdls_configs.tdls_feature_flags;
-	if (TDLS_IS_BUFFER_STA_ENABLED(feature) ||
-	    TDLS_IS_SLEEP_STA_ENABLED(feature) ||
-	    TDLS_IS_OFF_CHANNEL_ENABLED(feature))
-		soc_obj->max_num_tdls_sta =
-			WLAN_TDLS_STA_P_UAPSD_OFFCHAN_MAX_NUM;
-		else
-			soc_obj->max_num_tdls_sta = WLAN_TDLS_STA_MAX_NUM;
-
-	for (sta_idx = 0; sta_idx < soc_obj->max_num_tdls_sta; sta_idx++) {
-		soc_obj->tdls_conn_info[sta_idx].sta_id = INVALID_TDLS_PEER_ID;
-		soc_obj->tdls_conn_info[sta_idx].session_id = 255;
-		qdf_mem_zero(&soc_obj->tdls_conn_info[sta_idx].peer_mac,
-			     QDF_MAC_ADDR_SIZE);
-	}
 	soc_obj->enable_tdls_connection_tracker = false;
 	soc_obj->tdls_external_peer_count = 0;
 	soc_obj->tdls_disable_in_progress = false;
@@ -181,6 +163,7 @@ QDF_STATUS ucfg_tdls_update_config(struct wlan_objmgr_psoc *psoc,
 	struct tdls_soc_priv_obj *soc_obj;
 	uint32_t tdls_feature_flags;
 	struct policy_mgr_tdls_cbacks tdls_pm_call_backs;
+	uint8_t sta_idx;
 
 	tdls_debug("tdls update config ");
 	if (!psoc || !req) {
@@ -240,6 +223,21 @@ QDF_STATUS ucfg_tdls_update_config(struct wlan_objmgr_psoc *psoc,
 		soc_obj->tdls_current_mode = TDLS_SUPPORT_IMP_MODE;
 
 	soc_obj->tdls_last_mode = soc_obj->tdls_current_mode;
+
+	if (TDLS_IS_BUFFER_STA_ENABLED(tdls_feature_flags) ||
+	    TDLS_IS_SLEEP_STA_ENABLED(tdls_feature_flags) ||
+	    TDLS_IS_OFF_CHANNEL_ENABLED(tdls_feature_flags))
+		soc_obj->max_num_tdls_sta =
+			WLAN_TDLS_STA_P_UAPSD_OFFCHAN_MAX_NUM;
+		else
+			soc_obj->max_num_tdls_sta = WLAN_TDLS_STA_MAX_NUM;
+
+	for (sta_idx = 0; sta_idx < soc_obj->max_num_tdls_sta; sta_idx++) {
+		soc_obj->tdls_conn_info[sta_idx].sta_id = INVALID_TDLS_PEER_ID;
+		soc_obj->tdls_conn_info[sta_idx].session_id = 255;
+		qdf_mem_zero(&soc_obj->tdls_conn_info[sta_idx].peer_mac,
+			     QDF_MAC_ADDR_SIZE);
+	}
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -835,25 +833,13 @@ void ucfg_tdls_update_rx_pkt_cnt(struct wlan_objmgr_vdev *vdev,
 				 struct qdf_mac_addr *mac_addr,
 				 struct qdf_mac_addr *dest_mac_addr)
 {
-	QDF_STATUS status;
-	status = wlan_objmgr_vdev_try_get_ref(vdev, WLAN_TDLS_NB_ID);
-	if (status != QDF_STATUS_SUCCESS)
-		return;
 	tdls_update_rx_pkt_cnt(vdev, mac_addr, dest_mac_addr);
-
-	wlan_objmgr_vdev_release_ref(vdev, WLAN_TDLS_NB_ID);
 }
 
 void ucfg_tdls_update_tx_pkt_cnt(struct wlan_objmgr_vdev *vdev,
 				 struct qdf_mac_addr *mac_addr)
 {
-	QDF_STATUS status;
-	status = wlan_objmgr_vdev_try_get_ref(vdev, WLAN_TDLS_NB_ID);
-	if (status != QDF_STATUS_SUCCESS)
-		return;
 	tdls_update_tx_pkt_cnt(vdev, mac_addr);
-
-	wlan_objmgr_vdev_release_ref(vdev, WLAN_TDLS_NB_ID);
 
 }
 

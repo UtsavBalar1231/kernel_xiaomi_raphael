@@ -1278,6 +1278,20 @@ static inline void wlan_cfg80211_update_scan_policy_type_flags(
 }
 #endif
 
+#ifdef WLAN_POLICY_MGR_ENABLE
+static bool
+wlan_cfg80211_allow_simultaneous_scan(struct wlan_objmgr_psoc *psoc)
+{
+	return policy_mgr_is_scan_simultaneous_capable(psoc);
+}
+#else
+static bool
+wlan_cfg80211_allow_simultaneous_scan(struct wlan_objmgr_psoc *psoc)
+{
+	return true;
+}
+#endif
+
 int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 		struct cfg80211_scan_request *request,
 		struct scan_params *params)
@@ -1312,6 +1326,24 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 		cfg80211_err("Invalid psoc object");
 		return -EINVAL;
 	}
+	/* Get NL global context from objmgr*/
+	osif_priv = wlan_pdev_get_ospriv(pdev);
+	if (!osif_priv) {
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
+		cfg80211_err("Invalid osif priv object");
+		return -EINVAL;
+	}
+
+	/*
+	 * If a scan is already going on i.e the qdf_list ( scan que) is not
+	 * empty, and the simultaneous scan is disabled, dont allow 2nd scan
+	 */
+	if (!wlan_cfg80211_allow_simultaneous_scan(psoc) &&
+	    !qdf_list_empty(&osif_priv->osif_scan->scan_req_q)) {
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
+		cfg80211_err("Simultaneous scan disabled, reject scan");
+		return -EBUSY;
+	}
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
 		wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
@@ -1321,8 +1353,6 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 	/* Initialize the scan global params */
 	ucfg_scan_init_default_params(vdev, req);
 
-	/* Get NL global context from objmgr*/
-	osif_priv = wlan_pdev_get_ospriv(pdev);
 	req_id = osif_priv->osif_scan->req_id;
 	scan_id = ucfg_scan_get_scan_id(psoc);
 	if (!scan_id) {
@@ -1924,4 +1954,55 @@ void wlan_cfg80211_inform_bss_frame(struct wlan_objmgr_pdev *pdev,
 		wlan_cfg80211_put_bss(wiphy, bss);
 
 	qdf_mem_free(bss_data.mgmt);
+}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) && \
+	!defined(WITH_BACKPORTS) && !defined(IEEE80211_PRIVACY)
+struct cfg80211_bss *wlan_cfg80211_get_bss(struct wiphy *wiphy,
+					   struct ieee80211_channel *channel,
+					   const u8 *bssid, const u8 *ssid,
+					   size_t ssid_len)
+{
+	return cfg80211_get_bss(wiphy, channel, bssid,
+				ssid, ssid_len,
+				WLAN_CAPABILITY_ESS,
+				WLAN_CAPABILITY_ESS);
+}
+#else
+struct cfg80211_bss *wlan_cfg80211_get_bss(struct wiphy *wiphy,
+					   struct ieee80211_channel *channel,
+					   const u8 *bssid, const u8 *ssid,
+					   size_t ssid_len)
+{
+	return cfg80211_get_bss(wiphy, channel, bssid,
+				ssid, ssid_len,
+				IEEE80211_BSS_TYPE_ESS,
+				IEEE80211_PRIVACY_ANY);
+}
+#endif
+
+void wlan_cfg80211_unlink_bss_list(struct wlan_objmgr_pdev *pdev,
+				   struct scan_cache_entry *scan_entry)
+{
+	struct cfg80211_bss *bss = NULL;
+	struct pdev_osif_priv *pdev_ospriv = wlan_pdev_get_ospriv(pdev);
+	struct wiphy *wiphy;
+
+	if (!pdev_ospriv) {
+		cfg80211_err("os_priv is NULL");
+		return;
+	}
+
+	wiphy = pdev_ospriv->wiphy;
+	bss = wlan_cfg80211_get_bss(wiphy, NULL, scan_entry->bssid.bytes,
+				    scan_entry->ssid.ssid,
+				    scan_entry->ssid.length);
+	if (!bss) {
+		cfg80211_err("BSS %pM not found", scan_entry->bssid.bytes);
+	} else {
+		cfg80211_debug("cfg80211_unlink_bss called for BSSID %pM",
+			       scan_entry->bssid.bytes);
+		cfg80211_unlink_bss(wiphy, bss);
+		wlan_cfg80211_put_bss(wiphy, bss);
+	}
 }
