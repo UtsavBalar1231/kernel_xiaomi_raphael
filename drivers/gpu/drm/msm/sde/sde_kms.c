@@ -1395,6 +1395,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.cmd_transfer = dsi_display_cmd_transfer,
 		.cont_splash_config = dsi_display_cont_splash_config,
 		.get_panel_vfp = dsi_display_get_panel_vfp,
+		.set_idle_hint = dsi_display_set_idle_hint,
 		.prepare_commit = dsi_conn_prepare_commit,
 	};
 	static const struct sde_connector_ops wb_ops = {
