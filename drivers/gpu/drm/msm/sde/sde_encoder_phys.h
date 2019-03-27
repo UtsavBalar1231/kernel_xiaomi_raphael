@@ -405,6 +405,7 @@ struct sde_encoder_phys_cmd {
 	atomic_t pending_vblank_cnt;
 	wait_queue_head_t pending_vblank_wq;
 	u32 ctl_start_threshold;
+	struct work_struct ctl_wait_work;
 };
 
 /**
