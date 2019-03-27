@@ -18,10 +18,8 @@
 #include <linux/rwsem.h>
 #include <linux/zsmalloc.h>
 #include <linux/crypto.h>
-#include <linux/spinlock.h>
 
 #include "zcomp.h"
-#include "zram_dedup.h"
 
 #define SECTORS_PER_PAGE_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
 #define SECTORS_PER_PAGE	(1 << SECTORS_PER_PAGE_SHIFT)
@@ -59,10 +57,6 @@ enum zram_pageflags {
 /*-- Data structures */
 
 struct zram_entry {
-	struct rb_node rb_node;
-	u32 len;
-	u32 checksum;
-	unsigned long refcount;
 	unsigned long handle;
 };
 
@@ -91,11 +85,6 @@ struct zram_stats {
 	atomic64_t pages_stored;	/* no. of pages currently stored */
 	atomic_long_t max_used_pages;	/* no. of maximum pages stored */
 	atomic64_t writestall;		/* no. of write slow paths */
-	atomic64_t dup_data_size;	/*
-					 * compressed size of pages
-					 * duplicated
-					 */
-	atomic64_t meta_data_size;	/* size of zram_entries */
 	atomic64_t miss_free;		/* no. of missed free */
 #ifdef	CONFIG_ZRAM_WRITEBACK
 	atomic64_t bd_count;		/* no. of pages in backing device */
@@ -104,18 +93,11 @@ struct zram_stats {
 #endif
 };
 
-struct zram_hash {
-	spinlock_t lock;
-	struct rb_root rb_root;
-};
-
 struct zram {
 	struct zram_table_entry *table;
 	struct zs_pool *mem_pool;
 	struct zcomp *comp;
 	struct gendisk *disk;
-	struct zram_hash *hash;
-	size_t hash_size;
 	/* Prevent concurrent execution of device init */
 	struct rw_semaphore init_lock;
 	/*
@@ -148,6 +130,4 @@ struct zram {
 	struct dentry *debugfs_dir;
 #endif
 };
-
-void zram_entry_free(struct zram *zram, struct zram_entry *entry);
 #endif
