@@ -366,10 +366,6 @@ struct mhi_uci_ctxt_t {
 	if (_msg_lvl >= mhi_uci_msg_lvl) { \
 		pr_err("[%s] "_msg, __func__, ##__VA_ARGS__); \
 	} \
-	if (mhi_uci_ipc_log && (_msg_lvl >= mhi_uci_ipc_log_lvl)) { \
-		ipc_log_string(mhi_uci_ipc_log,                     \
-			"[%s] " _msg, __func__, ##__VA_ARGS__);     \
-	} \
 } while (0)
 
 

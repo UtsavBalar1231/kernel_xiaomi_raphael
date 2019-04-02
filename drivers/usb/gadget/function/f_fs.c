@@ -46,7 +46,6 @@
 
 #ifdef CONFIG_DYNAMIC_DEBUG
 #define ffs_log(fmt, ...) do { \
-	ipc_log_string(ffs->ipc_log, "%s: " fmt,  __func__, ##__VA_ARGS__); \
 	dynamic_pr_debug("%s: " fmt, __func__, ##__VA_ARGS__); \
 } while (0)
 #else

@@ -346,12 +346,7 @@ struct ipa_hdr_offset_entry {
 
 extern const char *ipa_clients_strings[];
 
-#define IPA_IPC_LOGGING(buf, fmt, args...) \
-	do { \
-		if (buf) \
-			ipc_log_string((buf), fmt, __func__, __LINE__, \
-				## args); \
-	} while (0)
+#define IPA_IPC_LOGGING(buf, fmt, args...) ((void)0)
 
 void ipa_inc_client_enable_clks(struct ipa_active_client_logging_info *id);
 void ipa_dec_client_disable_clks(struct ipa_active_client_logging_info *id);
