@@ -35,12 +35,7 @@
 #define gsi_readl(c)	(readl(c))
 #define gsi_writel(v, c)	({ __iowmb(); writel_relaxed((v), (c)); })
 
-#define GSI_IPC_LOGGING(buf, fmt, args...) \
-	do { \
-		if (buf) \
-			ipc_log_string((buf), fmt, __func__, __LINE__, \
-				## args); \
-	} while (0)
+#define GSI_IPC_LOGGING(buf, fmt, args...) ((void)0)
 
 #define GSIDBG(fmt, args...) \
 	do { \
