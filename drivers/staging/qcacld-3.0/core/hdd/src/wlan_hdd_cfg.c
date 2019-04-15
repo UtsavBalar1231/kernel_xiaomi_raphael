@@ -8469,55 +8469,28 @@ static void hdd_set_rx_mode_value(struct hdd_context *hdd_ctx)
  */
 QDF_STATUS hdd_parse_config_ini(struct hdd_context *hdd_ctx)
 {
-	int status = 0;
 	int i = 0;
-	int retry = 0;
-	/** Pointer for firmware image data */
-	const struct firmware *fw = NULL;
 	char *buffer, *line, *pTemp = NULL;
 	size_t size;
 	char *name, *value;
 	/* cfgIniTable is static to avoid excess stack usage */
 	static struct hdd_cfg_entry cfgIniTable[MAX_CFG_INI_ITEMS];
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
+	#include "wlan_cfg_ini.h"
 
 	memset(cfgIniTable, 0, sizeof(cfgIniTable));
 
-	do {
-		if (status == -EAGAIN)
-			msleep(HDD_CFG_REQUEST_FIRMWARE_DELAY);
-
-		status = request_firmware(&fw, WLAN_INI_FILE,
-					  hdd_ctx->parent_dev);
-
-		retry++;
-	} while ((retry < HDD_CFG_REQUEST_FIRMWARE_RETRIES) &&
-		 (status == -EAGAIN));
-
-	if (status) {
-		hdd_alert("request_firmware failed %d", status);
-		qdf_status = QDF_STATUS_E_FAILURE;
-		goto config_exit;
-	}
-	if (!fw || !fw->data || !fw->size) {
-		hdd_alert("%s download failed", WLAN_INI_FILE);
-		qdf_status = QDF_STATUS_E_FAILURE;
-		goto config_exit;
-	}
-
-	hdd_debug("qcom_cfg.ini Size %zu", fw->size);
-
-	buffer = (char *)qdf_mem_malloc(fw->size);
+	size = strlen(wlan_cfg) + 1;
+	buffer = (char *)qdf_mem_malloc(size);
 
 	if (NULL == buffer) {
 		hdd_err("qdf_mem_malloc failure");
-		release_firmware(fw);
-		return QDF_STATUS_E_NOMEM;
+		qdf_status = QDF_STATUS_E_NOMEM;
+		goto config_exit;
 	}
 	pTemp = buffer;
 
-	qdf_mem_copy((void *)buffer, (void *)fw->data, fw->size);
-	size = fw->size;
+	qdf_mem_copy((void *)buffer, (void *)wlan_cfg, size);
 
 	while (buffer != NULL) {
 		line = get_next_line(buffer);
@@ -8567,7 +8540,6 @@ QDF_STATUS hdd_parse_config_ini(struct hdd_context *hdd_ctx)
 		hdd_override_all_ps(hdd_ctx);
 
 config_exit:
-	release_firmware(fw);
 	qdf_mem_free(pTemp);
 	return qdf_status;
 }
