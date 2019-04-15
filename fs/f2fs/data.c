@@ -489,8 +489,8 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	struct inode *inode = fio->page->mapping->host;
 
 	if (!f2fs_is_valid_blkaddr(fio->sbi, fio->new_blkaddr,
-			fio->is_por ? META_POR :
-			(__is_meta_io(fio) ? META_GENERIC : DATA_GENERIC)))
+			fio->is_por ? META_POR : (__is_meta_io(fio) ?
+			META_GENERIC : DATA_GENERIC_ENHANCE)))
 		return -EFSCORRUPTED;
 
 	trace_f2fs_submit_page_bio(page, fio);
@@ -549,9 +549,7 @@ next:
 		spin_unlock(&io->io_lock);
 	}
 
-	if (__is_valid_data_blkaddr(fio->old_blkaddr))
-		verify_block_addr(fio, fio->old_blkaddr);
-	verify_block_addr(fio, fio->new_blkaddr);
+	verify_fio_blkaddr(fio);
 
 	bio_page = fio->encrypted_page ? fio->encrypted_page : fio->page;
 	inode = fio->page->mapping->host;
@@ -621,9 +619,6 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 	struct bio_post_read_ctx *ctx;
 	unsigned int post_read_steps = 0;
 
-	if (!f2fs_is_valid_blkaddr(sbi, blkaddr, DATA_GENERIC))
-		return ERR_PTR(-EFAULT);
-
 	bio = f2fs_bio_alloc(sbi, min_t(int, nr_pages, BIO_MAX_PAGES), false);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
@@ -655,8 +650,10 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 static int f2fs_submit_page_read(struct inode *inode, struct page *page,
 							block_t blkaddr)
 {
-	struct bio *bio = f2fs_grab_read_bio(inode, blkaddr, 1, 0);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct bio *bio;
 
+	bio = f2fs_grab_read_bio(inode, blkaddr, 1, 0);
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
@@ -671,8 +668,8 @@ static int f2fs_submit_page_read(struct inode *inode, struct page *page,
 		return -EFAULT;
 	}
 	ClearPageError(page);
-	inc_page_count(F2FS_I_SB(inode), F2FS_RD_DATA);
-	__f2fs_submit_read_bio(F2FS_I_SB(inode), bio, DATA);
+	inc_page_count(sbi, F2FS_RD_DATA);
+	__submit_bio(sbi, bio, DATA);
 	return 0;
 }
 
@@ -800,6 +797,11 @@ struct page *f2fs_get_read_data_page(struct inode *inode, pgoff_t index,
 
 	if (f2fs_lookup_extent_cache(inode, index, &ei)) {
 		dn.data_blkaddr = ei.blk + index - ei.fofs;
+		if (!f2fs_is_valid_blkaddr(F2FS_I_SB(inode), dn.data_blkaddr,
+						DATA_GENERIC_ENHANCE_READ)) {
+			err = -EFAULT;
+			goto put_err;
+		}
 		goto got_it;
 	}
 
@@ -811,6 +813,13 @@ struct page *f2fs_get_read_data_page(struct inode *inode, pgoff_t index,
 
 	if (unlikely(dn.data_blkaddr == NULL_ADDR)) {
 		err = -ENOENT;
+		goto put_err;
+	}
+	if (dn.data_blkaddr != NEW_ADDR &&
+			!f2fs_is_valid_blkaddr(F2FS_I_SB(inode),
+						dn.data_blkaddr,
+						DATA_GENERIC_ENHANCE)) {
+		err = -EFAULT;
 		goto put_err;
 	}
 got_it:
@@ -1155,12 +1164,12 @@ next_block:
 	blkaddr = datablock_addr(dn.inode, dn.node_page, dn.ofs_in_node);
 
 	if (__is_valid_data_blkaddr(blkaddr) &&
-		!f2fs_is_valid_blkaddr(sbi, blkaddr, DATA_GENERIC)) {
-		err = -EFSCORRUPTED;
+		!f2fs_is_valid_blkaddr(sbi, blkaddr, DATA_GENERIC_ENHANCE)) {
+                err = -EFSCORRUPTED;
 		goto sync_out;
 	}
 
-	if (is_valid_data_blkaddr(sbi, blkaddr)) {
+	if (__is_valid_data_blkaddr(blkaddr)) {
 		/* use out-place-update for driect IO under LFS mode */
 		if (test_opt(sbi, LFS) && flag == F2FS_GET_BLOCK_DIO &&
 							map->m_may_create) {
@@ -1626,7 +1635,7 @@ got_it:
 		}
 
 		if (!f2fs_is_valid_blkaddr(F2FS_I_SB(inode), block_nr,
-							DATA_GENERIC)) {
+						DATA_GENERIC_ENHANCE_READ)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1910,8 +1919,8 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
 		fio->old_blkaddr = ei.blk + page->index - ei.fofs;
 
 		if (!f2fs_is_valid_blkaddr(fio->sbi, fio->old_blkaddr,
-							DATA_GENERIC))
-			return -EFSCORRUPTED;
+						DATA_GENERIC_ENHANCE))
+                err = -EFSCORRUPTED;
 
 		ipu_force = true;
 		fio->need_lock = LOCK_DONE;
@@ -1937,15 +1946,16 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
 got_it:
 	if (__is_valid_data_blkaddr(fio->old_blkaddr) &&
 		!f2fs_is_valid_blkaddr(fio->sbi, fio->old_blkaddr,
-							DATA_GENERIC)) {
-		err = -EFSCORRUPTED;
+						DATA_GENERIC_ENHANCE)) {
+                err = -EFSCORRUPTED;
 		goto out_writepage;
 	}
 	/*
 	 * If current allocation needs SSR,
 	 * it had better in-place writes for updated data.
 	 */
-	if (ipu_force || (is_valid_data_blkaddr(fio->sbi, fio->old_blkaddr) &&
+	if (ipu_force ||
+		(__is_valid_data_blkaddr(fio->old_blkaddr) &&
 					need_inplace_update(fio))) {
 		err = encrypt_one_page(fio);
 		if (err)
@@ -2600,6 +2610,11 @@ repeat:
 		zero_user_segment(page, 0, PAGE_SIZE);
 		SetPageUptodate(page);
 	} else {
+		if (!f2fs_is_valid_blkaddr(sbi, blkaddr,
+				DATA_GENERIC_ENHANCE_READ)) {
+			err = -EFAULT;
+			goto fail;
+		}
 		err = f2fs_submit_page_read(inode, page, blkaddr);
 		if (err)
 			goto fail;
