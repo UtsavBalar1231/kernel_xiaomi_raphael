@@ -2587,7 +2587,7 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 		break;
 	}
 
-	uport->status  &= ~(UPSTAT_AUTOCTS);
+	uport->status &= ~(UPSTAT_AUTOCTS|UPSTAT_AUTORTS);
 	/* stop bits */
 	if (termios->c_cflag & CSTOPB)
 		stop_bit_len = TX_STOP_BIT_LEN_2;
@@ -2597,7 +2597,7 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 	/* flow control, clear the CTS_MASK bit if using flow control. */
 	if (termios->c_cflag & CRTSCTS) {
 		tx_trans_cfg &= ~UART_CTS_MASK;
-		uport->status |= UPSTAT_AUTOCTS;
+		uport->status |= (UPSTAT_AUTOCTS | UPSTAT_AUTORTS);
 	}
 	else
 		tx_trans_cfg |= UART_CTS_MASK;
