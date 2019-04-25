@@ -36,6 +36,14 @@
 /* RPS mask change's Default core for orphaned CPU flows */
 #define MAIN_CORE 0
 #define UPDATE_MASK 0xFF
+#define MAX_FLOWS 700
+
+/* Different max inactivity based on # of flows */
+#define FLOW_LIMIT1 70
+#define INACTIVE_TSEC1  10
+#define FLOW_LIMIT2 140
+#define INACTIVE_TSEC2  2
+
 
 //#define RMNET_SHS_MAX_UDP_SILVER_CORE_DATA_RATE 1073741824 //1.0Gbps
 //#define RMNET_SHS_MAX_UDP_SILVER_CORE_DATA_RATE 320787200 //320 Mbps
@@ -84,6 +92,7 @@ struct rmnet_shs_cfg_s {
 	long int num_bytes_parked;
 	long int num_pkts_parked;
 	u32 is_reg_dl_mrk_ind;
+	u16 num_flows;
 	u8 is_pkt_parked;
 	u8 is_timer_init;
 	u8 force_flush_state;
@@ -299,6 +308,7 @@ void rmnet_shs_exit(void);
 void rmnet_shs_ps_on_hdlr(void *port);
 void rmnet_shs_ps_off_hdlr(void *port);
 void rmnet_shs_update_cpu_proc_q_all_cpus(void);
+void rmnet_shs_clear_node(struct rmnet_shs_skbn_s *node, u8 ctxt);
 
 u32 rmnet_shs_get_cpu_qhead(u8 cpu_num);
 #endif /* _RMNET_SHS_H_ */

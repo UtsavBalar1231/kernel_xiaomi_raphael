@@ -711,8 +711,6 @@ static void rmnet_shs_flush_core_work(struct work_struct *work)
 	rmnet_shs_flush_reason[RMNET_SHS_FLUSH_WQ_CORE_FLUSH]++;
 }
 
-
-
 /* Flushes all the packets parked in order for this flow */
 void rmnet_shs_flush_node(struct rmnet_shs_skbn_s *node, u8 ctext)
 {
@@ -767,6 +765,48 @@ void rmnet_shs_flush_node(struct rmnet_shs_skbn_s *node, u8 ctext)
 	SHS_TRACE_HIGH(RMNET_SHS_FLUSH, RMNET_SHS_FLUSH_NODE_END,
 			     node->hash, hash2stamp,
 			     skbs_delivered, skb_bytes_delivered, node, NULL);
+}
+
+void rmnet_shs_clear_node(struct rmnet_shs_skbn_s *node, u8 ctxt)
+{
+	struct sk_buff *skb;
+	struct sk_buff *nxt_skb = NULL;
+	u32 skbs_delivered = 0;
+	u32 skb_bytes_delivered = 0;
+	u32 hash2stamp;
+	u8 map, maplen;
+
+	if (!node->skb_list.head)
+		return;
+	map = rmnet_shs_cfg.map_mask;
+	maplen = rmnet_shs_cfg.map_len;
+
+	if (map) {
+		hash2stamp = rmnet_shs_form_hash(node->map_index,
+						 maplen,
+						 node->skb_list.head->hash);
+	} else {
+		node->is_shs_enabled = 0;
+	}
+
+	for ((skb = node->skb_list.head); skb != NULL; skb = nxt_skb) {
+		nxt_skb = skb->next;
+		if (node->is_shs_enabled)
+			skb->hash = hash2stamp;
+
+		skb->next = NULL;
+		skbs_delivered += 1;
+		skb_bytes_delivered += skb->len;
+		if (ctxt == RMNET_RX_CTXT)
+			rmnet_shs_deliver_skb(skb);
+		else
+			rmnet_shs_deliver_skb_wq(skb);
+	}
+	rmnet_shs_crit_err[RMNET_SHS_WQ_COMSUME_PKTS]++;
+
+	rmnet_shs_cfg.num_bytes_parked -= skb_bytes_delivered;
+	rmnet_shs_cfg.num_pkts_parked -= skbs_delivered;
+	rmnet_shs_cpu_node_tbl[node->map_cpu].parkedlen -= skbs_delivered;
 }
 
 /* Evaluates if all the packets corresponding to a particular flow can
@@ -992,6 +1032,11 @@ void rmnet_shs_chain_to_skb_list(struct sk_buff *skb,
 
 		}
 	} else {
+		/* This should only have TCP based on current
+		 * rmnet_shs_is_skb_stamping_reqd logic. Unoptimal
+		 * if non UDP/TCP protos are supported
+		 */
+
 		/* Early flush for TCP if PSH packet.
 		 * Flush before parking PSH packet.
 		 */
@@ -1002,15 +1047,19 @@ void rmnet_shs_chain_to_skb_list(struct sk_buff *skb,
 			pushflush = 1;
 		}
 
-		/* TCP load tweaked for WQ since LRO changes load
-		 * of each packet
-		 */
-		node->num_skb += ((skb->len / 4000) + 1);
-		rmnet_shs_cpu_node_tbl[node->map_cpu].parkedlen++;
-		node->skb_list.skb_load += ((skb->len / 4000) + 1);
+		/* TCP support for gso marked packets */
+		if (skb_shinfo(skb)->gso_segs) {
+			node->num_skb += skb_shinfo(skb)->gso_segs;
+			rmnet_shs_cpu_node_tbl[node->map_cpu].parkedlen++;
+			node->skb_list.skb_load += skb_shinfo(skb)->gso_segs;
+		} else {
+			node->num_skb += 1;
+			rmnet_shs_cpu_node_tbl[node->map_cpu].parkedlen++;
+			node->skb_list.skb_load++;
+
+		}
 
 	}
-
 	node->num_skb_bytes += skb->len;
 
 	node->skb_list.num_parked_bytes += skb->len;
@@ -1061,6 +1110,20 @@ static void rmnet_flush_buffered(struct work_struct *work)
 		rmnet_shs_flush_table(is_force_flush,
 				      RMNET_WQ_CTXT);
 
+		/* If packets remain restart the timer in case there are no
+		 * more NET_RX flushes coming so pkts are no lost
+		 */
+		if (rmnet_shs_fall_back_timer &&
+		    rmnet_shs_cfg.num_bytes_parked &&
+		    rmnet_shs_cfg.num_pkts_parked){
+			if(hrtimer_active(&rmnet_shs_cfg.hrtimer_shs)) {
+				hrtimer_cancel(&rmnet_shs_cfg.hrtimer_shs);
+			}
+
+			hrtimer_start(&rmnet_shs_cfg.hrtimer_shs,
+				      ns_to_ktime(rmnet_shs_timeout * NS_IN_MS),
+				      HRTIMER_MODE_REL);
+		}
 		rmnet_shs_flush_reason[RMNET_SHS_FLUSH_WQ_FB_FLUSH]++;
 		local_bh_enable();
 	}
@@ -1323,7 +1386,6 @@ void rmnet_shs_assign(struct sk_buff *skb, struct rmnet_port *port)
 				RMNET_SHS_ASSIGN_MATCH_FLOW_COMPLETE,
 				0xDEF, 0xDEF, 0xDEF, 0xDEF, skb, NULL);
 
-			node_p->num_skb_bytes += skb->len;
 			cpu_map_index = node_p->map_index;
 
 			rmnet_shs_chain_to_skb_list(skb, node_p);
@@ -1341,13 +1403,18 @@ void rmnet_shs_assign(struct sk_buff *skb, struct rmnet_port *port)
 			rmnet_shs_crit_err[RMNET_SHS_RPS_MASK_CHANGE]++;
 			break;
 		}
-
 		node_p = kzalloc(sizeof(*node_p), GFP_ATOMIC);
 
 		if (!node_p) {
 			rmnet_shs_crit_err[RMNET_SHS_MAIN_MALLOC_ERR]++;
 			break;
 		}
+
+		if (rmnet_shs_cfg.num_flows > MAX_FLOWS) {
+			rmnet_shs_crit_err[RMNET_SHS_MAX_FLOWS]++;
+			break;
+		}
+		rmnet_shs_cfg.num_flows++;
 
 		node_p->dev = skb->dev;
 		node_p->hash = skb->hash;
