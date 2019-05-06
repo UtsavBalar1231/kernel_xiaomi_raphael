@@ -4834,6 +4834,7 @@ typedef enum {
 #ifdef WLAN_FEATURE_INTEROP_ISSUES_AP
 	wmi_pdev_interop_issues_ap_event_id,
 #endif
+	wmi_coex_report_antenna_isolation_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
