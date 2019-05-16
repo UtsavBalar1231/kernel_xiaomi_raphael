@@ -3961,6 +3961,7 @@ bool hdd_report_max_rate(mac_handle_t mac_handle,
 	uint8_t i, j, rssidx;
 	uint16_t max_rate = 0;
 	uint32_t vht_mcs_map;
+	bool is_vht20_mcs9 = false;
 	uint16_t current_rate = 0;
 	qdf_size_t or_leng = CSR_DOT11_SUPPORTED_RATES_MAX;
 	uint8_t operational_rates[CSR_DOT11_SUPPORTED_RATES_MAX];
@@ -4072,6 +4073,7 @@ bool hdd_report_max_rate(mac_handle_t mac_handle,
 	 * Only if we are connected in non legacy mode and not reporting
 	 * actual speed
 	 */
+
 	if ((3 != rssidx) && !(rate_flags & TX_RATE_LEGACY)) {
 		if (0 != ucfg_mlme_get_current_mcs_set(hdd_ctx->psoc,
 						       mcs_rates,
@@ -4101,6 +4103,12 @@ bool hdd_report_max_rate(mac_handle_t mac_handle,
 								&vht_mcs_map);
 			if (QDF_IS_STATUS_ERROR(stat))
 				hdd_err("failed to get tx_mcs_map");
+
+			stat = ucfg_mlme_get_vht20_mcs9(hdd_ctx->psoc,
+							&is_vht20_mcs9);
+			if (QDF_IS_STATUS_ERROR(stat))
+				hdd_err("Failed to get VHT20 MCS9 enable val");
+
 			vht_max_mcs = (enum data_rate_11ac_max_mcs)
 				(vht_mcs_map & DATA_RATE_11AC_MCS_MASK);
 			if (rate_flags & TX_RATE_SGI)
@@ -4111,7 +4119,16 @@ bool hdd_report_max_rate(mac_handle_t mac_handle,
 			} else if (DATA_RATE_11AC_MAX_MCS_8 == vht_max_mcs) {
 				max_mcs_idx = 8;
 			} else if (DATA_RATE_11AC_MAX_MCS_9 == vht_max_mcs) {
-				max_mcs_idx = 9;
+				/*
+				 * If the ini enable_vht20_mcs9 is disabled,
+				 * then max mcs index should not be set to 9
+				 * for TX_RATE_VHT20
+				 */
+				if (!is_vht20_mcs9 &&
+				    (rate_flags & TX_RATE_VHT20))
+					max_mcs_idx = 8;
+				else
+					max_mcs_idx = 9;
 			}
 
 			if (rssidx != 0) {
