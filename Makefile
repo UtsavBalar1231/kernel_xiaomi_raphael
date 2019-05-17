@@ -361,8 +361,16 @@ HOST_LFS_CFLAGS := $(shell getconf LFS_CFLAGS 2>/dev/null)
 HOST_LFS_LDFLAGS := $(shell getconf LFS_LDFLAGS 2>/dev/null)
 HOST_LFS_LIBS := $(shell getconf LFS_LIBS 2>/dev/null)
 
+CCACHE := $(shell which ccache)
+
+ifdef KERNEL_USE_CCACHE
+HOSTCC       = $(CCACHE) gcc
+HOSTCXX      = $(CCACHE) g++
+$(info # BUILDING WITH CCACHE)
+else
 HOSTCC       = gcc
 HOSTCXX      = g++
+endif
 HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 \
 		-fomit-frame-pointer -std=gnu89 -pipe $(HOST_LFS_CFLAGS)
 HOSTCXXFLAGS := -O2 $(HOST_LFS_CFLAGS)
@@ -377,7 +385,11 @@ endif
 # Make variables (CC, etc...)
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
+ifdef KERNEL_USE_CCACHE
+CC		= $(CCACHE) $(CROSS_COMPILE)gcc
+else
 CC		= $(CROSS_COMPILE)gcc
+endif
 LDGOLD		= $(CROSS_COMPILE)ld.gold
 LDLLD		= ld.lld
 CPP		= $(CC) -E
