@@ -202,8 +202,24 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 #ifdef CONFIG_ARM64_DMA_IOMMU_ALIGNMENT
 #define MAX_ALIGN(shift) (((1 << CONFIG_ARM64_DMA_IOMMU_ALIGNMENT) * PAGE_SIZE)\
 			  >> (shift))
+
+static unsigned long limit_align(struct iova_domain *iovad,
+					unsigned long shift)
+{
+	unsigned long max;
+
+	max = CONFIG_ARM64_DMA_IOMMU_ALIGNMENT + PAGE_SHIFT
+		- iova_shift(iovad);
+	return min(shift, max);
+}
 #else
 #define MAX_ALIGN(shift) ULONG_MAX
+
+static unsigned long limit_align(struct iova_domain *iovad,
+					unsigned long shift)
+{
+	return shift;
+}
 #endif
 
 /*
