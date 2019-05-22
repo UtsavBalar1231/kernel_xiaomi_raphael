@@ -10047,6 +10047,7 @@ static uint16_t wmi_tag_sta_powersave_cmd(wmi_unified_t wmi_hdl, wmi_buf_t buf)
 	case WMI_STA_PS_PARAM_TX_WAKE_THRESHOLD:
 	case WMI_STA_PS_PARAM_INACTIVITY_TIME:
 	case WMI_STA_PS_ENABLE_QPOWER:
+	case WMI_STA_PS_PARAM_MAX_RESET_ITO_COUNT_ON_TIM_NO_TXRX:
 		return HTC_TX_PACKET_TAG_AUTO_PM;
 	default:
 		break;
