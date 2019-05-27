@@ -147,8 +147,7 @@ static void cam_isp_ctx_dump_req(struct cam_isp_ctx_req *req_isp)
 			}
 			remain_len = len - req_isp->cfg[i].offset;
 
-			if ((req_isp->cfg[i].len > remain_len) ||
-				(req_isp->cfg[i].len == 0)) {
+			if (req_isp->cfg[i].len > remain_len) {
 				CAM_ERR(CAM_ISP, "Invalid offset");
 				need_put = true;
 			}
