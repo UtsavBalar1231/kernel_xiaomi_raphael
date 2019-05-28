@@ -1923,7 +1923,7 @@ static int _sde_encoder_update_rsc_client(
 	struct msm_mode_info mode_info;
 	int wait_vblank_crtc_id = SDE_RSC_INVALID_CRTC_ID;
 	int wait_count = 0;
-	struct drm_crtc *primary_crtc;
+	struct drm_crtc *primary_crtc = NULL;
 	int pipe = -1;
 	int rc = 0;
 	int wait_refcount = 0;

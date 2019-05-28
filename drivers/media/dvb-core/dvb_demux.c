@@ -1629,7 +1629,7 @@ static inline void _dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf,
 {
 	int p = 0, i = 0, j = 0;
 	const u8 *q;
-	ktime_t pre_time;
+	ktime_t pre_time = ktime_set(0, 0);
 	u8 timestamp[TIMESTAMP_LEN];
 
 	pre_time = ktime_set(0, 0);

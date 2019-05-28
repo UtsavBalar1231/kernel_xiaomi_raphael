@@ -1711,7 +1711,7 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 	unsigned int dma_tx_status;
 	unsigned int dma_rx_status;
 	struct uart_port *uport = dev;
-	unsigned int m_irq_en;
+	unsigned int m_irq_en = 0;
 	unsigned int geni_status;
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
 	struct tty_port *tport = &uport->state->port;

@@ -1405,7 +1405,7 @@ EXPORT_SYMBOL_GPL(pm_genpd_remove_device);
 static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 			       struct generic_pm_domain *subdomain)
 {
-	struct gpd_link *link, *itr;
+	struct gpd_link *link = NULL, *itr;
 	int ret = 0;
 
 	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(subdomain)
