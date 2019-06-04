@@ -684,7 +684,7 @@ And public attribution of xiaomi platforms(like F1 and so and)
 	};
 
 	usbc-therm-adc {
-		polling-delay-passive = <0>;
+		polling-delay-passive = <1000>;
 		polling-delay = <0>;
 		thermal-governor = "step_wise";
 		thermal-sensors = <&pm8150b_adc_tm ADC_AMUX_THM3_PU2>;
