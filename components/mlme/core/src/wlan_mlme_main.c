@@ -78,6 +78,21 @@ struct wlan_mlme_nss_chains *mlme_get_ini_vdev_config(
 	return &mlme_priv->ini_cfg;
 }
 
+struct mlme_roam_after_data_stall *
+mlme_get_roam_invoke_params(struct wlan_objmgr_vdev *vdev)
+{
+	struct vdev_mlme_obj *vdev_mlme;
+	struct mlme_legacy_priv *mlme_priv;
+
+	vdev_mlme = wlan_vdev_mlme_get_cmpt_obj(vdev);
+	if (!vdev_mlme)
+		return NULL;
+
+	mlme_priv = vdev_mlme->ext_vdev_ptr;
+
+	return &mlme_priv->roam_invoke_params;
+}
+
 uint8_t *mlme_get_dynamic_oce_flags(struct wlan_objmgr_vdev *vdev)
 {
 	struct vdev_mlme_obj *vdev_mlme;
@@ -836,7 +851,7 @@ static void mlme_init_vht_cap_cfg(struct wlan_objmgr_psoc *psoc,
 			cfg_get(psoc, CFG_RX_STBC_ENABLE);
 
 	vht_cap_info->su_bformee =
-		cfg_default(CFG_VHT_SU_BEAMFORMEE_CAP);
+		cfg_get(psoc, CFG_VHT_SU_BEAMFORMEE_CAP);
 
 	vht_cap_info->mu_bformer =
 			cfg_default(CFG_VHT_MU_BEAMFORMER_CAP);
@@ -1651,7 +1666,7 @@ static void mlme_init_lfr_cfg(struct wlan_objmgr_psoc *psoc,
 		cfg_get(psoc, CFG_LFR_DELAY_BEFORE_VDEV_STOP);
 	qdf_uint8_array_parse(cfg_get(psoc, CFG_LFR_NEIGHBOR_SCAN_CHANNEL_LIST),
 			      lfr->neighbor_scan_channel_list,
-			      CFG_VALID_CHANNEL_LIST_STRING_LEN,
+			      CFG_VALID_CHANNEL_LIST_LEN,
 			      &neighbor_scan_chan_list_num);
 	lfr->neighbor_scan_channel_list_num =
 				(uint8_t)neighbor_scan_chan_list_num;
@@ -2123,9 +2138,9 @@ static void mlme_init_btm_cfg(struct wlan_objmgr_psoc *psoc,
 	if (btm->abridge_flag)
 		MLME_SET_BIT(btm->btm_offload_config, BTM_OFFLOAD_CONFIG_BIT_7);
 
-	btm->btm_solicited_timeout = cfg_default(CFG_BTM_SOLICITED_TIMEOUT);
-	btm->btm_max_attempt_cnt = cfg_default(CFG_BTM_MAX_ATTEMPT_CNT);
-	btm->btm_sticky_time = cfg_default(CFG_BTM_STICKY_TIME);
+	btm->btm_solicited_timeout = cfg_get(psoc, CFG_BTM_SOLICITED_TIMEOUT);
+	btm->btm_max_attempt_cnt = cfg_get(psoc, CFG_BTM_MAX_ATTEMPT_CNT);
+	btm->btm_sticky_time = cfg_get(psoc, CFG_BTM_STICKY_TIME);
 	btm->rct_validity_timer = cfg_get(psoc, CFG_BTM_VALIDITY_TIMER);
 	btm->disassoc_timer_threshold =
 			cfg_get(psoc, CFG_BTM_DISASSOC_TIMER_THRESHOLD);

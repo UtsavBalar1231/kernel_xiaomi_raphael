@@ -1600,6 +1600,7 @@ enum uapsd_up {
  * @frame_len: frame length, includs mac header, fixed params and ies
  * @frame_buf: buffer contaning probe response or beacon
  * @is_same_bssid: flag to indicate if roaming is requested for same bssid
+ * @forced_roaming: Roaming to be done without giving bssid, and channel.
  */
 struct wma_roam_invoke_cmd {
 	uint32_t vdev_id;
@@ -1608,6 +1609,7 @@ struct wma_roam_invoke_cmd {
 	uint32_t frame_len;
 	uint8_t *frame_buf;
 	uint8_t is_same_bssid;
+	bool forced_roaming;
 };
 
 /**
@@ -2460,6 +2462,14 @@ void wma_check_and_set_wake_timer(uint32_t time);
  * Return: 0 for success or non-zero on failure
  */
 uint8_t wma_rx_invalid_peer_ind(uint8_t vdev_id, void *wh);
+
+/**
+ * is_roam_inprogress() - Is vdev in progress
+ * @vdev_id: vdev of interest
+ *
+ * Return: true if roaming, false otherwise
+ */
+bool wma_is_roam_in_progress(uint32_t vdev_id);
 
 /**
  * wma_get_psoc_from_scn_handle() - API to get psoc from scn handle

@@ -444,7 +444,7 @@ lim_configure_ap_start_bss_session(struct mac_context *mac_ctx,
 	session->dtimPeriod = (uint8_t) sme_start_bss_req->dtimPeriod;
 	/* Enable/disable UAPSD */
 	session->apUapsdEnable = sme_start_bss_req->apUapsdEnable;
-	if (session->pePersona == QDF_P2P_GO_MODE) {
+	if (session->opmode == QDF_P2P_GO_MODE) {
 		session->proxyProbeRspEn = 0;
 	} else {
 		/*
@@ -625,9 +625,9 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 			sme_start_bss_req->channelId;
 
 		/* Store Persona */
-		session->pePersona = sme_start_bss_req->bssPersona;
+		session->opmode = sme_start_bss_req->bssPersona;
 		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			  FL("PE PERSONA=%d"), session->pePersona);
+			  FL("PE PERSONA=%d"), session->opmode);
 
 		/* Update the phymode */
 		session->gLimPhyMode = sme_start_bss_req->nwType;
@@ -678,7 +678,7 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 		case eSIR_INFRA_AP_MODE:
 			lim_configure_ap_start_bss_session(mac_ctx, session,
 				sme_start_bss_req);
-			if (session->pePersona == QDF_SAP_MODE)
+			if (session->opmode == QDF_SAP_MODE)
 				session->vdev_nss = vdev_type_nss->sap;
 			else
 				session->vdev_nss = vdev_type_nss->p2p_go;
@@ -715,7 +715,7 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 		}
 
 		pe_debug("persona - %d, nss - %d",
-				session->pePersona, session->vdev_nss);
+				session->opmode, session->vdev_nss);
 		session->nss = session->vdev_nss;
 		if (!mac_ctx->mlme_cfg->vht_caps.vht_cap_info.enable2x2)
 			session->nss = 1;
@@ -1399,20 +1399,17 @@ __lim_process_sme_join_req(struct mac_context *mac_ctx, void *msg_buf)
 		 */
 		session->supported_nss_1x1 = true;
 		/*Store Persona */
-		session->pePersona = sme_join_req->staPersona;
-		pe_debug("enable Smps: %d mode: %d send action: %d supported nss 1x1: %d pePersona %d cbMode %d",
-			session->enableHtSmps,
-			session->htSmpsvalue,
-			session->send_smps_action,
-			session->supported_nss_1x1,
-			session->pePersona,
-			sme_join_req->cbMode);
+		session->opmode = sme_join_req->staPersona;
+		pe_debug("enable Smps: %d mode: %d send action: %d supported nss 1x1: %d opmode %d cbMode %d",
+			 session->enableHtSmps, session->htSmpsvalue,
+			 session->send_smps_action, session->supported_nss_1x1,
+			 session->opmode, sme_join_req->cbMode);
 
 		/*Store Persona */
-		session->pePersona = sme_join_req->staPersona;
+		session->opmode = sme_join_req->staPersona;
 		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			  FL("PE PERSONA=%d cbMode %u nwType: %d dot11mode: %d force_24ghz_in_ht20 %d"),
-			  session->pePersona, sme_join_req->cbMode,
+			  session->opmode, sme_join_req->cbMode,
 			  session->nwType, session->dot11mode,
 			  sme_join_req->force_24ghz_in_ht20);
 
@@ -1422,7 +1419,7 @@ __lim_process_sme_join_req(struct mac_context *mac_ctx, void *msg_buf)
 		session->vhtCapability =
 			IS_DOT11_MODE_VHT(session->dot11mode);
 		if (session->vhtCapability) {
-			if (session->pePersona == QDF_STA_MODE) {
+			if (session->opmode == QDF_STA_MODE) {
 				session->vht_config.su_beam_formee =
 					sme_join_req->vht_config.su_beam_formee;
 			} else {
@@ -1802,7 +1799,7 @@ static void __lim_process_sme_reassoc_req(struct mac_context *mac_ctx,
 		IS_DOT11_MODE_VHT(reassoc_req->dot11mode);
 
 	if (session_entry->vhtCapability) {
-		if (session_entry->pePersona == QDF_STA_MODE) {
+		if (session_entry->opmode == QDF_STA_MODE) {
 			session_entry->vht_config.su_beam_formee =
 				reassoc_req->vht_config.su_beam_formee;
 		} else {
@@ -6275,102 +6272,23 @@ void lim_continue_sta_csa_req(struct mac_context *mac_ctx, uint8_t vdev_id)
 	lim_process_channel_switch_timeout(mac_ctx);
 }
 
-void lim_remove_duplicate_bssid_node(struct sir_rssi_disallow_lst *entry,
-				     qdf_list_t *list)
-{
-	qdf_list_node_t *cur_list = NULL;
-	qdf_list_node_t *next_list = NULL;
-	struct sir_rssi_disallow_lst *cur_entry;
-	QDF_STATUS status;
-
-	qdf_list_peek_front(list, &cur_list);
-	while (cur_list) {
-		qdf_list_peek_next(list, cur_list, &next_list);
-		cur_entry = qdf_container_of(cur_list,
-					     struct sir_rssi_disallow_lst,
-					     node);
-
-		/*
-		 * Remove the node from blacklisting if the timeout is 0 and
-		 * rssi is 0 dbm i.e btm blacklisted entry
-		 */
-		if ((lim_assoc_rej_get_remaining_delta(cur_entry) == 0) &&
-		    cur_entry->expected_rssi == LIM_MIN_RSSI) {
-			status = qdf_list_remove_node(list, cur_list);
-			if (QDF_IS_STATUS_SUCCESS(status))
-				qdf_mem_free(cur_entry);
-		} else if (qdf_is_macaddr_equal(&entry->bssid,
-						&cur_entry->bssid)) {
-			/*
-			 * Remove the node if we try to add the same bssid again
-			 * Copy the old rssi value alone
-			 */
-			entry->expected_rssi = cur_entry->expected_rssi;
-			status = qdf_list_remove_node(list, cur_list);
-			if (QDF_IS_STATUS_SUCCESS(status)) {
-				qdf_mem_free(cur_entry);
-				break;
-			}
-		}
-		cur_list = next_list;
-		next_list = NULL;
-	}
-}
-
 void lim_add_roam_blacklist_ap(struct mac_context *mac_ctx,
 			       struct roam_blacklist_event *src_lst)
 {
 	uint32_t i;
-	struct sir_rssi_disallow_lst *entry;
+	struct sir_rssi_disallow_lst entry;
 	struct roam_blacklist_timeout *blacklist;
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	blacklist = &src_lst->roam_blacklist[0];
 	for (i = 0; i < src_lst->num_entries; i++) {
-		entry = qdf_mem_malloc(sizeof(struct sir_rssi_disallow_lst));
-		if (!entry)
-			return;
 
-		qdf_copy_macaddr(&entry->bssid, &blacklist->bssid);
-		entry->retry_delay = blacklist->timeout;
-		entry->time_during_rejection = blacklist->received_time;
+		entry.bssid = blacklist->bssid;
+		entry.retry_delay = blacklist->timeout;
+		entry.time_during_rejection = blacklist->received_time;
 		/* set 0dbm as expected rssi for btm blaclisted entries */
-		entry->expected_rssi = LIM_MIN_RSSI;
+		entry.expected_rssi = LIM_MIN_RSSI;
 
-		qdf_mutex_acquire(&mac_ctx->roam.rssi_disallow_bssid_lock);
-		lim_remove_duplicate_bssid_node(
-					entry,
-					&mac_ctx->roam.rssi_disallow_bssid);
-
-		if (qdf_list_size(&mac_ctx->roam.rssi_disallow_bssid) >=
-		    MAX_RSSI_AVOID_BSSID_LIST) {
-			status = lim_rem_blacklist_entry_with_lowest_delta(
-					&mac_ctx->roam.rssi_disallow_bssid);
-			if (QDF_IS_STATUS_ERROR(status)) {
-				qdf_mutex_release(&mac_ctx->roam.
-					rssi_disallow_bssid_lock);
-				pe_err("Failed to remove entry with lowest delta");
-				qdf_mem_free(entry);
-				return;
-			}
-		}
-
-		if (QDF_IS_STATUS_SUCCESS(status)) {
-			status = qdf_list_insert_back(
-					&mac_ctx->roam.rssi_disallow_bssid,
-					&entry->node);
-			if (QDF_IS_STATUS_ERROR(status)) {
-				qdf_mutex_release(&mac_ctx->roam.
-					rssi_disallow_bssid_lock);
-				pe_err("Failed to enqueue bssid: %pM",
-				       entry->bssid.bytes);
-				qdf_mem_free(entry);
-				return;
-			}
-			pe_debug("Added BTM blacklisted bssid: %pM",
-				 entry->bssid.bytes);
-		}
-		qdf_mutex_release(&mac_ctx->roam.rssi_disallow_bssid_lock);
-		blacklist++;
+		/* Add this bssid to the rssi reject ap type in blacklist mgr */
+		lim_add_bssid_to_reject_list(mac_ctx->pdev, &entry);
 	}
 }

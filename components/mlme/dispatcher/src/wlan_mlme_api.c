@@ -440,6 +440,22 @@ QDF_STATUS wlan_mlme_get_tx_chainmask_1ss(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
+void
+wlan_mlme_update_cfg_with_tgt_caps(struct wlan_objmgr_psoc *psoc,
+				   struct mlme_tgt_caps *tgt_caps)
+{
+	struct wlan_mlme_psoc_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_obj(psoc);
+	if (!mlme_obj)
+		return;
+
+	/* Update the mlme cfg according to the tgt capability received */
+
+	mlme_obj->cfg.gen.data_stall_recovery_fw_support =
+				tgt_caps->data_stall_recovery_fw_support;
+}
+
 #ifdef WLAN_FEATURE_11AX
 QDF_STATUS wlan_mlme_cfg_get_he_ul_mumimo(struct wlan_objmgr_psoc *psoc,
 					  uint32_t *value)
@@ -1956,6 +1972,8 @@ static void wlan_mlme_send_oce_flags_fw(struct wlan_objmgr_pdev *pdev,
 
 	if (wlan_vdev_mlme_get_opmode(vdev) == QDF_STA_MODE) {
 		dynamic_fw_value = mlme_get_dynamic_oce_flags(vdev);
+		if (!dynamic_fw_value)
+			return;
 		if (*updated_fw_value == *dynamic_fw_value) {
 			mlme_legacy_debug("Current FW flags matches with updated value.");
 			return;

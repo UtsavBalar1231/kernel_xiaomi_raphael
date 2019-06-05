@@ -169,6 +169,7 @@
 #include <wlan_interop_issues_ap_ucfg_api.h>
 #include <target_type.h>
 #include <wlan_hdd_debugfs_coex.h>
+#include "wlan_blm_ucfg_api.h"
 
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
@@ -239,6 +240,7 @@ static struct kparam_string fwpath = {
 static char *country_code;
 static int enable_11d = -1;
 static int enable_dfs_chan_scan = -1;
+static bool is_mode_change_psoc_idle_shutdown;
 
 #define WLAN_NLINK_CESIUM 30
 
@@ -322,6 +324,7 @@ static const struct category_info cinfo[MAX_SUPPORTED_CATEGORY] = {
 	[QDF_MODULE_ID_NAN] = {QDF_TRACE_LEVEL_ALL},
 	[QDF_MODULE_ID_CP_STATS] = {QDF_TRACE_LEVEL_ALL},
 	[QDF_MODULE_ID_INTEROP_ISSUES_AP] = {QDF_TRACE_LEVEL_ALL},
+	[QDF_MODULE_ID_BLACKLIST_MGR] = {QDF_TRACE_LEVEL_ALL},
 };
 
 struct notifier_block hdd_netdev_notifier;
@@ -1826,7 +1829,7 @@ int hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	ucfg_ipa_reg_sap_xmit_cb(hdd_ctx->pdev,
 				 hdd_softap_ipa_start_xmit);
 	ucfg_ipa_reg_send_to_nw_cb(hdd_ctx->pdev,
-				   hdd_ipa_send_skb_to_network);
+				   hdd_ipa_send_nbuf_to_network);
 
 	status = ucfg_mlme_get_sub_20_chan_width(hdd_ctx->psoc,
 						 &sub_20_chan_width);
@@ -3221,6 +3224,21 @@ static int hdd_open(struct net_device *net_dev)
 	return errno;
 }
 
+static bool
+hdd_is_any_sta_interface_open(struct hdd_context *hdd_ctx)
+{
+	struct hdd_adapter *adapter;
+
+	hdd_for_each_adapter(hdd_ctx, adapter) {
+		if (adapter->device_mode == QDF_STA_MODE &&
+		   (test_bit(DEVICE_IFACE_OPENED, &adapter->event_flags) ||
+		    test_bit(SME_SESSION_OPENED, &adapter->event_flags)))
+			return true;
+	}
+
+	return false;
+}
+
 /**
  * __hdd_stop() - HDD stop function
  * @dev:	Pointer to net_device structure
@@ -3304,6 +3322,10 @@ static int __hdd_stop(struct net_device *dev)
 
 	/* DeInit the adapter. This ensures datapath cleanup as well */
 	hdd_deinit_adapter(hdd_ctx, adapter, true);
+
+	/* If no STA interface is open, then flush out the BLM entries */
+	if (!hdd_is_any_sta_interface_open(hdd_ctx))
+		ucfg_blm_flush_reject_ap_list(hdd_ctx->pdev);
 
 	if (!hdd_is_any_interface_open(hdd_ctx))
 		hdd_psoc_idle_timer_start(hdd_ctx);
@@ -9256,11 +9278,25 @@ exit:
 	return errno;
 }
 
+static int __hdd_mode_change_psoc_idle_shutdown(struct hdd_context *hdd_ctx)
+{
+	is_mode_change_psoc_idle_shutdown = false;
+	return hdd_wlan_stop_modules(hdd_ctx, true);
+}
+
 int hdd_psoc_idle_shutdown(struct device *dev)
 {
 	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
-	return __hdd_psoc_idle_shutdown(hdd_ctx);
+	if (!hdd_ctx) {
+		hdd_err_rl("hdd ctx is null");
+		return -EINVAL;
+	}
+
+	if (is_mode_change_psoc_idle_shutdown)
+		return __hdd_mode_change_psoc_idle_shutdown(hdd_ctx);
+	else
+		return __hdd_psoc_idle_shutdown(hdd_ctx);
 }
 
 static int __hdd_psoc_idle_restart(struct hdd_context *hdd_ctx)
@@ -9271,6 +9307,11 @@ static int __hdd_psoc_idle_restart(struct hdd_context *hdd_ctx)
 int hdd_psoc_idle_restart(struct device *dev)
 {
 	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if (!hdd_ctx) {
+		hdd_err_rl("hdd ctx is null");
+		return -EINVAL;
+	}
 
 	return __hdd_psoc_idle_restart(hdd_ctx);
 }
@@ -9503,6 +9544,9 @@ static void hdd_cfg_params_init(struct hdd_context *hdd_ctx)
 		      cfg_get(psoc,
 			      CFG_ACTION_OUI_DISABLE_AGGRESSIVE_TX),
 			      ACTION_OUI_MAX_STR_LEN);
+	qdf_str_lcopy(config->action_oui_str[ACTION_OUI_FORCE_MAX_NSS],
+		      cfg_get(psoc, CFG_ACTION_OUI_FORCE_MAX_NSS),
+		      ACTION_OUI_MAX_STR_LEN);
 	config->enable_rtt_support = cfg_get(psoc, CFG_ENABLE_RTT_SUPPORT);
 	config->is_unit_test_framework_enabled =
 			cfg_get(psoc, CFG_ENABLE_UNIT_TEST_FRAMEWORK);
@@ -13116,7 +13160,14 @@ static QDF_STATUS hdd_component_init(void)
 	if (QDF_IS_STATUS_ERROR(status))
 		goto policy_deinit;
 
+	status = ucfg_blm_init();
+	if (QDF_IS_STATUS_ERROR(status))
+		goto tdls_deinit;
+
 	return QDF_STATUS_SUCCESS;
+
+tdls_deinit:
+	ucfg_tdls_deinit();
 
 policy_deinit:
 	policy_mgr_deinit();
@@ -13158,6 +13209,7 @@ target_if_deinit:
 static void hdd_component_deinit(void)
 {
 	/* deinitialize non-converged components */
+	ucfg_blm_deinit();
 	ucfg_tdls_deinit();
 	policy_mgr_deinit();
 	ucfg_interop_issues_ap_deinit();
@@ -13184,6 +13236,10 @@ QDF_STATUS hdd_component_psoc_open(struct wlan_objmgr_psoc *psoc)
 	status = ucfg_mlme_psoc_open(psoc);
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
+
+	status = ucfg_blm_psoc_open(psoc);
+	if (QDF_IS_STATUS_ERROR(status))
+		goto err_blm;
 
 	status = ucfg_fwol_psoc_open(psoc);
 	if (QDF_IS_STATUS_ERROR(status))
@@ -13216,6 +13272,8 @@ err_plcy_mgr:
 err_pmo:
 	ucfg_fwol_psoc_close(psoc);
 err_fwol:
+	ucfg_blm_psoc_close(psoc);
+err_blm:
 	ucfg_mlme_psoc_close(psoc);
 
 	return status;
@@ -13228,6 +13286,7 @@ void hdd_component_psoc_close(struct wlan_objmgr_psoc *psoc)
 	ucfg_policy_mgr_psoc_close(psoc);
 	ucfg_pmo_psoc_close(psoc);
 	ucfg_fwol_psoc_close(psoc);
+	ucfg_blm_psoc_close(psoc);
 	ucfg_mlme_psoc_close(psoc);
 }
 
@@ -13506,6 +13565,20 @@ hdd_parse_driver_mode(const char *mode_str, enum QDF_GLOBAL_MODE *out_mode)
 	return 0;
 }
 
+static int hdd_mode_change_psoc_idle_shutdown(struct device *dev)
+{
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	return hdd_wlan_stop_modules(hdd_ctx, true);
+}
+
+static int hdd_mode_change_psoc_idle_restart(struct device *dev)
+{
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	return hdd_wlan_start_modules(hdd_ctx, false);
+}
+
 /**
  * __hdd_driver_mode_change() - Handles a driver mode change
  * @hdd_ctx: Pointer to the global HDD context
@@ -13542,8 +13615,11 @@ static int __hdd_driver_mode_change(struct hdd_context *hdd_ctx,
 	/* ensure adapters are stopped */
 	hdd_stop_present_mode(hdd_ctx, curr_mode);
 
-	errno = hdd_wlan_stop_modules(hdd_ctx, true);
+	is_mode_change_psoc_idle_shutdown = true;
+	errno = pld_idle_shutdown(hdd_ctx->parent_dev,
+				  hdd_mode_change_psoc_idle_shutdown);
 	if (errno) {
+		is_mode_change_psoc_idle_shutdown = false;
 		hdd_err("Stop wlan modules failed");
 		return errno;
 	}
@@ -13553,7 +13629,8 @@ static int __hdd_driver_mode_change(struct hdd_context *hdd_ctx,
 
 	hdd_set_conparam(next_mode);
 
-	errno = hdd_wlan_start_modules(hdd_ctx, false);
+	errno = pld_idle_restart(hdd_ctx->parent_dev,
+				 hdd_mode_change_psoc_idle_restart);
 	if (errno) {
 		hdd_err("Start wlan modules failed: %d", errno);
 		return errno;
@@ -14408,7 +14485,7 @@ QDF_STATUS hdd_update_score_config(
 				      hdd_ctx->num_rf_chains);
 
 	score_config->vdev_nss_24g = vdev_ini_cfg.rx_nss[NSS_CHAINS_BAND_2GHZ];
-	score_config->vdev_nss_24g = vdev_ini_cfg.rx_nss[NSS_CHAINS_BAND_5GHZ];
+	score_config->vdev_nss_5g = vdev_ini_cfg.rx_nss[NSS_CHAINS_BAND_5GHZ];
 
 	sme_update_score_config(hdd_ctx->mac_handle, score_config);
 

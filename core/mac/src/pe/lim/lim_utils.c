@@ -68,6 +68,7 @@
 #include "qdf_util.h"
 #include "wlan_qct_sys.h"
 #include <wlan_scan_ucfg_api.h>
+#include <wlan_blm_api.h>
 
 #define ASCII_SPACE_CHARACTER 0x20
 
@@ -5014,7 +5015,7 @@ uint8_t lim_get_noa_attr_stream(struct mac_context *mac, uint8_t *pNoaStream,
 	uint8_t *pBody = pNoaStream;
 
 	if ((pe_session) && (pe_session->valid) &&
-	    (pe_session->pePersona == QDF_P2P_GO_MODE)) {
+	    (pe_session->opmode == QDF_P2P_GO_MODE)) {
 		if ((!(pe_session->p2pGoPsUpdate.uNoa1Duration))
 		    && (!(pe_session->p2pGoPsUpdate.uNoa2Duration))
 		    && (!pe_session->p2pGoPsUpdate.oppPsFlag)
@@ -5253,9 +5254,9 @@ void lim_get_short_slot_from_phy_mode(struct mac_context *mac, struct pe_session
 	/* only 2.4G band should have short slot enable, rest it should be default */
 	if (phyMode == WNI_CFG_PHY_MODE_11G) {
 		/* short slot is default in all other modes */
-		if ((pe_session->pePersona == QDF_SAP_MODE) ||
-		    (pe_session->pePersona == QDF_IBSS_MODE) ||
-		    (pe_session->pePersona == QDF_P2P_GO_MODE)) {
+		if ((pe_session->opmode == QDF_SAP_MODE) ||
+		    (pe_session->opmode == QDF_IBSS_MODE) ||
+		    (pe_session->opmode == QDF_P2P_GO_MODE)) {
 			val = true;
 		}
 		/* Program Polaris based on AP capability */
@@ -7461,46 +7462,19 @@ lim_rem_blacklist_entry_with_lowest_delta(qdf_list_t *list)
 	return QDF_STATUS_E_INVAL;
 }
 
-void lim_assoc_rej_add_to_rssi_based_reject_list(
-					struct mac_context *mac_ctx,
-					struct sir_rssi_disallow_lst *ap_info)
+void
+lim_add_bssid_to_reject_list(struct wlan_objmgr_pdev *pdev,
+			     struct sir_rssi_disallow_lst *entry)
 {
-	struct sir_rssi_disallow_lst *entry;
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	struct reject_ap_info ap_info;
 
-	entry = qdf_mem_malloc(sizeof(*entry));
-	if (!entry)
-		return;
+	ap_info.bssid = entry->bssid;
+	ap_info.reject_ap_type = DRIVER_RSSI_REJECT_TYPE;
+	ap_info.rssi_reject_params.expected_rssi = entry->expected_rssi;
+	ap_info.rssi_reject_params.retry_delay = entry->retry_delay;
 
-	pe_debug("%pM: assoc resp, expected rssi %d retry delay %d sec and list size %d",
-		ap_info->bssid.bytes, ap_info->expected_rssi,
-		ap_info->retry_delay,
-		qdf_list_size(&mac_ctx->roam.rssi_disallow_bssid));
-
-	*entry = *ap_info;
-	entry->time_during_rejection =
-		qdf_do_div(qdf_get_monotonic_boottime(),
-		QDF_MC_TIMER_TO_MS_UNIT);
-
-	qdf_mutex_acquire(&mac_ctx->roam.rssi_disallow_bssid_lock);
-	if (qdf_list_size(&mac_ctx->roam.rssi_disallow_bssid) >=
-		MAX_RSSI_AVOID_BSSID_LIST) {
-		status = lim_rem_blacklist_entry_with_lowest_delta(
-					&mac_ctx->roam.rssi_disallow_bssid);
-		if (QDF_IS_STATUS_ERROR(status))
-			pe_err("Failed to remove entry with lowest delta");
-	}
-
-	if (QDF_IS_STATUS_SUCCESS(status))
-		status = qdf_list_insert_back(
-				&mac_ctx->roam.rssi_disallow_bssid,
-				&entry->node);
-	qdf_mutex_release(&mac_ctx->roam.rssi_disallow_bssid_lock);
-
-	if (QDF_IS_STATUS_ERROR(status)) {
-		pe_err("Failed to enqueue bssid entry");
-		qdf_mem_free(entry);
-	}
+	/* Add this ap info to the rssi reject ap type in blacklist manager */
+	wlan_blm_add_bssid_to_reject_list(pdev, &ap_info);
 }
 
 void lim_decrement_pending_mgmt_count(struct mac_context *mac_ctx)

@@ -56,6 +56,8 @@
 
 #define NSS_1x1_MODE 1
 #define NSS_2x2_MODE 2
+#define NSS_3x3_MODE 3
+#define NSS_4x4_MODE 4
 #define MBO_IE_ASSOC_DISALLOWED_SUBATTR_ID 0x04
 
 /* QCN IE definitions */
@@ -581,40 +583,6 @@ struct s_ext_cap {
 	uint8_t twt_requestor_support:1;
 	uint8_t twt_responder_support:1;
 };
-
-#define CFG_GET_INT(nStatus, mac, nItem, cfg)  do { \
-		(nStatus) = wlan_cfg_get_int((mac), (nItem), &(cfg)); \
-		if (QDF_STATUS_SUCCESS != (nStatus)) { \
-			pe_err("Failed to retrieve nItem from CFG status: %d", (nStatus)); \
-			return nStatus; \
-		} \
-} while (0)
-
-#define CFG_GET_INT_NO_STATUS(nStatus, mac, nItem, cfg) do { \
-		(nStatus) = wlan_cfg_get_int((mac), (nItem), &(cfg)); \
-		if (QDF_STATUS_SUCCESS != (nStatus)) { \
-			pe_err("Failed to retrieve nItem from CFG status: %d", (nStatus)); \
-			return; \
-		} \
-} while (0)
-
-#define CFG_GET_STR(nStatus, mac, nItem, cfg, nCfg, nMaxCfg) do { \
-		(nCfg) = (nMaxCfg); \
-		(nStatus) = wlan_cfg_get_str((mac), (nItem), (cfg), &(nCfg)); \
-		if (QDF_STATUS_SUCCESS != (nStatus)) { \
-			pe_err("Failed to retrieve nItem from CFG status: %d", (nStatus)); \
-			return nStatus; \
-		} \
-} while (0)
-
-#define CFG_GET_STR_NO_STATUS(nStatus, mac, nItem, cfg, nCfg, nMaxCfg) do { \
-		(nCfg) = (nMaxCfg); \
-		(nStatus) = wlan_cfg_get_str((mac), (nItem), (cfg), &(nCfg)); \
-		if (QDF_STATUS_SUCCESS != (nStatus)) { \
-			pe_err("Failed to retrieve nItem from CFG status: %d", (nStatus)); \
-			return; \
-		} \
-} while (0)
 
 void swap_bit_field16(uint16_t in, uint16_t *out);
 
