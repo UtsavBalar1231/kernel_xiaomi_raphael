@@ -352,6 +352,12 @@ QDF_STATUS (*send_d0wow_disable_cmd)(wmi_unified_t wmi_handle,
 				uint8_t mac_id);
 #endif
 
+#ifdef FEATURE_BLACKLIST_MGR
+QDF_STATUS
+(*send_reject_ap_list_cmd)(struct wmi_unified *wmi_handle,
+			   struct reject_ap_params *reject_params);
+#endif
+
 QDF_STATUS (*send_wow_enable_cmd)(wmi_unified_t wmi_handle,
 				struct wow_cmd_params *param,
 				uint8_t mac_id);
@@ -1732,6 +1738,12 @@ QDF_STATUS (*extract_reg_ch_avoid_event)(wmi_unified_t wmi_handle,
 		struct ch_avoid_ind_type *ch_avoid_event,
 		uint32_t len);
 
+#ifdef WLAN_SUPPORT_RF_CHARACTERIZATION
+QDF_STATUS (*extract_rf_characterization_entries)(wmi_unified_t wmi_handle,
+	uint8_t *evt_buf,
+	struct wlan_psoc_host_rf_characterization_entry *rf_characterization_entries);
+#endif
+
 QDF_STATUS (*extract_chainmask_tables)(wmi_unified_t wmi_handle,
 		uint8_t *evt_buf,
 		struct wlan_psoc_host_chainmask_table *chainmask_table);
@@ -2318,6 +2330,15 @@ void wmi_policy_mgr_attach_tlv(struct wmi_unified *wmi_handle);
 #else
 static inline
 void wmi_policy_mgr_attach_tlv(struct wmi_unified *wmi_handle)
+{
+}
+#endif
+
+#ifdef FEATURE_BLACKLIST_MGR
+void wmi_blacklist_mgr_attach_tlv(struct wmi_unified *wmi_handle);
+#else
+static inline
+void wmi_blacklist_mgr_attach_tlv(struct wmi_unified *wmi_handle)
 {
 }
 #endif

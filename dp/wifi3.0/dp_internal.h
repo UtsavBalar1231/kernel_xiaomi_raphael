@@ -771,6 +771,12 @@ void dp_local_peer_id_pool_init(struct dp_pdev *pdev);
 void dp_local_peer_id_alloc(struct dp_pdev *pdev, struct dp_peer *peer);
 void dp_local_peer_id_free(struct dp_pdev *pdev, struct dp_peer *peer);
 #else
+static inline
+QDF_STATUS dp_get_vdevid(void *peer_handle, uint8_t *vdev_id)
+{
+	return QDF_STATUS_E_NOSUPPORT;
+}
+
 static inline void dp_local_peer_id_pool_init(struct dp_pdev *pdev)
 {
 }
@@ -858,8 +864,19 @@ uint32_t dp_pdev_tid_stats_display(void *pdev_handle,
 			enum _ol_ath_param_t param, uint32_t value, void *buff);
 #endif
 
+/**
+ * dp_update_delay_stats() - Update delay statistics in structure
+ *                              and fill min, max and avg delay
+ * @pdev: pdev handle
+ * @delay: delay in ms
+ * @tid: tid value
+ * @mode: type of tx delay mode
+ * @ring id: ring number
+ *
+ * Return: none
+ */
 void dp_update_delay_stats(struct dp_pdev *pdev, uint32_t delay,
-			   uint8_t tid, uint8_t mode);
+			   uint8_t tid, uint8_t mode, uint8_t ring_id);
 
 /**
  * dp_print_ring_stats(): Print tail and head pointer

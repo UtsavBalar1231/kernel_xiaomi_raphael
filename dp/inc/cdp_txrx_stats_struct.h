@@ -71,7 +71,8 @@
 #define WME_AC_VO    3    /* voice */
 #define WME_AC_MAX   4    /* MAX AC Value */
 
-#define CDP_MAX_RX_RINGS 4
+#define CDP_MAX_RX_RINGS 4  /* max rx rings */
+#define CDP_MAX_TX_COMP_RINGS 3  /* max tx completion rings */
 
 /* TID level VoW stats macros
  * to add and get stats
@@ -291,8 +292,7 @@ struct cdp_delay_stats {
  * @hwtx_delay: delay between wifi driver exit (enqueue to HW) and tx completion
  * @intfrm_delay: interframe delay
  * @success_cnt: total successful transmit count
- * @complete_cnt: total transmit count
- * @fwdrop_cnt: firmware drop found in tx completion path
+ * @comp_fail_cnt: firmware drop found in tx completion path
  * @swdrop_cnt: software drop in tx path
  */
 struct cdp_tid_tx_stats {
@@ -300,7 +300,6 @@ struct cdp_tid_tx_stats {
 	struct cdp_delay_stats hwtx_delay;
 	struct cdp_delay_stats intfrm_delay;
 	uint64_t success_cnt;
-	uint64_t complete_cnt;
 	uint64_t comp_fail_cnt;
 	uint64_t swdrop_cnt[TX_MAX_DROP];
 };
@@ -330,14 +329,17 @@ struct cdp_tid_rx_stats {
 /*
  * struct cdp_tid_stats
  * @ingress_stack: Total packets received from linux stack
+ * @osif_drop: drops in osif layer
  * @tid_tx_stats: transmit counters per tid
  * @tid_rx_stats: receive counters per tid
  */
 struct cdp_tid_stats {
 	uint64_t ingress_stack;
 	uint64_t osif_drop;
-	struct cdp_tid_tx_stats tid_tx_stats[CDP_MAX_DATA_TIDS];
-	struct cdp_tid_rx_stats tid_rx_stats[CDP_MAX_DATA_TIDS];
+	struct cdp_tid_tx_stats tid_tx_stats[CDP_MAX_TX_COMP_RINGS]
+					    [CDP_MAX_DATA_TIDS];
+	struct cdp_tid_rx_stats tid_rx_stats[CDP_MAX_RX_RINGS]
+					    [CDP_MAX_DATA_TIDS];
 };
 
 /* struct cdp_pkt_info - packet info
@@ -677,6 +679,7 @@ struct cdp_tx_ingress_stats {
 	struct {
 		struct cdp_pkt_info raw_pkt;
 		uint32_t dma_map_error;
+		uint32_t invalid_raw_pkt_datatype;
 	} raw;
 
 	/* TSO packets info */
@@ -1190,7 +1193,6 @@ struct cdp_htt_rx_pdev_stats {
  * protocol types
  */
 #define RX_PROTOCOL_TAG_ALL 0xff
-
 #endif /* WLAN_SUPPORT_RX_PROTOCOL_TYPE_TAG */
 
 /* struct cdp_pdev_stats - pdev stats
@@ -1605,6 +1607,14 @@ enum _ol_ath_param_t {
 	OL_ATH_PARAM_ACS_NEAR_RANGE_WEIGHTAGE = 413,
 	OL_ATH_PARAM_ACS_MID_RANGE_WEIGHTAGE = 414,
 	OL_ATH_PARAM_ACS_FAR_RANGE_WEIGHTAGE = 415,
+	/* Enable/Disable/Set MGMT_TTL in milliseconds. */
+	OL_ATH_PARAM_MGMT_TTL = 417,
+	/* Enable/Disable/Set PROBE_RESP_TTL in milliseconds */
+	OL_ATH_PARAM_PROBE_RESP_TTL = 418,
+	/* Set global MU PPDU duration for DL (usec units) */
+	OL_ATH_PARAM_MU_PPDU_DURATION = 419,
+	/* Set TBTT_CTRL_CFG */
+	OL_ATH_PARAM_TBTT_CTRL = 420,
 };
 #endif
 /* Bitmasks for stats that can block */

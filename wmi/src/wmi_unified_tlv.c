@@ -305,6 +305,13 @@ static const uint32_t pdev_param_tlv[] = {
 				WMI_PDEV_PARAM_EQUAL_RU_ALLOCATION_ENABLE,
 	[wmi_pdev_param_per_peer_prd_cfr_enable] =
 			WMI_PDEV_PARAM_PER_PEER_PERIODIC_CFR_ENABLE,
+	[wmi_pdev_param_set_mgmt_ttl] = WMI_PDEV_PARAM_SET_MGMT_TTL,
+	[wmi_pdev_param_set_prb_rsp_ttl] =
+			WMI_PDEV_PARAM_SET_PROBE_RESP_TTL,
+	[wmi_pdev_param_set_mu_ppdu_duration] =
+			WMI_PDEV_PARAM_SET_MU_PPDU_DURATION,
+	[wmi_pdev_param_set_tbtt_ctrl] =
+			WMI_PDEV_PARAM_SET_TBTT_CTRL,
 };
 
 /**
@@ -9312,6 +9319,48 @@ static QDF_STATUS extract_pdev_utf_event_tlv(wmi_unified_t wmi_handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef WLAN_SUPPORT_RF_CHARACTERIZATION
+static QDF_STATUS extract_rf_characterization_entries_tlv(wmi_unified_t wmi_handle,
+	uint8_t *event,
+	struct wlan_psoc_host_rf_characterization_entry *rf_characterization_entries)
+{
+	WMI_SERVICE_READY_EXT_EVENTID_param_tlvs *param_buf;
+	WMI_CHAN_RF_CHARACTERIZATION_INFO *wmi_rf_characterization_entry;
+	uint8_t ix;
+
+	param_buf = (WMI_SERVICE_READY_EXT_EVENTID_param_tlvs *)event;
+	if (!param_buf)
+		return QDF_STATUS_E_INVAL;
+
+	wmi_rf_characterization_entry =
+				param_buf->wmi_chan_rf_characterization_info;
+	if (!wmi_rf_characterization_entry)
+		return QDF_STATUS_E_INVAL;
+
+	for (ix = 0; ix < param_buf->num_wmi_chan_rf_characterization_info; ix++) {
+		rf_characterization_entries[ix].freq =
+				WMI_CHAN_RF_CHARACTERIZATION_FREQ_GET(
+					&wmi_rf_characterization_entry[ix]);
+
+		rf_characterization_entries[ix].bw =
+				WMI_CHAN_RF_CHARACTERIZATION_BW_GET(
+					&wmi_rf_characterization_entry[ix]);
+
+		rf_characterization_entries[ix].chan_metric =
+				WMI_CHAN_RF_CHARACTERIZATION_CHAN_METRIC_GET(
+					&wmi_rf_characterization_entry[ix]);
+
+		wmi_nofl_debug("rf_characterization_entries[%u]: freq: %u, "
+			       "bw: %u, chan_metric: %u",
+			       ix, rf_characterization_entries[ix].freq,
+			       rf_characterization_entries[ix].bw,
+			       rf_characterization_entries[ix].chan_metric);
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 /**
  * extract_chainmask_tables_tlv() - extract chain mask tables from event
  * @wmi_handle: wmi handle
@@ -9417,6 +9466,22 @@ static QDF_STATUS extract_chainmask_tables_tlv(wmi_unified_t wmi_handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef WLAN_SUPPORT_RF_CHARACTERIZATION
+static void populate_num_rf_characterization_entries(
+			struct wlan_psoc_host_service_ext_param *param,
+			WMI_SERVICE_READY_EXT_EVENTID_param_tlvs *param_buf)
+{
+	param->num_rf_characterization_entries =
+			param_buf->num_wmi_chan_rf_characterization_info;
+}
+#else
+static void populate_num_rf_characterization_entries(
+			struct wlan_psoc_host_service_ext_param *param,
+			WMI_SERVICE_READY_EXT_EVENTID_param_tlvs *param_buf)
+{
+}
+#endif
+
 /**
  * extract_service_ready_ext_tlv() - extract basic extended service ready params
  * from event
@@ -9455,6 +9520,7 @@ static QDF_STATUS extract_service_ready_ext_tlv(wmi_unified_t wmi_handle,
 	param->num_dbr_ring_caps = param_buf->num_dma_ring_caps;
 	param->num_bin_scaling_params = param_buf->num_wmi_bin_scaling_params;
 	param->max_bssid_indicator = ev->max_bssid_indicator;
+	populate_num_rf_characterization_entries(param, param_buf);
 	qdf_mem_copy(&param->ppet, &ev->ppet, sizeof(param->ppet));
 
 	hw_caps = param_buf->soc_hw_mode_caps;
@@ -11825,6 +11891,10 @@ struct wmi_ops tlv_ops =  {
 	.send_dfs_phyerr_offload_dis_cmd = send_dfs_phyerr_offload_dis_cmd_tlv,
 	.extract_reg_chan_list_update_event =
 		extract_reg_chan_list_update_event_tlv,
+#ifdef WLAN_SUPPORT_RF_CHARACTERIZATION
+	.extract_rf_characterization_entries =
+		extract_rf_characterization_entries_tlv,
+#endif
 	.extract_chainmask_tables =
 		extract_chainmask_tables_tlv,
 	.extract_thermal_stats = extract_thermal_stats_tlv,
@@ -12476,6 +12546,8 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_ADAPTIVE_11R_ROAM;
 	wmi_service[wmi_service_tx_compl_tsf64] =
 			WMI_SERVICE_TX_COMPL_TSF64;
+	wmi_service[wmi_service_data_stall_recovery_support] =
+			WMI_SERVICE_DSM_ROAM_FILTER;
 }
 
 /**

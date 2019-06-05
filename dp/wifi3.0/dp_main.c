@@ -82,11 +82,11 @@ extern int con_mode_monitor;
  * Return: QDF_STATUS
  */
 static QDF_STATUS
-dp_config_enh_rx_capture(struct cdp_pdev *pdev_handle, int val)
+dp_config_enh_rx_capture(struct cdp_pdev *pdev_handle, uint8_t val)
 {
 	return QDF_STATUS_E_INVAL;
 }
-#endif
+#endif /* WLAN_RX_PKT_CAPTURE_ENH */
 
 #ifdef WLAN_TX_PKT_CAPTURE_ENH
 #include "dp_tx_capture.h"
@@ -1394,7 +1394,7 @@ static uint32_t dp_service_srngs(void *dp_ctx, uint32_t dp_budget)
 			work_done = dp_tx_comp_handler(int_ctx,
 						       soc,
 						       soc->tx_comp_ring[ring].hal_srng,
-						       remaining_quota);
+						       ring, remaining_quota);
 
 			if (work_done) {
 				intr_stats->num_tx_ring_masks[ring]++;
@@ -2845,6 +2845,27 @@ fail1:
 	return QDF_STATUS_E_FAILURE;
 }
 
+/*
+ * dp_soc_cmn_cleanup() - Common SoC level De-initializion
+ *
+ * @soc: Datapath SOC handle
+ *
+ * This function is responsible for cleaning up DP resource of Soc
+ * initialled in dp_pdev_attach_wifi3-->dp_soc_cmn_setup, since
+ * dp_soc_detach_wifi3 could not identify some of them
+ * whether they have done initialized or not accurately.
+ *
+ */
+static void dp_soc_cmn_cleanup(struct dp_soc *soc)
+{
+	dp_tx_soc_detach(soc);
+
+	qdf_spinlock_destroy(&soc->rx.defrag.defrag_lock);
+
+	dp_reo_cmdlist_destroy(soc);
+	qdf_spinlock_destroy(&soc->rx.reo_cmd_lock);
+}
+
 static void dp_pdev_detach_wifi3(struct cdp_pdev *txrx_pdev, int force);
 
 static QDF_STATUS dp_lro_hash_setup(struct dp_soc *soc, struct dp_pdev *pdev)
@@ -3402,13 +3423,13 @@ static struct cdp_pdev *dp_pdev_attach_wifi3(struct cdp_soc_t *txrx_soc,
 	if (dp_rx_pdev_mon_attach(pdev)) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 				"dp_rx_pdev_mon_attach failed");
-		goto fail1;
+		goto rx_mon_attach_fail;
 	}
 
 	if (dp_wdi_event_attach(pdev)) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 				"dp_wdi_evet_attach failed");
-		goto fail1;
+		goto wdi_attach_fail;
 	}
 
 	/* set the reo destination during initialization */
@@ -3444,6 +3465,16 @@ static struct cdp_pdev *dp_pdev_attach_wifi3(struct cdp_soc_t *txrx_soc,
 	dp_tx_ppdu_stats_attach(pdev);
 
 	return (struct cdp_pdev *)pdev;
+
+wdi_attach_fail:
+	/*
+	 * dp_mon_link_desc_pool_cleanup is done in dp_pdev_detach
+	 * and hence need not to be done here.
+	 */
+	dp_rx_pdev_mon_detach(pdev);
+
+rx_mon_attach_fail:
+	dp_rx_pdev_detach(pdev);
 
 fail1:
 	if (pdev->invalid_peer)
@@ -3784,6 +3815,11 @@ static void dp_pdev_detach_wifi3(struct cdp_pdev *txrx_pdev, int force)
 		dp_pdev_deinit(txrx_pdev, force);
 		dp_pdev_detach(txrx_pdev, force);
 	}
+
+	/* only do soc common cleanup when last pdev do detach */
+	if (!(soc->pdev_count))
+		dp_soc_cmn_cleanup(soc);
+
 }
 
 /*
@@ -3857,8 +3893,6 @@ static void dp_soc_deinit(void *txrx_soc)
 	/* Free pending htt stats messages */
 	qdf_nbuf_queue_free(&soc->htt_stats.msg);
 
-	dp_reo_cmdlist_destroy(soc);
-
 	dp_peer_find_detach(soc);
 
 	/* Free the ring memories */
@@ -3914,10 +3948,6 @@ static void dp_soc_deinit(void *txrx_soc)
 
 	htt_soc_htc_dealloc(soc->htt_handle);
 
-	qdf_spinlock_destroy(&soc->rx.defrag.defrag_lock);
-
-	dp_reo_cmdlist_destroy(soc);
-	qdf_spinlock_destroy(&soc->rx.reo_cmd_lock);
 	dp_reo_desc_freelist_destroy(soc);
 
 	qdf_spinlock_destroy(&soc->ast_lock);
@@ -3965,8 +3995,6 @@ static void dp_soc_detach(void *txrx_soc)
 	/* Free the ring memories */
 	/* Common rings */
 	dp_srng_cleanup(soc, &soc->wbm_desc_rel_ring, SW2WBM_RELEASE, 0);
-
-	dp_tx_soc_detach(soc);
 
 	/* Tx data rings */
 	if (!wlan_cfg_per_pdev_tx_ring(soc->wlan_cfg_ctx)) {
@@ -5094,6 +5122,9 @@ static void dp_peer_setup_get_reo_hash(struct dp_vdev *vdev,
 		if (vdev->opmode == wlan_op_mode_ap) {
 			*reo_dest = IPA_REO_DEST_RING_IDX + 1;
 			*hash_based = 0;
+		} else if (vdev->opmode == wlan_op_mode_sta &&
+			   dp_ipa_is_mdm_platform()) {
+			*reo_dest = IPA_REO_DEST_RING_IDX + 1;
 		}
 	}
 }
@@ -6053,6 +6084,9 @@ QDF_STATUS dp_pdev_configure_monitor_rings(struct dp_pdev *pdev)
 			   CDP_RX_ENH_CAPTURE_MPDU_MSDU) {
 			htt_tlv_filter.header_per_msdu = 1;
 			htt_tlv_filter.enable_mo = 0;
+			if (pdev->is_rx_protocol_tagging_enabled ||
+			    pdev->is_rx_enh_capture_trailer_enabled)
+				htt_tlv_filter.msdu_end = 1;
 		}
 	}
 
@@ -7467,6 +7501,72 @@ dp_txrx_get_pdev_stats(struct cdp_pdev *pdev_handle)
 	return &pdev->stats;
 }
 
+/* dp_txrx_update_vdev_me_stats(): Update vdev ME stats sent from CDP
+ * @vdev_handle: DP vdev handle
+ * @buf: buffer containing specific stats structure
+ *
+ * Returns: void
+ */
+static void dp_txrx_update_vdev_me_stats(struct cdp_vdev *vdev_handle,
+					 void *buf)
+{
+	struct dp_vdev *vdev = NULL;
+	struct cdp_tx_ingress_stats *host_stats = NULL;
+
+	if (!vdev_handle) {
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+			  "Invalid vdev handle");
+		return;
+	}
+	vdev = (struct dp_vdev *)vdev_handle;
+
+	if (!buf) {
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+			  "Invalid host stats buf");
+		return;
+	}
+	host_stats = (struct cdp_tx_ingress_stats *)buf;
+
+	DP_STATS_INC_PKT(vdev, tx_i.mcast_en.mcast_pkt,
+			 host_stats->mcast_en.mcast_pkt.num,
+			 host_stats->mcast_en.mcast_pkt.bytes);
+	DP_STATS_INC(vdev, tx_i.mcast_en.dropped_map_error,
+		     host_stats->mcast_en.dropped_map_error);
+	DP_STATS_INC(vdev, tx_i.mcast_en.dropped_self_mac,
+		     host_stats->mcast_en.dropped_self_mac);
+	DP_STATS_INC(vdev, tx_i.mcast_en.dropped_send_fail,
+		     host_stats->mcast_en.dropped_send_fail);
+	DP_STATS_INC(vdev, tx_i.mcast_en.ucast,
+		     host_stats->mcast_en.ucast);
+	DP_STATS_INC(vdev, tx_i.mcast_en.fail_seg_alloc,
+		     host_stats->mcast_en.fail_seg_alloc);
+	DP_STATS_INC(vdev, tx_i.mcast_en.clone_fail,
+		     host_stats->mcast_en.clone_fail);
+}
+
+/* dp_txrx_update_vdev_host_stats(): Update stats sent through CDP
+ * @vdev_handle: DP vdev handle
+ * @buf: buffer containing specific stats structure
+ * @stats_id: stats type
+ *
+ * Returns: void
+ */
+static void dp_txrx_update_vdev_host_stats(struct cdp_vdev *vdev_handle,
+					   void *buf,
+					   uint16_t stats_id)
+{
+	switch (stats_id) {
+	case DP_VDEV_STATS_PKT_CNT_ONLY:
+		break;
+	case DP_VDEV_STATS_TX_ME:
+		dp_txrx_update_vdev_me_stats(vdev_handle, buf);
+		break;
+	default:
+		qdf_info("Invalid stats_id %d", stats_id);
+		break;
+	}
+}
+
 /* dp_txrx_get_peer_stats - will return cdp_peer_stats
  * @peer_handle: DP_PEER handle
  *
@@ -8772,6 +8872,7 @@ static struct cdp_host_stats_ops dp_ops_host_stats = {
 	.txrx_get_pdev_stats = dp_txrx_get_pdev_stats,
 	.txrx_get_ratekbps = dp_txrx_get_ratekbps,
 	.configure_rate_stats = dp_set_rate_stats_cap,
+	.txrx_update_vdev_stats = dp_txrx_update_vdev_host_stats,
 	/* TODO */
 };
 
@@ -9629,19 +9730,20 @@ static uint8_t dp_bucket_index(uint32_t delay, uint16_t *array)
  *
  * @pdev: pdev handle
  * @delay: delay in ms
- * @t: tid value
+ * @tid: tid value
  * @mode: type of tx delay mode
+ * @ring_id: ring number
  * Return: pointer to cdp_delay_stats structure
  */
 static struct cdp_delay_stats *
 dp_fill_delay_buckets(struct dp_pdev *pdev, uint32_t delay,
-		      uint8_t tid, uint8_t mode)
+		      uint8_t tid, uint8_t mode, uint8_t ring_id)
 {
 	uint8_t delay_index = 0;
 	struct cdp_tid_tx_stats *tstats =
-		&pdev->stats.tid_stats.tid_tx_stats[tid];
+		&pdev->stats.tid_stats.tid_tx_stats[ring_id][tid];
 	struct cdp_tid_rx_stats *rstats =
-		&pdev->stats.tid_stats.tid_rx_stats[tid];
+		&pdev->stats.tid_stats.tid_rx_stats[ring_id][tid];
 	/*
 	 * cdp_fw_to_hw_delay_range
 	 * Fw to hw delay ranges in milliseconds
@@ -9717,10 +9819,11 @@ dp_fill_delay_buckets(struct dp_pdev *pdev, uint32_t delay,
  * @delay: delay in ms
  * @tid: tid value
  * @mode: type of tx delay mode
+ * @ring id: ring number
  * Return: none
  */
 void dp_update_delay_stats(struct dp_pdev *pdev, uint32_t delay,
-			   uint8_t tid, uint8_t mode)
+			   uint8_t tid, uint8_t mode, uint8_t ring_id)
 {
 	struct cdp_delay_stats *dstats = NULL;
 
@@ -9728,7 +9831,7 @@ void dp_update_delay_stats(struct dp_pdev *pdev, uint32_t delay,
 	 * Delay ranges are different for different delay modes
 	 * Get the correct index to update delay bucket
 	 */
-	dstats = dp_fill_delay_buckets(pdev, delay, tid, mode);
+	dstats = dp_fill_delay_buckets(pdev, delay, tid, mode, ring_id);
 	if (qdf_unlikely(!dstats))
 		return;
 

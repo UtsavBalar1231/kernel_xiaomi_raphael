@@ -744,9 +744,11 @@ void hif_clear_stats(struct hif_opaque_softc *hif_ctx);
 #ifdef FEATURE_RUNTIME_PM
 struct hif_pm_runtime_lock;
 void hif_fastpath_resume(struct hif_opaque_softc *hif_ctx);
+int hif_pm_runtime_request_resume(struct hif_opaque_softc *hif_ctx);
 int hif_pm_runtime_get(struct hif_opaque_softc *hif_ctx);
 void hif_pm_runtime_get_noresume(struct hif_opaque_softc *hif_ctx);
 int hif_pm_runtime_put(struct hif_opaque_softc *hif_ctx);
+void hif_pm_runtime_mark_last_busy(struct hif_opaque_softc *hif_ctx);
 int hif_runtime_lock_init(qdf_runtime_lock_t *lock, const char *name);
 void hif_runtime_lock_deinit(struct hif_opaque_softc *hif_ctx,
 			struct hif_pm_runtime_lock *lock);
@@ -761,6 +763,9 @@ struct hif_pm_runtime_lock {
 	const char *name;
 };
 static inline void hif_fastpath_resume(struct hif_opaque_softc *hif_ctx) {}
+static inline int
+hif_pm_runtime_request_resume(struct hif_opaque_softc *hif_ctx)
+{ return 0; }
 static inline void hif_pm_runtime_get_noresume(struct hif_opaque_softc *hif_ctx)
 {}
 
@@ -768,6 +773,8 @@ static inline int hif_pm_runtime_get(struct hif_opaque_softc *hif_ctx)
 { return 0; }
 static inline int hif_pm_runtime_put(struct hif_opaque_softc *hif_ctx)
 { return 0; }
+static inline void
+hif_pm_runtime_mark_last_busy(struct hif_opaque_softc *hif_ctx) {};
 static inline int hif_runtime_lock_init(qdf_runtime_lock_t *lock,
 					const char *name)
 { return 0; }

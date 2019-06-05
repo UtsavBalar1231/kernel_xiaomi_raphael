@@ -4991,6 +4991,11 @@ typedef enum {
 	wmi_pdev_param_equal_ru_allocation_enable,
 	wmi_pdev_param_per_peer_prd_cfr_enable,
 	wmi_pdev_param_nav_override_config,
+	wmi_pdev_param_set_mgmt_ttl,
+	wmi_pdev_param_set_prb_rsp_ttl,
+	wmi_pdev_param_set_mu_ppdu_duration,
+	wmi_pdev_param_set_tbtt_ctrl,
+	wmi_pdev_param_max,
 } wmi_conv_pdev_params_id;
 
 
@@ -5310,6 +5315,7 @@ typedef enum {
 	wmi_service_wpa3_ft_suite_b_support,
 	wmi_service_ft_fils,
 	wmi_service_adaptive_11r_support,
+	wmi_service_data_stall_recovery_support,
 	wmi_service_tx_compl_tsf64,
 	wmi_services_max,
 } wmi_conv_service_ids;
