@@ -6761,7 +6761,7 @@ static int ipa3_tag_generate_force_close_desc(struct ipa3_desc desc[],
 	int res;
 	struct ipahal_imm_cmd_register_write reg_write_agg_close;
 	struct ipahal_imm_cmd_pyld *cmd_pyld;
-	struct ipahal_reg_valmask valmask;
+	struct ipahal_reg_valmask valmask = {0};
 
 	for (i = start_pipe; i < end_pipe; i++) {
 		ipahal_read_reg_n_fields(IPA_ENDP_INIT_AGGR_n, i, &ep_aggr);
