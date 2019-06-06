@@ -813,10 +813,18 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 			endp++;
 			len -= endp - line;
 			line = endp;
+			/* QG-D */
+			if (line[0] == 'h') {
+				for (u = 0; u < 10; ++u) {
+					if (line[u] == 'd')
+						goto free;
+				}
+			}
 		}
 	}
 
 	printk_emit(facility, level, NULL, 0, "%s", line);
+free:
 	kfree(buf);
 	return ret;
 }
