@@ -21,3 +21,5 @@ ccflags-$(CONFIG_IPA3_REGDUMP) += -Idrivers/platform/msm/ipa/ipa_v3/dump
 ccflags-$(CONFIG_IPA3_REGDUMP_SM8150) += -Idrivers/platform/msm/ipa/ipa_v3/dump/sm8150
 
 obj-$(CONFIG_IPA3_MHI_PRIME_MANAGER) += ipa_mpm.o
+
+ccflags-y += -DCONFIG_DEBUG_FS
