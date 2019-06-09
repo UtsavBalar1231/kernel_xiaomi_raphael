@@ -84,7 +84,7 @@ static void slpi_load_fw(struct work_struct *slpi_ldr_work)
 	struct platform_device *pdev = slpi_private;
 	struct slpi_loader_private *priv = NULL;
 	int ret;
-	const char *firmware_name = NULL;
+	const char *firmware_name = "slpi";
 
 	if (!pdev) {
 		dev_err(&pdev->dev, "%s: Platform device null\n", __func__);
@@ -122,7 +122,12 @@ static void slpi_load_fw(struct work_struct *slpi_ldr_work)
 	return;
 
 fail:
-	dev_err(&pdev->dev, "%s: SLPI image loading failed\n", __func__);
+	priv->pil_h = subsystem_get_with_fwname("slpi", "slpi");
+	if (IS_ERR(priv->pil_h)) {
+		dev_err(&pdev->dev, "%s: SLPI image re-loading failed\n", __func__);
+	} else {
+		dev_dbg(&pdev->dev, "%s: SLPI image is loaded\n", __func__);
+	}
 }
 
 static void slpi_loader_do(struct platform_device *pdev)
