@@ -24,6 +24,7 @@
 #define UFS_VENDOR_TOSHIBA     0x198
 #define UFS_VENDOR_SAMSUNG     0x1CE
 #define UFS_VENDOR_SKHYNIX     0x1AD
+#define UFS_VENDOR_SANDISK     0x0145
 
 /**
  * ufs_dev_fix - ufs device quirk info
