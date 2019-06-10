@@ -597,7 +597,7 @@ static char *string_nocheck(char *buf, char *end, const char *s,
 			    struct printf_spec spec)
 {
 	int len = 0;
-	size_t lim = spec.precision;
+	int lim = spec.precision;
 
 	while (lim--) {
 		char c = *s++;
