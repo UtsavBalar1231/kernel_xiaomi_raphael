@@ -5784,7 +5784,7 @@ static struct cdp_me_ops ol_ops_me = {
 };
 
 static struct cdp_mon_ops ol_ops_mon = {
-	/* EMPTY FOR MCL */
+	.txrx_monitor_record_channel = ol_htt_mon_note_chan,
 };
 
 static struct cdp_host_stats_ops ol_ops_host_stats = {
