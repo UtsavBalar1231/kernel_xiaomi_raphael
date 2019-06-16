@@ -2576,7 +2576,7 @@ static int msm_lsm_send_ch_mix_config(struct snd_pcm_substream *substream)
 		return 0;
 	}
 
-	ch_wght_coeff = kzalloc(in_params->num_chs * pp_ch_cnt * sizeof(int),
+	ch_wght_coeff = kcalloc(in_params->num_chs * pp_ch_cnt, sizeof(int),
 				GFP_KERNEL);
 	if (!ch_wght_coeff)
 		return -ENOMEM;

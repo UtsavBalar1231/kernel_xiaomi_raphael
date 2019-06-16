@@ -1140,7 +1140,7 @@ int crus_afe_port_start(u16 port_id)
 EXPORT_SYMBOL(crus_afe_port_start);
 int crus_afe_port_close(u16 port_id)
 {
-	pr_info("%s: 0x%x\n", __func__, port_id);
+	pr_debug("%s: 0x%x\n", __func__, port_id);
 
 //CSPL do not be involved in AFE
 #if 0
@@ -1160,7 +1160,7 @@ static long crus_sp_shared_ioctl(struct file *f, unsigned int cmd,
 	uint32_t bufsize = 0, size;
 	void *io_data = NULL;
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	if (copy_from_user(&size, arg, sizeof(size))) {
 		pr_err("CRUS_SP: copy_from_user (size) failed\n");
@@ -1222,7 +1222,7 @@ static long crus_sp_shared_ioctl(struct file *f, unsigned int cmd,
 			port = this_ctrl.ff_port;
 		break;
 		default:
-			pr_info("%s: Unrecognized port ID (%d)\n", __func__,
+			pr_debug("%s: Unrecognized port ID (%d)\n", __func__,
 			       crus_sp_hdr.module_id);
 			port = this_ctrl.ff_port;
 		}
@@ -1251,7 +1251,7 @@ exit:
 static long crus_sp_ioctl(struct file *f,
 		unsigned int cmd, unsigned long arg)
 {
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	return crus_sp_shared_ioctl(f, cmd, (void __user *)arg);
 }
@@ -1261,7 +1261,7 @@ static long crus_sp_compat_ioctl(struct file *f,
 {
 	unsigned int cmd64;
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	switch (cmd) {
 	case CRUS_SP_IOCTL_GET32:

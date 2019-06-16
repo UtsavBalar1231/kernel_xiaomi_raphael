@@ -35,6 +35,7 @@
 #include "wcd-mbhc-v2-api.h"
 
 #define CONFIG_AUDIO_UART_DEBUG
+static struct wakeup_source mbhc_ws;
 
 void wcd_mbhc_jack_report(struct wcd_mbhc *mbhc,
 			  struct snd_soc_jack *jack, int status, int mask)
@@ -1169,6 +1170,7 @@ static irqreturn_t wcd_mbhc_btn_press_handler(int irq, void *data)
 	unsigned long msec_val;
 
 	pr_debug("%s: enter\n", __func__);
+	__pm_wakeup_event(&mbhc_ws, 500);
 	complete(&mbhc->btn_press_compl);
 	WCD_MBHC_RSC_LOCK(mbhc);
 	wcd_cancel_btn_work(mbhc);
@@ -1219,6 +1221,7 @@ static irqreturn_t wcd_mbhc_release_handler(int irq, void *data)
 	int ret;
 
 	pr_debug("%s: enter\n", __func__);
+	__pm_wakeup_event(&mbhc_ws, 500);
 	WCD_MBHC_RSC_LOCK(mbhc);
 	if (wcd_swch_level_remove(mbhc)) {
 		pr_debug("%s: Switch level is low ", __func__);
@@ -2233,6 +2236,7 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 		       mbhc->intr_ids->hph_right_ocp);
 		goto err_hphr_ocp_irq;
 	}
+	wakeup_source_init(&mbhc_ws, "mbhc_ws");
 
 	mbhc->deinit_in_progress = false;
 	pr_debug("%s: leave ret %d\n", __func__, ret);
@@ -2257,6 +2261,7 @@ err_mbhc_sw_irq:
 		mbhc->mbhc_cb->register_notifier(mbhc, &mbhc->nblock, false);
 	mutex_destroy(&mbhc->codec_resource_lock);
 err:
+	wakeup_source_trash(&mbhc_ws);
 	pr_debug("%s: leave ret %d\n", __func__, ret);
 	return ret;
 }

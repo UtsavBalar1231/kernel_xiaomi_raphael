@@ -288,10 +288,9 @@ static int bolero_copy_dais_from_macro(struct bolero_priv *priv)
 
 	/* memcpy into bolero_dais all macro dais */
 	if (!priv->bolero_dais)
-		priv->bolero_dais = devm_kzalloc(priv->dev,
-						priv->num_dais *
-						sizeof(
-						struct snd_soc_dai_driver),
+		priv->bolero_dais = devm_kcalloc(priv->dev,
+						priv->num_dais,
+						sizeof(struct snd_soc_dai_driver),
 						GFP_KERNEL);
 	if (!priv->bolero_dais)
 		return -ENOMEM;

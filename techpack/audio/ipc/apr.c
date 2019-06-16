@@ -41,7 +41,7 @@
 
 static struct apr_q6 q6;
 static struct apr_client client[APR_DEST_MAX][APR_CLIENT_MAX];
-static void *apr_pkt_ctx;
+static void __maybe_unused *apr_pkt_ctx;
 static wait_queue_head_t modem_wait;
 static bool is_modem_up;
 static char *subsys_name = NULL;
@@ -89,12 +89,7 @@ static const struct file_operations apr_debug_ops = {
 };
 #endif
 
-#define APR_PKT_INFO(x...) \
-do { \
-	if (apr_pkt_ctx) \
-		ipc_log_string(apr_pkt_ctx, "<APR>: "x); \
-} while (0)
-
+#define APR_PKT_INFO(x...) ((void)0)
 
 struct apr_svc_table {
 	char name[64];
@@ -733,7 +728,7 @@ void apr_cb_func(void *buf, int len, void *priv)
 
 	if (unlikely(apr_cf_debug)) {
 		if (hdr->opcode == APR_BASIC_RSP_RESULT && data.payload) {
-			uint32_t *ptr = data.payload;
+			uint32_t __maybe_unused *ptr = data.payload;
 
 			APR_PKT_INFO(
 			"Rx: src_addr[0x%X] dest_addr[0x%X] opcode[0x%X] token[0x%X] rc[0x%X]",
@@ -1185,7 +1180,7 @@ static int apr_probe(struct platform_device *pdev)
 	apr_pkt_ctx = ipc_log_context_create(APR_PKT_IPC_LOG_PAGE_CNT,
 						"apr", 0);
 	if (!apr_pkt_ctx)
-		pr_err("%s: Unable to create ipc log context\n", __func__);
+		pr_debug("%s: Unable to create ipc log context\n", __func__);
 
 	spin_lock(&apr_priv->apr_lock);
 	apr_priv->is_initial_boot = true;

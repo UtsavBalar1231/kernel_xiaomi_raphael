@@ -570,7 +570,7 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		uint32_t *payload = data->payload;
 		uint32_t param_id;
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 		if (crus_afe_callback(data->payload, data->payload_size) == 0)
 			return 0;
 #endif
@@ -8600,9 +8600,9 @@ static void afe_release_uevent_data(struct kobject *kobj)
 
 #ifdef CONFIG_SND_SOC_TFA9874_FOR_DAVI
 
-int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
+extern int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 {
-	int32_t result, port_id = AFE_PORT_ID_TFADSP_RX;
+	int32_t result = 0, port_id = AFE_PORT_ID_TFADSP_RX;
 	uint32_t port_index = 0, payload_size = 0;
 	size_t len;
 	struct rtac_cal_block_data *tfa_cal = &(this_afe.tfa_cal);
@@ -8722,7 +8722,6 @@ int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 err:
 	return result;
 }
-EXPORT_SYMBOL(send_tfa_cal_apr);
 
 void send_tfa_cal_unmap_memory(void)
 {

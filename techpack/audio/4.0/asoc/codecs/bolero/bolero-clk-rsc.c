@@ -640,7 +640,7 @@ static int bolero_clk_rsc_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err;
 	}
-	clk_name_array = devm_kzalloc(&pdev->dev, clk_cnt * sizeof(char *),
+	clk_name_array = devm_kcalloc(&pdev->dev, clk_cnt, sizeof(char *),
 					  GFP_KERNEL);
 	if (!clk_name_array) {
 		ret = -ENOMEM;

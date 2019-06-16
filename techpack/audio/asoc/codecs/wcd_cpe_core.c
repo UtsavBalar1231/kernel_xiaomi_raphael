@@ -2257,6 +2257,7 @@ static int fill_cmi_header(struct cmi_hdr *hdr,
 		return -EINVAL;
 	}
 
+	hdr->hdr_info = 0;
 	CMI_HDR_SET_SESSION(hdr, session_id);
 	CMI_HDR_SET_SERVICE(hdr, service_id);
 	if (version)
