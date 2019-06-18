@@ -89,38 +89,6 @@ MODULE_PARM_DESC(phy_interrupt_en,
 
 struct ip_params pparams = {};
 #ifdef DWC_ETH_QOS_BUILTIN
-/*!
- * \brief API to extract MAC Address from given string
- *
- * \param[in] pointer to MAC Address string
- *
- * \return None
- */
-void DWC_ETH_QOS_extract_macid(char *mac_addr)
-{
-	char *input = NULL;
-	int i = 0;
-	UCHAR mac_id = 0;
-
-	if (!mac_addr)
-		return;
-
-	/* Extract MAC ID byte by byte */
-	input = strsep(&mac_addr, ":");
-	while(input != NULL && i < DWC_ETH_QOS_MAC_ADDR_LEN) {
-		sscanf(input, "%x", &mac_id);
-		pparams.mac_addr[i++] = mac_id;
-		input = strsep(&mac_addr, ":");
-	}
-	if (!is_valid_ether_addr(pparams.mac_addr)) {
-		EMACERR("Invalid Mac address programmed: %s\n", mac_addr);
-		return;
-	} else
-		pparams.is_valid_mac_addr = true;
-
-	return;
-}
-
 static int __init set_early_ethernet_ipv4(char *ipv4_addr_in)
 {
 	int ret = 1;
@@ -170,17 +138,25 @@ __setup("eipv6=", set_early_ethernet_ipv6);
 static int __init set_early_ethernet_mac(char* mac_addr)
 {
 	int ret = 1;
-	char temp_mac_addr[DWC_ETH_QOS_MAC_ADDR_STR_LEN];
-	pparams.is_valid_mac_addr = false;
+	bool valid_mac = false;
 
+	pparams.is_valid_mac_addr = false;
 	if(!mac_addr)
 		return ret;
 
-	strlcpy(temp_mac_addr, mac_addr, sizeof(temp_mac_addr));
-	EMACDBG("Early ethernet MAC address assigned: %s\n", temp_mac_addr);
-	temp_mac_addr[DWC_ETH_QOS_MAC_ADDR_STR_LEN-1] = '\0';
+	valid_mac = mac_pton(mac_addr, pparams.mac_addr);
+	if(!valid_mac)
+		goto fail;
 
-	DWC_ETH_QOS_extract_macid(temp_mac_addr);
+	valid_mac = is_valid_ether_addr(pparams.mac_addr);
+	if (!valid_mac)
+		goto fail;
+
+	pparams.is_valid_mac_addr = true;
+	return ret;
+
+fail:
+	EMACERR("Invalid Mac address programmed: %s\n", mac_addr);
 	return ret;
 }
 __setup("ermac=", set_early_ethernet_mac);
