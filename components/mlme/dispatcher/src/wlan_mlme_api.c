@@ -3415,3 +3415,20 @@ QDF_STATUS wlan_mlme_ibss_power_save_setup(struct wlan_objmgr_psoc *psoc,
 
 	return QDF_STATUS_SUCCESS;
 }
+
+QDF_STATUS mlme_get_peer_phymode(struct wlan_objmgr_psoc *psoc, uint8_t *mac,
+				 enum wlan_phymode *peer_phymode)
+{
+	struct wlan_objmgr_peer *peer;
+
+	peer = wlan_objmgr_get_peer_by_mac(psoc, mac, WLAN_MLME_NB_ID);
+	if (!peer) {
+		mlme_legacy_err("peer object is null");
+		return QDF_STATUS_E_NULL_VALUE;
+	}
+
+	*peer_phymode = wlan_peer_get_phymode(peer);
+	wlan_objmgr_peer_release_ref(peer, WLAN_MLME_NB_ID);
+
+	return QDF_STATUS_SUCCESS;
+}
