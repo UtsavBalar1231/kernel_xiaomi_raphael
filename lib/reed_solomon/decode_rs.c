@@ -98,8 +98,7 @@
 		/* if syndrome is zero, data[] is a codeword and there are no
 		 * errors to correct. So return data[] unmodified
 		 */
-		count = 0;
-		goto finish;
+		return 0;
 	}
 
  decode:
@@ -212,8 +211,7 @@
 		 * deg(lambda) unequal to number of roots => uncorrectable
 		 * error detected
 		 */
-		count = -EBADMSG;
-		goto finish;
+		return -EBADMSG;
 	}
 	/*
 	 * Compute err+eras evaluator poly omega(x) = s(x)*lambda(x) (modulo
@@ -271,7 +269,6 @@
 		}
 	}
 
-finish:
 	if (eras_pos != NULL) {
 		for (i = 0; i < count; i++)
 			eras_pos[i] = loc[i] - pad;
