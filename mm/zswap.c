@@ -46,7 +46,7 @@
 * statistics
 **********************************/
 /* Total bytes used by the compressed storage */
-static u64 zswap_pool_total_size;
+static u64 zswap_pool_total_size_kb;
 /* The number of compressed pages currently stored in zswap */
 static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
 /* The number of same-value filled pages currently stored in zswap */
@@ -210,7 +210,7 @@ static void zswap_update_total_size(void)
 
 	rcu_read_unlock();
 
-	zswap_pool_total_size = total;
+	zswap_pool_total_size_kb = DIV_ROUND_UP(total, 1024);
 }
 
 /*********************************
@@ -1057,8 +1057,8 @@ static int __init zswap_debugfs_init(void)
 			zswap_debugfs_root, &zswap_reject_compress_poor);
 	debugfs_create_u64("duplicate_entry", S_IRUGO,
 			zswap_debugfs_root, &zswap_duplicate_entry);
-	debugfs_create_u64("pool_total_size", S_IRUGO,
-			zswap_debugfs_root, &zswap_pool_total_size);
+	debugfs_create_u64("pool_total_size_kb", S_IRUGO,
+			zswap_debugfs_root, &zswap_pool_total_size_kb);
 	debugfs_create_atomic_t("stored_pages", S_IRUGO,
 			zswap_debugfs_root, &zswap_stored_pages);
 	debugfs_create_atomic_t("same_filled_pages", 0444,
