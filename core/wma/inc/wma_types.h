@@ -730,7 +730,9 @@ QDF_STATUS wma_register_roaming_callbacks(
 			struct bss_description *bss_desc_ptr,
 			enum sir_roam_op_code reason),
 		QDF_STATUS (*pe_disconnect_cb) (struct mac_context *mac,
-						uint8_t vdev_id));
+			uint8_t vdev_id,
+			uint8_t *deauth_disassoc_frame,
+			uint16_t deauth_disassoc_frame_len));
 #else
 static inline QDF_STATUS wma_register_roaming_callbacks(
 		QDF_STATUS (*csr_roam_synch_cb)(struct mac_context *mac,
@@ -742,7 +744,9 @@ static inline QDF_STATUS wma_register_roaming_callbacks(
 			struct bss_description *bss_desc_ptr,
 			enum sir_roam_op_code reason),
 		QDF_STATUS (*pe_disconnect_cb) (struct mac_context *mac,
-						uint8_t vdev_id))
+			uint8_t vdev_id,
+			uint8_t *deauth_disassoc_frame,
+			uint16_t deauth_disassoc_frame_len))
 {
 	return QDF_STATUS_E_NOSUPPORT;
 }
