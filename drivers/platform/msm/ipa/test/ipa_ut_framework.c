@@ -861,7 +861,7 @@ static ssize_t ipa_ut_dbgfs_enable_write(struct file *file,
 
 	IPA_UT_DBG("Entry\n");
 
-	if (sizeof(lcl_buf) < count + 1) {
+	if (sizeof(lcl_buf) < count) {
 		IPA_UT_ERR("No enough space\n");
 		return -E2BIG;
 	}
