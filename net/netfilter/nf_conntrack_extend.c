@@ -75,6 +75,8 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	if (!new)
 		return NULL;
 
+	kmemleak_not_leak(new);
+
 	if (!old) {
 		memset(new->offset, 0, sizeof(new->offset));
 		ct->ext = new;
