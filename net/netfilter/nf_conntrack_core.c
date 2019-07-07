@@ -1222,6 +1222,8 @@ __nf_conntrack_alloc(struct net *net,
 	if (ct == NULL)
 		goto out;
 
+	kmemleak_not_leak(ct);
+
 	spin_lock_init(&ct->lock);
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.pprev = NULL;
