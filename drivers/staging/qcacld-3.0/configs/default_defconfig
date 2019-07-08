@@ -327,13 +327,10 @@ CONFIG_FEATURE_FW_LOG_PARSING := n
 CONFIG_DP_TRACE := n
 
 ifeq ($(CONFIG_SLUB_DEBUG), y)
-	PANIC_ON_BUG := y
 	WLAN_WARN_ON_ASSERT := y
 else ifeq ($(CONFIG_PERF_DEBUG), y)
-	PANIC_ON_BUG := y
 	WLAN_WARN_ON_ASSERT := y
 else
-	PANIC_ON_BUG := n
 	WLAN_WARN_ON_ASSERT := n
 endif
 
@@ -639,3 +636,13 @@ CONFIG_WLAN_FEATURE_PKT_CAPTURE := y
 endif
 
 CONFIG_WLAN_HANG_EVENT := y
+
+#Flag to enable/disable kernel panic calls
+CONFIG_PANIC_ON_WLAN_QDF_BUG=y
+PANIC_ON_BUG := n
+
+ifeq ($(CONFIG_SLUB_DEBUG), y)
+	ifeq ($(CONFIG_PANIC_ON_WLAN_QDF_BUG), y)
+		PANIC_ON_BUG := y
+	endif
+endif
