@@ -5157,6 +5157,7 @@ void Register_PPS_ISR(struct DWC_ETH_QOS_prv_data *pdata, int ch)
 			EMACERR("Req ptp_pps_avb_class_a_irq Failed ret=%d\n",ret);
 		} else {
 			EMACERR("Req ptp_pps_avb_class_a_irq pass \n");
+			pdata->en_ptp_pps_avb_class_a_irq = true;
 		}
 	} else if (ch == DWC_ETH_QOS_PPS_CH_3) {
 		ret = request_irq(pdata->res_data->ptp_pps_avb_class_b_irq, DWC_ETH_QOS_PPS_avb_class_b,
@@ -5165,6 +5166,7 @@ void Register_PPS_ISR(struct DWC_ETH_QOS_prv_data *pdata, int ch)
 			EMACERR("Req ptp_pps_avb_class_b_irq Failed ret=%d\n",ret);
 		} else {
 			EMACERR("Req ptp_pps_avb_class_b_irq pass \n");
+			pdata->en_ptp_pps_avb_class_b_irq = true;
 		}
 	} else
 		EMACERR("Invalid channel %d\n", ch);
@@ -5173,12 +5175,14 @@ void Register_PPS_ISR(struct DWC_ETH_QOS_prv_data *pdata, int ch)
 void Unregister_PPS_ISR(struct DWC_ETH_QOS_prv_data *pdata, int ch)
 {
 	if (ch == DWC_ETH_QOS_PPS_CH_2) {
-		if (pdata->res_data->ptp_pps_avb_class_a_irq != 0) {
+		if (pdata->res_data->ptp_pps_avb_class_a_irq != 0 && pdata->en_ptp_pps_avb_class_a_irq) {
 			free_irq(pdata->res_data->ptp_pps_avb_class_a_irq, pdata);
+			pdata->en_ptp_pps_avb_class_a_irq = false;
 		}
 	} else if (ch == DWC_ETH_QOS_PPS_CH_3) {
-		if (pdata->res_data->ptp_pps_avb_class_b_irq != 0) {
+		if (pdata->res_data->ptp_pps_avb_class_b_irq != 0 && pdata->en_ptp_pps_avb_class_b_irq) {
 			free_irq(pdata->res_data->ptp_pps_avb_class_b_irq, pdata);
+			pdata->en_ptp_pps_avb_class_b_irq = false;
 		}
 	} else
 		EMACERR("Invalid channel %d\n", ch);
