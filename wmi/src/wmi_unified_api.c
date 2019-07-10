@@ -1449,32 +1449,36 @@ QDF_STATUS wmi_unified_oem_dma_ring_cfg(void *wmi_hdl,
 {
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
-	if (wmi_handle->ops->send_start_oem_data_cmd)
+	if (wmi_handle->ops->send_oem_dma_cfg_cmd)
 		return wmi_handle->ops->send_oem_dma_cfg_cmd(wmi_handle, cfg);
 
 	return QDF_STATUS_E_FAILURE;
 }
 #endif
 
-/**
- * wmi_unified_start_oem_data_cmd() - start OEM data request to target
- * @wmi_handle: wmi handle
- * @startOemDataReq: start request params
- *
- * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
- */
-QDF_STATUS wmi_unified_start_oem_data_cmd(void *wmi_hdl,
-			  uint32_t data_len,
-			  uint8_t *data)
+QDF_STATUS wmi_unified_start_oem_data_cmd(wmi_unified_t wmi_handle,
+					  uint32_t data_len,
+					  uint8_t *data)
 {
-	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
-
 	if (wmi_handle->ops->send_start_oem_data_cmd)
 		return wmi_handle->ops->send_start_oem_data_cmd(wmi_handle,
-			    data_len, data);
+								data_len,
+								data);
 
 	return QDF_STATUS_E_FAILURE;
 }
+
+#ifdef FEATURE_OEM_DATA
+QDF_STATUS wmi_unified_start_oemv2_data_cmd(wmi_unified_t wmi_handle,
+					    struct oem_data *params)
+{
+	if (wmi_handle->ops->send_start_oemv2_data_cmd)
+		return wmi_handle->ops->send_start_oemv2_data_cmd(wmi_handle,
+								  params);
+
+	return QDF_STATUS_E_FAILURE;
+}
+#endif
 
 /**
  * wmi_unified_dfs_phyerr_filter_offload_en_cmd() - enable dfs phyerr filter
