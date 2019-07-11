@@ -1227,7 +1227,7 @@ static void lim_join_result_callback(struct mac_context *mac, void *param,
 	qdf_mem_free(link_state_params);
 }
 
-QDF_STATUS lim_sta_send_down_link(join_params *param)
+QDF_STATUS lim_sta_handle_connect_fail(join_params *param)
 {
 	struct pe_session *session;
 	struct mac_context *mac_ctx;
@@ -1312,6 +1312,9 @@ error:
 				      param->result_code,
 				      param->prot_status_code,
 				      session, session->smeSessionId);
+	if (param->result_code == eSIR_SME_PEER_CREATE_FAILED)
+		pe_delete_session(mac_ctx, session);
+
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -1340,6 +1343,7 @@ void lim_handle_sme_join_result(struct mac_context *mac_ctx,
 		pe_err("session is NULL");
 		return;
 	}
+
 	if (result_code == eSIR_SME_SUCCESS) {
 		wlan_vdev_mlme_sm_deliver_evt(session->vdev,
 					      WLAN_VDEV_SM_EV_START_SUCCESS,
@@ -1355,9 +1359,16 @@ void lim_handle_sme_join_result(struct mac_context *mac_ctx,
 	param.pe_session_id = session->peSessionId;
 
 	mlme_set_connection_fail(session->vdev, true);
-	status = wlan_vdev_mlme_sm_deliver_evt(session->vdev,
+	if (wlan_vdev_mlme_get_substate(session->vdev) ==
+	    WLAN_VDEV_SS_START_START_PROGRESS)
+		status = wlan_vdev_mlme_sm_deliver_evt(session->vdev,
+					       WLAN_VDEV_SM_EV_START_REQ_FAIL,
+					       sizeof(param), &param);
+	else
+		status = wlan_vdev_mlme_sm_deliver_evt(session->vdev,
 					       WLAN_VDEV_SM_EV_CONNECTION_FAIL,
 					       sizeof(param), &param);
+
 	return;
 }
 
