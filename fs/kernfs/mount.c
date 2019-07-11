@@ -412,6 +412,8 @@ void __init kernfs_init(void)
 	 * please see how kernfs_find_and_get_node_by_ino filters out stale
 	 * nodes.
 	 */
+
+	init_kernfs_file_pool();
 	kernfs_node_cache = kmem_cache_create("kernfs_node_cache",
 					      sizeof(struct kernfs_node),
 					      0,
