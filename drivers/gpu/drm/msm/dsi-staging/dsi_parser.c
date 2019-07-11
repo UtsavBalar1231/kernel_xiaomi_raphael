@@ -242,7 +242,7 @@ static bool dsi_parser_parse_prop(struct device *dev,
 	if (!prop->raw)
 		goto end;
 
-	strlcpy(prop->raw, buf, strlen(buf) + 1);
+	strscpy(prop->raw, buf, sizeof(prop->raw));
 
 	found = true;
 
