@@ -426,6 +426,8 @@ struct dma_buf {
 	} cb_excl, cb_shared;
 
 	struct list_head refs;
+
+	bool from_kmem;
 };
 
 /**
