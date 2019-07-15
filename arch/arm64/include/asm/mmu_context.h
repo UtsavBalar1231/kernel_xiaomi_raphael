@@ -48,6 +48,7 @@ static inline void contextidr_thread_switch(struct task_struct *next)
 	write_sysreg(pid, contextidr_el1);
 	isb();
 
+	uncached_logk(LOGK_CTXID, (void *)(u64)pid);
 
 }
 
