@@ -9336,7 +9336,15 @@ int hdd_psoc_idle_shutdown(struct device *dev)
 
 static int __hdd_psoc_idle_restart(struct hdd_context *hdd_ctx)
 {
-	return hdd_wlan_start_modules(hdd_ctx, false);
+	int ret;
+
+	hdd_soc_idle_restart_lock();
+
+	ret = hdd_wlan_start_modules(hdd_ctx, false);
+
+	hdd_soc_idle_restart_unlock();
+
+	return ret;
 }
 
 int hdd_psoc_idle_restart(struct device *dev)
@@ -9353,6 +9361,8 @@ int hdd_psoc_idle_restart(struct device *dev)
 
 int hdd_trigger_psoc_idle_restart(struct hdd_context *hdd_ctx)
 {
+	int ret;
+
 	QDF_BUG(rtnl_is_locked());
 
 	if (hdd_ctx->driver_status == DRIVER_MODULES_ENABLED) {
@@ -9361,9 +9371,11 @@ int hdd_trigger_psoc_idle_restart(struct hdd_context *hdd_ctx)
 		return 0;
 	}
 
-	pld_idle_restart(hdd_ctx->parent_dev, hdd_psoc_idle_restart);
+	hdd_soc_idle_restart_lock();
+	ret = pld_idle_restart(hdd_ctx->parent_dev, hdd_psoc_idle_restart);
+	hdd_soc_idle_restart_unlock();
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -13614,11 +13626,15 @@ static int hdd_mode_change_psoc_idle_shutdown(struct device *dev)
 static int hdd_mode_change_psoc_idle_restart(struct device *dev)
 {
 	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	int ret;
 
 	if (!hdd_ctx)
 		return -EINVAL;
+	hdd_soc_idle_restart_lock();
+	ret = hdd_wlan_start_modules(hdd_ctx, false);
+	hdd_soc_idle_restart_unlock();
 
-	return hdd_wlan_start_modules(hdd_ctx, false);
+	return ret;
 }
 
 /**
