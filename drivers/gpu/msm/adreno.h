@@ -1657,16 +1657,10 @@ static inline void adreno_set_protected_registers(
 	*index = *index + 1;
 }
 
-#ifdef CONFIG_DEBUG_FS
-void adreno_debugfs_init(struct adreno_device *adreno_dev);
-void adreno_context_debugfs_init(struct adreno_device *adreno_dev,
-				struct adreno_context *ctx);
-#else
 static inline void adreno_debugfs_init(struct adreno_device *adreno_dev) { }
 static inline void adreno_context_debugfs_init(struct adreno_device *device,
 						struct adreno_context *context)
 						{ }
-#endif
 
 /**
  * adreno_compare_pm4_version() - Compare the PM4 microcode version
