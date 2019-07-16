@@ -343,7 +343,7 @@ And public attribution of xiaomi platforms(like F1 and so and)
 		goodix,panel-max-p = <127>;
 		goodix,panel-max-fod = <127>;
 	/*	goodix,panel-key-map = <158 172 217>; */ /*KEY_BACK, KEY_HOMEPAGE, KEY_SEARCH*/
-		goodix,power-on-delay-us = <300000>; /*300ms*/
+		goodix,power-on-delay-us = <20000>; /*20ms*/
 		goodix,power-off-delay-us = <5000>;
 		goodix,cfg-name = "goodix_gt9886_cfg_f11.bin";
 		normal-cfg = [
