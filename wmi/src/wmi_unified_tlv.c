@@ -12301,6 +12301,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 #endif
 	event_ids[wmi_coex_report_antenna_isolation_event_id] =
 				WMI_COEX_REPORT_ANTENNA_ISOLATION_EVENTID;
+	event_ids[wmi_roam_auth_offload_event_id] =
+				WMI_ROAM_PREAUTH_START_EVENTID;
 }
 
 /**
@@ -12564,6 +12566,10 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_TX_COMPL_TSF64;
 	wmi_service[wmi_service_data_stall_recovery_support] =
 			WMI_SERVICE_DSM_ROAM_FILTER;
+	wmi_service[wmi_service_sae_roam_support] =
+			WMI_SERVICE_WPA3_SAE_ROAM_SUPPORT;
+	wmi_service[wmi_service_owe_roam_support] =
+			WMI_SERVICE_WPA3_OWE_ROAM_SUPPORT;
 }
 
 /**
