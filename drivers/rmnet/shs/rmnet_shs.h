@@ -19,6 +19,8 @@
 #ifndef _RMNET_SHS_H_
 #define _RMNET_SHS_H_
 
+#include "rmnet_shs_freq.h"
+
 #include <../drivers/net/ethernet/qualcomm/rmnet/rmnet_config.h>
 #include <../drivers/net/ethernet/qualcomm/rmnet/rmnet_map.h>
 #include <../drivers/net/ethernet/qualcomm/rmnet/rmnet_private.h>
@@ -32,6 +34,7 @@
 #define RMNET_SHS_MAX_SKB_INACTIVE_TSEC 30
 #define MAX_SILVER_CORES 4
 #define MAX_CPUS  8
+#define PERF_MASK 0xF0
 
 /* RPS mask change's Default core for orphaned CPU flows */
 #define MAIN_CORE 0
@@ -298,6 +301,10 @@ int rmnet_shs_get_mask_len(u8 mask);
 
 int rmnet_shs_chk_and_flush_node(struct rmnet_shs_skbn_s *node,
 				 u8 force_flush, u8 ctxt);
+void rmnet_shs_dl_hdr_handler_v2(struct rmnet_map_dl_ind_hdr *dlhdr,
+			      struct rmnet_map_control_command_header *qcmd);
+void rmnet_shs_dl_trl_handler_v2(struct rmnet_map_dl_ind_trl *dltrl,
+			      struct rmnet_map_control_command_header *qcmd);
 void rmnet_shs_dl_hdr_handler(struct rmnet_map_dl_ind_hdr *dlhdr);
 void rmnet_shs_dl_trl_handler(struct rmnet_map_dl_ind_trl *dltrl);
 void rmnet_shs_assign(struct sk_buff *skb, struct rmnet_port *port);

@@ -49,6 +49,8 @@
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_ipa.h"
 
+void *ipc_emac_log_ctxt;
+
 static UCHAR dev_addr[6] = {0, 0x55, 0x7b, 0xb5, 0x7d, 0xf7};
 struct DWC_ETH_QOS_res_data dwc_eth_qos_res_data = {0, };
 static struct msm_bus_scale_pdata *emac_bus_scale_vec = NULL;
@@ -62,7 +64,7 @@ struct emac_emb_smmu_cb_ctx emac_emb_smmu_ctx = {0};
 static struct qmp_pkt pkt;
 static char qmp_buf[MAX_QMP_MSG_SIZE + 1] = {0};
 extern int create_pps_interrupt_info_device_node(dev_t *pps_dev_t,
-	struct cdev* pps_cdev, struct class* pps_class,
+	struct cdev** pps_cdev, struct class** pps_class,
 	char *pps_dev_node_name);
 extern int remove_pps_interrupt_info_device_node(struct DWC_ETH_QOS_prv_data *pdata);
 
@@ -968,6 +970,11 @@ void DWC_ETH_QOS_resume_clks(struct DWC_ETH_QOS_prv_data *pdata)
 	else
 		DWC_ETH_QOS_set_clk_and_bus_config(pdata, SPEED_10);
 
+#ifdef DWC_ETH_QOS_CONFIG_PTP
+	if (dwc_eth_qos_res_data.ptp_clk)
+		clk_prepare_enable(dwc_eth_qos_res_data.ptp_clk);
+#endif
+
 	pdata->clks_suspended = 0;
 	complete_all(&pdata->clk_enable_done);
 
@@ -991,6 +998,11 @@ void DWC_ETH_QOS_suspend_clks(struct DWC_ETH_QOS_prv_data *pdata)
 
 	if (dwc_eth_qos_res_data.rgmii_clk)
 		clk_disable_unprepare(dwc_eth_qos_res_data.rgmii_clk);
+
+#ifdef DWC_ETH_QOS_CONFIG_PTP
+	if (dwc_eth_qos_res_data.ptp_clk)
+		clk_disable_unprepare(dwc_eth_qos_res_data.ptp_clk);
+#endif
 
 	EMACDBG("Exit\n");
 }
@@ -1580,10 +1592,10 @@ static int DWC_ETH_QOS_configure_netdevice(struct platform_device *pdev)
 
 	if (pdata->emac_hw_version_type == EMAC_HW_v2_3_1) {
 		create_pps_interrupt_info_device_node(&pdata->avb_class_a_dev_t,
-			pdata->avb_class_a_cdev, pdata->avb_class_a_class, AVB_CLASS_A_POLL_DEV_NODE_NAME);
+			&pdata->avb_class_a_cdev, &pdata->avb_class_a_class, AVB_CLASS_A_POLL_DEV_NODE_NAME);
 
 		create_pps_interrupt_info_device_node(&pdata->avb_class_b_dev_t,
-			pdata->avb_class_b_cdev ,pdata->avb_class_b_class, AVB_CLASS_B_POLL_DEV_NODE_NAME);
+			&pdata->avb_class_b_cdev ,&pdata->avb_class_b_class, AVB_CLASS_B_POLL_DEV_NODE_NAME);
 	}
 
 	DWC_ETH_QOS_create_debugfs(pdata);
@@ -2190,6 +2202,12 @@ static int DWC_ETH_QOS_init_module(void)
 		return ret;
 	}
 
+	ipc_emac_log_ctxt = ipc_log_context_create(IPCLOG_STATE_PAGES,"emac", 0);
+	if (!ipc_emac_log_ctxt)
+		pr_err("Error creating logging context for emac\n");
+	else
+		pr_info("IPC logging has been enabled for emac\n");
+
 #ifdef DWC_ETH_QOS_CONFIG_DEBUGFS
 	create_debug_files();
 #endif
@@ -2217,6 +2235,9 @@ static void __exit DWC_ETH_QOS_exit_module(void)
 #endif
 
 	platform_driver_unregister(&DWC_ETH_QOS_plat_drv);
+
+	if (ipc_emac_log_ctxt != NULL)
+		ipc_log_context_destroy(ipc_emac_log_ctxt);
 
 	DBGPR("<--DWC_ETH_QOS_exit_module\n");
 }
