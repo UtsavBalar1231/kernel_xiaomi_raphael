@@ -23,6 +23,7 @@
 
 unsigned int vow_config;
 
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 /**
  * ol_tx_set_flow_control_parameters() - set flow control parameters
  * @cfg_ctx: cfg context
@@ -40,6 +41,7 @@ void ol_tx_set_flow_control_parameters(struct cdp_cfg *cfg_pdev,
 	cfg_ctx->tx_flow_stop_queue_th =
 					cfg_param->tx_flow_stop_queue_th;
 }
+#endif
 
 #ifdef CONFIG_HL_SUPPORT
 
@@ -114,7 +116,7 @@ struct cdp_cfg *ol_pdev_cfg_attach(qdf_device_t osdev, void *pcfg_param)
 	cfg_ctx->max_thruput_mbps = MAX_THROUGHPUT;
 	cfg_ctx->max_nbuf_frags = 1;
 	cfg_ctx->vow_config = vow_config;
-	cfg_ctx->target_tx_credit = TARGET_TX_CREDIT;
+	cfg_ctx->target_tx_credit = CFG_TGT_NUM_MSDU_DESC;
 	cfg_ctx->throttle_period_ms = 40;
 	cfg_ctx->dutycycle_level[0] = THROTTLE_DUTY_CYCLE_LEVEL0;
 	cfg_ctx->dutycycle_level[1] = THROTTLE_DUTY_CYCLE_LEVEL1;
@@ -364,6 +366,7 @@ int ol_cfg_is_rx_thread_enabled(struct cdp_cfg *cfg_pdev)
 	return cfg->enable_rxthread;
 }
 
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 /**
  * ol_cfg_get_tx_flow_stop_queue_th() - return stop queue threshold
  * @pdev : handle to the physical device
@@ -389,6 +392,7 @@ int ol_cfg_get_tx_flow_start_queue_offset(struct cdp_cfg *cfg_pdev)
 
 	return cfg->tx_flow_start_queue_offset;
 }
+#endif
 
 
 #ifdef IPA_OFFLOAD
