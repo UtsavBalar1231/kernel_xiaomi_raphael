@@ -567,13 +567,4 @@ static inline bool is_migrate_highatomic_page(struct page *page)
 }
 
 void setup_zone_pageset(struct zone *zone);
-
-#ifdef CONFIG_ANDROID_LOW_MEMORY_KILLER
-extern bool lmk_kill_possible(void);
-#else
-static inline bool lmk_kill_possible(void)
-{
-	return false;
-}
-#endif
 #endif	/* __MM_INTERNAL_H */
