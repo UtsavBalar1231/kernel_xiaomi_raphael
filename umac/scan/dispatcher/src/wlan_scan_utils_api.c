@@ -98,7 +98,10 @@ util_get_last_scan_time(struct wlan_objmgr_vdev *vdev)
 	pdev_id = wlan_scan_vdev_get_pdev_id(vdev);
 	scan_obj = wlan_vdev_get_scan_obj(vdev);
 
-	return scan_obj->pdev_info[pdev_id].last_scan_time;
+	if (scan_obj)
+		return scan_obj->pdev_info[pdev_id].last_scan_time;
+	else
+		return 0;
 }
 
 enum wlan_band util_scan_scm_chan_to_band(uint32_t chan)
@@ -425,7 +428,7 @@ util_scan_parse_vendor_ie(struct scan_cache_entry *scan_params,
 			  ie)->hi_ie);
 		}
 	} else if (is_interop_vht((uint8_t *)ie) &&
-	    !(scan_params->ie_list.vhtop)) {
+	    !(scan_params->ie_list.vhtcap)) {
 		uint8_t *vendor_ie = (uint8_t *)(ie);
 
 		if (ie->ie_len < ((WLAN_VENDOR_VHTCAP_IE_OFFSET +
@@ -441,17 +444,19 @@ util_scan_parse_vendor_ie(struct scan_cache_entry *scan_params,
 						WLAN_VENDOR_VHTCAP_IE_OFFSET);
 		if (ie->ie_len > ((WLAN_VENDOR_VHTCAP_IE_OFFSET +
 				 sizeof(struct wlan_ie_vhtcaps)) -
-				 sizeof(struct ie_header)) &&
-		    ie->ie_len < ((WLAN_VENDOR_VHTOP_IE_OFFSET +
-				  sizeof(struct wlan_ie_vhtop)) -
-				  sizeof(struct ie_header)))
-			return QDF_STATUS_E_INVAL;
-		vendor_ie = ((uint8_t *)(ie)) + WLAN_VENDOR_VHTOP_IE_OFFSET;
-		if (vendor_ie[1] != (sizeof(struct wlan_ie_vhtop) -
-				     sizeof(struct ie_header)))
-			return QDF_STATUS_E_INVAL;
-		scan_params->ie_list.vhtop = (((uint8_t *)(ie)) +
-						WLAN_VENDOR_VHTOP_IE_OFFSET);
+				 sizeof(struct ie_header))) {
+			if (ie->ie_len < ((WLAN_VENDOR_VHTOP_IE_OFFSET +
+					  sizeof(struct wlan_ie_vhtop)) -
+					  sizeof(struct ie_header)))
+				return QDF_STATUS_E_INVAL;
+			vendor_ie = ((uint8_t *)(ie)) +
+				    WLAN_VENDOR_VHTOP_IE_OFFSET;
+			if (vendor_ie[1] != (sizeof(struct wlan_ie_vhtop) -
+					     sizeof(struct ie_header)))
+				return QDF_STATUS_E_INVAL;
+			scan_params->ie_list.vhtop = (((uint8_t *)(ie)) +
+						   WLAN_VENDOR_VHTOP_IE_OFFSET);
+		}
 	} else if (is_bwnss_oui((uint8_t *)ie)) {
 		/*
 		 * Bandwidth-NSS map has sub-type & version.
