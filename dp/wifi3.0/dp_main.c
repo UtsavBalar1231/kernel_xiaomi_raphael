@@ -64,7 +64,6 @@ cdp_dump_flow_pool_info(struct cdp_soc_t *soc)
 #include "dp_txrx_wds.h"
 #endif
 #ifdef CONFIG_MCL
-extern int con_mode_monitor;
 #ifndef REMOVE_PKT_LOG
 #include <pktlog_ac_api.h>
 #include <pktlog_ac.h>
@@ -1741,7 +1740,9 @@ static QDF_STATUS dp_soc_interrupt_attach_wrapper(void *txrx_soc)
 	struct dp_soc *soc = (struct dp_soc *)txrx_soc;
 
 	if (!(soc->wlan_cfg_ctx->napi_enabled) ||
-	     con_mode_monitor == QDF_GLOBAL_MONITOR_MODE) {
+	    (soc->cdp_soc.ol_ops->get_con_mode &&
+	     soc->cdp_soc.ol_ops->get_con_mode() ==
+	     QDF_GLOBAL_MONITOR_MODE)) {
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_INFO,
 				  "%s: Poll mode", __func__);
 		return dp_soc_attach_poll(txrx_soc);
@@ -9556,7 +9557,9 @@ void *dp_soc_init(void *dpsoc, HTC_HANDLE htc_handle, void *hif_handle)
 					       REO_DST_RING_SIZE_QCA6290);
 		wlan_cfg_set_raw_mode_war(soc->wlan_cfg_ctx, true);
 		soc->ast_override_support = 1;
-		if (con_mode_monitor == QDF_GLOBAL_MONITOR_MODE) {
+		if (soc->cdp_soc.ol_ops->get_con_mode &&
+		    soc->cdp_soc.ol_ops->get_con_mode() ==
+		    QDF_GLOBAL_MONITOR_MODE) {
 			int int_ctx;
 
 			for (int_ctx = 0; int_ctx < WLAN_CFG_INT_NUM_CONTEXTS; int_ctx++) {
