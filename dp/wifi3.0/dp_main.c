@@ -1703,6 +1703,28 @@ static QDF_STATUS dp_soc_attach_poll(void *txrx_soc)
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+ * dp_soc_set_interrupt_mode() - Set the interrupt mode in soc
+ * txrx_soc: DP soc handle
+ *
+ * Set the appropriate interrupt mode flag in the soc
+ */
+static void dp_soc_set_interrupt_mode(struct cdp_soc_t *txrx_soc)
+{
+	struct dp_soc *soc = (struct dp_soc *)txrx_soc;
+	int msi_vector_count, ret;
+	uint32_t msi_base_data, msi_vector_start;
+
+	ret = pld_get_user_msi_assignment(soc->osdev->dev, "DP",
+					  &msi_vector_count,
+					  &msi_base_data,
+					  &msi_vector_start);
+	if (ret)
+		return;
+
+	soc->intr_mode = DP_INTR_MSI;
+}
+
 static QDF_STATUS dp_soc_interrupt_attach(void *txrx_soc);
 #if defined(CONFIG_MCL)
 /*
@@ -1848,8 +1870,6 @@ static void dp_soc_interrupt_map_calculate_msi(struct dp_soc *soc,
 	unsigned int vector =
 		(intr_ctx_num % msi_vector_count) + msi_vector_start;
 	int num_irq = 0;
-
-	soc->intr_mode = DP_INTR_MSI;
 
 	if (tx_mask | rx_mask | rx_mon_mask | rx_err_ring_mask |
 	    rx_wbm_rel_ring_mask | reo_status_ring_mask | rxdma2host_ring_mask)
@@ -8932,6 +8952,7 @@ static struct cdp_cmn_ops dp_ops_cmn = {
 	.txrx_soc_set_nss_cfg = dp_soc_set_nss_cfg_wifi3,
 	.txrx_soc_get_nss_cfg = dp_soc_get_nss_cfg_wifi3,
 	.txrx_intr_attach = dp_soc_interrupt_attach_wrapper,
+	.set_intr_mode = dp_soc_set_interrupt_mode,
 	.txrx_intr_detach = dp_soc_interrupt_detach,
 	.set_pn_check = dp_set_pn_check_wifi3,
 	.update_config_parameters = dp_update_config_parameters,
