@@ -589,11 +589,11 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 			snd_soc_update_bits(codec, hpf_gate_reg, 0x02, 0x00);
 		}
 		/* schedule work queue to Remove Mute */
-		schedule_delayed_work(&va_priv->va_mute_dwork[decimator].dwork,
+		queue_delayed_work(system_power_efficient_wq, &va_priv->va_mute_dwork[decimator].dwork,
 				      msecs_to_jiffies(va_tx_unmute_delay));
 		if (va_priv->va_hpf_work[decimator].hpf_cut_off_freq !=
 							CF_MIN_3DB_150HZ)
-			schedule_delayed_work(
+			queue_delayed_work(system_power_efficient_wq, 
 					&va_priv->va_hpf_work[decimator].dwork,
 					msecs_to_jiffies(300));
 		/* apply gain after decimator is enabled */
