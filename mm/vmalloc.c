@@ -1375,6 +1375,12 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 		return false;
 
 	/*
+	 * First make sure the mappings are removed from all page-tables
+	 * before they are freed.
+	 */
+	vmalloc_sync_all();
+
+	/*
 	 * TODO: to calculate a flush range without looping.
 	 * The list can be up to lazy_max_pages() elements.
 	 */
