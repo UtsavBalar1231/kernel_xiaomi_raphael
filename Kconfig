@@ -3,7 +3,7 @@
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
 #
-mainmenu "Linux/$ARCH $KERNELVERSION Kernel Configuration"
+mainmenu "Linux/$ARCH $VERSION.$PATCHLEVEL Kernel Configuration"
 
 config SRCARCH
 	string
