@@ -2,6 +2,14 @@ config ARCH
 	string
 	option env="ARCH"
 
+config VERSION
+	string
+	option env="VERSION"
+
+config PATCHLEVEL
+	string
+	option env="PATCHLEVEL"
+
 config KERNELVERSION
 	string
 	option env="KERNELVERSION"
