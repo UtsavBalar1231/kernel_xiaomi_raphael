@@ -13,6 +13,7 @@
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
 #include <uapi/media/cam_isp.h>
+#include <linux/kfifo.h>
 #include "cam_io_util.h"
 #include "cam_debug_util.h"
 #include "cam_cdm_util.h"
@@ -26,6 +27,9 @@
 #include "cam_vfe_core.h"
 #include "cam_debug_util.h"
 #include "cam_cpas_api.h"
+
+static void __iomem *mem_base[CAM_VFE_HW_NUM_MAX];
+static struct kfifo *g_addr_fifo[CAM_VFE_HW_NUM_MAX];
 
 static const char drv_name[] = "vfe_bus";
 
@@ -44,6 +48,11 @@ static const char drv_name[] = "vfe_bus";
 #define CAM_VFE_BUS_ADDR_SYNC_INTRA_CLIENT_SHIFT    8
 #define CAM_VFE_BUS_ADDR_NO_SYNC_DEFAULT_VAL \
 	((1 << CAM_VFE_BUS_VER2_MAX_CLIENTS) - 1)
+
+
+
+#define MAX_FIFO_DEPTH 4
+#define MAX_NUM_OF_OUTPUT_BUFFERS 12
 
 #define ALIGNUP(value, alignment) \
 	((value + alignment - 1) / alignment * alignment)
@@ -205,6 +214,8 @@ struct cam_vfe_bus_ver2_priv {
 	struct cam_isp_resource_node  bus_client[CAM_VFE_BUS_VER2_MAX_CLIENTS];
 	struct cam_isp_resource_node  comp_grp[CAM_VFE_BUS_VER2_COMP_GRP_MAX];
 	struct cam_isp_resource_node  vfe_out[CAM_VFE_BUS_VER2_VFE_OUT_MAX];
+	struct kfifo addr_fifo[CAM_VFE_BUS_VER2_MAX_CLIENTS];
+	struct kfifo buffer_fifo[CAM_VFE_BUS_VER2_MAX_CLIENTS];
 
 	struct list_head                    free_comp_grp;
 	struct list_head                    free_dual_comp_grp;
@@ -1260,6 +1271,9 @@ static int cam_vfe_bus_stop_wm(struct cam_isp_resource_node *wm_res)
 
 	wm_res->res_state = CAM_ISP_RESOURCE_STATE_RESERVED;
 
+	kfifo_reset(
+	&g_addr_fifo[rsrc_data->common_data->core_index][rsrc_data->index]);
+
 	return rc;
 }
 
@@ -1319,6 +1333,8 @@ static int cam_vfe_bus_handle_wm_done_bottom_half(void *wm_node,
 		(wm_res == NULL) ? NULL : wm_res->res_priv;
 	uint32_t  *cam_ife_irq_regs;
 	uint32_t   status_reg;
+	uint32_t lastAddr;
+	uint32_t device_addr;
 
 	if (!evt_payload || !rsrc_data)
 		return rc;
@@ -1337,6 +1353,20 @@ static int cam_vfe_bus_handle_wm_done_bottom_half(void *wm_node,
 	if (rc == CAM_VFE_IRQ_STATUS_SUCCESS)
 		cam_vfe_bus_put_evt_payload(rsrc_data->common_data,
 			&evt_payload);
+
+	lastAddr = cam_io_r_mb(mem_base[rsrc_data->common_data->core_index] +
+		(0x100*rsrc_data->index) + 0x2200);
+
+	kfifo_out(
+	 &g_addr_fifo[rsrc_data->common_data->core_index][rsrc_data->index],
+	 &device_addr, sizeof(uint32_t));
+
+	if (lastAddr != device_addr)
+		//TODO: handle this condition appropriately
+		//Need to keep dequeuing until we get the address we expect.
+		CAM_ERR_RATE_LIMIT(CAM_ISP,
+		"lastAddr 0x%x doesn't match expected 0x%x!!!!",
+		lastAddr, device_addr);
 
 	return rc;
 }
@@ -2838,6 +2868,9 @@ static int cam_vfe_bus_update_wm(void *priv, void *cmd_args,
 	uint32_t  i, j, k, size = 0;
 	uint32_t  frame_inc = 0, val;
 	uint32_t loop_size = 0;
+	uint32_t image_buf;
+	uint32_t available_entries;
+	uint32_t output_image_buf;
 
 	bus_priv = (struct cam_vfe_bus_ver2_priv  *) priv;
 	update_buf =  (struct cam_isp_hw_get_cmd_update *) cmd_args;
@@ -2934,7 +2967,8 @@ static int cam_vfe_bus_update_wm(void *priv, void *cmd_args,
 				io_cfg->planes[i].slice_height;
 		}
 
-		if (wm_data->index < 3)
+		if (wm_data->index < 3 ||
+			(wm_data->is_lite && wm_data->index == 3))
 			loop_size = wm_data->irq_subsample_period + 1;
 		else
 			loop_size = 1;
@@ -2947,13 +2981,42 @@ static int cam_vfe_bus_update_wm(void *priv, void *cmd_args,
 					update_buf->wm_update->image_buf[i] +
 					io_cfg->planes[i].meta_size +
 					k * frame_inc);
-			else
-				CAM_VFE_ADD_REG_VAL_PAIR(reg_val_pair, j,
-					wm_data->hw_regs->image_addr,
+			else {
+				image_buf =
 					update_buf->wm_update->image_buf[i] +
-					wm_data->offset + k * frame_inc);
-			CAM_DBG(CAM_ISP, "WM %d image address 0x%x",
-				wm_data->index, reg_val_pair[j-1]);
+					wm_data->offset + k * frame_inc;
+
+				available_entries = kfifo_avail(
+				&bus_priv->buffer_fifo[wm_data->index]);
+
+				if (available_entries != 0) {
+					kfifo_in(
+					&bus_priv->buffer_fifo[wm_data->index],
+					&image_buf, sizeof(uint32_t));
+				} else
+					CAM_ERR(CAM_ISP,
+					"no spot in buffer_fifo!");
+
+
+				available_entries = kfifo_avail(
+				&bus_priv->addr_fifo[wm_data->index]);
+
+				if (available_entries != 0) {
+					kfifo_out(
+					&bus_priv->buffer_fifo[wm_data->index],
+					&output_image_buf,
+					sizeof(uint32_t));
+
+					cam_io_w_mb(output_image_buf,
+					bus_priv->common_data.mem_base +
+					wm_data->hw_regs->image_addr);
+
+					kfifo_in(
+					&bus_priv->addr_fifo[wm_data->index],
+					&output_image_buf,
+					sizeof(uint32_t));
+				}
+			}
 		}
 
 		CAM_VFE_ADD_REG_VAL_PAIR(reg_val_pair, j,
@@ -3432,6 +3495,11 @@ int cam_vfe_bus_ver2_init(
 		CAM_VFE_BUS_ADDR_NO_SYNC_DEFAULT_VAL;
 	bus_priv->common_data.camera_hw_version = camera_hw_version;
 
+	mem_base[bus_priv->common_data.hw_intf->hw_idx] =
+		bus_priv->common_data.mem_base;
+	g_addr_fifo[bus_priv->common_data.hw_intf->hw_idx] =
+		&bus_priv->addr_fifo[0];
+
 	mutex_init(&bus_priv->common_data.bus_mutex);
 
 	rc = cam_irq_controller_init(drv_name, bus_priv->common_data.mem_base,
@@ -3451,6 +3519,22 @@ int cam_vfe_bus_ver2_init(
 			&bus_priv->bus_client[i]);
 		if (rc < 0) {
 			CAM_ERR(CAM_ISP, "Init WM failed rc=%d", rc);
+			goto deinit_wm;
+		}
+		rc = kfifo_alloc(&bus_priv->addr_fifo[i],
+			sizeof(uint32_t) * MAX_FIFO_DEPTH,
+			GFP_KERNEL);
+		if (rc < 0) {
+			CAM_ERR(CAM_ISP, "addr_fifo kfifo_alloc rc=%d", rc);
+			goto deinit_wm;
+		}
+		rc = kfifo_alloc(&bus_priv->buffer_fifo[i],
+			sizeof(uint32_t) * MAX_NUM_OF_OUTPUT_BUFFERS,
+			GFP_KERNEL);
+		if (rc < 0) {
+			CAM_ERR(CAM_ISP,
+			"buffer_fifo kfifo_alloc rc=%d",
+			rc);
 			goto deinit_wm;
 		}
 	}
@@ -3553,6 +3637,10 @@ int cam_vfe_bus_ver2_deinit(
 		if (rc < 0)
 			CAM_ERR(CAM_ISP,
 				"Deinit WM failed rc=%d", rc);
+
+		kfifo_free(&bus_priv->addr_fifo[i]);
+
+		kfifo_free(&bus_priv->buffer_fifo[i]);
 	}
 
 	for (i = 0; i < CAM_VFE_BUS_VER2_COMP_GRP_MAX; i++) {
@@ -3580,6 +3668,7 @@ int cam_vfe_bus_ver2_deinit(
 			"Deinit IRQ Controller failed rc=%d", rc);
 
 	mutex_destroy(&bus_priv->common_data.bus_mutex);
+
 	kfree(vfe_bus_local->bus_priv);
 
 free_bus_local:
