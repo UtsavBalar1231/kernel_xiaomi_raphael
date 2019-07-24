@@ -3960,7 +3960,7 @@ static bool hdd_report_max_rate(mac_handle_t mac_handle,
 	uint16_t max_rate = 0;
 	uint32_t vht_mcs_map;
 	uint16_t current_rate = 0;
-	uint8_t or_leng = CSR_DOT11_SUPPORTED_RATES_MAX;
+	uint32_t or_leng = CSR_DOT11_SUPPORTED_RATES_MAX;
 	uint8_t operational_rates[CSR_DOT11_SUPPORTED_RATES_MAX];
 	uint8_t extended_rates[CSR_DOT11_EXTENDED_SUPPORTED_RATES_MAX];
 	uint32_t er_leng = CSR_DOT11_EXTENDED_SUPPORTED_RATES_MAX;
@@ -4007,7 +4007,7 @@ static bool hdd_report_max_rate(mac_handle_t mac_handle,
 	if (0 != sme_cfg_get_str(mac_handle,
 				 WNI_CFG_OPERATIONAL_RATE_SET,
 				 operational_rates,
-				 (uint32_t *)&or_leng)) {
+				 &or_leng)) {
 		hdd_err("cfg get returned failure");
 		/*To keep GUI happy */
 		return false;
@@ -4092,7 +4092,16 @@ static bool hdd_report_max_rate(mac_handle_t mac_handle,
 			} else if (DATA_RATE_11AC_MAX_MCS_8 == vht_max_mcs) {
 				max_mcs_idx = 8;
 			} else if (DATA_RATE_11AC_MAX_MCS_9 == vht_max_mcs) {
-				max_mcs_idx = 9;
+				/*
+				 * If the ini enable_vht20_mcs9 is disabled,
+				 * then max mcs index should not be set to 9
+				 * for TX_RATE_VHT20
+				 */
+				if (!config->enable_vht20_mcs9 &&
+				    (rate_flags & TX_RATE_VHT20))
+					max_mcs_idx = 8;
+				else
+					max_mcs_idx = 9;
 			}
 
 			if (rssidx != 0) {
