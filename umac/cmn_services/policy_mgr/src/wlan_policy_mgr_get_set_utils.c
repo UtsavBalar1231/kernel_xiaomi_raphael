@@ -1270,7 +1270,7 @@ QDF_STATUS policy_mgr_incr_connection_count(
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	uint32_t conn_index;
-	struct policy_mgr_vdev_entry_info conn_table_entry;
+	struct policy_mgr_vdev_entry_info conn_table_entry = {0};
 	enum policy_mgr_chain_mode chain_mask = POLICY_MGR_ONE_ONE;
 	uint8_t nss_2g = 0, nss_5g = 0;
 	enum policy_mgr_con_mode mode;
@@ -2674,7 +2674,7 @@ QDF_STATUS policy_mgr_is_chan_ok_for_dnbs(struct wlan_objmgr_psoc *psoc,
 	uint8_t vdev_id[MAX_NUMBER_OF_CONC_CONNECTIONS];
 	struct wlan_objmgr_vdev *vdev;
 
-	if (!channel || !ok) {
+	if (!ok) {
 		policy_mgr_err("Invalid parameter");
 		return QDF_STATUS_E_INVAL;
 	}
@@ -2693,6 +2693,11 @@ QDF_STATUS policy_mgr_is_chan_ok_for_dnbs(struct wlan_objmgr_psoc *psoc,
 	if (!cc_count) {
 		*ok = true;
 		return QDF_STATUS_SUCCESS;
+	}
+
+	if (!channel) {
+		policy_mgr_err("channel is 0, cc count %d", cc_count);
+		return QDF_STATUS_E_INVAL;
 	}
 
 	for (i = 0; i < cc_count; i++) {
