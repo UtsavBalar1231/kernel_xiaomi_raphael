@@ -29,6 +29,8 @@
 
 static const char isp_dev_name[] = "cam-isp";
 
+#define MAX_ACTIVE_REQ_CNT_PENDING 12
+
 #define INC_STATE_MONITOR_HEAD(head) \
 	(atomic64_add_return(1, head) % \
 	CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES)
@@ -1698,9 +1700,7 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 {
 	int rc = 0;
 	struct cam_ctx_request          *req;
-	struct cam_ctx_request          *active_req = NULL;
 	struct cam_isp_ctx_req          *req_isp;
-	struct cam_isp_ctx_req          *active_req_isp;
 	struct cam_isp_context          *ctx_isp = NULL;
 	struct cam_hw_config_args        cfg;
 
@@ -1755,32 +1755,11 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 		req->request_id, ctx_isp->substate_activated, ctx->ctx_id);
 	req_isp = (struct cam_isp_ctx_req *) req->req_priv;
 
-	if (ctx_isp->active_req_cnt >=  2) {
+	if (ctx_isp->active_req_cnt >= MAX_ACTIVE_REQ_CNT_PENDING)
 		CAM_ERR_RATE_LIMIT(CAM_ISP,
-			"Reject apply request (id %lld) due to congestion(cnt = %d) ctx %u",
-			req->request_id,
-			ctx_isp->active_req_cnt,
-			ctx->ctx_id);
+		"active req cnt exceed the maximum %d",
+		ctx_isp->active_req_cnt);
 
-		spin_lock_bh(&ctx->lock);
-		if (!list_empty(&ctx->active_req_list))
-			active_req = list_first_entry(&ctx->active_req_list,
-				struct cam_ctx_request, list);
-		else
-			CAM_ERR_RATE_LIMIT(CAM_ISP,
-				"WARNING: should not happen (cnt = %d) but active_list empty",
-				ctx_isp->active_req_cnt);
-		spin_unlock_bh(&ctx->lock);
-
-		if (active_req) {
-			active_req_isp =
-				(struct cam_isp_ctx_req *) active_req->req_priv;
-			__cam_isp_ctx_handle_buf_done_fail_log(active_req_isp);
-		}
-
-		rc = -EFAULT;
-		goto end;
-	}
 	req_isp->bubble_report = apply->report_if_bubble;
 
 	cfg.ctxt_to_hw_map = ctx_isp->hw_ctx;
@@ -2119,8 +2098,7 @@ static int __cam_isp_ctx_rdi_only_sof_in_top_state(
 	 * In this case, we need to skip the current notification. This
 	 * helps the state machine to catch up the delay.
 	 */
-	if (ctx->ctx_crm_intf && ctx->ctx_crm_intf->notify_trigger &&
-		ctx_isp->active_req_cnt <= 2) {
+	if (ctx->ctx_crm_intf && ctx->ctx_crm_intf->notify_trigger) {
 		notify.link_hdl = ctx->link_hdl;
 		notify.dev_hdl = ctx->dev_hdl;
 		notify.frame_id = ctx_isp->frame_id;
