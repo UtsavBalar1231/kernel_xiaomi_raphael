@@ -301,6 +301,7 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 			goto fail;
 		}
 	}
+	pdata->prv_ipa.ipa_offload_susp = false;
 
 	if (!pdata->prv_ipa.ipa_debugfs_exists) {
 		if (!DWC_ETH_QOS_ipa_create_debugfs(pdata)) {
