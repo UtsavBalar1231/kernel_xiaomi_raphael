@@ -4855,6 +4855,7 @@ typedef enum {
 	wmi_coex_report_antenna_isolation_event_id,
 	wmi_roam_auth_offload_event_id,
 	wmi_get_elna_bypass_event_id,
+	wmi_service_ready_ext2_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
@@ -5341,6 +5342,7 @@ typedef enum {
 	wmi_service_tx_compl_tsf64,
 	wmi_service_sae_roam_support,
 	wmi_service_owe_roam_support,
+	wmi_service_ext2_msg,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF

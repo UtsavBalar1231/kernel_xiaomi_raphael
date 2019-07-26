@@ -1335,6 +1335,20 @@ QDF_STATUS wmi_unified_peer_rx_reorder_queue_remove_send(void *wmi_hdl,
 
 QDF_STATUS wmi_extract_service_ready_ext(void *wmi_hdl, uint8_t *evt_buf,
 		struct wlan_psoc_host_service_ext_param *param);
+
+/*
+ * wmi_extract_service_ready_ext2() - extract extended2 service ready
+ * @wmi_handle: wmi handle
+ * @evt_buff: pointer to event buffer
+ * @param: wmi ext2 base parameters
+ *
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_** on error
+ */
+QDF_STATUS wmi_extract_service_ready_ext2(
+		struct wmi_unified *wmi_handle, uint8_t *evt_buf,
+		struct wlan_psoc_host_service_ext2_param *param);
+
 QDF_STATUS wmi_extract_hw_mode_cap_service_ready_ext(
 			void *wmi_hdl,
 			uint8_t *evt_buf, uint8_t hw_mode_idx,

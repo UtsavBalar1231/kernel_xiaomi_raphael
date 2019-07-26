@@ -147,6 +147,21 @@ int init_deinit_populate_service_ready_ext_param(void *handle, uint8_t *evt,
 			struct wlan_psoc_host_service_ext_param *param);
 
 /**
+ * init_deinit_populate_service_ready_ext2_param() - populate service ready ext2
+ *                                                   parameter
+ * @handle: WMI handle pointer
+ * @evt: event buffer received from FW
+ * @info: Target info handle
+ *
+ * API to populate service ready ext2 param
+ *
+ * Return: zero on successful parsing of service ready ext parameter or failure
+ */
+int init_deinit_populate_service_ready_ext2_param(
+		void *handle, uint8_t *evt,
+		struct tgt_info *info);
+
+/**
  * init_deinit_populate_chainmask_tables() - populate chainmaks tables
  * @handle: WMI handle pointer
  * @evt: event buffer received from FW
