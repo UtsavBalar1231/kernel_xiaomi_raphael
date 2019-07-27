@@ -1630,6 +1630,7 @@ static inline struct pci_dev *pci_get_class(unsigned int class,
 #define pci_dev_put(dev)	do { } while (0)
 
 static inline void pci_set_master(struct pci_dev *dev) { }
+static inline void pci_clear_master(struct pci_dev *dev) { }
 static inline int pci_enable_device(struct pci_dev *dev) { return -EIO; }
 static inline void pci_disable_device(struct pci_dev *dev) { }
 static inline int pci_assign_resource(struct pci_dev *dev, int i)
@@ -1665,6 +1666,10 @@ static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 static inline struct resource *pci_find_resource(struct pci_dev *dev,
 						 struct resource *res)
 { return NULL; }
+static inline int pci_request_region(struct pci_dev *pdev, int bar,
+				     const char *res_name)
+{ return -EIO; }
+static inline void pci_release_region(struct pci_dev *pdev, int bar) { }
 static inline int pci_request_regions(struct pci_dev *dev, const char *res_name)
 { return -EIO; }
 static inline void pci_release_regions(struct pci_dev *dev) { }
