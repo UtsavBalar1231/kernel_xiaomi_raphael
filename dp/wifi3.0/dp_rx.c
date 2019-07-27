@@ -1954,6 +1954,7 @@ done:
 			vdev = peer->vdev;
 		} else {
 			tid_stats->fail_cnt[INVALID_PEER_VDEV]++;
+			nbuf->next = NULL;
 			dp_rx_deliver_to_stack_no_peer(soc, nbuf);
 			nbuf = next;
 			continue;
