@@ -189,6 +189,33 @@ struct cdp_vdev *wma_find_vdev_by_bssid(tp_wma_handle wma, uint8_t *bssid,
 }
 
 /**
+ * wma_get_txrx_vdev_subtype() - return sutype of vdev
+ * @type: vdev_subtype
+ *
+ * Return: return vdev subtype as enum wlan_op_subtype type
+ */
+static enum wlan_op_subtype wma_get_txrx_vdev_subtype(uint32_t subtype)
+{
+	enum wlan_op_subtype vdev_subtype = wlan_op_subtype_none;
+
+	switch (subtype) {
+	case WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE:
+		vdev_subtype = wlan_op_subtype_p2p_device;
+		break;
+	case WMI_UNIFIED_VDEV_SUBTYPE_P2P_CLIENT:
+		vdev_subtype = wlan_op_subtype_p2p_cli;
+		break;
+	case WMI_UNIFIED_VDEV_SUBTYPE_P2P_GO:
+		vdev_subtype = wlan_op_subtype_p2p_go;
+		break;
+	default:
+		vdev_subtype = wlan_op_subtype_none;
+	}
+
+	return vdev_subtype;
+}
+
+/**
  * wma_get_txrx_vdev_type() - return operating mode of vdev
  * @type: vdev_type
  *
@@ -2694,6 +2721,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	struct cdp_vdev *txrx_vdev_handle = NULL;
 	struct cdp_pdev *txrx_pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	enum wlan_op_mode txrx_vdev_type;
+	enum wlan_op_subtype txrx_vdev_subtype;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
 	uint32_t cfg_val;
@@ -2755,9 +2783,12 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 		goto end;
 	}
 
+	txrx_vdev_subtype = wma_get_txrx_vdev_subtype(self_sta_req->sub_type);
+
 	txrx_vdev_handle = cdp_vdev_attach(soc, txrx_pdev,
 					   self_sta_req->self_mac_addr,
-					   vdev_id, txrx_vdev_type);
+					   vdev_id, txrx_vdev_type,
+					   txrx_vdev_subtype);
 
 	WMA_LOGD("vdev_id %hu, txrx_vdev_handle = %pK", vdev_id,
 		 txrx_vdev_handle);

@@ -1130,6 +1130,7 @@ struct ol_txrx_vdev_t {
 	uint32_t num_filters;
 
 	enum wlan_op_mode opmode;
+	enum wlan_op_subtype subtype;
 
 #ifdef QCA_IBSS_SUPPORT
 	/* ibss mode related */
