@@ -47,6 +47,9 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/cfg80211.h>
+#ifdef CLD_PM_QOS
+#include <linux/pm_qos.h>
+#endif
 #include <linux/ieee80211.h>
 #include <qdf_delayed_work.h>
 #include <qdf_list.h>
@@ -1900,6 +1903,10 @@ struct hdd_context {
 	unsigned long derived_intf_addr_mask;
 
 	struct sar_limit_cmd_params *sar_cmd_params;
+
+#ifdef CLD_PM_QOS
+	struct pm_qos_request pm_qos_req;
+#endif
 };
 
 /**
