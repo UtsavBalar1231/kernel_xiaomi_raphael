@@ -2093,8 +2093,8 @@ void lim_process_action_frame(struct mac_context *mac_ctx,
 					rx_pkt_info), RXMGMT_FLAG_NONE);
 			break;
 		default:
-			pe_warn("Unhandled public action frame: %x",
-				action_hdr->actionID);
+			pe_debug("Unhandled public action frame: %d",
+				 action_hdr->actionID);
 			break;
 		}
 		break;
@@ -2176,7 +2176,7 @@ void lim_process_action_frame(struct mac_context *mac_ctx,
 				RXMGMT_FLAG_NONE);
 			break;
 		default:
-			pe_warn("Unhandled - Protected Dual Public Action");
+			pe_debug("Unhandled - Protected Dual Public Action");
 			break;
 		}
 		break;
