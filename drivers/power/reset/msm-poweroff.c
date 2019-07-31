@@ -63,7 +63,7 @@ static void scm_disable_sdi(void);
  * There is no API from TZ to re-enable the registers.
  * So the SDI cannot be re-enabled when it already by-passed.
  */
-static int download_mode = 1;
+static int download_mode;
 static bool force_warm_reboot;
 
 #ifdef CONFIG_QCOM_DLOAD_MODE
