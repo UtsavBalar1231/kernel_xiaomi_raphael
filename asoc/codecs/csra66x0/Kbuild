@@ -106,4 +106,3 @@ obj-$(CONFIG_SND_SOC_CSRA66X0) += csra66x0_dlkm.o
 csra66x0_dlkm-y := $(CSRA66X0_OBJS)
 
 # inject some build related information
-DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
