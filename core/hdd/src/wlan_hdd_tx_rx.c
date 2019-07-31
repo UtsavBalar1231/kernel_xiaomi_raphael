@@ -921,6 +921,7 @@ static void __hdd_hard_start_xmit(struct sk_buff *skb,
 	uint8_t pkt_type = 0;
 	bool is_arp = false;
 	struct wlan_objmgr_vdev *vdev;
+	struct hdd_context *hdd_ctx = adapter->hdd_ctx;
 
 #ifdef QCA_WIFI_FTM
 	if (hdd_get_conparam() == QDF_GLOBAL_FTM_MODE) {
@@ -1074,10 +1075,12 @@ static void __hdd_hard_start_xmit(struct sk_buff *skb,
 		hdd_objmgr_put_vdev(vdev);
 	}
 
-	if (qdf_nbuf_is_tso(skb))
+	if (qdf_nbuf_is_tso(skb)) {
 		adapter->stats.tx_packets += qdf_nbuf_get_tso_num_seg(skb);
-	else
+	} else {
 		++adapter->stats.tx_packets;
+		hdd_ctx->no_tx_offload_pkt_cnt++;
+	}
 
 	hdd_event_eapol_log(skb, QDF_TX);
 	QDF_NBUF_CB_TX_PACKET_TRACK(skb) = QDF_NBUF_TX_PKT_DATA_TRACK;

@@ -428,6 +428,8 @@ struct hdd_tx_rx_histogram {
 	uint32_t next_vote_level;
 	uint32_t next_rx_level;
 	uint32_t next_tx_level;
+	bool rx_pm_qos_high;
+	bool tx_pm_qos_high;
 	uint64_t qtime;
 };
 
@@ -1698,6 +1700,8 @@ struct hdd_context {
 	int cur_rx_level;
 	uint64_t prev_no_rx_offload_pkts;
 	uint64_t prev_rx_offload_pkts;
+	uint64_t prev_no_tx_offload_pkts;
+	uint64_t prev_tx_offload_pkts;
 	int cur_tx_level;
 	uint64_t prev_tx;
 #endif /*WLAN_FEATURE_DP_BUS_BANDWIDTH*/
@@ -1793,6 +1797,7 @@ struct hdd_context {
 	uint32_t rx_high_ind_cnt;
 	/* For Rx thread non GRO/LRO packet accounting */
 	uint64_t no_rx_offload_pkt_cnt;
+	uint64_t no_tx_offload_pkt_cnt;
 	/* Current number of TX X RX chains being used */
 	enum antenna_mode current_antenna_mode;
 
