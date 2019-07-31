@@ -121,4 +121,3 @@ obj-$(CONFIG_SND_SOC_MSM_SDW) += msm_sdw_dlkm.o
 msm_sdw_dlkm-y := $(MSM_SDW_OBJS)
 
 # inject some build related information
-DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
