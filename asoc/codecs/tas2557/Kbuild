@@ -115,4 +115,3 @@ obj-$(CONFIG_SND_SOC_TAS2557)    += tas2557_dlkm.o
 tas2557_dlkm-y := $(TAS2557_OBJS)
 
 # inject some build related information
-DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
