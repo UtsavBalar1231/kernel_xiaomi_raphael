@@ -182,4 +182,3 @@ obj-$(CONFIG_WCD_DSP_GLINK) += wglink_dlkm.o
 wglink_dlkm-y := $(WDSP_GLINK)
 
 # inject some build related information
-CDEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
