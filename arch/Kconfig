@@ -764,6 +764,15 @@ config SHADOW_CALL_STACK
 
 endchoice
 
+config LLVM_POLLY
+	bool "Enable LLVM's polyhedral loop optimizer (Polly)"
+	default n
+	help
+	  This option enables LLVM's polyhedral loop optimizer known as Polly.
+	  Polly is able to optimize various loops throughout the kernel for
+	  maximum cache locality. This requires an LLVM toolchain explicitly
+	  compiled with Polly support.
+
 config SHADOW_CALL_STACK_VMAP
 	bool "Use virtually mapped shadow call stacks"
 	depends on SHADOW_CALL_STACK
