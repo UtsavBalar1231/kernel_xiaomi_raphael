@@ -107,6 +107,10 @@ static int cam_cpastop_get_hw_info(struct cam_hw_info *cpas_hw,
 			(hw_caps->cpas_version.incr == 1))
 			soc_info->hw_version = CAM_CPAS_TITAN_175_V101;
 		else if ((hw_caps->cpas_version.major == 1) &&
+			(hw_caps->cpas_version.minor == 1) &&
+			(hw_caps->cpas_version.incr == 1))
+			soc_info->hw_version = CAM_CPAS_TITAN_175_V101;
+		else if ((hw_caps->cpas_version.major == 1) &&
 			(hw_caps->cpas_version.minor == 2) &&
 			(hw_caps->cpas_version.incr == 0))
 			soc_info->hw_version = CAM_CPAS_TITAN_175_V120;
