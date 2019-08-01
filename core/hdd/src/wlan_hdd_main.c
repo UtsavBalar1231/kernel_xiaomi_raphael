@@ -8086,7 +8086,7 @@ static void hdd_pld_request_bus_bandwidth(struct hdd_context *hdd_ctx,
 	index = hdd_ctx->hdd_txrx_hist_idx;
 	if (vote_level_change || tx_level_change || rx_level_change) {
 		/* Clear all the mask if no silver/gold vote is required */
-		if (next_vote_level < PLD_BUS_WIDTH_MEDIUM) {
+		if (next_vote_level < PLD_BUS_WIDTH_HIGH) {
 			rx_pm_qos_high = false;
 			tx_pm_qos_high = false;
 			cpumask_clear(&pm_qos_cpu_mask);
