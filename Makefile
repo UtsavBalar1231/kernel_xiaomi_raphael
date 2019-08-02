@@ -703,6 +703,14 @@ ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS   += -Os
 else
 KBUILD_CFLAGS   += -O3
+ifeq ($(cc-name),gcc)
+KBUILD_CFLAGS	+= $(call cc-option, -mcpu=cortex-a76.cortex-a55)
+KBUILD_CFLAGS	+= $(call cc-option, -mtune=cortex-a76.cortex-a55)
+endif
+ifeq ($(cc-name),clang)
+KBUILD_CFLAGS	+= $(call cc-option, -mcpu=cortex-a55)
+KBUILD_CFLAGS	+= $(call cc-option, -mtune=cortex-a55)
+endif
 endif
 
 # Tell gcc to never replace conditional load with a non-conditional one
@@ -778,10 +786,6 @@ KBUILD_CFLAGS += $(call cc-option,-fno-delete-null-pointer-checks,)
 # These warnings generated too much noise in a regular build.
 # Use make W=1 to enable them (see scripts/Makefile.extrawarn)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
-endif
-
-ifeq ($(ld-name),lld)
-LDFLAGS += -O2
 endif
 
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-const-variable)
