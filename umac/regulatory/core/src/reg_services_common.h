@@ -515,4 +515,22 @@ uint32_t reg_max_5ghz_ch_num(void);
  * Return: QDF_STATUS
  */
 QDF_STATUS reg_enable_dfs_channels(struct wlan_objmgr_pdev *pdev, bool enable);
+
+/**
+ * reg_set_ignore_fw_reg_offload_ind() - Set if regdb offload indication
+ * needs to be ignored
+ * @psoc: Pointer to psoc
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS reg_set_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * reg_get_ignore_fw_reg_offload_ind() - Check whether regdb offload indication
+ * needs to be ignored
+ *
+ * @psoc: Pointer to psoc
+ */
+bool reg_get_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc);
+
 #endif

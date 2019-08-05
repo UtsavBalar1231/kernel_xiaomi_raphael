@@ -87,6 +87,7 @@ struct chan_change_cbk_entry {
  * @world_country_pending: In this array, element[phy_id] is true if any world
  *	country update is pending for pdev (phy_id).
  * @def_pdev_id: Default pdev id, used in case of MCL
+ * @ignore_fw_reg_offload_ind: Ignore FW reg offload indication
  */
 struct wlan_regulatory_psoc_priv_obj {
 	struct mas_chan_params mas_chan_params[PSOC_MAX_PHY_REG_CAP];
@@ -105,6 +106,7 @@ struct wlan_regulatory_psoc_priv_obj {
 	bool dfs_enabled;
 	enum band_info band_capability;
 	bool indoor_chan_enabled;
+	bool ignore_fw_reg_offload_ind;
 	bool enable_11d_supp_original;
 	bool enable_11d_supp;
 	bool is_11d_offloaded;
