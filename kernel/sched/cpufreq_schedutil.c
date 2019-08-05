@@ -755,9 +755,9 @@ static int sugov_init(struct cpufreq_policy *policy)
 	}
 
 	tunables->up_rate_limit_us =
-				cpufreq_policy_transition_delay_us(policy);
+				CONFIG_SCHEDUTIL_UP_RATE_LIMIT;
 	tunables->down_rate_limit_us =
-				cpufreq_policy_transition_delay_us(policy);
+				CONFIG_SCHEDUTIL_DOWN_RATE_LIMIT;
 
 	tunables->iowait_boost_enable = true;
 	policy->governor_data = sg_policy;
