@@ -216,6 +216,7 @@ enum {
  * @dest_mpdu_done: destination ring MPDU count
  * @dup_mon_linkdesc_cnt: duplicate link descriptor indications from HW
  * @dup_mon_buf_cnt: duplicate buffer indications from HW
+ * @tlv_tag_status_err: status not correct in the tlv tag
  */
 struct cdp_pdev_mon_stats {
 #ifndef REMOVE_MON_DBG_STATS
@@ -235,5 +236,6 @@ struct cdp_pdev_mon_stats {
 	uint32_t stat_ring_ppdu_id_hist[MAX_PPDU_ID_HIST];
 	uint32_t dest_ring_ppdu_id_hist[MAX_PPDU_ID_HIST];
 	uint32_t ppdu_id_hist_idx;
+	uint32_t tlv_tag_status_err;
 };
 #endif
