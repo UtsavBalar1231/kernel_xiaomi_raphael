@@ -1314,6 +1314,7 @@ static void dfs_apply_rules(struct wlan_dfs *dfs,
 					  chan->dfs_ch_ieee);
 				continue;
 			}
+			found = false;
 		}
 
 		if (flag_no_2g_chan &&
