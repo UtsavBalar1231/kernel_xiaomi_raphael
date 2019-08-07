@@ -2218,9 +2218,10 @@ void dp_peer_rx_init(struct dp_pdev *pdev, struct dp_peer *peer)
  * dp_peer_rx_cleanup() – Cleanup receive TID state
  * @vdev: Datapath vdev
  * @peer: Datapath peer
+ * @reuse: Peer reference reuse
  *
  */
-void dp_peer_rx_cleanup(struct dp_vdev *vdev, struct dp_peer *peer)
+void dp_peer_rx_cleanup(struct dp_vdev *vdev, struct dp_peer *peer, bool reuse)
 {
 	int tid;
 	uint32_t tid_delete_mask = 0;
@@ -2250,22 +2251,24 @@ void dp_peer_rx_cleanup(struct dp_vdev *vdev, struct dp_peer *peer)
 			tid_delete_mask);
 	}
 #endif
-	for (tid = 0; tid < DP_MAX_TIDS; tid++)
-		qdf_spinlock_destroy(&peer->rx_tid[tid].tid_lock);
+	if (!reuse)
+		for (tid = 0; tid < DP_MAX_TIDS; tid++)
+			qdf_spinlock_destroy(&peer->rx_tid[tid].tid_lock);
 }
 
 /*
  * dp_peer_cleanup() – Cleanup peer information
  * @vdev: Datapath vdev
  * @peer: Datapath peer
+ * @reuse: Peer reference reuse
  *
  */
-void dp_peer_cleanup(struct dp_vdev *vdev, struct dp_peer *peer)
+void dp_peer_cleanup(struct dp_vdev *vdev, struct dp_peer *peer, bool reuse)
 {
 	dp_peer_tx_cleanup(vdev, peer);
 
 	/* cleanup the Rx reorder queues for this peer */
-	dp_peer_rx_cleanup(vdev, peer);
+	dp_peer_rx_cleanup(vdev, peer, reuse);
 }
 
 /* dp_teardown_256_ba_session() - Teardown sessions using 256

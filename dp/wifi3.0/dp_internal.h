@@ -740,8 +740,10 @@ extern void dp_peer_find_hash_remove(struct dp_soc *soc, struct dp_peer *peer);
 extern void dp_peer_find_hash_erase(struct dp_soc *soc);
 extern void dp_peer_rx_init(struct dp_pdev *pdev, struct dp_peer *peer);
 void dp_peer_tx_init(struct dp_pdev *pdev, struct dp_peer *peer);
-extern void dp_peer_cleanup(struct dp_vdev *vdev, struct dp_peer *peer);
-extern void dp_peer_rx_cleanup(struct dp_vdev *vdev, struct dp_peer *peer);
+void dp_peer_cleanup(struct dp_vdev *vdev, struct dp_peer *peer,
+		     bool reuse);
+void dp_peer_rx_cleanup(struct dp_vdev *vdev, struct dp_peer *peer,
+			bool reuse);
 extern void dp_peer_unref_delete(void *peer_handle);
 extern void dp_rx_discard(struct dp_vdev *vdev, struct dp_peer *peer,
 	unsigned tid, qdf_nbuf_t msdu_list);
