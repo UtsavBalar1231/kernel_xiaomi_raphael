@@ -2263,6 +2263,14 @@ struct roam_init_params {
 	uint8_t enable;
 };
 
+/**
+ * struct roam_sync_timeout_timer_info - Info related to roam sync timer
+ * @vdev_id: Vdev id for which host waiting roam sync ind from fw
+ */
+struct roam_sync_timeout_timer_info {
+	uint8_t vdev_id;
+};
+
 struct roam_offload_scan_req {
 	uint16_t message_type;
 	uint16_t length;
