@@ -18,6 +18,7 @@
 #include <linux/jhash.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/spinlock.h>
 #include <net/ip6_checksum.h>
 #include <net/tcp.h>
 #include <net/udp.h>
@@ -110,6 +111,19 @@ MODULE_PARM_DESC(rmnet_perf_ingress_deag,
 		 "If true, rmnet_perf will handle QMAP deaggregation");
 
 #define SHS_FLUSH 0
+
+/* Lock around flow nodes for syncornization with rmnet_perf_opt_mode changes */
+static DEFINE_SPINLOCK(rmnet_perf_core_lock);
+
+void rmnet_perf_core_grab_lock(void)
+{
+	spin_lock_bh(&rmnet_perf_core_lock);
+}
+
+void rmnet_perf_core_release_lock(void)
+{
+	spin_unlock_bh(&rmnet_perf_core_lock);
+}
 
 /* rmnet_perf_core_set_ingress_hook() - sets appropriate ingress hook
  *		in the core rmnet driver
@@ -551,6 +565,8 @@ bool rmnet_perf_core_dissect_pkt(unsigned char *payload,
 				 struct rmnet_perf_pkt_info *pkt_info,
 				 int offset, u16 pkt_len)
 {
+	bool flush = true;
+
 	payload += offset;
 	pkt_info->ip_proto = (*payload & 0xF0) >> 4;
 	if (pkt_info->ip_proto == 4) {
@@ -562,7 +578,7 @@ bool rmnet_perf_core_dissect_pkt(unsigned char *payload,
 		/* Pass off frags immediately */
 		if (iph->frag_off & htons(IP_MF | IP_OFFSET)) {
 			rmnet_perf_frag_flush++;
-			return true;
+			goto done;
 		}
 
 		pkt_info->ip_len = iph->ihl * 4;
@@ -599,7 +615,7 @@ bool rmnet_perf_core_dissect_pkt(unsigned char *payload,
 			/* Something somewhere has gone horribly wrong...
 			 * Let the stack deal with it.
 			 */
-			return true;
+			goto done;
 		}
 
 		/* Returned length will include the offset value */
@@ -614,7 +630,7 @@ bool rmnet_perf_core_dissect_pkt(unsigned char *payload,
 				len += sizeof(struct frag_hdr);
 			pkt_info->ip_len = (u16)len;
 			rmnet_perf_frag_flush++;
-			return true;
+			goto done;
 		}
 
 		pkt_info->ip_len = (u16)len;
@@ -629,7 +645,7 @@ bool rmnet_perf_core_dissect_pkt(unsigned char *payload,
 		}
 	} else {
 		/* Not a valid IP packet */
-		return true;
+		goto done;
 	}
 
 	if (pkt_info->trans_proto == IPPROTO_TCP) {
@@ -652,14 +668,17 @@ bool rmnet_perf_core_dissect_pkt(unsigned char *payload,
 			pkt_info->frag_desc->trans_len = pkt_info->trans_len;
 	} else {
 		/* Not a protocol we can optimize */
-		return true;
+		goto done;
 	}
 
-	pkt_info->payload_len = pkt_len - pkt_info->ip_len -
-				pkt_info->trans_len;
+	flush = false;
 	pkt_info->hash_key = rmnet_perf_core_compute_flow_hash(pkt_info);
 
-	return false;
+done:
+	pkt_info->payload_len = pkt_len - pkt_info->ip_len -
+				pkt_info->trans_len;
+
+	return flush;
 }
 
 /* rmnet_perf_core_dissect_skb() - Extract packet header metadata for easier
@@ -751,6 +770,7 @@ void rmnet_perf_core_desc_entry(struct rmnet_frag_descriptor *frag_desc,
 	u16 pkt_len = skb_frag_size(&frag_desc->frag);
 	bool skip_hash = true;
 
+	rmnet_perf_core_grab_lock();
 	perf->rmnet_port = port;
 	rmnet_perf_core_pre_ip_count++;
 	memset(&pkt_info, 0, sizeof(pkt_info));
@@ -773,10 +793,12 @@ void rmnet_perf_core_desc_entry(struct rmnet_frag_descriptor *frag_desc,
 	if (!rmnet_perf_opt_ingress(&pkt_info))
 		goto flush;
 
+	rmnet_perf_core_release_lock();
 	return;
 
 flush:
 	rmnet_perf_core_flush_curr_pkt(&pkt_info, pkt_len, false, skip_hash);
+	rmnet_perf_core_release_lock();
 }
 
 int __rmnet_perf_core_deaggregate(struct sk_buff *skb, struct rmnet_port *port)
@@ -899,6 +921,7 @@ void rmnet_perf_core_deaggregate(struct sk_buff *skb,
 
 	perf = rmnet_perf_config_get_perf();
 	perf->rmnet_port = port;
+	rmnet_perf_core_grab_lock();
 	while (skb) {
 		struct sk_buff *skb_frag = skb_shinfo(skb)->frag_list;
 
@@ -930,4 +953,5 @@ void rmnet_perf_core_deaggregate(struct sk_buff *skb,
 
 	rmnet_perf_core_pre_ip_count += co;
 	rmnet_perf_core_chain_count[chain_count]++;
+	rmnet_perf_core_release_lock();
 }
