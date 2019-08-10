@@ -4542,7 +4542,13 @@ static void hdd_cleanup_adapter(struct hdd_context *hdd_ctx,
 		return;
 	}
 
-	hdd_nud_deinit_tracking(adapter);
+	/*
+	 * NUD tracking is enabled only for STA mode
+	 */
+	if (adapter->device_mode == QDF_STA_MODE &&
+	    hdd_ctx->config->enable_nud_tracking)
+		hdd_nud_deinit_tracking(adapter);
+
 	qdf_mutex_destroy(&adapter->disconnection_status_lock);
 	hdd_apf_context_destroy(adapter);
 	qdf_spinlock_destroy(&adapter->vdev_lock);
