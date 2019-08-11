@@ -2174,7 +2174,7 @@ done:
 				goto more_data;
 		}
 
-		if (vdev->osif_gro_flush && rx_ol_pkt_cnt) {
+		if (vdev && vdev->osif_gro_flush && rx_ol_pkt_cnt) {
 			vdev->osif_gro_flush(vdev->osif_vdev,
 					     reo_ring_num);
 		}
