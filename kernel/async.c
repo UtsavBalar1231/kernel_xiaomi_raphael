@@ -195,7 +195,10 @@ static async_cookie_t __async_schedule(async_func_t func, void *data, struct asy
 	current->flags |= PF_USED_ASYNC;
 
 	/* schedule for execution */
-	queue_work(system_unbound_wq, &entry->work);
+	if (system_state < SYSTEM_RUNNING)
+		queue_work(system_highpri_wq, &entry->work);
+	else
+		queue_work(system_unbound_wq, &entry->work);
 
 	return newcookie;
 }
