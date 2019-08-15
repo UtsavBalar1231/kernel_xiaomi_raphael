@@ -172,10 +172,6 @@ long kgsl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
 	long ret;
 
-	if (cmd == IOCTL_KGSL_GPU_COMMAND &&
-	    READ_ONCE(device->state) != KGSL_STATE_ACTIVE)
-		kgsl_schedule_work(&adreno_dev->pwr_on_work);
-
 	ret = kgsl_ioctl_helper(filep, cmd, arg, kgsl_ioctl_funcs,
 		ARRAY_SIZE(kgsl_ioctl_funcs));
 
