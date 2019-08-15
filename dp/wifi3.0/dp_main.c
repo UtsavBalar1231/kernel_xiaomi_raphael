@@ -1711,17 +1711,25 @@ static QDF_STATUS dp_soc_attach_poll(void *txrx_soc)
 static void dp_soc_set_interrupt_mode(struct cdp_soc_t *txrx_soc)
 {
 	struct dp_soc *soc = (struct dp_soc *)txrx_soc;
-	int msi_vector_count, ret;
 	uint32_t msi_base_data, msi_vector_start;
+	int msi_vector_count, ret;
 
-	ret = pld_get_user_msi_assignment(soc->osdev->dev, "DP",
-					  &msi_vector_count,
-					  &msi_base_data,
-					  &msi_vector_start);
-	if (ret)
-		return;
+	soc->intr_mode = DP_INTR_LEGACY;
 
-	soc->intr_mode = DP_INTR_MSI;
+	if (!(soc->wlan_cfg_ctx->napi_enabled) ||
+	    (soc->cdp_soc.ol_ops->get_con_mode &&
+	     soc->cdp_soc.ol_ops->get_con_mode() == QDF_GLOBAL_MONITOR_MODE)) {
+		soc->intr_mode = DP_INTR_POLL;
+	} else {
+		ret = pld_get_user_msi_assignment(soc->osdev->dev, "DP",
+						  &msi_vector_count,
+						  &msi_base_data,
+						  &msi_vector_start);
+		if (ret)
+			return;
+
+		soc->intr_mode = DP_INTR_MSI;
+	}
 }
 
 static QDF_STATUS dp_soc_interrupt_attach(void *txrx_soc);
