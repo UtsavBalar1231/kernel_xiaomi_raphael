@@ -117,7 +117,7 @@ struct CE_state;
 #ifdef CONFIG_WIN
 #define HIF_MAX_GROUP 12
 #else
-#define HIF_MAX_GROUP 8
+#define HIF_MAX_GROUP 7
 #endif
 
 #ifdef CONFIG_SLUB_DEBUG_ON
@@ -335,7 +335,7 @@ enum hif_event_type {
 
 /* HIF_EVENT_HIST_MAX should always be power of 2 */
 #define HIF_EVENT_HIST_MAX		512
-#define HIF_NUM_INT_CONTEXTS		7
+#define HIF_NUM_INT_CONTEXTS		HIF_MAX_GROUP
 #define HIF_EVENT_HIST_DISABLE_MASK	0
 
 /**
