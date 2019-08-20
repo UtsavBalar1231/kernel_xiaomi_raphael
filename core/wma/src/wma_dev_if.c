@@ -804,7 +804,8 @@ static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
 
 	iface->del_staself_req = del_sta_self_req_param;
 	msg = wma_fill_vdev_req(wma_handle, vdev_id, WMA_DEL_STA_SELF_REQ,
-				WMA_TARGET_REQ_TYPE_VDEV_DEL, iface, 6000);
+				WMA_TARGET_REQ_TYPE_VDEV_DEL, iface,
+				WMA_VDEV_DELETE_REQUEST_TIMEOUT);
 	if (!msg) {
 		WMA_LOGE("%s: Failed to fill vdev request for vdev_id %d",
 			 __func__, vdev_id);
