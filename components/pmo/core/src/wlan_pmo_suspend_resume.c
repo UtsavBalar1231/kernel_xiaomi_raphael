@@ -432,6 +432,8 @@ static void pmo_core_enable_runtime_pm_offloads(struct wlan_objmgr_psoc *psoc)
 		vdev = pmo_psoc_get_vdev(psoc, vdev_id);
 		if (!vdev)
 			continue;
+
+		pmo_register_action_frame_patterns(vdev, QDF_RUNTIME_SUSPEND);
 	}
 }
 
@@ -445,6 +447,8 @@ static void pmo_core_disable_runtime_pm_offloads(struct wlan_objmgr_psoc *psoc)
 		vdev = pmo_psoc_get_vdev(psoc, vdev_id);
 		if (!vdev)
 			continue;
+
+		pmo_clear_action_frame_patterns(vdev);
 	}
 }
 
