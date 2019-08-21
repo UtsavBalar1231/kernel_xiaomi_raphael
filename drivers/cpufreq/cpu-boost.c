@@ -323,7 +323,8 @@ static void cpuboost_input_event(struct input_handle *handle,
 
 	kthread_queue_work(&cpu_boost_worker, &input_boost_work);
 
-	if (type == EV_KEY && code == KEY_POWER) {
+	if ((type == EV_KEY && code == KEY_POWER) ||
+		(type == EV_KEY && code == KEY_WAKEUP)) {
 		kthread_queue_work(&cpu_boost_worker, &powerkey_input_boost_work);
 	} else {
 		kthread_queue_work(&cpu_boost_worker, &input_boost_work);
