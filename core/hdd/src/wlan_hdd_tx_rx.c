@@ -1607,6 +1607,7 @@ QDF_STATUS hdd_gro_rx_dp_thread(struct hdd_adapter *adapter,
 {
 	struct napi_struct *napi_to_use = NULL;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	struct hdd_context *hdd_ctx = adapter->hdd_ctx;
 
 	if (!adapter->hdd_ctx->enable_dp_rx_threads) {
 		hdd_dp_err_rl("gro not supported without DP RX thread!");
@@ -1621,6 +1622,9 @@ QDF_STATUS hdd_gro_rx_dp_thread(struct hdd_adapter *adapter,
 		hdd_dp_err_rl("no napi to use for GRO!");
 		return status;
 	}
+
+	if (qdf_atomic_read(&hdd_ctx->disable_rx_ol_in_low_tput))
+		return status;
 
 	status = hdd_gro_rx_bh_disable(adapter, napi_to_use, skb);
 
