@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -212,6 +212,10 @@ typedef __qdf_ipa_gsi_ep_config_t qdf_ipa_gsi_ep_config_t;
  * @IPA_WRITE_DONE: data is struct sk_buff
  */
 typedef __qdf_ipa_dp_evt_type_t qdf_ipa_dp_evt_type_t;
+
+#ifdef WDI3_STATS_UPDATE
+typedef __qdf_ipa_wdi_tx_info_t qdf_ipa_wdi_tx_info_t;
+#endif
 
 typedef __qdf_ipa_hdr_add_t qdf_ipa_hdr_add_t;
 typedef __qdf_ipa_hdr_del_t qdf_ipa_hdr_del_t;

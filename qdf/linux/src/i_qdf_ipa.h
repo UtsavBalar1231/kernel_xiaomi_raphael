@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -376,6 +376,10 @@ typedef struct ipa_wdi_buffer_info __qdf_ipa_wdi_buffer_info_t;
  * __qdf_ipa_gsi_ep_config_t - IPA GSI endpoint configurations
  */
 typedef struct ipa_gsi_ep_config __qdf_ipa_gsi_ep_config_t;
+
+#ifdef WDI3_STATS_UPDATE
+typedef struct ipa_wdi_tx_info __qdf_ipa_wdi_tx_info_t;
+#endif
 
 /**
  * __qdf_ipa_dp_evt_type_t - type of event client callback is
