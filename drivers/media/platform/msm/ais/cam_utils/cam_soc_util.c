@@ -319,6 +319,8 @@ static int cam_soc_util_get_clk_level_to_apply(
 
 int cam_soc_util_irq_enable(struct cam_hw_soc_info *soc_info)
 {
+	int rc;
+
 	if (!soc_info) {
 		CAM_ERR(CAM_UTIL, "Invalid arguments");
 		return -EINVAL;
@@ -327,6 +329,15 @@ int cam_soc_util_irq_enable(struct cam_hw_soc_info *soc_info)
 	if (!soc_info->irq_line) {
 		CAM_ERR(CAM_UTIL, "No IRQ line available");
 		return -ENODEV;
+	}
+
+	if (!strcmp(soc_info->irq_name, "ife") ||
+	!strcmp(soc_info->irq_name, "ife-lite")) {
+		rc = irq_set_affinity(soc_info->irq_line->start,
+			cpumask_of(soc_info->index+1));
+		if (rc < 0)
+			CAM_ERR(CAM_UTIL, "specify cpu%d failed",
+				soc_info->index+1);
 	}
 
 	enable_irq(soc_info->irq_line->start);
