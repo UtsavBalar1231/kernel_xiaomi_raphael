@@ -1655,53 +1655,30 @@ static void init_config_param(struct mac_context *mac)
 	mac->roam.configParam.doBMPSWorkaround = 0;
 }
 
-/* This function flushes the roam scan cache */
-QDF_STATUS csr_flush_cfg_bg_scan_roam_channel_list(struct mac_context *mac,
-						   uint8_t sessionId)
+void csr_flush_cfg_bg_scan_roam_channel_list(tCsrChannelInfo *channel_info)
 {
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-
-	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
-		&mac->roam.neighborRoamInfo[sessionId];
-
-	/* Free up the memory first (if required) */
-	if (pNeighborRoamInfo->cfgParams.channelInfo.ChannelList) {
-		qdf_mem_free(pNeighborRoamInfo->cfgParams.channelInfo.
-			     ChannelList);
-		pNeighborRoamInfo->cfgParams.channelInfo.ChannelList = NULL;
-		pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels = 0;
+	if (channel_info->ChannelList) {
+		qdf_mem_free(channel_info->ChannelList);
+		channel_info->ChannelList = NULL;
+		channel_info->numOfChannels = 0;
 	}
-	return status;
 }
 
-/*
- * This function flushes the roam scan cache and creates fresh cache
- * based on the input channel list
- */
 QDF_STATUS csr_create_bg_scan_roam_channel_list(struct mac_context *mac,
-						uint8_t sessionId,
+						tCsrChannelInfo *channel_info,
 						const uint8_t *pChannelList,
 						const uint8_t numChannels)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
-		&mac->roam.neighborRoamInfo[sessionId];
 
-	pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels = numChannels;
-
-	pNeighborRoamInfo->cfgParams.channelInfo.ChannelList =
-		qdf_mem_malloc(pNeighborRoamInfo->cfgParams.channelInfo.
-			       numOfChannels);
-
-	if (!pNeighborRoamInfo->cfgParams.channelInfo.ChannelList) {
-		pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels = 0;
+	channel_info->ChannelList =
+		qdf_mem_malloc(sizeof(uint32_t) * numChannels);
+	if (!channel_info->ChannelList)
 		return QDF_STATUS_E_NOMEM;
-	}
 
-	/* Update the roam global structure */
-	qdf_mem_copy(pNeighborRoamInfo->cfgParams.channelInfo.ChannelList,
-		     pChannelList,
-		     pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels);
+	channel_info->numOfChannels = numChannels;
+	qdf_mem_copy(channel_info->ChannelList, pChannelList, numChannels);
+
 	return status;
 }
 
@@ -18171,23 +18148,23 @@ csr_check_band_channel_match(enum band_info band, uint8_t channel)
 }
 
 /**
- * csr_fetch_ch_lst_from_ini() - fetch channel list from ini and update req msg
+ * csr_populate_roam_chan_list()
  * parameters
  * @mac_ctx:      global mac ctx
- * @roam_info:    roam info struct
- * @req_buf:      out param, roam offload scan request packet
+ * @dst: Destination roam network to populate the roam chan list
+ * @src: Source channel list
  *
- * Return: result of operation
+ * Return: QDF_STATUS enumeration
  */
 static QDF_STATUS
-csr_fetch_ch_lst_from_ini(struct mac_context *mac_ctx,
-			  tpCsrNeighborRoamControlInfo roam_info,
-			  struct roam_offload_scan_req *req_buf)
+csr_populate_roam_chan_list(struct mac_context *mac_ctx,
+			    tSirRoamNetworkType *dst,
+			    tCsrChannelInfo *src)
 {
 	enum band_info band;
 	uint8_t i = 0;
 	uint8_t num_channels = 0;
-	uint8_t *ch_lst = roam_info->cfgParams.channelInfo.ChannelList;
+	uint8_t *ch_lst = src->ChannelList;
 	uint16_t  unsafe_chan[NUM_CHANNELS];
 	uint16_t  unsafe_chan_cnt = 0;
 	uint16_t  cnt = 0;
@@ -18216,7 +18193,12 @@ csr_fetch_ch_lst_from_ini(struct mac_context *mac_ctx,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	for (i = 0; i < roam_info->cfgParams.channelInfo.numOfChannels; i++) {
+	num_channels = dst->ChannelCount;
+	for (i = 0; i < src->numOfChannels; i++) {
+		if (csr_is_channel_present_in_list(dst->ChannelCache,
+						   num_channels,
+						   *ch_lst))
+			continue;
 		if (!csr_check_band_channel_match(band, *ch_lst))
 			continue;
 		/* Allow DFS channels only if the DFS roaming is enabled */
@@ -18250,13 +18232,42 @@ csr_fetch_ch_lst_from_ini(struct mac_context *mac_ctx,
 				continue;
 			}
 		}
-		req_buf->ConnectedNetwork.ChannelCache[num_channels++] =
-			*ch_lst;
+		dst->ChannelCache[num_channels++] = *ch_lst;
 		ch_lst++;
-
 	}
-	req_buf->ConnectedNetwork.ChannelCount = num_channels;
+	dst->ChannelCount = num_channels;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * csr_fetch_ch_lst_from_ini() - fetch channel list from ini and update req msg
+ * parameters
+ * @mac_ctx:      global mac ctx
+ * @roam_info:    roam info struct
+ * @req_buf:      out param, roam offload scan request packet
+ *
+ * Return: result of operation
+ */
+static QDF_STATUS
+csr_fetch_ch_lst_from_ini(struct mac_context *mac_ctx,
+			  tpCsrNeighborRoamControlInfo roam_info,
+			  struct roam_offload_scan_req *req_buf)
+{
+	QDF_STATUS status;
+	tCsrChannelInfo *specific_chan_info;
+
+	specific_chan_info = &roam_info->cfgParams.specific_chan_info;
+
+	status = csr_populate_roam_chan_list(mac_ctx,
+					     &req_buf->ConnectedNetwork,
+					     specific_chan_info);
+	if (status != QDF_STATUS_SUCCESS) {
+		sme_err("Failed to copy channels to roam list");
+		return status;
+	}
 	req_buf->ChannelCacheType = CHANNEL_LIST_STATIC;
+
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -18480,6 +18491,9 @@ csr_create_roam_scan_offload_request(struct mac_context *mac_ctx,
 	struct roam_offload_scan_req *req_buf = NULL;
 	tpCsrChannelInfo curr_ch_lst_info =
 		&roam_info->roamChannelInfo.currentChannelListInfo;
+	tCsrChannelInfo *specific_chan_info;
+
+	specific_chan_info = &roam_info->cfgParams.specific_chan_info;
 #ifdef FEATURE_WLAN_ESE
 	/*
 	 * this flag will be true if connection is ESE and no neighbor
@@ -18617,7 +18631,7 @@ csr_create_roam_scan_offload_request(struct mac_context *mac_ctx,
 			 * the occupied channels list.
 			 * Give Preference to INI Channels
 			 */
-			if (roam_info->cfgParams.channelInfo.numOfChannels) {
+			if (specific_chan_info->numOfChannels) {
 				status = csr_fetch_ch_lst_from_ini(mac_ctx,
 								   roam_info,
 								   req_buf);
