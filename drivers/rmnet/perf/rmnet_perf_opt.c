@@ -57,9 +57,6 @@ enum {
 /* What protocols we optimize */
 static int rmnet_perf_opt_mode = RMNET_PERF_OPT_MODE_ALL;
 
-/* Lock around flow nodes for synchronization with rmnet_perf_opt_mode changes */
-static DEFINE_SPINLOCK(rmnet_perf_opt_lock);
-
 /* flow hash table */
 DEFINE_HASHTABLE(rmnet_perf_opt_fht, RMNET_PERF_FLOW_HASH_TABLE_BITS);
 
@@ -78,7 +75,6 @@ static void rmnet_perf_opt_flush_flow_nodes_by_protocol(u8 protocol)
 static int rmnet_perf_set_opt_mode(const char *val,
 				   const struct kernel_param *kp)
 {
-	unsigned long ht_flags;
 	int old_mode = rmnet_perf_opt_mode;
 	int rc = -EINVAL;
 	char value[4];
@@ -86,8 +82,7 @@ static int rmnet_perf_set_opt_mode(const char *val,
 	strlcpy(value, val, 4);
 	value[3] = '\0';
 
-	local_bh_disable();
-	spin_lock_irqsave(&rmnet_perf_opt_lock, ht_flags);
+	rmnet_perf_core_grab_lock();
 
 	if (!strcmp(value, "tcp"))
 		rmnet_perf_opt_mode = RMNET_PERF_OPT_MODE_TCP;
@@ -123,8 +118,7 @@ static int rmnet_perf_set_opt_mode(const char *val,
 	}
 
 out:
-	spin_unlock_irqrestore(&rmnet_perf_opt_lock, ht_flags);
-	local_bh_enable();
+	rmnet_perf_core_release_lock();
 
 	return rc;
 }
@@ -323,8 +317,12 @@ rmnet_perf_opt_add_flow_subfrags(struct rmnet_perf_opt_flow_node *flow_node)
 		struct rmnet_frag_descriptor *new_frag;
 
 		new_frag = pkt_list[i].frag_desc;
-		rmnet_frag_pull(new_frag, perf->rmnet_port,
-				flow_node->ip_len + flow_node->trans_len);
+		/* Pull headers if they're there */
+		if (new_frag->hdr_ptr == rmnet_frag_data_ptr(new_frag))
+			rmnet_frag_pull(new_frag, perf->rmnet_port,
+					flow_node->ip_len +
+					flow_node->trans_len);
+
 		/* Move the fragment onto the subfrags list */
 		list_move_tail(&new_frag->list, &head_frag->sub_frags);
 		head_frag->gso_segs += (new_frag->gso_segs) ?: 1;
@@ -553,6 +551,7 @@ void rmnet_perf_opt_flush_single_flow_node(
 
 			rmnet_perf_opt_add_flow_subfrags(flow_node);
 			frag_desc = flow_node->pkt_list[0].frag_desc;
+			frag_desc->hash = flow_node->hash_value;
 			rmnet_perf_core_send_desc(frag_desc);
 		} else {
 			struct sk_buff *skb;
@@ -602,10 +601,10 @@ void rmnet_perf_opt_flush_all_flow_nodes(void)
  **/
 void rmnet_perf_opt_chain_end(void)
 {
-	spin_lock(&rmnet_perf_opt_lock);
+	rmnet_perf_core_grab_lock();
 	rmnet_perf_opt_flush_reason_cnt[RMNET_PERF_OPT_CHAIN_END]++;
 	rmnet_perf_opt_flush_all_flow_nodes();
-	spin_unlock(&rmnet_perf_opt_lock);
+	rmnet_perf_core_release_lock();
 }
 
 /* rmnet_perf_opt_insert_pkt_in_flow() - Inserts single IP packet into
@@ -642,10 +641,6 @@ void rmnet_perf_opt_insert_pkt_in_flow(
 		pkt_node->data_start = (unsigned char *)iph + header_len;
 	}
 
-	if (pkt_info->trans_proto == IPPROTO_TCP)
-		flow_node->next_seq = ntohl(tp->seq) +
-				      (__force u32) payload_len;
-
 	if (pkt_info->first_packet) {
 		/* Copy over flow information */
 		flow_node->ep = pkt_info->ep;
@@ -678,7 +673,23 @@ void rmnet_perf_opt_insert_pkt_in_flow(
 			flow_node->trans_proto =
 				((struct ipv6hdr *)iph)->nexthdr;
 		}
+
+		/* Set initial TCP SEQ number */
+		if (pkt_info->trans_proto == IPPROTO_TCP) {
+			if (pkt_info->frag_desc &&
+			    pkt_info->frag_desc->tcp_seq_set) {
+				__be32 seq = pkt_info->frag_desc->tcp_seq;
+
+				flow_node->next_seq = ntohl(seq);
+			} else {
+				flow_node->next_seq = ntohl(tp->seq);
+			}
+		}
+
 	}
+
+	if (pkt_info->trans_proto == IPPROTO_TCP)
+		flow_node->next_seq += payload_len;
 }
 
 /* rmnet_perf_opt_ingress() - Core business logic of optimization framework
@@ -701,7 +712,6 @@ bool rmnet_perf_opt_ingress(struct rmnet_perf_pkt_info *pkt_info)
 	bool handled = false;
 	bool flow_node_exists = false;
 
-	spin_lock(&rmnet_perf_opt_lock);
 	if (!rmnet_perf_optimize_protocol(pkt_info->trans_proto))
 		goto out;
 
@@ -746,6 +756,5 @@ handle_pkt:
 	}
 
 out:
-	spin_unlock(&rmnet_perf_opt_lock);
 	return handled;
 }

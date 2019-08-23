@@ -3,6 +3,7 @@ ifneq ($(TARGET_PRODUCT),qssi)
 
 RMNET_PERF_DLKM_PLATFORMS_LIST := msmnile
 RMNET_PERF_DLKM_PLATFORMS_LIST += kona
+RMNET_PERF_DLKM_PLATFORMS_LIST += lito
 
 ifeq ($(call is-board-platform-in-list, $(RMNET_PERF_DLKM_PLATFORMS_LIST)),true)
 LOCAL_PATH := $(call my-dir)
@@ -27,7 +28,6 @@ RMNET_PERF_BLD_DIR := ../../vendor/qcom/opensource/data-kernel/drivers/rmnet/per
 DLKM_DIR := ./device/qcom/common/dlkm
 
 KBUILD_OPTIONS := $(RMNET_PERF_BLD_DIR)
-LOCAL_MODULE_TAGS := debug
 
 $(warning $(DLKM_DIR))
 include $(DLKM_DIR)/AndroidKernelModule.mk
