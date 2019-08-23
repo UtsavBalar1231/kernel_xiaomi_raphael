@@ -523,6 +523,20 @@ void dp_tx_flow_control_init(struct dp_soc *soc)
  */
 void dp_tx_flow_control_deinit(struct dp_soc *soc)
 {
+	struct dp_tx_desc_pool_s *tx_desc_pool;
+	int i;
+
+	for (i = 0; i < MAX_TXDESC_POOLS; i++) {
+		tx_desc_pool = &((soc)->tx_desc[i]);
+		if (!tx_desc_pool->desc_pages.num_pages)
+			continue;
+
+		if (dp_tx_desc_pool_free(soc, i)) {
+			QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_INFO,
+				  "%s Tx Desc Pool Free failed", __func__);
+		}
+	}
+
 	qdf_spinlock_destroy(&soc->flow_pool_array_lock);
 }
 
