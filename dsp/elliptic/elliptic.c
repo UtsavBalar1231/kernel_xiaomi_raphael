@@ -3,7 +3,6 @@
 * Copyright (C) 2019 XiaoMi, Inc.
 *
 */
-/* #define DEBUG */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
