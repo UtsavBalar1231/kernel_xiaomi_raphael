@@ -1,6 +1,7 @@
 ifneq ($(TARGET_PRODUCT),qssi)
 RMNET_SHS_DLKM_PLATFORMS_LIST := msmnile
 RMNET_SHS_DLKM_PLATFORMS_LIST += kona
+RMNET_SHS_DLKM_PLATFORMS_LIST += lito
 
 ifeq ($(call is-board-platform-in-list, $(RMNET_SHS_DLKM_PLATFORMS_LIST)),true)
 #Make file to create RMNET_SHS DLKM
@@ -19,7 +20,6 @@ RMNET_SHS_BLD_DIR := ../../vendor/qcom/opensource/data-kernel/drivers/rmnet/shs
 DLKM_DIR := ./device/qcom/common/dlkm
 
 KBUILD_OPTIONS := $(RMNET_SHS_BLD_DIR)
-LOCAL_MODULE_TAGS := debug
 
 $(warning $(DLKM_DIR))
 include $(DLKM_DIR)/AndroidKernelModule.mk
