@@ -30,6 +30,7 @@
 
 static void __iomem *mem_base[CAM_VFE_HW_NUM_MAX];
 static struct kfifo *g_addr_fifo[CAM_VFE_HW_NUM_MAX];
+static struct kfifo *g_buffer_fifo[CAM_VFE_HW_NUM_MAX];
 
 static const char drv_name[] = "vfe_bus";
 
@@ -1172,6 +1173,11 @@ static int cam_vfe_bus_start_wm(struct cam_isp_resource_node *wm_res)
 		cam_io_w_mb(rsrc_data->stride, (common_data->mem_base +
 			rsrc_data->hw_regs->stride));
 
+	kfifo_reset(
+	&g_addr_fifo[rsrc_data->common_data->core_index][rsrc_data->index]);
+	kfifo_reset(
+	&g_buffer_fifo[rsrc_data->common_data->core_index][rsrc_data->index]);
+	
 	/* Subscribe IRQ */
 	if (rsrc_data->irq_enabled) {
 		CAM_DBG(CAM_ISP, "Subscribe WM%d IRQ", rsrc_data->index);
@@ -1269,10 +1275,7 @@ static int cam_vfe_bus_stop_wm(struct cam_isp_resource_node *wm_res)
 			common_data->bus_irq_controller,
 			wm_res->irq_handle);
 
-	wm_res->res_state = CAM_ISP_RESOURCE_STATE_RESERVED;
-
-	kfifo_reset(
-	&g_addr_fifo[rsrc_data->common_data->core_index][rsrc_data->index]);
+	wm_res->res_state = CAM_ISP_RESOURCE_STATE_RESERVED;	
 
 	return rc;
 }
@@ -1326,7 +1329,7 @@ static int cam_vfe_bus_handle_wm_done_top_half(uint32_t evt_id,
 static int cam_vfe_bus_handle_wm_done_bottom_half(void *wm_node,
 	void *evt_payload_priv)
 {
-	int rc = CAM_VFE_IRQ_STATUS_ERR;
+	int rc = CAM_VFE_IRQ_STATUS_ERR, i = 0;
 	struct cam_isp_resource_node          *wm_res = wm_node;
 	struct cam_vfe_bus_irq_evt_payload    *evt_payload = evt_payload_priv;
 	struct cam_vfe_bus_ver2_wm_resource_data *rsrc_data =
@@ -1335,6 +1338,7 @@ static int cam_vfe_bus_handle_wm_done_bottom_half(void *wm_node,
 	uint32_t   status_reg;
 	uint32_t lastAddr;
 	uint32_t device_addr;
+	struct kfifo *address_fifo;
 
 	if (!evt_payload || !rsrc_data)
 		return rc;
@@ -1357,16 +1361,19 @@ static int cam_vfe_bus_handle_wm_done_bottom_half(void *wm_node,
 	lastAddr = cam_io_r_mb(mem_base[rsrc_data->common_data->core_index] +
 		(0x100*rsrc_data->index) + 0x2200);
 
-	kfifo_out(
-	 &g_addr_fifo[rsrc_data->common_data->core_index][rsrc_data->index],
-	 &device_addr, sizeof(uint32_t));
+	/* Workaround */
+	address_fifo = &g_addr_fifo[rsrc_data->common_data->core_index][rsrc_data->index];
 
-	if (lastAddr != device_addr)
-		//TODO: handle this condition appropriately
-		//Need to keep dequeuing until we get the address we expect.
-		CAM_ERR_RATE_LIMIT(CAM_ISP,
-		"lastAddr 0x%x doesn't match expected 0x%x!!!!",
-		lastAddr, device_addr);
+	if (!kfifo_is_empty(address_fifo)) {
+		kfifo_out(address_fifo, &device_addr, sizeof(uint32_t));
+		if (lastAddr != device_addr) {
+			CAM_ERR_RATE_LIMIT(CAM_ISP,
+				"vfe %d rdi %d lastAddr 0x%x != expected 0x%x",
+				rsrc_data->common_data->core_index, rsrc_data->index,
+				lastAddr, device_addr);
+		}
+	}
+
 
 	return rc;
 }
@@ -2869,7 +2876,6 @@ static int cam_vfe_bus_update_wm(void *priv, void *cmd_args,
 	uint32_t  frame_inc = 0, val;
 	uint32_t loop_size = 0;
 	uint32_t image_buf;
-	uint32_t available_entries;
 	uint32_t output_image_buf;
 
 	bus_priv = (struct cam_vfe_bus_ver2_priv  *) priv;
@@ -2986,22 +2992,15 @@ static int cam_vfe_bus_update_wm(void *priv, void *cmd_args,
 					update_buf->wm_update->image_buf[i] +
 					wm_data->offset + k * frame_inc;
 
-				available_entries = kfifo_avail(
-				&bus_priv->buffer_fifo[wm_data->index]);
-
-				if (available_entries != 0) {
+				if (!kfifo_is_full(&bus_priv->buffer_fifo[wm_data->index])) {
 					kfifo_in(
 					&bus_priv->buffer_fifo[wm_data->index],
 					&image_buf, sizeof(uint32_t));
 				} else
-					CAM_ERR(CAM_ISP,
-					"no spot in buffer_fifo!");
+					CAM_ERR(CAM_ISP, "buffer_fifo full!");
 
-
-				available_entries = kfifo_avail(
-				&bus_priv->addr_fifo[wm_data->index]);
-
-				if (available_entries != 0) {
+				if ((!kfifo_is_full(&bus_priv->addr_fifo[wm_data->index])) &&
+						(!kfifo_is_empty(&bus_priv->buffer_fifo[wm_data->index]))) {
 					kfifo_out(
 					&bus_priv->buffer_fifo[wm_data->index],
 					&output_image_buf,
@@ -3499,6 +3498,8 @@ int cam_vfe_bus_ver2_init(
 		bus_priv->common_data.mem_base;
 	g_addr_fifo[bus_priv->common_data.hw_intf->hw_idx] =
 		&bus_priv->addr_fifo[0];
+	g_buffer_fifo[bus_priv->common_data.hw_intf->hw_idx] =
+		&bus_priv->buffer_fifo[0];
 
 	mutex_init(&bus_priv->common_data.bus_mutex);
 
