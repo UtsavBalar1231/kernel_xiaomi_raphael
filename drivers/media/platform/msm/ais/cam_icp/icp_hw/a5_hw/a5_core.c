@@ -464,11 +464,7 @@ int cam_a5_process_cmd(void *device_priv, uint32_t cmd_type,
 
 	case CAM_ICP_A5_CMD_CPAS_STOP:
 		if (core_info->cpas_start) {
-			rc = cam_cpas_stop(core_info->cpas_handle);
-			if (rc) {
-				CAM_ERR(CAM_ICP, "cpas stop failed %d", rc);
-				return rc;
-			}
+			cam_cpas_stop(core_info->cpas_handle);
 			core_info->cpas_start = false;
 		}
 		break;
