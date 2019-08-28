@@ -31,6 +31,8 @@ endif
 endif
 
 ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
+KBUILD_CFLAGS	+= $(call cc-option, -mpc-relative-literal-loads)
+
   ifeq ($(call ld-option, --fix-cortex-a53-843419),)
 $(warning ld does not support --fix-cortex-a53-843419; kernel may be susceptible to erratum)
   else
@@ -101,7 +103,6 @@ endif
 
 KBUILD_CFLAGS	+= -mgeneral-regs-only $(lseinstr) $(brokengasinst) $(vdso32)
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
-KBUILD_CFLAGS	+= $(call cc-option, -mpc-relative-literal-loads)
 KBUILD_CFLAGS	+= -fno-pic
 KBUILD_AFLAGS	+= $(lseinstr) $(brokengasinst) $(vdso32)
 
