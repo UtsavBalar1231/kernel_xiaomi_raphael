@@ -88,6 +88,32 @@
 #define WMA_EXTSCAN_MAX_HOTLIST_ENTRIES 10
 #endif
 
+static inline wmi_host_channel_width
+wma_map_phy_ch_bw_to_wmi_channel_width(enum phy_ch_width ch_width)
+{
+	switch (ch_width) {
+	case CH_WIDTH_20MHZ:
+		return WMI_HOST_CHAN_WIDTH_20;
+	case CH_WIDTH_40MHZ:
+		return WMI_HOST_CHAN_WIDTH_40;
+	case CH_WIDTH_80MHZ:
+		return WMI_HOST_CHAN_WIDTH_80;
+	case CH_WIDTH_160MHZ:
+		return WMI_HOST_CHAN_WIDTH_160;
+	case CH_WIDTH_5MHZ:
+		return WMI_HOST_CHAN_WIDTH_5;
+	case CH_WIDTH_10MHZ:
+		return WMI_HOST_CHAN_WIDTH_10;
+	default:
+		return WMI_HOST_CHAN_WIDTH_20;
+	}
+}
+
+#define WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ      0
+#define WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ         1
+#define WNI_CFG_VHT_CHANNEL_WIDTH_160MHZ        2
+#define WNI_CFG_VHT_CHANNEL_WIDTH_80_PLUS_80MHZ 3
+
 /**
  * wma_update_channel_list() - update channel list
  * @handle: wma handle
@@ -105,6 +131,7 @@ QDF_STATUS wma_update_channel_list(WMA_HANDLE handle,
 	int i, len;
 	struct scan_chan_list_params *scan_ch_param;
 	struct channel_param *chan_p;
+	struct ch_params ch_params;
 
 	len = sizeof(struct channel_param) * chan_list->numChan +
 		offsetof(struct scan_chan_list_params, ch_param[0]);
@@ -164,6 +191,14 @@ QDF_STATUS wma_update_channel_list(WMA_HANDLE handle,
 		/*TODO: Set WMI_SET_CHANNEL_ANTENNA_MAX */
 		/*TODO: WMI_SET_CHANNEL_REG_CLASSID */
 		chan_p->maxregpower = chan_list->chanParam[i].pwr;
+
+		ch_params.ch_width = CH_WIDTH_160MHZ;
+		wlan_reg_set_channel_params(wma_handle->pdev,
+					    chan_list->chanParam[i].chanId, 0,
+					    &ch_params);
+		chan_p->max_bw_supported =
+			wma_map_phy_ch_bw_to_wmi_channel_width(
+							ch_params.ch_width);
 
 		chan_p++;
 	}
