@@ -3928,7 +3928,12 @@ static int wlan_hdd_get_station_remote(struct wiphy *wiphy,
 	txrx_stats.rx_bytes = peer_info.rx_bytes;
 	txrx_stats.tx_retries = peer_info.tx_retries;
 	txrx_stats.tx_failed = peer_info.tx_failed;
+	txrx_stats.tx_succeed = peer_info.tx_succeed;
 	txrx_stats.rssi = peer_info.rssi + WLAN_HDD_TGT_NOISE_FLOOR_DBM;
+	for (i = 0; i < WMI_MAX_CHAINS; i++)
+		txrx_stats.peer_rssi_per_chain[i] =
+				peer_info.peer_rssi_per_chain[i] +
+				WLAN_HDD_TGT_NOISE_FLOOR_DBM;
 	wlan_hdd_fill_rate_info(&txrx_stats, &peer_info);
 	wlan_hdd_fill_station_info(hddctx->psoc, sinfo, stainfo, &txrx_stats);
 
