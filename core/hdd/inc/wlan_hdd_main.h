@@ -1922,6 +1922,8 @@ struct hdd_context {
 #ifdef CLD_PM_QOS
 	struct pm_qos_request pm_qos_req;
 #endif
+	qdf_time_t runtime_resume_start_time_stamp;
+	qdf_time_t runtime_suspend_done_time_stamp;
 };
 
 /**
