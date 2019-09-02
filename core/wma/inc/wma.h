@@ -2593,4 +2593,16 @@ int wma_motion_det_base_line_host_event_handler(void *handle, u_int8_t *event,
 						u_int32_t len);
 #endif /* WLAN_FEATURE_MOTION_DETECTION */
 
+/**
+ * wma_get_rx_chainmask() - API to get rx chainmask from mac phy capability
+ * @pdev_id: pdev id
+ * @chainmask_2g: pointer to return 2g chainmask
+ * @chainmask_5g: pointer to return 5g chainmask
+ *
+ * API to get rx chainmask from mac phy capability directly.
+ *
+ * Return: QDF_STATUS_SUCCESS or non-zero on failure
+ */
+QDF_STATUS wma_get_rx_chainmask(uint8_t pdev_id, uint32_t *chainmask_2g,
+				uint32_t *chainmask_5g);
 #endif
