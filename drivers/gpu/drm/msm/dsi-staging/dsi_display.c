@@ -60,6 +60,9 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{}
 };
 
+static unsigned int timing_override;
+module_param(timing_override, uint, 0444);
+
 static void dsi_display_mask_ctrl_error_interrupts(struct dsi_display *display,
 			u32 mask, bool enable)
 {
@@ -6355,6 +6358,11 @@ int dsi_display_get_modes(struct dsi_display *display,
 	num_dfps_rates = !dfps_caps.dfps_support ? 1 : dfps_caps.dfps_list_len;
 
 	panel_mode_count = display->panel->num_timing_nodes;
+	if (timing_override >= panel_mode_count) {
+		pr_warn("[%s] ignoring invalid cmdline timing override %d\n",
+			display->name, timing_override);
+		timing_override = 0;
+	}
 
 	for (mode_idx = 0; mode_idx < panel_mode_count; mode_idx++) {
 		struct dsi_display_mode panel_mode;
@@ -6362,6 +6370,9 @@ int dsi_display_get_modes(struct dsi_display *display,
 
 		if (display->cmdline_timing == mode_idx)
 			topology_override = display->cmdline_topology;
+
+		if (mode_idx != timing_override)
+			continue;
 
 		memset(&panel_mode, 0, sizeof(panel_mode));
 
