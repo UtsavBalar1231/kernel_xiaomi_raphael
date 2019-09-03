@@ -1129,6 +1129,7 @@ struct assoc_ind {
 	const uint8_t *owe_ie;
 	uint32_t owe_ie_len;
 	uint16_t owe_status;
+	bool need_assoc_rsp_tx_cb;
 };
 
 /**
@@ -1153,6 +1154,7 @@ struct assoc_cnf {
 	enum mac_status_code mac_status_code;
 	uint8_t *owe_ie;
 	uint32_t owe_ie_len;
+	bool need_assoc_rsp_tx_cb;
 };
 
 /* / Enum definition for  Wireless medium status change codes */
