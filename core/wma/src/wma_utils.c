@@ -4474,86 +4474,40 @@ static void wma_set_roam_offload_flag(tp_wma_handle wma, uint8_t vdev_id,
 		flag = WMI_ROAM_FW_OFFLOAD_ENABLE_FLAG |
 		       WMI_ROAM_BMISS_FINAL_SCAN_ENABLE_FLAG;
 
-	WMA_LOGD("%s: vdev_id:%d, is_set:%d, flag:%d, roam_offload_enabled:%d",
-		 __func__, vdev_id, is_set, flag,
-		  wma->interfaces[vdev_id].roam_offload_enabled);
+	WMA_LOGD("%s: vdev_id:%d, is_set:%d, flag:%d",
+		 __func__, vdev_id, is_set, flag);
 
 	status = wma_vdev_set_param(wma->wmi_handle, vdev_id,
 				    WMI_VDEV_PARAM_ROAM_FW_OFFLOAD, flag);
 	if (QDF_IS_STATUS_ERROR(status))
 		WMA_LOGE("Failed to set WMI_VDEV_PARAM_ROAM_FW_OFFLOAD");
-	else
-		wma->interfaces[vdev_id].roam_offload_enabled = is_set;
 }
 
-/**
- * wma_update_roam_offload_flag() -  update roam offload flag to fw
- * @wma:     wma handle
- * @vdev_id: vdev id
- * @is_connected: connected or disconnected
- *
- * Return: none
- */
-static void wma_update_roam_offload_flag(tp_wma_handle wma, uint8_t vdev_id,
-					 bool is_connected)
+void wma_update_roam_offload_flag(void *handle,
+				  struct roam_init_params *params)
 {
+	tp_wma_handle wma = handle;
 	struct wma_txrx_node *iface;
-	uint8_t id;
-	uint8_t roam_offload_vdev_id = WMA_INVALID_VDEV_ID;
-	uint32_t list[MAX_NUMBER_OF_CONC_CONNECTIONS];
-	uint8_t count;
 
 	WMA_LOGD("%s: vdev_id:%d, is_connected:%d", __func__,
-		 vdev_id, is_connected);
+		 params->vdev_id, params->enable);
 
-	iface = &wma->interfaces[vdev_id];
+	if (!wma_is_vdev_valid(params->vdev_id)) {
+		WMA_LOGE("%s: vdev_id: %d is not active", __func__,
+			 params->vdev_id);
+		return;
+	}
+
+	iface = &wma->interfaces[params->vdev_id];
 
 	if ((iface->type != WMI_VDEV_TYPE_STA) ||
 	    (iface->sub_type != 0)) {
 		WMA_LOGE("%s: this isn't a STA: %d",
-			 __func__, vdev_id);
+			 __func__, params->vdev_id);
 		return;
 	}
 
-	if (iface->roaming_in_progress || iface->roam_synch_in_progress) {
-		WMA_LOGE("%s: roaming in progress: %d",
-			 __func__, vdev_id);
-		return;
-	}
-
-	for (id = 0; id < wma->max_bssid; id++) {
-		if (wma->interfaces[id].roam_offload_enabled)
-			roam_offload_vdev_id = id;
-	}
-
-	/*
-	 * If sta connected, and no connected sta interface exist, then set
-	 * set roam offload flag to this sta interface
-	 */
-	if (is_connected && (roam_offload_vdev_id == WMA_INVALID_VDEV_ID))
-		wma_set_roam_offload_flag(wma, vdev_id, true);
-
-	if (!is_connected && roam_offload_vdev_id == vdev_id) {
-		/* If sta disconnected and roam offload enaled on this
-		 * interface, then clear roam offload flag
-		 */
-		wma_set_roam_offload_flag(wma, vdev_id, false);
-
-		count = policy_mgr_mode_specific_connection_count(
-				wma->psoc, PM_STA_MODE, list);
-		WMA_LOGD("%s: valid sta count:%d", __func__, count);
-		/*
-		 * If there is multi sta connection before this disconnection,
-		 * then set roam offload flag to other connected sta inferface.
-		 */
-		if (count > 1) {
-			for (id = 0; id < count; id++) {
-				if (list[id] != vdev_id)
-					wma_set_roam_offload_flag(wma, list[id],
-								  true);
-			}
-		}
-	}
+	wma_set_roam_offload_flag(wma, params->vdev_id, params->enable);
 }
 
 QDF_STATUS wma_send_vdev_up_to_fw(t_wma_handle *wma,
@@ -4567,7 +4521,7 @@ QDF_STATUS wma_send_vdev_up_to_fw(t_wma_handle *wma,
 		WMA_LOGE("%s: Invalid vdev id:%d", __func__, params->vdev_id);
 		return QDF_STATUS_E_FAILURE;
 	}
-	wma_update_roam_offload_flag(wma, params->vdev_id, true);
+
 	vdev = &wma->interfaces[params->vdev_id];
 
 	status = wmi_unified_vdev_up_send(wma->wmi_handle, bssid, params);
@@ -4587,7 +4541,6 @@ QDF_STATUS wma_send_vdev_down_to_fw(t_wma_handle *wma, uint8_t vdev_id)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	wma_update_roam_offload_flag(wma, vdev_id, false);
 	vdev = &wma->interfaces[vdev_id];
 	wma->interfaces[vdev_id].roaming_in_progress = false;
 	status = wmi_unified_vdev_down_send(wma->wmi_handle, vdev_id);

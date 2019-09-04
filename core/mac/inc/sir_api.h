@@ -2249,6 +2249,16 @@ struct mawc_params {
 	uint8_t mawc_roam_rssi_low_adjust;
 };
 
+/**
+ * struct roam_init_params - Firmware roam module initialization parameters
+ * @vdev_id: vdev for which the roaming has to be enabled/disabled
+ * @enable:  flag to init/deinit roam module
+ */
+struct roam_init_params {
+	uint8_t vdev_id;
+	uint8_t enable;
+};
+
 struct roam_offload_scan_req {
 	uint16_t message_type;
 	uint16_t length;

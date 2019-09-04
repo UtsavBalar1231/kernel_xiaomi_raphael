@@ -758,7 +758,6 @@ struct roam_synch_frame_ind {
  * @vdev_stop_runtime_wakelock: runtime pm wakelock for vdev stop
  * @vdev_set_key_runtime_wakelock: runtime pm wakelock for set key
  * @channel: channel
- * @roam_offload_enabled: is roam offload enable/disable
  * @roam_scan_stats_req: cached roam scan stats request
  *
  * It stores parameters per vdev in wma.
@@ -836,7 +835,6 @@ struct wma_txrx_node {
 	qdf_runtime_lock_t vdev_set_key_runtime_wakelock;
 	struct roam_synch_frame_ind roam_synch_frame_ind;
 	bool is_waiting_for_key;
-	bool roam_offload_enabled;
 	uint8_t channel;
 	struct sir_roam_scan_stats *roam_scan_stats_req;
 };
