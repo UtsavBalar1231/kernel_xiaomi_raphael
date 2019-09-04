@@ -4854,6 +4854,7 @@ typedef enum {
 #endif
 	wmi_coex_report_antenna_isolation_event_id,
 	wmi_roam_auth_offload_event_id,
+	wmi_get_elna_bypass_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 

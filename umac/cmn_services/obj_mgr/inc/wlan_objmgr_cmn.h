@@ -236,6 +236,8 @@ typedef void (*wlan_objmgr_peer_status_handler)(
  * @WLAN_VDEV_TARGET_IF_ID:     Target interface layer
  * @WLAN_RX_PKT_TAG_ID:         RX protocol tag operations
  * @WLAN_INTEROP_ISSUES_AP_ID:           interop issues ap operation
+ * @WLAN_FWOL_NB_ID:            fw offload northbound operations
+ * @WLAN_FWOL_SB_ID:            fw offload southbound operations
  * @WLAN_REF_ID_MAX:            Max id used to generate ref count tracking array
  */
  /* New value added to the enum must also be reflected in function
@@ -294,6 +296,8 @@ typedef enum {
 	WLAN_VDEV_TARGET_IF_ID     = 49,
 	WLAN_RX_PKT_TAG_ID         = 50,
 	WLAN_INTEROP_ISSUES_AP_ID           = 51,
+	WLAN_FWOL_NB_ID       = 52,
+	WLAN_FWOL_SB_ID       = 53,
 	WLAN_REF_ID_MAX,
 } wlan_objmgr_ref_dbgid;
 
@@ -359,6 +363,8 @@ static inline char *string_from_dbgid(wlan_objmgr_ref_dbgid id)
 					"WLAN_VDEV_TARGET_IF_ID",
 					"WLAN_RX_PKT_TAG_ID",
 					"WLAN_INTEROP_ISSUES_AP_ID",
+					"WLAN_FWOL_NB_ID",
+					"WLAN_FWOL_SB_ID",
 					"WLAN_REF_ID_MAX"};
 
 	return (char *)strings[id];
