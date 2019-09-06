@@ -176,6 +176,7 @@ struct msm_geni_serial_port {
 	u32 cur_tx_remaining;
 	bool startup_in_progress;
 	struct mutex ioctl_mutex;
+	bool brk;
 };
 
 static const struct uart_ops msm_geni_serial_pops;
@@ -830,6 +831,13 @@ static int handle_rx_console(struct uart_port *uport,
 			int sysrq;
 
 			uport->icount.rx++;
+			if (msm_port->brk && rx_char[c] == 0) {
+				flag = TTY_BREAK;
+				msm_port->brk = false;
+				if (uart_handle_break(uport))
+					continue;
+			}
+
 			sysrq = uart_handle_sysrq_char(uport, rx_char[c]);
 			if (!sysrq)
 				tty_insert_flip_char(tport, rx_char[c], flag);
@@ -1463,6 +1471,7 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 	unsigned int geni_status;
 	struct tty_port *tport = &uport->state->port;
 	bool drop_rx = false;
+        struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
 
 	spin_lock_irqsave(&uport->lock, flags);
 	if (uart_console(uport) && uport->suspended) {
@@ -1511,6 +1520,7 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 		} else if ((s_irq_status & S_GP_IRQ_2_EN) ||
 			(s_irq_status & S_GP_IRQ_3_EN)) {
 			uport->icount.brk++;
+			msm_port->brk = true;
 		}
 
 		if ((s_irq_status & S_RX_FIFO_WATERMARK_EN) ||
