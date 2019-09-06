@@ -5867,6 +5867,7 @@ QDF_STATUS hdd_stop_adapter(struct hdd_context *hdd_ctx,
 	if (adapter->scan_info.default_scan_ies) {
 		qdf_mem_free(adapter->scan_info.default_scan_ies);
 		adapter->scan_info.default_scan_ies = NULL;
+		adapter->scan_info.default_scan_ies_len = 0;
 	}
 
 	hdd_exit();
