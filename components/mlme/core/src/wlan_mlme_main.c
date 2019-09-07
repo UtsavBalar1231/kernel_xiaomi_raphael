@@ -197,20 +197,6 @@ QDF_STATUS mlme_get_peer_mic_len(struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS
-mlme_peer_object_created_notification(struct wlan_objmgr_peer *peer,
-				      void *arg)
-{
-	return QDF_STATUS_SUCCESS;
-}
-
-QDF_STATUS
-mlme_peer_object_destroyed_notification(struct wlan_objmgr_peer *peer,
-					void *arg)
-{
-	return QDF_STATUS_SUCCESS;
-}
-
 #else
 
 QDF_STATUS mlme_get_peer_mic_len(struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
@@ -246,6 +232,7 @@ QDF_STATUS mlme_get_peer_mic_len(struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 
 	return QDF_STATUS_SUCCESS;
 }
+#endif
 
 QDF_STATUS
 mlme_peer_object_created_notification(struct wlan_objmgr_peer *peer,
@@ -308,7 +295,6 @@ mlme_peer_object_destroyed_notification(struct wlan_objmgr_peer *peer,
 
 	return status;
 }
-#endif
 
 static void mlme_init_chainmask_cfg(struct wlan_objmgr_psoc *psoc,
 				    struct wlan_mlme_chainmask *chainmask_info)
@@ -2753,3 +2739,31 @@ void mlme_set_roam_state(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
 }
 #endif
+
+void mlme_set_peer_pmf_status(struct wlan_objmgr_peer *peer,
+			      bool is_pmf_enabled)
+{
+	struct peer_mlme_priv_obj *peer_priv;
+
+	peer_priv = wlan_objmgr_peer_get_comp_private_obj(peer,
+							  WLAN_UMAC_COMP_MLME);
+	if (!peer_priv) {
+		mlme_legacy_err(" peer mlme component object is NULL");
+		return;
+	}
+	peer_priv->is_pmf_enabled = is_pmf_enabled;
+}
+
+bool mlme_get_peer_pmf_status(struct wlan_objmgr_peer *peer)
+{
+	struct peer_mlme_priv_obj *peer_priv;
+
+	peer_priv = wlan_objmgr_peer_get_comp_private_obj(peer,
+							  WLAN_UMAC_COMP_MLME);
+	if (!peer_priv) {
+		mlme_legacy_err("peer mlme component object is NULL");
+		return false;
+	}
+
+	return peer_priv->is_pmf_enabled;
+}
