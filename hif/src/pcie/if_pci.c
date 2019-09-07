@@ -2640,7 +2640,6 @@ int hif_pci_bus_suspend_noirq(struct hif_softc *scn)
 		qdf_atomic_set(&scn->link_suspended, 1);
 
 	hif_apps_wake_irq_enable(GET_HIF_OPAQUE_HDL(scn));
-
 	return 0;
 }
 
@@ -3466,20 +3465,24 @@ int hif_pci_configure_grp_irq(struct hif_softc *scn,
 	int ret = 0;
 	int irq = 0;
 	int j;
+	unsigned long irq_flags;
 
 	hif_ext_group->irq_enable = &hif_exec_grp_irq_enable;
 	hif_ext_group->irq_disable = &hif_exec_grp_irq_disable;
 	hif_ext_group->irq_name = &hif_pci_get_irq_name;
 	hif_ext_group->work_complete = &hif_dummy_grp_done;
 
-	for (j = 0; j < hif_ext_group->numirq; j++) {
+	for (j = 0; j < hif_ext_group->numirq; j++)
+	{
 		irq = hif_ext_group->irq[j];
 
-		HIF_DBG("%s: request_irq = %d for grp %d",
-			  __func__, irq, hif_ext_group->grp_id);
+		irq_flags = IRQF_SHARED | IRQF_NO_SUSPEND;
+
+		hif_debug("request_irq = %d for grp %d",
+			  irq, hif_ext_group->grp_id);
 		ret = request_irq(irq,
 				  hif_ext_group_interrupt_handler,
-				  IRQF_SHARED, "wlan_EXT_GRP",
+				  irq_flags, "wlan_EXT_GRP",
 				  hif_ext_group);
 		if (ret) {
 			HIF_ERROR("%s: request_irq failed ret = %d",
