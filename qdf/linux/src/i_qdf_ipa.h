@@ -379,6 +379,8 @@ typedef struct ipa_gsi_ep_config __qdf_ipa_gsi_ep_config_t;
 
 #ifdef WDI3_STATS_UPDATE
 typedef struct ipa_wdi_tx_info __qdf_ipa_wdi_tx_info_t;
+typedef struct ipa_wdi_bw_info __qdf_ipa_wdi_bw_info_t;
+typedef struct ipa_inform_wlan_bw  __qdf_ipa_inform_wlan_bw_t;
 #endif
 
 /**

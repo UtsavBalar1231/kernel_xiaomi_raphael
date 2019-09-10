@@ -215,6 +215,8 @@ typedef __qdf_ipa_dp_evt_type_t qdf_ipa_dp_evt_type_t;
 
 #ifdef WDI3_STATS_UPDATE
 typedef __qdf_ipa_wdi_tx_info_t qdf_ipa_wdi_tx_info_t;
+typedef __qdf_ipa_wdi_bw_info_t qdf_ipa_wdi_bw_info_t;
+typedef __qdf_ipa_inform_wlan_bw_t qdf_ipa_inform_wlan_bw_t;
 #endif
 
 typedef __qdf_ipa_hdr_add_t qdf_ipa_hdr_add_t;
