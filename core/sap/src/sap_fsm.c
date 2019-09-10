@@ -974,6 +974,17 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 					eSAP_SKIP_ACS_SCAN) {
 #endif
 
+	if (sap_context->channelList) {
+		qdf_mem_free(sap_context->channelList);
+		sap_context->channelList = NULL;
+		sap_context->num_of_channel = 0;
+	}
+	sap_get_channel_list(sap_context, &channel_list, &num_of_channels);
+	if (!num_of_channels) {
+		sap_err("No channel sutiable for ACS, SAP failed");
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req)
 		return QDF_STATUS_E_NOMEM;
@@ -1001,7 +1012,6 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	req->scan_req.scan_req_id = sap_context->req_id;
 	req->scan_req.scan_priority = SCAN_PRIORITY_HIGH;
 	req->scan_req.scan_f_bcast_probe = true;
-	sap_get_channel_list(sap_context, &channel_list, &num_of_channels);
 
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 	if (num_of_channels != 0) {
@@ -1011,11 +1021,6 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 		for (i = 0; i < num_of_channels; i++)
 			req->scan_req.chan_list.chan[i].freq =
 				wlan_chan_to_freq(channel_list[i]);
-		if (sap_context->channelList) {
-			qdf_mem_free(sap_context->channelList);
-			sap_context->channelList = NULL;
-			sap_context->num_of_channel = 0;
-		}
 		sap_context->channelList = channel_list;
 		sap_context->num_of_channel = num_of_channels;
 		/* Set requestType to Full scan */
