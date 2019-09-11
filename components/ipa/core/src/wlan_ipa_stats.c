@@ -751,7 +751,7 @@ void wlan_ipa_uc_stat(struct wlan_ipa_priv *ipa_ctx)
 
 #ifdef FEATURE_METERING
 
-#if defined(QCA_WIFI_QCA6290) || defined(QCA_WIFI_QCA6390)
+#ifdef WDI3_STATS_UPDATE
 /**
  * wlan_ipa_wdi_meter_notifier_cb() - WLAN to IPA callback handler.
  * IPA calls to get WLAN stats or set quota limit.
@@ -765,10 +765,39 @@ void wlan_ipa_uc_stat(struct wlan_ipa_priv *ipa_ctx)
 static void __wlan_ipa_wdi_meter_notifier_cb(qdf_ipa_wdi_meter_evt_type_t evt,
 					     void *data)
 {
-	ipa_info("event=%d", evt);
+	struct wlan_ipa_priv *ipa_ctx = wlan_ipa_get_obj_context();
+	struct ipa_inform_wlan_bw *bw_info;
+
+	if (evt != IPA_INFORM_WLAN_BW)
+		return;
+
+	bw_info = data;
+	ipa_debug("bw_info idx:%d tp:%llu", bw_info->index,
+		  bw_info->throughput);
+
+	if (bw_info->index == ipa_ctx->curr_bw_level)
+		return;
+
+	if (bw_info->index == WLAN_IPA_BW_LEVEL_LOW) {
+		cdp_ipa_set_perf_level(ipa_ctx->dp_soc,
+				       QDF_IPA_CLIENT_WLAN2_CONS,
+				       ipa_ctx->config->ipa_bw_low);
+		ipa_ctx->curr_bw_level = WLAN_IPA_BW_LEVEL_LOW;
+	} else if (bw_info->index == WLAN_IPA_BW_LEVEL_MEDIUM) {
+		cdp_ipa_set_perf_level(ipa_ctx->dp_soc,
+				       QDF_IPA_CLIENT_WLAN2_CONS,
+				       ipa_ctx->config->ipa_bw_medium);
+		ipa_ctx->curr_bw_level = WLAN_IPA_BW_LEVEL_MEDIUM;
+	} else if (bw_info->index == WLAN_IPA_BW_LEVEL_HIGH) {
+		cdp_ipa_set_perf_level(ipa_ctx->dp_soc,
+				       QDF_IPA_CLIENT_WLAN2_CONS,
+				       ipa_ctx->config->ipa_bw_high);
+		ipa_ctx->curr_bw_level = WLAN_IPA_BW_LEVEL_HIGH;
+	}
+
+	ipa_debug("Requested BW level: %d", ipa_ctx->curr_bw_level);
 }
 
-#ifdef WDI3_STATS_UPDATE
 void wlan_ipa_update_tx_stats(struct wlan_ipa_priv *ipa_ctx, uint64_t sta_tx,
 			      uint64_t ap_tx)
 {
@@ -781,7 +810,6 @@ void wlan_ipa_update_tx_stats(struct wlan_ipa_priv *ipa_ctx, uint64_t sta_tx,
 	tx_stats.ap_tx = ap_tx;
 	qdf_ipa_wdi_wlan_stats(&tx_stats);
 }
-#endif
 
 #else
 
@@ -976,7 +1004,7 @@ QDF_STATUS wlan_ipa_uc_op_metering(struct wlan_ipa_priv *ipa_ctx,
 
 	return QDF_STATUS_SUCCESS;
 }
-#endif /* QCA_WIFI_QCA6290 || QCA_WIFI_QCA6390 */
+#endif /* WDI3_STATS_UPDATE */
 
 /**
  * wlan_ipa_wdi_meter_notifier_cb() - SSR wrapper for

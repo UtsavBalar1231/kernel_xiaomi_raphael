@@ -366,7 +366,6 @@ static void hdd_ipa_set_wake_up_idle(bool wake_up_idle)
 static int hdd_ipa_aggregated_rx_ind(qdf_nbuf_t skb)
 {
 	int ret;
-
 	ret =  netif_rx_ni(skb);
 	return ret;
 }
