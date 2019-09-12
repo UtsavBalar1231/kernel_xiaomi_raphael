@@ -49,9 +49,11 @@ int cam_sync_create(int32_t *sync_obj, const char *name)
 	long idx;
 	bool bit;
 
+	mutex_lock(&sync_dev->table_lock);
 	do {
 		idx = find_first_zero_bit(sync_dev->bitmap, CAM_SYNC_MAX_OBJS);
 		if (idx >= CAM_SYNC_MAX_OBJS) {
+			mutex_unlock(&sync_dev->table_lock);
 			CAM_ERR(CAM_SYNC,
 				"Error: Unable to Create Sync Idx = %ld Reached Max!!",
 				idx);
@@ -72,12 +74,14 @@ int cam_sync_create(int32_t *sync_obj, const char *name)
 			idx);
 		clear_bit(idx, sync_dev->bitmap);
 		spin_unlock_bh(&sync_dev->row_spinlocks[idx]);
+		mutex_unlock(&sync_dev->table_lock);
 		return -EINVAL;
 	}
 
 	*sync_obj = idx;
 	CAM_DBG(CAM_SYNC, "sync_obj: %i", *sync_obj);
 	spin_unlock_bh(&sync_dev->row_spinlocks[idx]);
+	mutex_unlock(&sync_dev->table_lock);
 
 	return rc;
 }
@@ -314,10 +318,14 @@ int cam_sync_merge(int32_t *sync_obj, uint32_t num_objs, int32_t *merged_obj)
 			return rc;
 		}
 	}
+
+	mutex_lock(&sync_dev->table_lock);
 	do {
 		idx = find_first_zero_bit(sync_dev->bitmap, CAM_SYNC_MAX_OBJS);
-		if (idx >= CAM_SYNC_MAX_OBJS)
+		if (idx >= CAM_SYNC_MAX_OBJS) {
+			mutex_unlock(&sync_dev->table_lock);
 			return -ENOMEM;
+		}
 		bit = test_and_set_bit(idx, sync_dev->bitmap);
 	} while (bit);
 
@@ -330,12 +338,13 @@ int cam_sync_merge(int32_t *sync_obj, uint32_t num_objs, int32_t *merged_obj)
 			idx);
 		clear_bit(idx, sync_dev->bitmap);
 		spin_unlock_bh(&sync_dev->row_spinlocks[idx]);
+		mutex_unlock(&sync_dev->table_lock);
 		return -EINVAL;
 	}
 	CAM_DBG(CAM_SYNC, "Init row at idx:%ld to merge objects", idx);
 	*merged_obj = idx;
 	spin_unlock_bh(&sync_dev->row_spinlocks[idx]);
-
+	mutex_unlock(&sync_dev->table_lock);
 	return 0;
 }
 
