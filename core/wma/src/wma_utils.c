@@ -4990,10 +4990,12 @@ wma_mlme_vdev_notify_down_complete(struct vdev_mlme_obj *vdev_mlme,
 	tp_wma_handle wma;
 	struct wma_target_req *req = (struct wma_target_req *)data;
 
-	if (mlme_is_connection_fail(vdev_mlme->vdev)) {
+	if (mlme_is_connection_fail(vdev_mlme->vdev) ||
+	    mlme_get_vdev_start_failed(vdev_mlme->vdev)) {
 		WMA_LOGD("%s Vdev start req failed, no action required",
 			 __func__);
 		mlme_set_connection_fail(vdev_mlme->vdev, false);
+		mlme_set_vdev_start_failed(vdev_mlme->vdev, false);
 		return QDF_STATUS_SUCCESS;
 	}
 	wma = cds_get_context(QDF_MODULE_ID_WMA);
@@ -5011,14 +5013,11 @@ wma_mlme_vdev_notify_down_complete(struct vdev_mlme_obj *vdev_mlme,
 		return QDF_STATUS_SUCCESS;
 	}
 
-	if (!mlme_get_vdev_start_failed(vdev_mlme->vdev))
-		if (req->msg_type == WMA_SET_LINK_STATE ||
-			req->type == WMA_SET_LINK_PEER_RSP)
-			wma_send_set_link_response(wma, req);
-		else
-			wma_send_del_bss_response(wma, req);
+	if (req->msg_type == WMA_SET_LINK_STATE ||
+	    req->type == WMA_SET_LINK_PEER_RSP)
+		wma_send_set_link_response(wma, req);
 	else
-		mlme_set_vdev_start_failed(vdev_mlme->vdev, false);
+		wma_send_del_bss_response(wma, req);
 
 	return QDF_STATUS_SUCCESS;
 }

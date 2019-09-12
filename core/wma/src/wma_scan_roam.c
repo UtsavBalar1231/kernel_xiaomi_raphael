@@ -3534,6 +3534,7 @@ void wma_set_channel(tp_wma_handle wma, tpSwitchChannelParams params)
 	struct policy_mgr_hw_mode_params hw_mode = {0};
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 	uint16_t beacon_interval_ori;
+	enum wlan_vdev_sm_evt  event;
 
 	WMA_LOGD("%s: Enter", __func__);
 	if (!wma_find_vdev_by_addr(wma, params->selfStaMacAddr, &vdev_id)) {
@@ -3666,10 +3667,24 @@ send_resp:
 		 params->maxTxPower,
 		 status);
 	params->status = status;
-	WMA_LOGI("%s: sending WMA_SWITCH_CHANNEL_RSP, status = 0x%x",
-		 __func__, status);
-	wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
-				   (void *)params, 0);
+
+	/* For non-STA START failure send channel switch resp */
+	if (intr[vdev_id].type == WMI_VDEV_TYPE_MONITOR ||
+	     wma_is_vdev_in_ap_mode(wma, vdev_id) ||
+	     mlme_is_chan_switch_in_progress(intr[vdev_id].vdev)) {
+		mlme_set_chan_switch_in_progress(intr[vdev_id].vdev, false);
+		wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
+					   (void *)params, 0);
+		return;
+	}
+
+	/*
+	 * For STA START failure send WLAN_VDEV_SM_EV_START_RESP to move SM to
+	 * proper state
+	 */
+	event = WLAN_VDEV_SM_EV_START_RESP;
+	wlan_vdev_mlme_sm_deliver_evt(intr[vdev_id].vdev, event,
+				      sizeof(*params), params);
 }
 
 #ifdef FEATURE_WLAN_ESE
