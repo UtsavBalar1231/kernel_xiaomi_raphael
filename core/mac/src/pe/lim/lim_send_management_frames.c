@@ -4817,7 +4817,8 @@ QDF_STATUS lim_send_addba_response_frame(struct mac_context *mac_ctx,
 
 	/* disable 11n RX AMSDU */
 	if (mac_ctx->is_usr_cfg_amsdu_enabled &&
-	    !IS_PE_SESSION_11N_MODE(session))
+	    !IS_PE_SESSION_11N_MODE(session) &&
+	    !WLAN_REG_IS_24GHZ_CH(session->currentOperChannel))
 		frm.addba_param_set.amsdu_supp = amsdu_support;
 	else
 		frm.addba_param_set.amsdu_supp = 0;
