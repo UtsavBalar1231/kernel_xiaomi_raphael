@@ -1263,6 +1263,7 @@ void sap_scan_event_callback(struct wlan_objmgr_vdev *vdev,
 	bool success = false;
 	eCsrScanStatus scan_status = eCSR_SCAN_FAILURE;
 	mac_handle_t mac_handle;
+	struct qdf_op_sync *op_sync;
 
 	session_id = wlan_vdev_get_id(vdev);
 	scan_id = event->scan_id;
@@ -1282,7 +1283,11 @@ void sap_scan_event_callback(struct wlan_objmgr_vdev *vdev,
 	if (success)
 		scan_status = eCSR_SCAN_SUCCESS;
 
+	if (qdf_op_protect(&op_sync))
+		return;
+
 	wlansap_pre_start_bss_acs_scan_callback(mac_handle,
 						arg, session_id,
 						scan_id, scan_status);
+	qdf_op_unprotect(op_sync);
 }
