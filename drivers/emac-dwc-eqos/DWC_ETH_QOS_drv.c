@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -793,6 +793,10 @@ void DWC_ETH_QOS_handle_phy_interrupt(struct DWC_ETH_QOS_prv_data *pdata)
 		pdata, pdata->phyaddr, DWC_ETH_QOS_MICREL_PHY_INTCS, &micrel_intr_status);
 	EMACDBG(
 		"MICREL PHY Intr EN Reg (%#x) = %#x\n", DWC_ETH_QOS_MICREL_PHY_INTCS, micrel_intr_status);
+
+	/* Call ack interrupt to clear the WOL interrupt status fields */
+	if (pdata->phydev->drv->ack_interrupt)
+		pdata->phydev->drv->ack_interrupt(pdata->phydev);
 
 	/* Interrupt received for link state change */
 	if (phy_intr_status & LINK_STATE_MASK) {
@@ -1844,7 +1848,6 @@ static void DWC_ETH_QOS_default_rx_confs(struct DWC_ETH_QOS_prv_data *pdata)
  *
  * \retval 0 on success & negative number on failure.
  */
-
 static int DWC_ETH_QOS_open(struct net_device *dev)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
@@ -2962,6 +2965,15 @@ static void DWC_ETH_QOS_tx_interrupt(struct net_device *dev,
 			pdata->xstats.q_tx_pkt_n[qinx]++;
 			pdata->xstats.tx_pkt_n++;
 			dev->stats.tx_packets++;
+#ifdef DWC_ETH_QOS_BUILTIN
+			if (dev->stats.tx_packets == 1)
+				EMACINFO("Transmitted First Rx packet\n");
+#endif
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+	if ( dev->stats.tx_packets == 1) {
+		place_marker("M - Ethernet first packet transmitted");
+	}
+#endif
 		}
 #else
 		if ((hw_if->get_tx_desc_ls(txptr)) && !(hw_if->get_tx_desc_ctxt(txptr))) {
@@ -3049,12 +3061,23 @@ static void DWC_ETH_QOS_receive_skb(struct DWC_ETH_QOS_prv_data *pdata,
 				    struct net_device *dev, struct sk_buff *skb,
 				    UINT qinx)
 {
+#ifdef DWC_ETH_QOS_BUILTIN
+	static int cnt_ipv4 = 0, cnt_ipv6 = 0;
+#endif
+
 	struct DWC_ETH_QOS_rx_queue *rx_queue = GET_RX_QUEUE_PTR(qinx);
 
 	skb_record_rx_queue(skb, qinx);
 	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
 
+#ifdef DWC_ETH_QOS_BUILTIN
+	if (skb->protocol == htons(ETH_P_IPV6) && (cnt_ipv6++ == 1)) {
+		EMACINFO("Received first ipv6 packet\n");
+	}
+	if (skb->protocol == htons(ETH_P_IP) && (cnt_ipv4++ == 1))
+		EMACINFO("Received first ipv4 packet\n");
+#endif
 	if (dev->features & NETIF_F_GRO) {
 		napi_gro_receive(&rx_queue->napi, skb);
 	}
@@ -3864,8 +3887,17 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 				/* update the statistics */
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += skb->len;
+#ifdef DWC_ETH_QOS_BUILTIN
+				if (dev->stats.rx_packets == 1)
+					EMACINFO("Received First Rx packet\n");
+#endif
 				DWC_ETH_QOS_receive_skb(pdata, dev, skb, qinx);
 				received++;
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+				if ( dev->stats.rx_packets == 1) {
+					place_marker("M - Ethernet first packet received");
+				}
+#endif
 			} else {
 				dump_rx_desc(qinx, RX_NORMAL_DESC, desc_data->cur_rx);
 				if (!(RX_NORMAL_DESC->RDES3 &
@@ -5083,7 +5115,7 @@ static int ETH_PTPCLK_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data
 	}
 
 	if (eth_pps_cfg->ptpclk_freq > DWC_ETH_QOS_SYSCLOCK){
-		EMACINFO("PPS: PTPCLK_Config: freq=%dHz is too high. Cannot config it\n",
+		EMACDBG("PPS: PTPCLK_Config: freq=%dHz is too high. Cannot config it\n",
 			eth_pps_cfg->ptpclk_freq );
 		return -1;
 	}
@@ -5093,7 +5125,7 @@ static int ETH_PTPCLK_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data
 	val += (DWC_ETH_QOS_SYSCLOCK/2);
 	val = div_u64(val, DWC_ETH_QOS_SYSCLOCK);
 	if ( val > 0xFFFFFFFF) val = 0xFFFFFFFF;
-	EMACINFO("PPS: PTPCLK_Config: freq=%dHz, addend_reg=0x%x\n",
+	EMACDBG("PPS: PTPCLK_Config: freq=%dHz, addend_reg=0x%x\n",
 				eth_pps_cfg->ptpclk_freq, (unsigned int)val);
 
 	pdata->default_addend = val;
@@ -5283,13 +5315,13 @@ int ETH_PPSOUT_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_struct
 	if (width >= interval) width = interval - 1;
 	if (width < 0) width = 0;
 
-	EMACINFO("PPS: PPSOut_Config: freq=%dHz, ch=%d, duty=%d\n",
+	EMACDBG("PPS: PPSOut_Config: freq=%dHz, ch=%d, duty=%d\n",
 				eth_pps_cfg->ppsout_freq,
 				eth_pps_cfg->ppsout_ch,
 				eth_pps_cfg->ppsout_duty);
-	EMACINFO(" PPS: with PTP Clock freq=%dHz\n", pdata->ptpclk_freq);
+	EMACDBG(" PPS: with PTP Clock freq=%dHz\n", pdata->ptpclk_freq);
 
-	EMACINFO("PPS: PPSOut_Config: interval=%d, width=%d\n", interval, width);
+	EMACDBG("PPS: PPSOut_Config: interval=%d, width=%d\n", interval, width);
 
 	if (pdata->emac_hw_version_type == EMAC_HW_v2_3_1) {
 		//calculate interval & width
@@ -5372,7 +5404,7 @@ int ETH_PPSOUT_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_struct
 		}
 		break;
 	default:
-		EMACINFO("PPS: PPS output channel is invalid (only CH0/CH1/CH2/CH3 is supported).\n");
+		EMACDBG("PPS: PPS output channel is invalid (only CH0/CH1/CH2/CH3 is supported).\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -6059,7 +6091,6 @@ static int DWC_ETH_QOS_handle_hwtstamp_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		temp = (u64)(50000000ULL << 32);
 		pdata->default_addend = div_u64(temp, DWC_ETH_QOS_SYSCLOCK);
 		EMACINFO("Using default PTP clock = 250MHz\n");
-	}
 #else
 		temp = (u64)(50000000ULL << 32);
 		pdata->default_addend = div_u64(temp, DWC_ETH_QOS_SYSCLOCK);
@@ -6220,7 +6251,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case DWC_ETH_QOS_PRV_IOCTL_IPA:
 		if (!pdata->prv_ipa.ipa_uc_ready ) {
 			ret = -EAGAIN;
-			EMACINFO("IPA or IPA uc is not ready \n");
+			EMACDBG("IPA or IPA uc is not ready \n");
 			break;
 		}
 		ret = DWC_ETH_QOS_handle_prv_ioctl_ipa(pdata, ifr);
@@ -6459,8 +6490,7 @@ static int DWC_ETH_QOS_vlan_rx_add_vid(
 	int crc32_val = 0;
 	unsigned int enb_12bit_vhash;
 
-	dev_alert(&pdata->pdev->dev, "-->DWC_ETH_QOS_vlan_rx_add_vid: vid = %d\n",
-		  vid);
+	EMACDBG("-->DWC_ETH_QOS_vlan_rx_add_vid: vid = %d\n", vid);
 
 	if (pdata->vlan_hash_filtering) {
 		/* The upper 4 bits of the calculated CRC are used to
@@ -6493,7 +6523,7 @@ static int DWC_ETH_QOS_vlan_rx_add_vid(
 		pdata->vlan_ht_or_id = vid;
 	}
 
-	dev_alert(&pdata->pdev->dev, "<--DWC_ETH_QOS_vlan_rx_add_vid\n");
+	EMACDBG("<--DWC_ETH_QOS_vlan_rx_add_vid\n");
 	return 0;
 }
 

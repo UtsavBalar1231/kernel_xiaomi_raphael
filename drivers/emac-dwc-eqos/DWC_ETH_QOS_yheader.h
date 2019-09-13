@@ -125,7 +125,14 @@
 #include <linux/mailbox/qmp.h>
 #include <linux/mailbox_controller.h>
 #include <linux/ipc_logging.h>
-
+#include <linux/inetdevice.h>
+#include <net/inet_common.h>
+#include <net/ipv6.h>
+#include <linux/inet.h>
+#include <asm/uaccess.h>
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+#include <soc/qcom/boot_stats.h>
+#endif
 /* QOS Version Control Macros */
 /* #define DWC_ETH_QOS_VER_4_0 */
 /* Default Configuration is for QOS version 4.1 and above */
@@ -344,6 +351,7 @@ extern void *ipc_emac_log_ctxt;
 #define LINK_UP 1
 #define LINK_DOWN 0
 #define ENABLE_PHY_INTERRUPTS 0xcc00
+#define MICREL_LINK_UP_INTR_STATUS		BIT(0)
 
 /* Default MTL queue operation mode values */
 #define DWC_ETH_QOS_Q_DISABLED	0x0
@@ -370,6 +378,7 @@ extern void *ipc_emac_log_ctxt;
 		"<error>"))))
 
 #define DWC_ETH_QOS_MAC_ADDR_LEN 6
+#define DWC_ETH_QOS_MAC_ADDR_STR_LEN 18
 #ifndef DWC_ETH_QOS_ENABLE_VLAN_TAG
 #define VLAN_HLEN 0
 #endif
@@ -653,6 +662,7 @@ extern void *ipc_emac_log_ctxt;
 #define IPA_DMA_TX_CH 0
 #define IPA_DMA_RX_CH 0
 
+#define IPA_RX_TO_DMA_CH_MAP_NUM	BIT(0);
 
 #define EMAC_GDSC_EMAC_NAME "gdsc_emac"
 #define EMAC_VREG_RGMII_NAME "vreg_rgmii"
@@ -1567,6 +1577,7 @@ struct DWC_ETH_QOS_res_data {
 	struct clk *rgmii_clk;
 	struct clk *ptp_clk;
 	unsigned int emac_hw_version_type;
+	bool early_eth_en;
 };
 
 struct DWC_ETH_QOS_prv_ipa_data {
@@ -1859,7 +1870,21 @@ struct DWC_ETH_QOS_prv_data {
 	dev_t avb_class_b_dev_t;
 	struct cdev* avb_class_b_cdev;
 	struct class* avb_class_b_class;
+	struct delayed_work ipv6_addr_assign_wq;
+	bool print_kpi;
+};
 
+struct ip_params {
+	UCHAR mac_addr[DWC_ETH_QOS_MAC_ADDR_LEN];
+	bool is_valid_mac_addr;
+	char link_speed[32];
+	bool is_valid_link_speed;
+	char ipv4_addr_str[32];
+	struct in_addr ipv4_addr;
+	bool is_valid_ipv4_addr;
+	char ipv6_addr_str[48];
+	struct in6_ifreq ipv6_addr;
+	bool is_valid_ipv6_addr;
 };
 
 typedef enum {
@@ -2024,6 +2049,8 @@ irqreturn_t DWC_ETH_QOS_PHY_ISR(int irq, void *dev_id);
 
 void DWC_ETH_QOS_dma_desc_stats_read(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_dma_desc_stats_init(struct DWC_ETH_QOS_prv_data *pdata);
+int DWC_ETH_QOS_add_ipaddr(struct DWC_ETH_QOS_prv_data *);
+int DWC_ETH_QOS_add_ipv6addr(struct DWC_ETH_QOS_prv_data *);
 
 /* For debug prints*/
 #define DRV_NAME "qcom-emac-dwc-eqos"
