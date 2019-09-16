@@ -1538,6 +1538,8 @@ fail_return:
 		hif_pm_runtime_put(soc->hif_handle);
 	} else {
 		hal_srng_access_end_reap(soc->hal_soc, hal_srng);
+		hal_srng_set_event(hal_srng, HAL_SRNG_FLUSH_EVENT);
+		hal_srng_inc_flush_cnt(hal_srng);
 	}
 
 	return nbuf;
@@ -1709,6 +1711,8 @@ done:
 		hif_pm_runtime_put(soc->hif_handle);
 	} else {
 		hal_srng_access_end_reap(soc->hal_soc, hal_srng);
+		hal_srng_set_event(hal_srng, HAL_SRNG_FLUSH_EVENT);
+		hal_srng_inc_flush_cnt(hal_srng);
 	}
 
 	return nbuf;

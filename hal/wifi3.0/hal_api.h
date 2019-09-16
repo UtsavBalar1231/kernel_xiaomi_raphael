@@ -21,6 +21,7 @@
 
 #include "qdf_types.h"
 #include "qdf_util.h"
+#include "qdf_atomic.h"
 #include "hal_internal.h"
 #define MAX_UNWINDOWED_ADDRESS 0x80000
 #ifdef QCA_WIFI_QCA6390
@@ -1501,4 +1502,61 @@ static inline void hal_srng_dump_ring(struct hal_soc *hal, void *hal_ring)
 	}
 }
 
+/**
+ * hal_srng_set_event() - Set hal_srng event
+ * @srng: SRNG ring pointer
+ * @event: SRNG ring event
+ *
+ * Return: None
+ */
+static inline void hal_srng_set_event(struct hal_srng *srng, int event)
+{
+	qdf_atomic_set_bit(event, &srng->srng_event);
+}
+
+/**
+ * hal_srng_clear_event() - Clear hal_srng event
+ * @srng: SRNG ring pointer
+ * @event: SRNG ring event
+ *
+ * Return: None
+ */
+static inline void hal_srng_clear_event(struct hal_srng *srng, int event)
+{
+	qdf_atomic_clear_bit(event, &srng->srng_event);
+}
+
+/**
+ * hal_srng_get_clear_event() - Clear srng event and return old value
+ * @srng: SRNG ring pointer
+ * @event: SRNG ring event
+ *
+ * Return: Return old event value
+ */
+static inline int hal_srng_get_clear_event(struct hal_srng *srng, int event)
+{
+	return qdf_atomic_test_and_clear_bit(event, &srng->srng_event);
+}
+
+/**
+ * hal_srng_set_flush_last_ts() - Record last flush time stamp
+ * @srng: SRNG ring pointer
+ *
+ * Return: None
+ */
+static inline void hal_srng_set_flush_last_ts(struct hal_srng *srng)
+{
+	srng->last_flush_ts = qdf_get_log_timestamp();
+}
+
+/**
+ * hal_srng_inc_flush_cnt() - Increment flush counter
+ * @srng: Source ring pointer
+ *
+ * Return: None
+ */
+static inline void hal_srng_inc_flush_cnt(struct hal_srng *srng)
+{
+	srng->flush_count++;
+}
 #endif /* _HAL_APIH_ */

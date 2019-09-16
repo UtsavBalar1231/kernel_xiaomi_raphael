@@ -9127,11 +9127,14 @@ void dp_flush_ring_hptp(struct dp_soc *soc, void *hal_ring)
 {
 	struct hal_srng *hal_srng = (struct hal_srng *)hal_ring;
 
-	if (hal_srng) {
+	if (hal_srng && hal_srng_get_clear_event(hal_srng,
+						 HAL_SRNG_FLUSH_EVENT)) {
 		/* Acquire the lock */
 		hal_srng_access_start(soc->hal_soc, hal_srng);
 
 		hal_srng_access_end(soc->hal_soc, hal_srng);
+
+		hal_srng_set_flush_last_ts(hal_srng);
 	}
 }
 
