@@ -629,6 +629,7 @@ QDF_STATUS dp_rx_tm_init(struct dp_rx_tm_handle *rx_tm_hdl,
 	}
 
 	rx_tm_hdl->num_dp_rx_threads = num_dp_rx_threads;
+	rx_tm_hdl->state = DP_RX_THREADS_INVALID;
 
 	dp_info("initializing %u threads", num_dp_rx_threads);
 
@@ -660,6 +661,8 @@ QDF_STATUS dp_rx_tm_init(struct dp_rx_tm_handle *rx_tm_hdl,
 ret:
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 		dp_rx_tm_deinit(rx_tm_hdl);
+	else
+		rx_tm_hdl->state = DP_RX_THREADS_RUNNING;
 
 	return qdf_status;
 }
@@ -676,6 +679,11 @@ QDF_STATUS dp_rx_tm_suspend(struct dp_rx_tm_handle *rx_tm_hdl)
 	int i;
 	QDF_STATUS qdf_status;
 	struct dp_rx_thread *rx_thread;
+
+	if (rx_tm_hdl->state == DP_RX_THREADS_SUSPENDED) {
+		dp_info("already in suspend state! Ignoring.");
+		return QDF_STATUS_E_INVAL;
+	}
 
 	for (i = 0; i < rx_tm_hdl->num_dp_rx_threads; i++) {
 		if (!rx_tm_hdl->rx_thread[i])
@@ -701,7 +709,7 @@ QDF_STATUS dp_rx_tm_suspend(struct dp_rx_tm_handle *rx_tm_hdl)
 			dp_err("thread:%d failed while waiting for suspend",
 			       rx_thread->id);
 	}
-	rx_tm_hdl->state = DP_RX_THREAD_SUSPENDED;
+	rx_tm_hdl->state = DP_RX_THREADS_SUSPENDED;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -770,15 +778,15 @@ QDF_STATUS dp_rx_tm_flush_by_vdev_id(struct dp_rx_tm_handle *rx_tm_hdl,
  * @rx_tm_hdl: dp_rx_tm_handle containing the overall thread
  *            infrastructure
  *
- * Return: QDF_STATUS_SUCCESS
+ * Return: QDF_STATUS_SUCCESS on resume success. QDF error otherwise.
  */
 QDF_STATUS dp_rx_tm_resume(struct dp_rx_tm_handle *rx_tm_hdl)
 {
 	int i;
 
-	if (rx_tm_hdl->state != DP_RX_THREAD_SUSPENDED) {
-		dp_err("resume callback received without suspend");
-		return QDF_STATUS_E_FAULT;
+	if (rx_tm_hdl->state != DP_RX_THREADS_SUSPENDED) {
+		dp_info("resume callback received w/o suspend! Ignoring.");
+		return QDF_STATUS_E_INVAL;
 	}
 
 	for (i = 0; i < rx_tm_hdl->num_dp_rx_threads; i++) {
@@ -787,6 +795,8 @@ QDF_STATUS dp_rx_tm_resume(struct dp_rx_tm_handle *rx_tm_hdl)
 		dp_debug("calling thread %d to resume", i);
 		qdf_event_set(&rx_tm_hdl->rx_thread[i]->resume_event);
 	}
+
+	rx_tm_hdl->state = DP_RX_THREADS_RUNNING;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -819,6 +829,7 @@ static QDF_STATUS dp_rx_tm_shutdown(struct dp_rx_tm_handle *rx_tm_hdl)
 		qdf_wait_single_event(&rx_tm_hdl->rx_thread[i]->shutdown_event,
 				      0);
 	}
+	rx_tm_hdl->state = DP_RX_THREADS_INVALID;
 	return QDF_STATUS_SUCCESS;
 }
 
