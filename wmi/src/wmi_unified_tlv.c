@@ -9961,7 +9961,7 @@ static QDF_STATUS extract_dbr_ring_cap_service_ready_ext_tlv(
 
 	dbr_ring_caps = &param_buf->dma_ring_caps[idx];
 
-	param->pdev_id = wmi_handle->ops->convert_pdev_id_target_to_host(
+	param->pdev_id = wmi_handle->ops->convert_target_pdev_id_to_host(
 				dbr_ring_caps->pdev_id);
 	param->mod_id = dbr_ring_caps->mod_id;
 	param->ring_elems_min = dbr_ring_caps->ring_elems_min;
