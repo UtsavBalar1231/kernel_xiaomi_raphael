@@ -1829,10 +1829,17 @@ static int DWC_ETH_QOS_configure_netdevice(struct platform_device *pdev)
 
 	DWC_ETH_QOS_init_rx_coalesce(pdata);
 
+	if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_2_0 )
+		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_57_6;
+	else if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_1_2 || dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_1)
+		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_96;
+	else if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_2 )
+		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_62_5;
+
 #ifdef DWC_ETH_QOS_CONFIG_PTP
 	DWC_ETH_QOS_ptp_init(pdata);
 	/*default ptp clock frequency set to 50Mhz*/
-	pdata->ptpclk_freq = DWC_ETH_QOS_DEFAULT_PTP_CLOCK;
+	pdata->ptpclk_freq = pdata->default_ptp_clock;
 #endif /* end of DWC_ETH_QOS_CONFIG_PTP */
 
 #endif /* end of DWC_ETH_QOS_CONFIG_PGTEST */
