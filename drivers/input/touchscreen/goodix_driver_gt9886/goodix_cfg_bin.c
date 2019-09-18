@@ -245,6 +245,7 @@ int goodix_cfg_bin_proc(void *data)
 
 	/* inform the external module manager that
 	 * touch core layer is ready now */
+	core_data->fod_status = 1;
 	goodix_modules.core_data = core_data;
 	goodix_modules.core_exit = false;
 	/*complete_all(&goodix_modules.core_comp);*/
