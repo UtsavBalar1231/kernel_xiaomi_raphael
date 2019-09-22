@@ -5,8 +5,8 @@ IO_MODULE := msm
 
 # Need to add include paths:
 LINUXINCLUDE += \
-             -I$(srctree)techpack/audio/include/dsp
-             -I$(srctree)techpack/audio/include/uapi
+             -I$(srctree)techpack/audio/include/dsp \
+             -I$(srctree)techpack/audio/include/uapi \
              -I$(srctree)techpack/aduio/include
 
 obj-y += elliptic.o
