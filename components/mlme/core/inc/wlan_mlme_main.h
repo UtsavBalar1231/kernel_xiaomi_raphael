@@ -510,4 +510,17 @@ void mlme_set_peer_pmf_status(struct wlan_objmgr_peer *peer,
  * Return: Value of is_pmf_enabled; True if PMF is enabled by peer
  */
 bool mlme_get_peer_pmf_status(struct wlan_objmgr_peer *peer);
+
+/**
+ * mlme_reinit_control_config_lfr_params() - Reinitialize roam control config
+ * @psoc: PSOC pointer
+ * @lfr: Pointer of an lfr_cfg buffer to fill.
+ *
+ * Reinitialize/restore the param related control roam config lfr params with
+ * default values of corresponding ini params.
+ *
+ * Return: None
+ */
+void mlme_reinit_control_config_lfr_params(struct wlan_objmgr_psoc *psoc,
+					   struct wlan_mlme_lfr_cfg *lfr);
 #endif
