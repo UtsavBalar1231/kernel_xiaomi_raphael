@@ -1963,7 +1963,8 @@ static int __init kmemleak_late_init(void)
 	start_scan_thread();
 	mutex_unlock(&scan_mutex);
 
-	pr_info("Kernel memory leak detector initialized\n");
+	pr_info("Kernel memory leak detector initialized (mem pool available: %d)\n",
+		mem_pool_free_count);
 
 	return 0;
 }
