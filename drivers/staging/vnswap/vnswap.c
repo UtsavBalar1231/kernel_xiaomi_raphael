@@ -389,7 +389,7 @@ static int vnswap_find_free_area_in_backing_storage(int *nand_offset)
 /* refer req_bio_endio() */
 static void vnswap_bio_end_read(struct bio *bio)
 {
-	const int err = bio->bi_error;
+	const blk_status_t err = bio->bi_status;
 	struct bio *original_bio = (struct bio *) bio->bi_private;
 	unsigned long flags;
 
@@ -488,7 +488,7 @@ static void vnswap_bio_end_read(struct bio *bio)
 			goto out_bio_put;
 		}
 
-		original_bio->bi_error = 0;
+		original_bio->bi_status = BLK_STS_OK;
 		spin_unlock_irqrestore(&vnswap_original_bio_lock, flags);
 		bio_endio(original_bio);
 	}
@@ -500,7 +500,7 @@ out_bio_put:
 /* refer req_bio_endio() */
 static void vnswap_bio_end_write(struct bio *bio)
 {
-	const int err = bio->bi_error;
+	const blk_status_t err = bio->bi_status;
 	struct bio *original_bio = (struct bio *) bio->bi_private;
 	unsigned long flags;
 
@@ -600,7 +600,7 @@ static void vnswap_bio_end_write(struct bio *bio)
 			goto out_bio_put;
 		}
 
-		original_bio->bi_error = 0;
+		original_bio->bi_status = BLK_STS_OK;
 		spin_unlock_irqrestore(&vnswap_original_bio_lock,
 			flags);
 		bio_endio(original_bio);
@@ -632,7 +632,7 @@ static int vnswap_submit_bio(int rw, int nand_offset,
 
 	bio->bi_iter.bi_sector = (backing_storage_bmap[nand_offset] <<
 					(PAGE_SHIFT - 9));
-	bio->bi_bdev = backing_storage_bdev;
+	bio_set_dev(bio, backing_storage_bdev);
 	bio->bi_io_vec[0].bv_page = page;
 	bio->bi_io_vec[0].bv_len = PAGE_SIZE;
 	bio->bi_io_vec[0].bv_offset = 0;
@@ -872,7 +872,7 @@ static void __vnswap_make_request(struct vnswap *vnswap,
 	}
 
 	if (is_swap_header_page) {
-		bio->bi_error = 0;
+		bio->bi_status = BLK_STS_OK;
 		bio_endio(bio);
 	}
 
