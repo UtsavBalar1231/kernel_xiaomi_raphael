@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/devfreq.h>
 #include <linux/math64.h>
+#include <linux/early_userspace.h>
 #include "governor.h"
 
 /* Default constants for DevFreq-Simple-Ondemand (DFSO) */
@@ -144,9 +145,21 @@ static struct devfreq_governor devfreq_simple_ondemand = {
 	.event_handler = devfreq_simple_ondemand_handler,
 };
 
-static int __init devfreq_simple_ondemand_init(void)
+static inline int __init _devfreq_simple_ondemand_init(void)
 {
 	return devfreq_add_governor(&devfreq_simple_ondemand);
+}
+
+int __init early_devfreq_simple_ondemand_init(void)
+{
+	return _devfreq_simple_ondemand_init();
+}
+
+static int __init devfreq_simple_ondemand_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _devfreq_simple_ondemand_init();
 }
 subsys_initcall(devfreq_simple_ondemand_init);
 

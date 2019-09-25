@@ -24,6 +24,7 @@
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
+#include <linux/early_userspace.h>
 
 #include <dt-bindings/clock/qcom,gcc-sm8150.h>
 
@@ -4313,9 +4314,21 @@ static struct platform_driver gcc_sm8150_driver = {
 	},
 };
 
-static int __init gcc_sm8150_init(void)
+static inline int __init _gcc_sm8150_init(void)
 {
 	return platform_driver_register(&gcc_sm8150_driver);
+}
+
+int __init early_gcc_sm8150_init(void)
+{
+	return _gcc_sm8150_init();
+}
+
+static int __init gcc_sm8150_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _gcc_sm8150_init();
 }
 subsys_initcall(gcc_sm8150_init);
 

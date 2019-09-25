@@ -43,6 +43,7 @@
 
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/early_userspace.h>
 
 #include "ext4.h"
 #include "ext4_extents.h"	/* Needed for trace points definition */
@@ -5942,7 +5943,7 @@ MODULE_ALIAS_FS("ext4");
 /* Shared across all ext4 file systems */
 wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
 
-static int __init ext4_init_fs(void)
+static inline int __init _ext4_init_fs(void)
 {
 	int i, err;
 
@@ -6015,6 +6016,18 @@ static void __exit ext4_exit_fs(void)
 	ext4_exit_system_zone();
 	ext4_exit_pageio();
 	ext4_exit_es();
+}
+
+int __init early_ext4_init_fs(void)
+{
+	return _ext4_init_fs();
+}
+
+static int __init ext4_init_fs(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _ext4_init_fs();
 }
 
 MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodore Ts'o and others");

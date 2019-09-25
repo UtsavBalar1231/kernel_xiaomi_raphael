@@ -26,6 +26,7 @@
 #include <linux/printk.h>
 #include <linux/hrtimer.h>
 #include <linux/of.h>
+#include <linux/early_userspace.h>
 #include "governor.h"
 
 static struct class *devfreq_class;
@@ -1283,7 +1284,7 @@ static struct attribute *devfreq_attrs[] = {
 };
 ATTRIBUTE_GROUPS(devfreq);
 
-static int __init devfreq_init(void)
+static inline int __init _devfreq_init(void)
 {
 	devfreq_class = class_create(THIS_MODULE, "devfreq");
 	if (IS_ERR(devfreq_class)) {
@@ -1300,6 +1301,18 @@ static int __init devfreq_init(void)
 	devfreq_class->dev_groups = devfreq_groups;
 
 	return 0;
+}
+
+int __init early_devfreq_init(void)
+{
+	return _devfreq_init();
+}
+
+static int __init devfreq_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _devfreq_init();
 }
 subsys_initcall(devfreq_init);
 

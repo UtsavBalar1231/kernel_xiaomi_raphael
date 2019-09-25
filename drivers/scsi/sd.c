@@ -55,6 +55,7 @@
 #include <linux/pr.h>
 #include <linux/t10-pi.h>
 #include <linux/uaccess.h>
+#include <linux/early_userspace.h>
 #include <asm/unaligned.h>
 
 #include <scsi/scsi.h>
@@ -3590,7 +3591,7 @@ static int sd_resume(struct device *dev)
  *
  *	Note: this function registers this driver with the scsi mid-level.
  **/
-static int __init init_sd(void)
+static inline int __init _init_sd(void)
 {
 	int majors = 0, i, err;
 
@@ -3680,6 +3681,17 @@ static void __exit exit_sd(void)
 	}
 }
 
+int __init early_init_sd(void)
+{
+	return _init_sd();
+}
+
+static int __init init_sd(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _init_sd();
+}
 module_init(init_sd);
 module_exit(exit_sd);
 

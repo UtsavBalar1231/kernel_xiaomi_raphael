@@ -9,6 +9,7 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/sched/task.h>
+#include <linux/early_userspace.h>
 
 #include "blk.h"
 
@@ -432,10 +433,22 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 	return icq;
 }
 
-static int __init blk_ioc_init(void)
+static inline int __init _blk_ioc_init(void)
 {
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
 			sizeof(struct io_context), 0, SLAB_PANIC, NULL);
 	return 0;
+}
+
+int __init early_blk_ioc_init(void)
+{
+	return _blk_ioc_init();
+}
+
+static int __init blk_ioc_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _blk_ioc_init();
 }
 subsys_initcall(blk_ioc_init);

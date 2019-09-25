@@ -26,6 +26,7 @@
 #include <soc/qcom/qseecomi.h>
 #include "iceregs.h"
 #include <linux/pfk.h>
+#include <linux/early_userspace.h>
 
 
 #define TZ_SYSCALL_CREATE_SMC_ID(o, s, f) \
@@ -1790,7 +1791,30 @@ static struct platform_driver qcom_ice_driver = {
 		.of_match_table = qcom_ice_match,
 	},
 };
-module_platform_driver(qcom_ice_driver);
+
+static inline int __init _qcom_ice_driver_init(void)
+{
+	return platform_driver_register(&qcom_ice_driver);
+}
+
+int __init early_qcom_ice_driver_init(void)
+{
+	return _qcom_ice_driver_init();
+}
+
+static int __init qcom_ice_driver_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _qcom_ice_driver_init();
+}
+module_init(qcom_ice_driver_init);
+
+static void __exit qcom_ice_driver_exit(void)
+{
+	return platform_driver_unregister(&qcom_ice_driver);
+}
+module_exit(qcom_ice_driver_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("QTI Inline Crypto Engine driver");

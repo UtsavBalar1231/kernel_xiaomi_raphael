@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,6 +10,10 @@
  * GNU General Public License for more details.
  *
  */
+
+#include <linux/ctype.h>
+#include <linux/cpu.h>
+#include <linux/early_userspace.h>
 
 #include "phy-qcom-ufs-qmp-v4.h"
 
@@ -288,7 +292,29 @@ static struct platform_driver ufs_qcom_phy_qmp_v4_driver = {
 	},
 };
 
-module_platform_driver(ufs_qcom_phy_qmp_v4_driver);
+static inline int __init _ufs_qcom_phy_qmp_v4_driver_init(void)
+{
+	return platform_driver_register(&ufs_qcom_phy_qmp_v4_driver);
+}
+
+int __init early_ufs_qcom_phy_qmp_v4_driver_init(void)
+{
+	return _ufs_qcom_phy_qmp_v4_driver_init();
+}
+
+static int __init ufs_qcom_phy_qmp_v4_driver_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _ufs_qcom_phy_qmp_v4_driver_init();
+}
+module_init(ufs_qcom_phy_qmp_v4_driver_init);
+
+static void __exit ufs_qcom_phy_qmp_v4_driver_exit(void)
+{
+	return platform_driver_unregister(&ufs_qcom_phy_qmp_v4_driver);
+}
+module_exit(ufs_qcom_phy_qmp_v4_driver_exit);
 
 MODULE_DESCRIPTION("Universal Flash Storage (UFS) QCOM PHY QMP v4");
 MODULE_LICENSE("GPL v2");

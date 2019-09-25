@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/early_userspace.h>
 #include <asm/arch_timer.h>
 #include <soc/qcom/boot_stats.h>
 
@@ -290,7 +291,7 @@ static const struct file_operations fops_mpm_timer = {
 	.mmap = mpm_timer_mmap,
 };
 
-static int __init init_bootkpi(void)
+static inline int __init _init_bootkpi(void)
 {
 	dent_bkpi = debugfs_create_dir("bootkpi", NULL);
 	if (IS_ERR_OR_NULL(dent_bkpi))
@@ -320,6 +321,18 @@ static int __init init_bootkpi(void)
 	spin_lock_init(&boot_marker_list.slock);
 	set_bootloader_stats();
 	return 0;
+}
+
+int __init early_init_bootkpi(void)
+{
+	return _init_bootkpi();
+}
+
+static int __init init_bootkpi(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _init_bootkpi();
 }
 subsys_initcall(init_bootkpi);
 

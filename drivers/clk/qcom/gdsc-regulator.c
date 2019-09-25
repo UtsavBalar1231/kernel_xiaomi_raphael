@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -30,6 +30,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/clk/qcom.h>
 #include <linux/mailbox/qmp.h>
+#include <linux/early_userspace.h>
 
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
@@ -1062,9 +1063,21 @@ static struct platform_driver gdsc_driver = {
 	},
 };
 
-static int __init gdsc_init(void)
+static inline int __init _gdsc_init(void)
 {
 	return platform_driver_register(&gdsc_driver);
+}
+
+int __init early_gdsc_init(void)
+{
+	return _gdsc_init();
+}
+
+static int __init gdsc_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _gdsc_init();
 }
 subsys_initcall(gdsc_init);
 

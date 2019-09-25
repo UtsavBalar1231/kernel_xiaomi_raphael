@@ -22,6 +22,7 @@
 #include <linux/idr.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/early_userspace.h>
 
 static struct class *phy_class;
 static DEFINE_MUTEX(phy_provider_mutex);
@@ -1000,7 +1001,7 @@ static void phy_release(struct device *dev)
 	kfree(phy);
 }
 
-static int __init phy_core_init(void)
+static inline int __init _phy_core_init(void)
 {
 	phy_class = class_create(THIS_MODULE, "phy");
 	if (IS_ERR(phy_class)) {
@@ -1012,6 +1013,18 @@ static int __init phy_core_init(void)
 	phy_class->dev_release = phy_release;
 
 	return 0;
+}
+
+int __init early_phy_core_init(void)
+{
+	return _phy_core_init();
+}
+
+static int __init phy_core_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _phy_core_init();
 }
 module_init(phy_core_init);
 

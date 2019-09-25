@@ -11,6 +11,7 @@
 #include <linux/lcm.h>
 #include <linux/jiffies.h>
 #include <linux/gfp.h>
+#include <linux/early_userspace.h>
 
 #include "blk.h"
 #include "blk-wbt.h"
@@ -906,10 +907,22 @@ void blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
 }
 EXPORT_SYMBOL_GPL(blk_queue_write_cache);
 
-static int __init blk_settings_init(void)
+static inline int __init _blk_settings_init(void)
 {
 	blk_max_low_pfn = max_low_pfn - 1;
 	blk_max_pfn = max_pfn - 1;
 	return 0;
+}
+
+int __init early_blk_settings_init(void)
+{
+	return _blk_settings_init();
+}
+
+static int __init blk_settings_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _blk_settings_init();
 }
 subsys_initcall(blk_settings_init);

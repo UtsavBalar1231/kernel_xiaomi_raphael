@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -48,6 +48,7 @@
 #include <linux/printk.h>
 #include <linux/bio.h>
 #include <linux/security.h>
+#include <linux/early_userspace.h>
 #include <crypto/algapi.h>
 #include <crypto/ice.h>
 
@@ -98,7 +99,7 @@ static void __exit pfk_exit(void)
 	pfk_kc_deinit();
 }
 
-static int __init pfk_init(void)
+static inline int __init _pfk_init(void)
 {
 
 	int ret = 0;
@@ -127,6 +128,18 @@ static int __init pfk_init(void)
 fail:
 	pr_err("Failed to init driver\n");
 	return -ENODEV;
+}
+
+int __init early_pfk_init(void)
+{
+	return _pfk_init();
+}
+
+static int __init pfk_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _pfk_init();
 }
 
 /*

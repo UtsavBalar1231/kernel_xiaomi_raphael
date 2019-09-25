@@ -18,6 +18,7 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-qcom-ufs.h>
 #include <linux/clk/qcom.h>
+#include <linux/early_userspace.h>
 
 #ifdef CONFIG_QCOM_BUS_SCALING
 #include <linux/msm-bus.h>
@@ -2900,6 +2901,29 @@ static struct platform_driver ufs_qcom_pltform = {
 		.of_match_table = of_match_ptr(ufs_qcom_of_match),
 	},
 };
-module_platform_driver(ufs_qcom_pltform);
+
+static inline int __init _ufs_qcom_driver_init(void)
+{
+	return platform_driver_register(&ufs_qcom_pltform);
+}
+
+int __init early_ufs_qcom_driver_init(void)
+{
+	return _ufs_qcom_driver_init();
+}
+
+static int __init ufs_qcom_driver_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _ufs_qcom_driver_init();
+}
+module_init(ufs_qcom_driver_init);
+
+static void __exit ufs_qcom_driver_exit(void)
+{
+	return platform_driver_unregister(&ufs_qcom_pltform);
+}
+module_exit(ufs_qcom_driver_exit);
 
 MODULE_LICENSE("GPL v2");

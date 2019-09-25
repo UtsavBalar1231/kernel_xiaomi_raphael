@@ -41,6 +41,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/crc32.h>
+#include <linux/early_userspace.h>
 
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
@@ -155,7 +156,7 @@ static struct shash_alg alg = {
 	}
 };
 
-static int __init crc32c_mod_init(void)
+static inline int __init _crc32c_mod_init(void)
 {
 	return crypto_register_shash(&alg);
 }
@@ -163,6 +164,18 @@ static int __init crc32c_mod_init(void)
 static void __exit crc32c_mod_fini(void)
 {
 	crypto_unregister_shash(&alg);
+}
+
+int __init early_crc32c_mod_init(void)
+{
+	return _crc32c_mod_init();
+}
+
+static int __init crc32c_mod_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _crc32c_mod_init();
 }
 
 module_init(crc32c_mod_init);

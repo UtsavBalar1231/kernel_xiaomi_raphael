@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
+#include <linux/early_userspace.h>
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/rpmh.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
@@ -669,9 +670,21 @@ static struct platform_driver clk_rpmh_driver = {
 	},
 };
 
-static int __init clk_rpmh_init(void)
+static inline int __init _clk_rpmh_init(void)
 {
 	return platform_driver_register(&clk_rpmh_driver);
+}
+
+int __init early_clk_rpmh_init(void)
+{
+	return _clk_rpmh_init();
+}
+
+static int __init clk_rpmh_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _clk_rpmh_init();
 }
 subsys_initcall(clk_rpmh_init);
 

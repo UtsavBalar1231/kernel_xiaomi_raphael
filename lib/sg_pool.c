@@ -2,6 +2,7 @@
 #include <linux/scatterlist.h>
 #include <linux/mempool.h>
 #include <linux/slab.h>
+#include <linux/early_userspace.h>
 
 #define SG_MEMPOOL_NR		ARRAY_SIZE(sg_pools)
 #define SG_MEMPOOL_SIZE		2
@@ -118,7 +119,7 @@ int sg_alloc_table_chained(struct sg_table *table, int nents,
 }
 EXPORT_SYMBOL_GPL(sg_alloc_table_chained);
 
-static __init int sg_pool_init(void)
+static inline __init int _sg_pool_init(void)
 {
 	int i;
 
@@ -168,5 +169,16 @@ static __exit void sg_pool_exit(void)
 	}
 }
 
+int __init early_sg_pool_init(void)
+{
+	return _sg_pool_init();
+}
+
+static int __init sg_pool_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _sg_pool_init();
+}
 module_init(sg_pool_init);
 module_exit(sg_pool_exit);

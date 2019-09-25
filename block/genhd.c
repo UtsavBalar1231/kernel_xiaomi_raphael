@@ -21,6 +21,7 @@
 #include <linux/log2.h>
 #include <linux/pm_runtime.h>
 #include <linux/badblocks.h>
+#include <linux/early_userspace.h>
 
 #include "blk.h"
 
@@ -997,7 +998,7 @@ static struct kobject *base_probe(dev_t devt, int *partno, void *data)
 	return NULL;
 }
 
-static int __init genhd_device_init(void)
+static inline int __init _genhd_device_init(void)
 {
 	int error;
 
@@ -1014,6 +1015,18 @@ static int __init genhd_device_init(void)
 	if (!sysfs_deprecated)
 		block_depr = kobject_create_and_add("block", NULL);
 	return 0;
+}
+
+int __init early_genhd_device_init(void)
+{
+	return _genhd_device_init();
+}
+
+static int __init genhd_device_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _genhd_device_init();
 }
 
 subsys_initcall(genhd_device_init);

@@ -21,6 +21,7 @@
 #include <linux/idr.h>
 #include <linux/bsg.h>
 #include <linux/slab.h>
+#include <linux/early_userspace.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
@@ -1040,7 +1041,7 @@ static char *bsg_devnode(struct device *dev, umode_t *mode)
 	return kasprintf(GFP_KERNEL, "bsg/%s", dev_name(dev));
 }
 
-static int __init bsg_init(void)
+static inline int __init _bsg_init(void)
 {
 	int ret, i;
 	dev_t devid;
@@ -1083,6 +1084,18 @@ destroy_bsg_class:
 destroy_kmemcache:
 	kmem_cache_destroy(bsg_cmd_cachep);
 	return ret;
+}
+
+int __init early_bsg_init(void)
+{
+	return _bsg_init();
+}
+
+static int __init bsg_init(void)
+{
+	if (is_early_userspace)
+		return 0;
+	return _bsg_init();
 }
 
 MODULE_AUTHOR("Jens Axboe");
