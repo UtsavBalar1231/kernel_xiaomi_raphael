@@ -113,6 +113,7 @@ static const char wlan_cfg[] = {
 	"gVhtTxMCS2x2=2\n"
 	"gIPAConfig=0x7d\n"
 	"gIPADescSize=800\n"
+	"gIPAForceVotingEnable=1\n"
 	"gReorderOffloadSupported=1\n"
 	"gCEClassifyEnable=1\n"
 	"rx_mode=5\n"
