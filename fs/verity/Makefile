@@ -2,5 +2,4 @@
 
 obj-$(CONFIG_FS_VERITY) += hash_algs.o \
 			   init.o \
-			   open.o \
-			   verify.o
+			   open.o
