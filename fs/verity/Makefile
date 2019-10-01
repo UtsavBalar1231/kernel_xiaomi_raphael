@@ -3,6 +3,5 @@
 obj-$(CONFIG_FS_VERITY) += enable.o \
 			   hash_algs.o \
 			   init.o \
-			   measure.o \
 			   open.o \
 			   verify.o
