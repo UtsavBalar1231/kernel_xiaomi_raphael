@@ -46,7 +46,6 @@ static inline struct fsverity_info *fsverity_get_info(const struct inode *inode)
 /* open.c */
 
 extern int fsverity_file_open(struct inode *inode, struct file *filp);
-extern int fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr);
 extern void fsverity_cleanup_inode(struct inode *inode);
 
 #else /* !CONFIG_FS_VERITY */
@@ -61,12 +60,6 @@ static inline struct fsverity_info *fsverity_get_info(const struct inode *inode)
 static inline int fsverity_file_open(struct inode *inode, struct file *filp)
 {
 	return IS_VERITY(inode) ? -EOPNOTSUPP : 0;
-}
-
-static inline int fsverity_prepare_setattr(struct dentry *dentry,
-					   struct iattr *attr)
-{
-	return IS_VERITY(d_inode(dentry)) ? -EOPNOTSUPP : 0;
 }
 
 static inline void fsverity_cleanup_inode(struct inode *inode)
