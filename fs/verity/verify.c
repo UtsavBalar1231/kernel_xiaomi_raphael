@@ -273,9 +273,3 @@ int __init fsverity_init_workqueue(void)
 		return -ENOMEM;
 	return 0;
 }
-
-void __init fsverity_exit_workqueue(void)
-{
-	destroy_workqueue(fsverity_read_workqueue);
-	fsverity_read_workqueue = NULL;
-}

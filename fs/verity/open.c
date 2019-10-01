@@ -122,32 +122,22 @@ out_err:
 	return err;
 }
 
-/*
- * Compute the file measurement by hashing the fsverity_descriptor excluding the
- * signature and with the sig_size field set to 0.
- */
+/* Compute the file measurement by hashing the fsverity_descriptor. */
 static int compute_file_measurement(const struct fsverity_hash_alg *hash_alg,
-				    struct fsverity_descriptor *desc,
+				    const struct fsverity_descriptor *desc,
 				    u8 *measurement)
 {
-	__le32 sig_size = desc->sig_size;
-	int err;
-
-	desc->sig_size = 0;
-	err = fsverity_hash_buffer(hash_alg, desc, sizeof(*desc), measurement);
-	desc->sig_size = sig_size;
-
-	return err;
+	return fsverity_hash_buffer(hash_alg, desc, sizeof(*desc), measurement);
 }
 
 /*
  * Validate the given fsverity_descriptor and create a new fsverity_info from
- * it.  The signature (if present) is also checked.
+ * it.
  */
 struct fsverity_info *fsverity_create_info(const struct inode *inode,
-					   void *_desc, size_t desc_size)
+					   const void *_desc, size_t desc_size)
 {
-	struct fsverity_descriptor *desc = _desc;
+	const struct fsverity_descriptor *desc = _desc;
 	struct fsverity_info *vi;
 	int err;
 
@@ -163,7 +153,8 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (memchr_inv(desc->__reserved, 0, sizeof(desc->__reserved))) {
+	if (desc->sig_size ||
+	    memchr_inv(desc->__reserved, 0, sizeof(desc->__reserved))) {
 		fsverity_err(inode, "Reserved bits set in descriptor");
 		return ERR_PTR(-EINVAL);
 	}
@@ -207,8 +198,6 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 	pr_debug("Computed file measurement: %s:%*phN\n",
 		 vi->tree_params.hash_alg->name,
 		 vi->tree_params.digest_size, vi->measurement);
-
-	err = fsverity_verify_signature(vi, desc, desc_size);
 out:
 	if (err) {
 		fsverity_free_info(vi);
