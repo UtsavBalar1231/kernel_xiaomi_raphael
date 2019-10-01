@@ -136,8 +136,6 @@ extern int fscrypt_inherit_context(struct inode *, struct inode *,
 extern void fscrypt_sb_free(struct super_block *sb);
 extern int fscrypt_ioctl_add_key(struct file *filp, void __user *arg);
 extern int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg);
-extern int fscrypt_ioctl_remove_key_all_users(struct file *filp,
-					      void __user *arg);
 extern int fscrypt_ioctl_get_key_status(struct file *filp, void __user *arg);
 extern int fscrypt_register_key_removal_notifier(struct notifier_block *nb);
 extern int fscrypt_unregister_key_removal_notifier(struct notifier_block *nb);
@@ -372,12 +370,6 @@ static inline int fscrypt_ioctl_add_key(struct file *filp, void __user *arg)
 }
 
 static inline int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int fscrypt_ioctl_remove_key_all_users(struct file *filp,
-						     void __user *arg)
 {
 	return -EOPNOTSUPP;
 }
