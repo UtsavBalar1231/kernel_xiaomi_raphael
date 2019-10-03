@@ -76,20 +76,11 @@ Symbols/Function Pointers
 
 ::
 
-	%pF	versatile_init+0x0/0x110
-	%pf	versatile_init
 	%pS	versatile_init+0x0/0x110
 	%pSR	versatile_init+0x9/0x110
 		(with __builtin_extract_return_addr() translation)
 	%ps	versatile_init
 	%pB	prev_fn_of_versatile_init+0x88/0x88
-
-
-The ``F`` and ``f`` specifiers are for printing function pointers,
-for example, f->func, &gettimeofday. They have the same result as
-``S`` and ``s`` specifiers. But they do an extra conversion on
-ia64, ppc64 and parisc64 architectures where the function pointers
-are actually function descriptors.
 
 The ``S`` and ``s`` specifiers can be used for printing symbols
 from direct addresses, for example, __builtin_return_address(0),
