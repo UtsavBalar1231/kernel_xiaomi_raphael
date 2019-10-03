@@ -2085,6 +2085,9 @@ struct wmi_unified {
 	qdf_spinlock_t wmi_ext_dbg_msg_queue_lock;
 	qdf_dentry_t wmi_ext_dbg_dentry;
 #endif /*WMI_EXT_DBG*/
+	uint32_t *cmd_pdev_id_map;
+	uint32_t *evt_pdev_id_map;
+	qdf_atomic_t num_stats_over_qmi;
 };
 
 #define WMI_MAX_RADIOS 3
