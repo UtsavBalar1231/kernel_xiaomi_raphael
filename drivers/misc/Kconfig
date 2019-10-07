@@ -595,6 +595,16 @@ config TEST_IRQ_REQUESTER
 
 	  If in doubt, say N.
 
+config AKM09970
+	tristate "INPUT_AK09970 digital hall sensor support"
+	depends on I2C
+	help
+	  Say Y here if you have AKM Sensortec's AK09970 magnet
+	  sensor hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called akm09970.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
