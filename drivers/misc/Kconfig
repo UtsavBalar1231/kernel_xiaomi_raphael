@@ -151,6 +151,14 @@ config SGI_IOC4
 	  If you have an SGI Altix with an IOC4-based card say Y.
 	  Otherwise say N.
 
+config TI_DRV8846
+	tristate "TI step motor driver IC"
+	depends on PWM
+	help
+	  Say 'y' here to include support for the H-Bridge Stepper
+	  Motor Driver. The MISC peripheral holds the pwm and the
+	  driver provides an API to drive stepper motor.
+
 config TIFM_CORE
 	tristate "TI Flash Media interface support"
 	depends on PCI
