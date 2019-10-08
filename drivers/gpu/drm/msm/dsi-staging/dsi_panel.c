@@ -2044,6 +2044,7 @@ error:
 static int dsi_panel_parse_misc_features(struct dsi_panel *panel)
 {
 	struct dsi_parser_utils *utils = &panel->utils;
+	u32 val;
 
 	panel->ulps_feature_enabled =
 		utils->read_bool(utils->data, "qcom,ulps-enabled");
@@ -2065,6 +2066,15 @@ static int dsi_panel_parse_misc_features(struct dsi_panel *panel)
 
 	panel->lp11_init = utils->read_bool(utils->data,
 			"qcom,mdss-dsi-lp11-init");
+	if (!utils->read_u32(utils->data,
+				  "qcom,mdss-dsi-init-delay-us",
+				  &val)) {
+		pr_debug("Panel init delay specified: %d\n", val);
+		panel->init_delay_us = val;
+	} else {
+		panel->init_delay_us = 0;
+	}
+
 	return 0;
 }
 
@@ -3960,6 +3970,9 @@ int dsi_panel_prepare(struct dsi_panel *panel)
 			goto error;
 		}
 	}
+
+	if (panel->init_delay_us)
+		usleep_range(panel->init_delay_us, panel->init_delay_us);
 
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_PRE_ON);
 	if (rc) {
