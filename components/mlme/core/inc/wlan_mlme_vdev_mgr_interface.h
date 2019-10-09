@@ -165,7 +165,7 @@ mlme_set_mbssid_info(struct wlan_objmgr_vdev *vdev,
  * Return: None
  */
 void mlme_get_mbssid_info(struct wlan_objmgr_vdev *vdev,
-			  struct vdev_mlme_mbss_11ax *mbss_11ax);
+			  struct vdev_mlme_mbss_11ax **mbss_11ax);
 
 /**
  * mlme_is_vdev_in_beaconning_mode() - check if vdev is beaconing mode

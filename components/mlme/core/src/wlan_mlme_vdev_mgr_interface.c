@@ -797,7 +797,7 @@ QDF_STATUS mlme_set_mbssid_info(struct wlan_objmgr_vdev *vdev,
 }
 
 void mlme_get_mbssid_info(struct wlan_objmgr_vdev *vdev,
-			  struct vdev_mlme_mbss_11ax *mbss_11ax)
+			  struct vdev_mlme_mbss_11ax **mbss_11ax)
 {
 	struct vdev_mlme_obj *vdev_mlme;
 
@@ -807,7 +807,7 @@ void mlme_get_mbssid_info(struct wlan_objmgr_vdev *vdev,
 		return;
 	}
 
-	mbss_11ax = &vdev_mlme->mgmt.mbss_11ax;
+	*mbss_11ax = &vdev_mlme->mgmt.mbss_11ax;
 }
 
 /**
