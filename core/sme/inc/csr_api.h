@@ -846,6 +846,7 @@ typedef struct tagCsrRoamHTProfile {
 	uint8_t apChanWidth;
 } tCsrRoamHTProfile;
 #endif
+
 typedef struct tagCsrRoamConnectedProfile {
 	tSirMacSSid SSID;
 	bool handoffPermitted;
@@ -861,6 +862,8 @@ typedef struct tagCsrRoamConnectedProfile {
 	tCsrEncryptionList EncryptionInfo;
 	eCsrEncryptionType mcEncryptionType;
 	tCsrEncryptionList mcEncryptionInfo;
+	/* group management cipher suite used for 11w */
+	tAniEdType mgmt_encryption_type;
 	uint8_t country_code[WNI_CFG_COUNTRY_CODE_LEN];
 	uint32_t vht_channel_width;
 	tCsrKeys Keys;
