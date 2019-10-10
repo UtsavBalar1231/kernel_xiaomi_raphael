@@ -71,7 +71,7 @@ static int ipa3_generate_flt_hw_rule(enum ipa_ip_type ip,
 	}
 
 	gen_params.ipt = ip;
-	if (entry->rt_tbl)
+	if (entry->rt_tbl && (!ipa3_check_idr_if_freed(entry->rt_tbl)))
 		gen_params.rt_tbl_idx = entry->rt_tbl->idx;
 	else
 		gen_params.rt_tbl_idx = entry->rule.rt_tbl_idx;
@@ -1182,7 +1182,7 @@ static void __ipa_convert_flt_rule_in(struct ipa_flt_rule rule_in,
 {
 	if (unlikely(sizeof(struct ipa_flt_rule) >
 			sizeof(struct ipa_flt_rule_i))) {
-		IPAERR_RL("invalid size in:%d size out:%d\n",
+		IPAERR_RL("invalid size in:%ld size out:%ld\n",
 			sizeof(struct ipa_flt_rule_i),
 			sizeof(struct ipa_flt_rule));
 		return;
@@ -1196,7 +1196,7 @@ static void __ipa_convert_flt_rule_out(struct ipa_flt_rule_i rule_in,
 {
 	if (unlikely(sizeof(struct ipa_flt_rule) >
 			sizeof(struct ipa_flt_rule_i))) {
-		IPAERR_RL("invalid size in:%d size out:%d\n",
+		IPAERR_RL("invalid size in:%ld size out:%ld\n",
 			sizeof(struct ipa_flt_rule_i),
 			sizeof(struct ipa_flt_rule));
 		return;
@@ -1210,7 +1210,7 @@ static void __ipa_convert_flt_mdfy_in(struct ipa_flt_rule_mdfy rule_in,
 {
 	if (unlikely(sizeof(struct ipa_flt_rule_mdfy) >
 			sizeof(struct ipa_flt_rule_mdfy_i))) {
-		IPAERR_RL("invalid size in:%d size out:%d\n",
+		IPAERR_RL("invalid size in:%ld size out:%ld\n",
 			sizeof(struct ipa_flt_rule_mdfy),
 			sizeof(struct ipa_flt_rule_mdfy_i));
 		return;
@@ -1227,7 +1227,7 @@ static void __ipa_convert_flt_mdfy_out(struct ipa_flt_rule_mdfy_i rule_in,
 {
 	if (unlikely(sizeof(struct ipa_flt_rule_mdfy) >
 			sizeof(struct ipa_flt_rule_mdfy_i))) {
-		IPAERR_RL("invalid size in:%d size out:%d\n",
+		IPAERR_RL("invalid size in:%ld size out:%ld\n",
 			sizeof(struct ipa_flt_rule_mdfy),
 			sizeof(struct ipa_flt_rule_mdfy_i));
 		return;
@@ -1849,7 +1849,9 @@ int ipa3_reset_flt(enum ipa_ip_type ip, bool user_only)
 					entry->ipacm_installed) {
 				list_del(&entry->link);
 				entry->tbl->rule_cnt--;
-				if (entry->rt_tbl)
+				if (entry->rt_tbl &&
+					(!ipa3_check_idr_if_freed(
+						entry->rt_tbl)))
 					entry->rt_tbl->ref_cnt--;
 				/* if rule id was allocated from idr, remove */
 				rule_id = entry->rule_id;

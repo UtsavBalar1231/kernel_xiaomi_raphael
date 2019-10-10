@@ -838,10 +838,10 @@ static int smblib_set_usb_pd_allowed_voltage(struct smb_charger *chg,
 	if (vbus_allowance != CONTINUOUS)
 		return 0;
 
+	aicl_threshold = min_allowed_uv / 1000 - CONT_AICL_HEADROOM_MV;
 	if (chg->adapter_cc_mode)
-		aicl_threshold = AICL_THRESHOLD_MV_IN_CC;
-	else
-		aicl_threshold = min_allowed_uv / 1000 - CONT_AICL_HEADROOM_MV;
+		aicl_threshold = min(aicl_threshold, AICL_THRESHOLD_MV_IN_CC);
+
 	rc = smblib_set_charge_param(chg, &chg->param.aicl_cont_threshold,
 							aicl_threshold);
 	if (rc < 0) {
@@ -3013,7 +3013,7 @@ int smblib_set_prop_dc_reset(struct smb_charger *chg)
 
 	rc = smblib_write(chg, DCIN_CMD_PON_REG, DCIN_PON_BIT | MID_CHG_BIT);
 	if (rc < 0) {
-		smblib_err(chg, "Couldn't write %d to DCIN_CMD_PON_REG rc=%d\n",
+		smblib_err(chg, "Couldn't write %lu to DCIN_CMD_PON_REG rc=%d\n",
 			DCIN_PON_BIT | MID_CHG_BIT, rc);
 		return rc;
 	}
@@ -3224,12 +3224,36 @@ int smblib_get_prop_usb_voltage_now(struct smb_charger *chg,
 				    union power_supply_propval *val)
 {
 	union power_supply_propval pval = {0, };
-	int rc;
+	int rc, ret = 0;
+	u8 reg;
+
+	mutex_lock(&chg->adc_lock);
+
+	if (chg->wa_flags & USBIN_ADC_WA) {
+		/* Store ADC channel config in order to restore later */
+		rc = smblib_read(chg, BATIF_ADC_CHANNEL_EN_REG, &reg);
+		if (rc < 0) {
+			smblib_err(chg, "Couldn't read ADC config rc=%d\n", rc);
+			ret = rc;
+			goto unlock;
+		}
+
+		/* Disable all ADC channels except IBAT channel */
+		rc = smblib_write(chg, BATIF_ADC_CHANNEL_EN_REG,
+						IBATT_CHANNEL_EN_BIT);
+		if (rc < 0) {
+			smblib_err(chg, "Couldn't disable ADC channels rc=%d\n",
+						rc);
+			ret = rc;
+			goto unlock;
+		}
+	}
 
 	rc = smblib_get_prop_usb_present(chg, &pval);
 	if (rc < 0) {
 		smblib_err(chg, "Couldn't get usb presence status rc=%d\n", rc);
-		return -ENODATA;
+		ret = -ENODATA;
+		goto restore_adc_config;
 	}
 
 	/*
@@ -3238,9 +3262,26 @@ int smblib_get_prop_usb_voltage_now(struct smb_charger *chg,
 	 * voltages.
 	 */
 	if (chg->smb_version == PM8150B_SUBTYPE && pval.intval)
-		return smblib_read_mid_voltage_chan(chg, val);
+		rc = smblib_read_mid_voltage_chan(chg, val);
 	else
-		return smblib_read_usbin_voltage_chan(chg, val);
+		rc = smblib_read_usbin_voltage_chan(chg, val);
+	if (rc < 0) {
+		smblib_err(chg, "Failed to read USBIN over vadc, rc=%d\n", rc);
+		ret = rc;
+	}
+
+restore_adc_config:
+	 /* Restore ADC channel config */
+	if (chg->wa_flags & USBIN_ADC_WA)
+		rc = smblib_write(chg, BATIF_ADC_CHANNEL_EN_REG, reg);
+		if (rc < 0)
+			smblib_err(chg, "Couldn't write ADC config rc=%d\n",
+						rc);
+
+unlock:
+	mutex_unlock(&chg->adc_lock);
+
+	return ret;
 }
 
 int smblib_get_prop_vph_voltage_now(struct smb_charger *chg,
@@ -6809,12 +6850,7 @@ static int smblib_role_switch_failure(struct smb_charger *chg, int mode)
 	if (pval.intval) {
 		if (mode == DUAL_ROLE_PROP_MODE_DFP)
 			smblib_notify_device_mode(chg, true);
-	} else {
-		if (mode == DUAL_ROLE_PROP_MODE_UFP)
-			smblib_notify_usb_host(chg, true);
 	}
-	smblib_dbg(chg, PR_MISC, "Role reversal is failed for %s, notify usb",
-						mode ? "DFP" : "UFP");
 
 	return rc;
 }
@@ -6837,10 +6873,6 @@ static void smblib_dual_role_check_work(struct work_struct *work)
 			if (rc < 0)
 				pr_err("Failed to set DRP mode, rc=%d\n", rc);
 
-			rc = smblib_role_switch_failure(chg,
-						DUAL_ROLE_PROP_MODE_UFP);
-			if (rc < 0)
-				pr_err("Failed to role switch rc=%d\n", rc);
 		}
 		chg->pr_swap_in_progress = false;
 		break;

@@ -292,13 +292,13 @@ static ssize_t usb_gsi_rw_write(struct file *file,
 	int ret;
 
 	if (ubuf == NULL) {
-		log_event_dbg("%s: buffer is Null.\n", __func__);
+		pr_debug("%s: buffer is Null.\n", __func__);
 		goto err;
 	}
 
 	ret = kstrtou8_from_user(ubuf, count, 0, &input);
 	if (ret) {
-		log_event_err("%s: Invalid value. err:%d\n", __func__, ret);
+		pr_err("%s: Invalid value. err:%d\n", __func__, ret);
 		goto err;
 	}
 
@@ -376,18 +376,18 @@ static ssize_t usb_gsi_rw_timer_write(struct file *file,
 	int ret;
 
 	if (ubuf == NULL) {
-		log_event_dbg("%s: buffer is NULL.\n", __func__);
+		pr_debug("%s: buffer is NULL.\n", __func__);
 		goto err;
 	}
 
 	ret = kstrtou16_from_user(ubuf, count, 0, &timer_val);
 	if (ret) {
-		log_event_err("%s: Invalid value. err:%d\n", __func__, ret);
+		pr_err("%s: Invalid value. err:%d\n", __func__, ret);
 		goto err;
 	}
 
 	if (timer_val <= 0 || timer_val >  10000) {
-		log_event_err("%s: value must be > 0 and < 10000.\n", __func__);
+		pr_err("%s: value must be > 0 and < 10000.\n", __func__);
 		goto err;
 	}
 
@@ -2634,7 +2634,7 @@ static int gsi_get_status(struct usb_function *f)
 	struct f_gsi *gsi = func_to_gsi(f);
 
 	/* Disable function remote wake-up for DPL interface */
-	if (gsi->prot_id == IPA_USB_DIAG)
+	if (gsi->prot_id == USB_PROT_DIAG_IPA)
 		return 0;
 
 	return (remote_wakeup_en_status << FUNC_WAKEUP_ENABLE_SHIFT) |

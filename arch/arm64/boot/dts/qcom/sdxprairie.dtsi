@@ -49,7 +49,7 @@
 
 		tz_apps_mem: tz_apps_region@0x90000000 {
 			no-map;
-			reg = <0x90000000 0xc00000>;
+			reg = <0x90000000 0x500000>;
 			label = "tz_apps_mem";
 		};
 
@@ -106,7 +106,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			alignment = <0x400000>;
-			size = <0x1000000>;
+			size = <0x400000>;
 		};
 
 		audio_mem: audio_region@0 {
@@ -936,7 +936,7 @@
 
 	qcom_seecom: qseecom@90000000{
 		compatible = "qcom,qseecom";
-		reg = <0x90000000 0xc00000>;
+		reg = <0x90000000 0x500000>;
 		reg-names = "secapp-region";
 		memory-region = <&qseecom_mem>;
 		qcom,hlos-num-ce-hw-instances = <1>;
@@ -956,7 +956,7 @@
 
 	qcom_smcinvoke: smcinvoke@90000000{
 		compatible = "qcom,smcinvoke";
-		reg = <0x90000000 0xc00000>;
+		reg = <0x90000000 0x500000>;
 		reg-names = "secapp-region";
 	};
 
@@ -1052,6 +1052,8 @@
 		pinctrl-names = "wlan_en_active", "wlan_en_sleep";
 		pinctrl-0 = <&cnss_wlan_en_active>;
 		pinctrl-1 = <&cnss_wlan_en_sleep>;
+		vdd-wlan-aon-supply = <&pmxprairie_s3>;
+		qcom,vdd-wlan-aon-info = <800000 800000 0 0>;
 		qcom,wlan-rc-num = <0>;
 		qcom,wlan-ramdump-dynamic = <0x400000>;
 		qcom,smmu-s1-enable;
@@ -1442,6 +1444,7 @@
 			"eth_rgmii_clk", "eth_slave_ahb_clk";
 		qcom,phy-intr-redirect = <&tlmm 90 GPIO_ACTIVE_LOW>;
 		qcom,phy-reset = <&tlmm 91 GPIO_ACTIVE_LOW>;
+		qcom,phy-reset-delay-msecs = <10>;
 		qcom,emac-pps0-test-intr = <&tlmm 31 GPIO_ACTIVE_LOW>;
 		vreg_rgmii-supply = <&pmxprairie_vref_rgmii>;
 		vreg_emac_phy-supply =  <&vreg_emac_phy>;

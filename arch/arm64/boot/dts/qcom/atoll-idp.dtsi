@@ -134,6 +134,10 @@
 			};
 		};
 	};
+
+	quiet-therm-step {
+		status = "disabled";
+	};
 };
 
 &pm6150a_amoled {
@@ -175,6 +179,8 @@
 	dpdm-supply = <&qusb_phy0>;
 	qcom,charger-temp-max = <800>;
 	qcom,smb-temp-max = <800>;
+	qcom,disable-sw-thermal-regulation;
+	qcom,disable-fcc-restriction;
 };
 
 &pm6150l_gpios {

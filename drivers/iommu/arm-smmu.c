@@ -320,9 +320,7 @@ struct arm_smmu_device {
 
 	struct arm_smmu_arch_ops	*arch_ops;
 	void				*archdata;
-#ifdef CONFIG_HIBERNATION
 	bool				smmu_restore;
-#endif
 	enum tz_smmu_device_id		sec_id;
 };
 
@@ -1175,10 +1173,32 @@ static struct qsmmuv500_tbu_device *qsmmuv500_find_tbu(
 	return NULL;
 }
 
+static void arm_smmu_testbus_dump(struct arm_smmu_device *smmu, u16 sid)
+{
+	if (smmu->model == QCOM_SMMUV500 &&
+	    IS_ENABLED(CONFIG_ARM_SMMU_TESTBUS_DUMP)) {
+		struct qsmmuv500_archdata *data;
+		struct qsmmuv500_tbu_device *tbu;
+
+		data = smmu->archdata;
+		tbu = qsmmuv500_find_tbu(smmu, sid);
+		spin_lock(&testbus_lock);
+		if (tbu)
+			arm_smmu_debug_dump_tbu_testbus(tbu->dev,
+							tbu->base,
+							data->tcu_base,
+							tbu_testbus_sel,
+							data->testbus_version);
+
+		arm_smmu_debug_dump_tcu_testbus(smmu->dev, ARM_SMMU_GR0(smmu),
+						data->tcu_base,
+						tcu_testbus_sel);
+		spin_unlock(&testbus_lock);
+	}
+}
 /* Wait for any pending TLB invalidations to complete */
 static int __arm_smmu_tlb_sync(struct arm_smmu_device *smmu,
-			void __iomem *sync, void __iomem *status,
-			struct arm_smmu_domain *smmu_domain)
+			void __iomem *sync, void __iomem *status)
 {
 	unsigned int spin_cnt, delay;
 	u32 sync_inv_ack, tbu_pwr_status, sync_inv_progress;
@@ -1202,46 +1222,6 @@ static int __arm_smmu_tlb_sync(struct arm_smmu_device *smmu,
 	dev_err_ratelimited(smmu->dev,
 			    "TLB sync timed out -- SMMU may be deadlocked ack 0x%x pwr 0x%x sync and invalidation progress 0x%x\n",
 			    sync_inv_ack, tbu_pwr_status, sync_inv_progress);
-
-	if (smmu->model == QCOM_SMMUV500 &&
-			IS_ENABLED(CONFIG_ARM_SMMU_TESTBUS_DUMP)) {
-
-		struct qsmmuv500_archdata *data;
-
-		spin_lock(&testbus_lock);
-		data = smmu->archdata;
-
-		if (smmu_domain) {
-			struct qsmmuv500_tbu_device *tbu;
-			int i, idx;
-			u16 sid = U16_MAX;
-			struct device *dev = smmu->dev;
-			struct iommu_fwspec *fwspec = dev->iommu_fwspec;
-			struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
-			struct arm_smmu_smr *smrs = smmu->smrs;
-
-			mutex_lock(&smmu->stream_map_mutex);
-			for_each_cfg_sme(fwspec, i, idx) {
-				if (smmu->s2crs[idx].cbndx == cfg->cbndx) {
-					sid = smrs[idx].id;
-					break;
-				}
-			}
-			mutex_unlock(&smmu->stream_map_mutex);
-
-			tbu = qsmmuv500_find_tbu(smmu, sid);
-			if (tbu)
-				arm_smmu_debug_dump_tbu_testbus(tbu->dev,
-						tbu->base, data->tcu_base,
-						tbu_testbus_sel,
-						data->testbus_version);
-		}
-		arm_smmu_debug_dump_tcu_testbus(smmu->dev, ARM_SMMU_GR0(smmu),
-				data->tcu_base, tcu_testbus_sel);
-		spin_unlock(&testbus_lock);
-	}
-
-	BUG_ON(IS_ENABLED(CONFIG_IOMMU_TLBSYNC_DEBUG));
 	return -EINVAL;
 }
 
@@ -1252,9 +1232,12 @@ static void arm_smmu_tlb_sync_global(struct arm_smmu_device *smmu)
 
 	spin_lock_irqsave(&smmu->global_sync_lock, flags);
 	if (__arm_smmu_tlb_sync(smmu, base + ARM_SMMU_GR0_sTLBGSYNC,
-				base + ARM_SMMU_GR0_sTLBGSTATUS, NULL))
+				base + ARM_SMMU_GR0_sTLBGSTATUS)) {
 		dev_err_ratelimited(smmu->dev,
 				    "TLB global sync failed!\n");
+		arm_smmu_testbus_dump(smmu, U16_MAX);
+		BUG_ON(IS_ENABLED(CONFIG_IOMMU_TLBSYNC_DEBUG));
+	}
 	spin_unlock_irqrestore(&smmu->global_sync_lock, flags);
 }
 
@@ -1266,6 +1249,7 @@ static void arm_smmu_tlb_sync_context(void *cookie)
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	struct device *dev = smmu_domain->dev;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
+	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 	void __iomem *base = ARM_SMMU_CB(smmu, smmu_domain->cfg.cbndx);
 	unsigned long flags;
 	size_t ret;
@@ -1286,11 +1270,14 @@ static void arm_smmu_tlb_sync_context(void *cookie)
 
 	spin_lock_irqsave(&smmu_domain->sync_lock, flags);
 	if (__arm_smmu_tlb_sync(smmu, base + ARM_SMMU_CB_TLBSYNC,
-				base + ARM_SMMU_CB_TLBSTATUS, smmu_domain))
+				base + ARM_SMMU_CB_TLBSTATUS)) {
 		dev_err_ratelimited(smmu->dev,
 				    "TLB sync on cb%d failed for device %s\n",
 				    smmu_domain->cfg.cbndx,
 				    dev_name(smmu_domain->dev));
+		arm_smmu_testbus_dump(smmu, (u16)fwspec->ids[0]);
+		BUG_ON(IS_ENABLED(CONFIG_IOMMU_TLBSYNC_DEBUG));
+	}
 	spin_unlock_irqrestore(&smmu_domain->sync_lock, flags);
 
 	trace_tlbi_end(dev, ktime_us_delta(ktime_get(), cur));
@@ -1865,9 +1852,7 @@ static void arm_smmu_write_context_bank(struct arm_smmu_device *smmu, int idx,
 	struct arm_smmu_cb *cb = &smmu->cbs[idx];
 	struct arm_smmu_cfg *cfg = cb->cfg;
 	void __iomem *cb_base, *gr1_base;
-#ifdef CONFIG_HIBERNATION
 	struct arm_smmu_domain *smmu_domain;
-#endif
 
 	cb_base = ARM_SMMU_CB(smmu, idx);
 
@@ -1945,12 +1930,10 @@ static void arm_smmu_write_context_bank(struct arm_smmu_device *smmu, int idx,
 
 	/* Ensure bypass transactions are Non-shareable */
 	reg |= SCTLR_SHCFG_NSH << SCTLR_SHCFG_SHIFT;
-#ifdef CONFIG_HIBERNATION
 	if (smmu->smmu_restore) {
 		smmu_domain = container_of(cfg, struct arm_smmu_domain, cfg);
 		attributes = smmu_domain->attributes;
 	}
-#endif
 	if (attributes & (1 << DOMAIN_ATTR_CB_STALL_DISABLE)) {
 		reg &= ~SCTLR_CFCFG;
 		reg |= SCTLR_HUPCF;
@@ -4184,16 +4167,35 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 	int i;
 	u32 reg;
+	void __iomem *cb_base;
+	u32 fsr;
 
 	/* clear global FSR */
 	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
 	writel_relaxed(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
 
+	for (i = 0; i < smmu->num_context_banks; ++i) {
+		cb_base = ARM_SMMU_CB(smmu, i);
+
+		fsr = readl_relaxed(cb_base + ARM_SMMU_CB_FSR);
+		if (fsr & FSR_FAULT) {
+			writel_relaxed(fsr & FSR_FAULT, cb_base +
+				       ARM_SMMU_CB_FSR);
+			pr_err("CB %d, FSR 0x%x reset\n", i, fsr);
+		}
+	}
+
+	/*
+	 * Barrier required to ensure fault registers are cleared.
+	 */
+	wmb();
+
 	/*
 	 * Reset stream mapping groups: Initial values mark all SMRn as
 	 * invalid and all S2CRn as bypass unless overridden.
 	 */
-	if (!(smmu->options & ARM_SMMU_OPT_SKIP_INIT)) {
+	if (!(smmu->options & ARM_SMMU_OPT_SKIP_INIT) ||
+			IS_ENABLED(CONFIG_HIBERNATION)) {
 		for (i = 0; i < smmu->num_mapping_groups; ++i)
 			arm_smmu_write_sme(smmu, i);
 
@@ -5137,11 +5139,6 @@ static int __maybe_unused arm_smmu_pm_resume(struct device *dev)
 
 	arm_smmu_device_reset(smmu);
 	arm_smmu_power_off(smmu->pwr);
-
-#ifdef CONFIG_HIBERNATION
-	smmu->smmu_restore = false;
-#endif
-
 	return 0;
 }
 
@@ -5149,8 +5146,9 @@ static int __maybe_unused arm_smmu_pm_restore_early(struct device *dev)
 {
 	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
 	struct arm_smmu_domain *smmu_domain;
+	struct io_pgtable_ops *pgtbl_ops;
 	struct arm_smmu_cb *cb;
-	int idx;
+	int idx, ret;
 
 	/* restore the secure pools */
 	for (idx = 0; idx < smmu->num_context_banks; idx++) {
@@ -5162,21 +5160,23 @@ static int __maybe_unused arm_smmu_pm_restore_early(struct device *dev)
 		if (!arm_smmu_has_secure_vmid(smmu_domain))
 			continue;
 
-		if (!alloc_io_pgtable_ops(smmu_domain->pgtbl_fmt,
+		pgtbl_ops = alloc_io_pgtable_ops(smmu_domain->pgtbl_fmt,
 					  &smmu_domain->pgtbl_cfg,
-					  smmu_domain)) {
+					  smmu_domain);
+		if (!pgtbl_ops) {
 			dev_err(smmu->dev, "failed to allocate page tables during pm restore for cxt %d\n",
 				idx, dev_name(dev));
 			return -ENOMEM;
 		}
+		smmu_domain->pgtbl_ops = pgtbl_ops;
 		arm_smmu_secure_domain_lock(smmu_domain);
 		arm_smmu_assign_table(smmu_domain);
 		arm_smmu_secure_domain_unlock(smmu_domain);
 	}
-#ifdef CONFIG_HIBERNATION
 	smmu->smmu_restore = true;
-#endif
-	return arm_smmu_pm_resume(dev);
+	ret = arm_smmu_pm_resume(dev);
+	smmu->smmu_restore = false;
+	return ret;
 }
 
 static int __maybe_unused arm_smmu_pm_freeze_late(struct device *dev)
@@ -5213,7 +5213,7 @@ static int __maybe_unused arm_smmu_pm_freeze_late(struct device *dev)
 
 static const struct dev_pm_ops arm_smmu_pm_ops = {
 	.resume = arm_smmu_pm_resume,
-	.thaw_early = arm_smmu_pm_resume,
+	.thaw_early = arm_smmu_pm_restore_early,
 	.freeze_late = arm_smmu_pm_freeze_late,
 	.restore_early = arm_smmu_pm_restore_early,
 };

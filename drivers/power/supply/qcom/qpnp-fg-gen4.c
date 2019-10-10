@@ -186,6 +186,8 @@
 #define RSLOW_SCALE_FN_CHG_V2_OFFSET	0
 #define ACT_BATT_CAP_v2_WORD		287
 #define ACT_BATT_CAP_v2_OFFSET		0
+#define IBAT_FLT_WORD			322
+#define IBAT_FLT_OFFSET			0
 #define VBAT_FLT_WORD			326
 #define VBAT_FLT_OFFSET			0
 #define RSLOW_v2_WORD			371
@@ -284,6 +286,7 @@ struct fg_gen4_chip {
 	struct work_struct	pl_current_en_work;
 	struct completion	mem_attn;
 	struct mutex		soc_scale_lock;
+	struct mutex		esr_calib_lock;
 	ktime_t			last_restart_time;
 	char			batt_profile[PROFILE_LEN];
 	enum slope_limit_status	slope_limit_sts;
@@ -463,6 +466,8 @@ static struct fg_sram_param pm8150b_v2_sram_params[] = {
 		0, NULL, fg_decode_voltage_15b),
 	PARAM(IBAT_FINAL, IBAT_FINAL_WORD, IBAT_FINAL_OFFSET, 2, 1000, 488282,
 		0, NULL, fg_decode_current_16b),
+	PARAM(IBAT_FLT, IBAT_FLT_WORD, IBAT_FLT_OFFSET, 4, 10000, 19073, 0,
+		NULL, fg_decode_current_24b),
 	PARAM(ESR, ESR_WORD, ESR_OFFSET, 2, 1000, 244141, 0, fg_encode_default,
 		fg_decode_value_16b),
 	PARAM(ESR_MDL, ESR_MDL_WORD, ESR_MDL_OFFSET, 2, 1000, 244141, 0,
@@ -1274,6 +1279,39 @@ static int fg_gen4_prime_cc_soc_sw(void *data, u32 batt_soc)
 		fg_dbg(fg, FG_STATUS, "cc_soc_sw: %x\n", cc_soc_sw);
 
 	return rc;
+}
+
+static bool fg_gen4_cl_ok_to_begin(void *data)
+{
+	struct fg_gen4_chip *chip = data;
+	struct fg_dev *fg;
+	int rc, val = 0;
+
+	if (!chip)
+		return false;
+
+	fg = &chip->fg;
+
+	if (chip->cl->dt.ibat_flt_thr_ma <= 0)
+		return true;
+
+	rc = fg_get_sram_prop(fg, FG_SRAM_IBAT_FLT, &val);
+	if (rc < 0) {
+		pr_err("Failed to get filtered battery current, rc = %d\n",
+			rc);
+		return true;
+	}
+
+	/* convert to milli-units */
+	val = DIV_ROUND_CLOSEST(val, 1000);
+
+	pr_debug("IBAT_FLT thr: %d val: %d\n", chip->cl->dt.ibat_flt_thr_ma,
+		val);
+
+	if (abs(val) > chip->cl->dt.ibat_flt_thr_ma)
+		return false;
+
+	return true;
 }
 
 static int fg_gen4_get_cc_soc_sw(void *data, int *cc_soc_sw)
@@ -2259,7 +2297,31 @@ static void fg_gen4_post_profile_load(struct fg_gen4_chip *chip)
 {
 	struct fg_dev *fg = &chip->fg;
 	int rc, act_cap_mah;
-	u8 buf[16];
+	u8 buf[16] = {0};
+
+	if (chip->dt.multi_profile_load &&
+		chip->batt_age_level != chip->last_batt_age_level) {
+
+		/* Keep ESR fast calib config disabled */
+		fg_gen4_esr_fast_calib_config(chip, false);
+		chip->esr_fast_calib = false;
+
+		mutex_lock(&chip->esr_calib_lock);
+
+		rc = fg_sram_write(fg, ESR_DELTA_DISCHG_WORD,
+				ESR_DELTA_DISCHG_OFFSET, buf, 2,
+				FG_IMA_DEFAULT);
+		if (rc < 0)
+			pr_err("Error in writing ESR_DELTA_DISCHG, rc=%d\n",
+				rc);
+
+		rc = fg_sram_write(fg, ESR_DELTA_CHG_WORD, ESR_DELTA_CHG_OFFSET,
+				buf, 2, FG_IMA_DEFAULT);
+		if (rc < 0)
+			pr_err("Error in writing ESR_DELTA_CHG, rc=%d\n", rc);
+
+		mutex_unlock(&chip->esr_calib_lock);
+	}
 
 	/* If SDAM cookie is not set, read back from SRAM and load it in SDAM */
 	if (chip->fg_nvmem && !is_sdam_cookie_set(chip)) {
@@ -2305,7 +2367,7 @@ static void profile_load_work(struct work_struct *work)
 				profile_load_work.work);
 	struct fg_gen4_chip *chip = container_of(fg,
 				struct fg_gen4_chip, fg);
-	int64_t nom_cap_uah;
+	int64_t nom_cap_uah, learned_cap_uah = 0;
 	u8 val, buf[2];
 	int rc;
 
@@ -2339,6 +2401,16 @@ static void profile_load_work(struct work_struct *work)
 
 	fg_dbg(fg, FG_STATUS, "profile loading started\n");
 
+	if (chip->dt.multi_profile_load &&
+		chip->batt_age_level != chip->last_batt_age_level) {
+		rc = fg_gen4_get_learned_capacity(chip, &learned_cap_uah);
+		if (rc < 0)
+			pr_err("Error in getting learned capacity rc=%d\n", rc);
+		else
+			fg_dbg(fg, FG_STATUS, "learned capacity: %lld uAh\n",
+				learned_cap_uah);
+	}
+
 	rc = qpnp_fg_gen4_load_profile(chip);
 	if (rc < 0)
 		goto out;
@@ -2349,21 +2421,26 @@ static void profile_load_work(struct work_struct *work)
 	if (fg->wa_flags & PM8150B_V1_DMA_WA)
 		msleep(1000);
 
-	/*
-	 * Whenever battery profile is loaded, read nominal capacity and write
-	 * it to actual (or aged) capacity as it is outside the profile region
-	 * and might contain OTP values.
-	 */
-	rc = fg_sram_read(fg, NOM_CAP_WORD, NOM_CAP_OFFSET, buf, 2,
-			FG_IMA_DEFAULT);
-	if (rc < 0) {
-		pr_err("Error in reading %04x[%d] rc=%d\n", NOM_CAP_WORD,
-			NOM_CAP_OFFSET, rc);
-	} else {
-		nom_cap_uah = (buf[0] | buf[1] << 8) * 1000;
-		rc = fg_gen4_store_learned_capacity(chip, nom_cap_uah);
-		if (rc < 0)
-			pr_err("Error in writing to ACT_BATT_CAP rc=%d\n", rc);
+	if (learned_cap_uah == 0) {
+		/*
+		 * Whenever battery profile is loaded, read nominal capacity and
+		 * write it to actual (or aged) capacity as it is outside the
+		 * profile region and might contain OTP values. learned_cap_uah
+		 * would have non-zero value if multiple profile loading is
+		 * enabled and a profile got loaded already.
+		 */
+		rc = fg_sram_read(fg, NOM_CAP_WORD, NOM_CAP_OFFSET, buf, 2,
+				FG_IMA_DEFAULT);
+		if (rc < 0) {
+			pr_err("Error in reading %04x[%d] rc=%d\n",
+				NOM_CAP_WORD, NOM_CAP_OFFSET, rc);
+		} else {
+			nom_cap_uah = (buf[0] | buf[1] << 8) * 1000;
+			rc = fg_gen4_store_learned_capacity(chip, nom_cap_uah);
+			if (rc < 0)
+				pr_err("Error in writing to ACT_BATT_CAP rc=%d\n",
+					rc);
+		}
 	}
 done:
 	rc = fg_sram_read(fg, PROFILE_INTEGRITY_WORD,
@@ -3494,12 +3571,14 @@ static irqreturn_t fg_delta_bsoc_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#define CENTI_FULL_SOC		10000
 static irqreturn_t fg_delta_msoc_irq_handler(int irq, void *data)
 {
 	struct fg_dev *fg = data;
 	struct fg_gen4_chip *chip = container_of(fg, struct fg_gen4_chip, fg);
 	int rc, batt_soc, batt_temp, msoc_raw;
 	bool input_present = is_input_present(fg);
+	u32 batt_soc_cp;
 
 	rc = fg_get_msoc_raw(fg, &msoc_raw);
 	if (!rc)
@@ -3519,10 +3598,14 @@ static irqreturn_t fg_delta_msoc_irq_handler(int irq, void *data)
 	if (rc < 0) {
 		pr_err("Failed to read battery temp rc: %d\n", rc);
 	} else {
-		if (chip->cl->active)
-			cap_learning_update(chip->cl, batt_temp, batt_soc,
+		if (chip->cl->active) {
+			batt_soc_cp = div64_u64(
+					(u64)(u32)batt_soc * CENTI_FULL_SOC,
+					BATT_SOC_32BIT);
+			cap_learning_update(chip->cl, batt_temp, batt_soc_cp,
 				fg->charge_status, fg->charge_done,
 				input_present, is_qnovo_en(fg));
+		}
 
 		rc = fg_gen4_slope_limit_config(chip, batt_temp);
 		if (rc < 0)
@@ -3736,6 +3819,8 @@ static void esr_calib_work(struct work_struct *work)
 	s16 esr_raw, esr_char_raw, esr_delta, esr_meas_diff, esr_filtered;
 	u8 buf[2];
 
+	mutex_lock(&chip->esr_calib_lock);
+
 	if (chip->delta_esr_count > chip->dt.delta_esr_disable_count ||
 		chip->esr_fast_calib_done) {
 		fg_dbg(fg, FG_STATUS, "delta_esr_count: %d esr_fast_calib_done:%d\n",
@@ -3832,6 +3917,7 @@ static void esr_calib_work(struct work_struct *work)
 	chip->delta_esr_count++;
 	fg_dbg(fg, FG_STATUS, "Wrote ESR delta [0x%x 0x%x]\n", buf[0], buf[1]);
 out:
+	mutex_unlock(&chip->esr_calib_lock);
 	vote(fg->awake_votable, ESR_CALIB, false, 0);
 }
 
@@ -3958,6 +4044,7 @@ static void status_change_work(struct work_struct *work)
 	struct fg_gen4_chip *chip = container_of(fg, struct fg_gen4_chip, fg);
 	int rc, batt_soc, batt_temp;
 	bool input_present, qnovo_en;
+	u32 batt_soc_cp;
 
 	if (fg->battery_missing) {
 		pm_relax(fg->dev);
@@ -3999,10 +4086,13 @@ static void status_change_work(struct work_struct *work)
 	cycle_count_update(chip->counter, (u32)batt_soc >> 24,
 		fg->charge_status, fg->charge_done, input_present);
 
-	if (fg->charge_status != fg->prev_charge_status)
-		cap_learning_update(chip->cl, batt_temp, batt_soc,
+	if (fg->charge_status != fg->prev_charge_status) {
+		batt_soc_cp = div64_u64((u64)(u32)batt_soc * CENTI_FULL_SOC,
+					BATT_SOC_32BIT);
+		cap_learning_update(chip->cl, batt_temp, batt_soc_cp,
 			fg->charge_status, fg->charge_done, input_present,
 			qnovo_en);
+	}
 
 	rc = fg_gen4_charge_full_update(fg);
 	if (rc < 0)
@@ -4256,6 +4346,9 @@ static int fg_psy_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		rc = fg_get_battery_current(fg, &pval->intval);
 		break;
+	case POWER_SUPPLY_PROP_CURRENT_AVG:
+		rc = fg_get_sram_prop(fg, FG_SRAM_IBAT_FLT, &pval->intval);
+		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		rc = fg_gen4_get_battery_temp(fg, &pval->intval);
 		break;
@@ -4495,6 +4588,7 @@ static enum power_supply_property fg_psy_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_RESISTANCE_ID,
 	POWER_SUPPLY_PROP_RESISTANCE,
 	POWER_SUPPLY_PROP_ESR_ACTUAL,
@@ -4746,6 +4840,7 @@ static int fg_alg_init(struct fg_gen4_chip *chip)
 	cl->prime_cc_soc = fg_gen4_prime_cc_soc_sw;
 	cl->get_learned_capacity = fg_gen4_get_learned_capacity;
 	cl->store_learned_capacity = fg_gen4_store_learned_capacity;
+	cl->ok_to_begin = fg_gen4_cl_ok_to_begin;
 	cl->data = chip;
 
 	rc = cap_learning_init(cl);
@@ -5694,9 +5789,6 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 	of_property_read_u32(node, "qcom,cl-min-delta-batt-soc",
 					&chip->cl->dt.min_delta_batt_soc);
 
-	chip->cl->dt.cl_wt_enable = of_property_read_bool(node,
-						"qcom,cl-wt-enable");
-
 	rc = of_property_read_u32(node, "qcom,cl-min-temp", &temp);
 	if (rc < 0)
 		chip->cl->dt.min_temp = DEFAULT_CL_MIN_TEMP_DECIDEGC;
@@ -5734,6 +5826,16 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 		chip->cl->dt.max_cap_limit = temp;
 
 	of_property_read_u32(node, "qcom,cl-skew", &chip->cl->dt.skew_decipct);
+
+	if (of_property_read_bool(node, "qcom,cl-wt-enable")) {
+		chip->cl->dt.cl_wt_enable = true;
+		chip->cl->dt.max_start_soc = -EINVAL;
+		chip->cl->dt.min_start_soc = -EINVAL;
+	}
+
+	chip->cl->dt.ibat_flt_thr_ma = 100;
+	of_property_read_u32(node, "qcom,cl-ibat-flt-thresh-ma",
+		&chip->cl->dt.ibat_flt_thr_ma);
 
 	rc = of_property_read_u32(node, "qcom,fg-batt-temp-hot", &temp);
 	if (rc < 0)
@@ -5862,6 +5964,34 @@ static void fg_gen4_cleanup(struct fg_gen4_chip *chip)
 	dev_set_drvdata(fg->dev, NULL);
 }
 
+static void fg_gen4_post_init(struct fg_gen4_chip *chip)
+{
+	int i;
+	struct fg_dev *fg = &chip->fg;
+
+	if (!is_debug_batt_id(fg))
+		return;
+
+	/* Disable all wakeable IRQs for a debug battery */
+	vote(fg->delta_bsoc_irq_en_votable, DEBUG_BOARD_VOTER, false, 0);
+	vote(chip->delta_esr_irq_en_votable, DEBUG_BOARD_VOTER, false, 0);
+	vote(chip->mem_attn_irq_en_votable, DEBUG_BOARD_VOTER, false, 0);
+
+	for (i = 0; i < FG_GEN4_IRQ_MAX; i++) {
+		if (fg->irqs[i].irq && fg->irqs[i].wakeable) {
+			if (i == BSOC_DELTA_IRQ || i == ESR_DELTA_IRQ ||
+					i == MEM_ATTN_IRQ) {
+				continue;
+			} else {
+				disable_irq_wake(fg->irqs[i].irq);
+				disable_irq_nosync(fg->irqs[i].irq);
+			}
+		}
+	}
+
+	fg_dbg(fg, FG_STATUS, "Disabled wakeable irqs for debug board\n");
+}
+
 static int fg_gen4_probe(struct platform_device *pdev)
 {
 	struct fg_gen4_chip *chip;
@@ -5895,6 +6025,7 @@ static int fg_gen4_probe(struct platform_device *pdev)
 	mutex_init(&fg->sram_rw_lock);
 	mutex_init(&fg->charge_full_lock);
 	mutex_init(&chip->soc_scale_lock);
+	mutex_init(&chip->esr_calib_lock);
 	init_completion(&fg->soc_update);
 	init_completion(&fg->soc_ready);
 	init_completion(&chip->mem_attn);
@@ -6078,6 +6209,8 @@ static int fg_gen4_probe(struct platform_device *pdev)
 	device_init_wakeup(fg->dev, true);
 	if (!fg->battery_missing)
 		schedule_delayed_work(&fg->profile_load_work, 0);
+
+	fg_gen4_post_init(chip);
 
 	pr_debug("FG GEN4 driver probed successfully\n");
 	return 0;

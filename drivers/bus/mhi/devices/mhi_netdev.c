@@ -861,6 +861,9 @@ static int mhi_netdev_debugfs_stats_show(struct seq_file *m, void *d)
 		   mhi_netdev->abuffers, mhi_netdev->kbuffers,
 		   mhi_netdev->rbuffers);
 
+	seq_printf(m, "chaining SKBs:%s\n", (mhi_netdev->chain) ?
+		   "enabled" : "disabled");
+
 	return 0;
 }
 
@@ -1108,6 +1111,8 @@ static int mhi_netdev_probe(struct mhi_device *mhi_dev,
 static const struct mhi_device_id mhi_netdev_match_table[] = {
 	{ .chan = "IP_HW0" },
 	{ .chan = "IP_HW0_RSC" },
+	{ .chan = "IP_SW0" },
+	{ .chan = "IP_HW1" },
 	{},
 };
 

@@ -266,11 +266,10 @@ static int smb5_chg_config_init(struct smb5 *chip)
 {
 	struct smb_charger *chg = &chip->chg;
 	struct pmic_revid_data *pmic_rev_id;
-	struct device_node *revid_dev_node;
+	struct device_node *revid_dev_node, *node = chg->dev->of_node;
 	int rc = 0;
 
-	revid_dev_node = of_parse_phandle(chip->chg.dev->of_node,
-					  "qcom,pmic-revid", 0);
+	revid_dev_node = of_parse_phandle(node, "qcom,pmic-revid", 0);
 	if (!revid_dev_node) {
 		pr_err("Missing qcom,pmic-revid property\n");
 		return -EINVAL;
@@ -306,7 +305,7 @@ static int smb5_chg_config_init(struct smb5 *chip)
 	case PMI632_SUBTYPE:
 		chip->chg.smb_version = PMI632_SUBTYPE;
 		chg->wa_flags |= WEAK_ADAPTER_WA | USBIN_OV_WA
-				| CHG_TERMINATION_WA;
+				| CHG_TERMINATION_WA | USBIN_ADC_WA;
 		chg->param = smb5_pmi632_params;
 		chg->use_extcon = true;
 		chg->name = "pmi632_charger";
@@ -333,6 +332,12 @@ static int smb5_chg_config_init(struct smb5 *chip)
 	chg->chg_freq.freq_removal		= 1050;
 	chg->chg_freq.freq_below_otg_threshold	= 800;
 	chg->chg_freq.freq_above_otg_threshold	= 800;
+
+	if (of_property_read_bool(node, "qcom,disable-sw-thermal-regulation"))
+		chg->wa_flags &= ~SW_THERM_REGULATION_WA;
+
+	if (of_property_read_bool(node, "qcom,disable-fcc-restriction"))
+		chg->main_fcc_max = -EINVAL;
 
 out:
 	of_node_put(revid_dev_node);
@@ -3422,6 +3427,7 @@ static int smb5_probe(struct platform_device *pdev)
 	chg->connector_health = -EINVAL;
 	chg->otg_present = false;
 	chg->main_fcc_max = -EINVAL;
+	mutex_init(&chg->adc_lock);
 
 	chg->regmap = dev_get_regmap(chg->dev->parent, NULL);
 	if (!chg->regmap) {
