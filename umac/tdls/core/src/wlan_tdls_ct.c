@@ -966,7 +966,7 @@ int tdls_set_tdls_secoffchanneloffset(struct tdls_soc_priv_obj *tdls_soc,
 		tdls_soc->tdls_channel_offset = BW20;
 		break;
 	case TDLS_SEC_OFFCHAN_OFFSET_40PLUS:
-		tdls_soc->tdls_channel_offset = BW40_LOW_PRIMARY;
+		tdls_soc->tdls_channel_offset = BW40_HIGH_PRIMARY;
 		break;
 	case TDLS_SEC_OFFCHAN_OFFSET_40MINUS:
 		tdls_soc->tdls_channel_offset = BW40_LOW_PRIMARY;
@@ -1047,6 +1047,23 @@ int tdls_set_tdls_offchannelmode(struct wlan_objmgr_vdev *vdev,
 			   tdls_find_opclass(tdls_soc->soc,
 				chan_switch_params.tdls_off_ch,
 				chan_switch_params.tdls_off_ch_bw_offset);
+			if (!chan_switch_params.oper_class) {
+				if (chan_switch_params.tdls_off_ch_bw_offset ==
+				    BW40_HIGH_PRIMARY)
+					chan_switch_params.oper_class =
+					tdls_find_opclass(tdls_soc->soc,
+						chan_switch_params.tdls_off_ch,
+						BW40_LOW_PRIMARY);
+				else if (chan_switch_params.
+					 tdls_off_ch_bw_offset ==
+					 BW40_LOW_PRIMARY)
+					chan_switch_params.oper_class =
+					tdls_find_opclass(tdls_soc->soc,
+						chan_switch_params.tdls_off_ch,
+						BW40_HIGH_PRIMARY);
+				tdls_debug("oper_class:%d",
+					    chan_switch_params.oper_class);
+			}
 		} else {
 			tdls_err("TDLS off-channel parameters are not set yet!!!");
 			return -EINVAL;
@@ -1131,18 +1148,17 @@ QDF_STATUS tdls_delete_all_tdls_peers(struct wlan_objmgr_vdev *vdev,
 	struct scheduler_msg msg = {0};
 	QDF_STATUS status;
 
+	peer = wlan_vdev_get_bsspeer(vdev);
+	if (!peer)
+		return QDF_STATUS_E_FAILURE;
+	 if (QDF_STATUS_SUCCESS !=
+	      wlan_objmgr_peer_try_get_ref(peer, WLAN_TDLS_SB_ID))
+		return QDF_STATUS_E_FAILURE;
 
 	del_msg = qdf_mem_malloc(sizeof(*del_msg));
-	if (NULL == del_msg) {
+	if (!del_msg) {
 		tdls_err("memory alloc failed");
-		return QDF_STATUS_E_FAILURE;
-	}
-	qdf_mem_zero(del_msg, sizeof(*del_msg));
-
-	peer = wlan_vdev_get_bsspeer(vdev);
-	if (QDF_STATUS_SUCCESS != wlan_objmgr_peer_try_get_ref(peer,
-							WLAN_TDLS_SB_ID)) {
-		qdf_mem_free(del_msg);
+		wlan_objmgr_peer_release_ref(peer, WLAN_TDLS_SB_ID);
 		return QDF_STATUS_E_FAILURE;
 	}
 
