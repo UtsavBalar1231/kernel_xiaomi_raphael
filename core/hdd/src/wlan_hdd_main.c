@@ -2815,6 +2815,7 @@ static void hdd_update_ipa_component_config(struct hdd_context *hdd_ctx)
 	ipa_cfg.ipa_bw_high = cfg->IpaHighBandwidthMbps;
 	ipa_cfg.ipa_bw_medium = cfg->IpaMediumBandwidthMbps;
 	ipa_cfg.ipa_bw_low = cfg->IpaLowBandwidthMbps;
+	ipa_cfg.ipa_force_voting = cfg->IpaForceVoting;
 
 	ucfg_ipa_update_config(&ipa_cfg);
 }
@@ -5893,6 +5894,10 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 			QDF_STATUS status;
 			QDF_STATUS qdf_status;
 
+			/* Set the stop_bss_in_progress flag */
+			wlansap_set_stop_bss_inprogress(
+				WLAN_HDD_GET_SAP_CTX_PTR(adapter), true);
+
 			/* Stop Bss. */
 			status = wlansap_stop_bss(
 					WLAN_HDD_GET_SAP_CTX_PTR(adapter));
@@ -5915,6 +5920,8 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 				hdd_err("failure in wlansap_stop_bss");
 			}
 			clear_bit(SOFTAP_BSS_STARTED, &adapter->event_flags);
+			wlansap_set_stop_bss_inprogress(
+				WLAN_HDD_GET_SAP_CTX_PTR(adapter), false);
 			policy_mgr_decr_session_set_pcl(hdd_ctx->psoc,
 						adapter->device_mode,
 						adapter->session_id);
@@ -6053,7 +6060,6 @@ static void hdd_reset_scan_operation(struct hdd_context *hdd_ctx,
 		break;
 	case QDF_SAP_MODE:
 		qdf_atomic_set(&adapter->session.ap.acs_in_progress, 0);
-		wlan_hdd_undo_acs(adapter);
 		break;
 	default:
 		break;
@@ -14911,8 +14917,10 @@ bool hdd_is_connection_in_progress(uint8_t *session_id,
 			}
 			if (hdd_ctx->connection_in_progress) {
 				hdd_debug("AP/GO: connection is in progress");
-				*reason = SAP_CONNECTION_IN_PROGRESS;
-				*session_id = adapter->session_id;
+				if (session_id && reason) {
+					*reason = SAP_CONNECTION_IN_PROGRESS;
+					*session_id = adapter->session_id;
+				}
 				return true;
 			}
 		}
