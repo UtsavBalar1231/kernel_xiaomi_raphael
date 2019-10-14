@@ -67,7 +67,6 @@
 
 /* NAPI poll budget */
 #define ATH10K_NAPI_BUDGET      64
-#define ATH10K_NAPI_QUOTA_LIMIT 60
 
 /* SMBIOS type containing Board Data File Name Extension */
 #define ATH10K_SMBIOS_BDF_EXT_TYPE 0xF8
@@ -364,11 +363,11 @@ struct ath10k_sta {
 	struct rate_info txrate;
 
 	struct work_struct update_wk;
+	u64 rx_duration;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* protected by conf_mutex */
 	bool aggr_mode;
-	u64 rx_duration;
 #endif
 };
 
@@ -463,7 +462,7 @@ struct ath10k_fw_crash_data {
 	bool crashed_since_read;
 
 	guid_t guid;
-	struct timespec timestamp;
+	struct timespec64 timestamp;
 	__le32 registers[REG_DUMP_COUNT_QCA988X];
 	struct ath10k_ce_crash_data ce_crash_data[CE_COUNT_MAX];
 };
