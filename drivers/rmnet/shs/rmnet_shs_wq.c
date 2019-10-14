@@ -149,8 +149,8 @@ unsigned long long rmnet_shs_flow_rx_pps[MAX_SUPPORTED_FLOWS_DEBUG];
 module_param_array(rmnet_shs_flow_rx_pps, ullong, 0, 0444);
 MODULE_PARM_DESC(rmnet_shs_flow_rx_pps, "SHS stamp pkt enq rate per flow");
 
-static spinlock_t rmnet_shs_wq_splock;
 static DEFINE_SPINLOCK(rmnet_shs_hstat_tbl_lock);
+static DEFINE_SPINLOCK(rmnet_shs_ep_lock);
 
 static time_t rmnet_shs_wq_tnsec;
 static struct workqueue_struct *rmnet_shs_wq;
@@ -669,32 +669,24 @@ static void rmnet_shs_wq_refresh_all_cpu_stats(void)
 
 void rmnet_shs_wq_update_cpu_rx_tbl(struct rmnet_shs_wq_hstat_s *hstat_p)
 {
-	struct rps_map *map;
-	struct rmnet_shs_skbn_s *node_p;
-	int cpu_num;
-	u16 map_idx;
-	u64 skb_diff, byte_diff;
 	struct rmnet_shs_wq_rx_flow_s *tbl_p = &rmnet_shs_rx_flow_tbl;
+	struct rmnet_shs_skbn_s *node_p;
+	u64 skb_diff, byte_diff;
+	u16 cpu_num;
 
 	node_p = hstat_p->node;
 
 	if (hstat_p->inactive_duration > 0)
 		return;
 
-	rcu_read_lock();
-	map = rcu_dereference(node_p->dev->_rx->rps_map);
+	cpu_num = node_p->map_cpu;
 
-	if (!map || node_p->map_index > map->len || !map->len) {
-		rcu_read_unlock();
+	if (cpu_num >= MAX_CPUS) {
+		rmnet_shs_crit_err[RMNET_SHS_INVALID_CPU_ERR]++;
 		return;
 	}
-
-	map_idx = node_p->map_index;
-	cpu_num = map->cpus[map_idx];
-
 	skb_diff = hstat_p->rx_skb - hstat_p->last_rx_skb;
 	byte_diff = hstat_p->rx_bytes - hstat_p->last_rx_bytes;
-	rcu_read_unlock();
 
 	if (hstat_p->is_new_flow) {
 		rmnet_shs_wq_cpu_list_add(hstat_p,
@@ -726,7 +718,7 @@ void rmnet_shs_wq_update_cpu_rx_tbl(struct rmnet_shs_wq_hstat_s *hstat_p)
 
 }
 
-static void rmnet_shs_wq_chng_suggested_cpu(u16 old_cpu, u16 new_cpu,
+void rmnet_shs_wq_chng_suggested_cpu(u16 old_cpu, u16 new_cpu,
 					      struct rmnet_shs_wq_ep_s *ep)
 {
 	struct rmnet_shs_skbn_s *node_p;
@@ -785,7 +777,6 @@ u32 rmnet_shs_wq_get_dev_rps_msk(struct net_device *dev)
 		if (ep->ep->egress_dev == dev)
 			dev_rps_msk = ep->rps_config_msk;
 	}
-
 	return dev_rps_msk;
 }
 
@@ -1250,21 +1241,29 @@ void rmnet_shs_wq_cleanup_hash_tbl(u8 force_clean)
 
 void rmnet_shs_wq_update_ep_rps_msk(struct rmnet_shs_wq_ep_s *ep)
 {
-	u8 len = 0;
 	struct rps_map *map;
+	u8 len = 0;
 
-	if (!ep) {
+	if (!ep || !ep->ep || !ep->ep->egress_dev) {
 		rmnet_shs_crit_err[RMNET_SHS_WQ_EP_ACCESS_ERR]++;
 		return;
 	}
+
 	rcu_read_lock();
+	if (!ep->ep || !ep->ep->egress_dev) {
+		pr_info(" rmnet_shs invalid state %p", ep->ep);
+		rmnet_shs_crit_err[RMNET_SHS_WQ_EP_ACCESS_ERR]++;
+		return;
+	}
 	map = rcu_dereference(ep->ep->egress_dev->_rx->rps_map);
+
 	ep->rps_config_msk = 0;
 	if (map != NULL) {
 		for (len = 0; len < map->len; len++)
 			ep->rps_config_msk |= (1 << map->cpus[len]);
 	}
 	rcu_read_unlock();
+
 	ep->default_core_msk = ep->rps_config_msk & 0x0F;
 	ep->pri_core_msk = ep->rps_config_msk & 0xF0;
 }
@@ -1272,7 +1271,9 @@ void rmnet_shs_wq_update_ep_rps_msk(struct rmnet_shs_wq_ep_s *ep)
 void rmnet_shs_wq_reset_ep_active(struct net_device *dev)
 {
 	struct rmnet_shs_wq_ep_s *ep = NULL;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rmnet_shs_ep_lock, flags);
 	list_for_each_entry(ep, &rmnet_shs_wq_ep_tbl, ep_list_id) {
 		if (!ep)
 			continue;
@@ -1282,13 +1283,16 @@ void rmnet_shs_wq_reset_ep_active(struct net_device *dev)
 			ep->netdev = NULL;
 		}
 	}
+	spin_unlock_irqrestore(&rmnet_shs_ep_lock, flags);
 
 }
 
 void rmnet_shs_wq_set_ep_active(struct net_device *dev)
 {
 	struct rmnet_shs_wq_ep_s *ep = NULL;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rmnet_shs_ep_lock, flags);
 	list_for_each_entry(ep, &rmnet_shs_wq_ep_tbl, ep_list_id) {
 		if (!ep)
 			continue;
@@ -1299,7 +1303,7 @@ void rmnet_shs_wq_set_ep_active(struct net_device *dev)
 
 		}
 	}
-
+	spin_unlock_irqrestore(&rmnet_shs_ep_lock, flags);
 }
 
 void rmnet_shs_wq_refresh_ep_masks(void)
@@ -1336,7 +1340,7 @@ void rmnet_shs_update_cfg_mask(void)
 	rmnet_shs_cfg.map_len = rmnet_shs_get_mask_len(mask);
 }
 
-static void rmnet_shs_wq_update_stats(void)
+void rmnet_shs_wq_update_stats(void)
 {
 	struct timespec time;
 	struct rmnet_shs_wq_hstat_s *hnode = NULL;
@@ -1369,10 +1373,16 @@ static void rmnet_shs_wq_update_stats(void)
 
 void rmnet_shs_wq_process_wq(struct work_struct *work)
 {
+	unsigned long flags;
+
 	trace_rmnet_shs_wq_high(RMNET_SHS_WQ_PROCESS_WQ,
 				RMNET_SHS_WQ_PROCESS_WQ_START,
 				0xDEF, 0xDEF, 0xDEF, 0xDEF, NULL, NULL);
+
+	spin_lock_irqsave(&rmnet_shs_ep_lock, flags);
 	rmnet_shs_wq_update_stats();
+	spin_unlock_irqrestore(&rmnet_shs_ep_lock, flags);
+
 	queue_delayed_work(rmnet_shs_wq, &rmnet_shs_delayed_wq->wq,
 					rmnet_shs_wq_frequency);
 
@@ -1491,7 +1501,6 @@ void rmnet_shs_wq_init(struct net_device *dev)
 
 	trace_rmnet_shs_wq_high(RMNET_SHS_WQ_INIT, RMNET_SHS_WQ_INIT_START,
 				0xDEF, 0xDEF, 0xDEF, 0xDEF, NULL, NULL);
-	spin_lock_init(&rmnet_shs_wq_splock);
 	rmnet_shs_wq = alloc_workqueue("rmnet_shs_wq",
 					WQ_MEM_RECLAIM | WQ_CPU_INTENSIVE, 1);
 	if (!rmnet_shs_wq) {
