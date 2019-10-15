@@ -28,7 +28,6 @@
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
 #include <linux/cgroup.h>
-#include <linux/early_userspace.h>
 
 #include <trace/events/block.h>
 #include "blk.h"
@@ -2201,7 +2200,7 @@ static void __init biovec_init_slabs(void)
 	}
 }
 
-static inline int __init _init_bio(void)
+static int __init init_bio(void)
 {
 	bio_slab_max = 2;
 	bio_slab_nr = 0;
@@ -2220,17 +2219,5 @@ static inline int __init _init_bio(void)
 		panic("bio: can't create integrity pool\n");
 
 	return 0;
-}
-
-int __init early_init_bio(void)
-{
-	return _init_bio();
-}
-
-static int __init init_bio(void)
-{
-	if (is_early_userspace)
-		return 0;
-	return _init_bio();
 }
 subsys_initcall(init_bio);

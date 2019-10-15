@@ -32,7 +32,6 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
 #include <linux/nfs_mount.h>
-#include <linux/early_userspace.h>
 #include <soc/qcom/boot_stats.h>
 
 #include "do_mounts.h"
@@ -575,51 +574,44 @@ void __init prepare_namespace(void)
 	 */
 	wait_for_device_probe();
 
-	if (!is_early_userspace) {
-		md_run_setup();
-		dm_run_setup();
+	md_run_setup();
+	dm_run_setup();
 
-		if (saved_root_name[0]) {
-			root_device_name = saved_root_name;
-			if (!memcmp(root_device_name, "mtd", 3) ||
-				!memcmp(root_device_name, "ubi", 3)) {
-				mount_block_root(root_device_name,
-					root_mountflags);
-				goto out;
-			}
-			ROOT_DEV = name_to_dev_t(root_device_name);
-			if (memcmp(root_device_name, "/dev/", 5) == 0)
-				root_device_name += 5;
-		}
-
-		if (initrd_load())
+	if (saved_root_name[0]) {
+		root_device_name = saved_root_name;
+		if (!strncmp(root_device_name, "mtd", 3) ||
+		    !strncmp(root_device_name, "ubi", 3)) {
+			mount_block_root(root_device_name, root_mountflags);
 			goto out;
-
-		/* wait for any asynchronous scanning to complete */
-		if ((ROOT_DEV == 0) && root_wait) {
-			pr_info("Waiting for root device %s...\n",
-				saved_root_name);
-			while (driver_probe_done() != 0 ||
-				(ROOT_DEV = name_to_dev_t(saved_root_name))
-					== 0)
-				msleep(20);
-			async_synchronize_full();
 		}
-
-		is_floppy = MAJOR(ROOT_DEV) == FLOPPY_MAJOR;
-
-		if (is_floppy && rd_doload && rd_load_disk(0))
-			ROOT_DEV = Root_RAM0;
-
-		mount_root();
+		ROOT_DEV = name_to_dev_t(root_device_name);
+		if (strncmp(root_device_name, "/dev/", 5) == 0)
+			root_device_name += 5;
 	}
+
+	if (initrd_load())
+		goto out;
+
+	/* wait for any asynchronous scanning to complete */
+	if ((ROOT_DEV == 0) && root_wait) {
+		printk(KERN_INFO "Waiting for root device %s...\n",
+			saved_root_name);
+		while (driver_probe_done() != 0 ||
+			(ROOT_DEV = name_to_dev_t(saved_root_name)) == 0)
+			msleep(5);
+		async_synchronize_full();
+	}
+
+	is_floppy = MAJOR(ROOT_DEV) == FLOPPY_MAJOR;
+
+	if (is_floppy && rd_doload && rd_load_disk(0))
+		ROOT_DEV = Root_RAM0;
+
+	mount_root();
 out:
 	devtmpfs_mount("dev");
-	if (!is_early_userspace) {
-		sys_mount((char __user *)".", (char __user *)"/",
-			NULL, MS_MOVE, NULL);
-		sys_chroot((char __user *)".");
-	}
+	sys_mount(".", "/", NULL, MS_MOVE, NULL);
+	sys_chroot(".");
 }
 
 static bool is_tmpfs;
@@ -663,60 +655,4 @@ int __init init_rootfs(void)
 		unregister_filesystem(&rootfs_fs_type);
 
 	return err;
-}
-
-static char init_prog[128] = "/usr/sbin/early_init";
-static char *init_prog_argv[2] = { init_prog, NULL };
-
-void __init early_prepare_namespace(void)
-{
-	int is_floppy;
-	int rc;
-
-	if (!is_early_userspace)
-		return;
-
-	md_run_setup();
-	dm_run_setup();
-
-	if (saved_root_name[0]) {
-		root_device_name = saved_root_name;
-		if (!memcmp(root_device_name, "mtd", 3) ||
-			!memcmp(root_device_name, "ubi", 3)) {
-			mount_block_root(root_device_name, root_mountflags);
-			goto out;
-		}
-		ROOT_DEV = name_to_dev_t(root_device_name);
-		if (memcmp(root_device_name, "/dev/", 5) == 0)
-			root_device_name += 5;
-	}
-
-	if (initrd_load())
-		goto out;
-
-	/* wait for any asynchronous scanning to complete */
-	if ((ROOT_DEV == 0) && root_wait) {
-		pr_info("Waiting for root device %s...\n",
-			saved_root_name);
-		while (driver_probe_done() != 0 ||
-			(ROOT_DEV = name_to_dev_t(saved_root_name)) == 0)
-			msleep(20);
-		async_synchronize_full();
-	}
-
-	is_floppy = MAJOR(ROOT_DEV) == FLOPPY_MAJOR;
-
-	if (is_floppy && rd_doload && rd_load_disk(0))
-		ROOT_DEV = Root_RAM0;
-
-	mount_root();
-out:
-	sys_mount((char __user *)".", (char __user *)"/", NULL, MS_MOVE, NULL);
-	sys_chroot((char __user *)".");
-
-	rc = call_usermodehelper(init_prog, init_prog_argv, NULL, 0);
-	if (!rc)
-		pr_info("early_init launched\n");
-	else
-		pr_err("early_init failed\n");
 }

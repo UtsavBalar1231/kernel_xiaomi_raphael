@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/early_userspace.h>
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/rpmh.h>
 #include <soc/qcom/tcs.h>
@@ -1972,7 +1971,7 @@ static struct platform_driver msm_bus_device_driver = {
 	},
 };
 
-static inline int __init _msm_bus_device_init_driver(void)
+int __init msm_bus_device_init_driver(void)
 {
 	int rc;
 
@@ -1984,18 +1983,6 @@ static inline int __init _msm_bus_device_init_driver(void)
 		return rc;
 	}
 	return platform_driver_register(&msm_bus_rules_driver);
-}
-
-int __init early_msm_bus_device_init_driver(void)
-{
-	return _msm_bus_device_init_driver();
-}
-
-static int __init msm_bus_device_init_driver(void)
-{
-	if (is_early_userspace)
-		return 0;
-	return _msm_bus_device_init_driver();
 }
 
 int __init msm_bus_device_late_init(void)

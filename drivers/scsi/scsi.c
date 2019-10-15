@@ -55,7 +55,6 @@
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 #include <linux/async.h>
-#include <linux/early_userspace.h>
 #include <asm/unaligned.h>
 
 #include <scsi/scsi.h>
@@ -788,7 +787,7 @@ bool scsi_use_blk_mq = false;
 #endif
 module_param_named(use_blk_mq, scsi_use_blk_mq, bool, S_IWUSR | S_IRUGO);
 
-static inline int __init _init_scsi(void)
+static int __init init_scsi(void)
 {
 	int error;
 
@@ -843,16 +842,5 @@ static void __exit exit_scsi(void)
 	async_unregister_domain(&scsi_sd_probe_domain);
 }
 
-int __init early_init_scsi(void)
-{
-	return _init_scsi();
-}
-
-static int __init init_scsi(void)
-{
-	if (is_early_userspace)
-		return 0;
-	return _init_scsi();
-}
 subsys_initcall(init_scsi);
 module_exit(exit_scsi);

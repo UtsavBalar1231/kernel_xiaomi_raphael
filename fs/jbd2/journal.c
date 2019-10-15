@@ -44,7 +44,6 @@
 #include <linux/bitops.h>
 #include <linux/ratelimit.h>
 #include <linux/sched/mm.h>
-#include <linux/early_userspace.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/jbd2.h>
@@ -2697,7 +2696,7 @@ static void jbd2_journal_destroy_caches(void)
 	jbd2_journal_destroy_slabs();
 }
 
-static inline int __init _journal_init(void)
+static int __init journal_init(void)
 {
 	int ret;
 
@@ -2710,18 +2709,6 @@ static inline int __init _journal_init(void)
 		jbd2_journal_destroy_caches();
 	}
 	return ret;
-}
-
-int __init early_journal_init(void)
-{
-	return _journal_init();
-}
-
-static int __init journal_init(void)
-{
-	if (is_early_userspace)
-		return 0;
-	return _journal_init();
 }
 
 static void __exit journal_exit(void)

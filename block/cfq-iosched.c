@@ -16,7 +16,6 @@
 #include <linux/ioprio.h>
 #include <linux/blktrace_api.h>
 #include <linux/blk-cgroup.h>
-#include <linux/early_userspace.h>
 #include "blk.h"
 #include "blk-wbt.h"
 
@@ -4930,7 +4929,7 @@ static struct blkcg_policy blkcg_policy_cfq = {
 };
 #endif
 
-static inline int __init _cfq_init(void)
+static int __init cfq_init(void)
 {
 	int ret;
 
@@ -4969,18 +4968,6 @@ static void __exit cfq_exit(void)
 #endif
 	elv_unregister(&iosched_cfq);
 	kmem_cache_destroy(cfq_pool);
-}
-
-int __init early_cfq_init(void)
-{
-	return _cfq_init();
-}
-
-static int __init cfq_init(void)
-{
-	if (is_early_userspace)
-		return 0;
-	return _cfq_init();
 }
 
 module_init(cfq_init);

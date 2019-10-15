@@ -27,7 +27,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
-#include <linux/early_userspace.h>
 
 const struct of_device_id of_default_bus_match_table[] = {
 	{ .compatible = "simple-bus", },
@@ -356,8 +355,6 @@ static int of_platform_bus_create(struct device_node *bus,
 	const char *bus_id = NULL;
 	void *platform_data = NULL;
 	int rc = 0;
-	struct device_node *early_node;
-	int i = 0;
 
 	/* Make sure it has a compatible property */
 	if (strict && (!of_get_property(bus, "compatible", NULL))) {
@@ -390,19 +387,6 @@ static int of_platform_bus_create(struct device_node *bus,
 	dev = of_platform_device_create_pdata(bus, bus_id, platform_data, parent);
 	if (!dev || !of_match_node(matches, bus))
 		return 0;
-
-	if (is_early_userspace && !memcmp(bus->full_name, "/soc", 5) &&
-		(matches == (const struct of_device_id *)
-			&of_default_bus_match_table)) {
-		while (early_dev_nodes[i]) {
-			early_node = of_find_node_by_path(early_dev_nodes[i]);
-			of_platform_bus_create(early_node, matches, lookup,
-				&dev->dev, strict);
-			of_node_put(early_node);
-			i++;
-		}
-		early_rootfs_init_async();
-	}
 
 	for_each_child_of_node(bus, child) {
 		pr_debug("   create child: %pOF\n", child);

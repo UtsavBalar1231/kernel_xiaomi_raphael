@@ -21,7 +21,6 @@
 #include <linux/utime.h>
 #include <linux/file.h>
 #include <linux/initramfs.h>
-#include <linux/early_userspace.h>
 
 static ssize_t __init xwrite(int fd, const char *p, size_t count)
 {
@@ -620,7 +619,7 @@ static int __init skip_initramfs_param(char *str)
 }
 __setup("skip_initramfs", skip_initramfs_param);
 
-static inline int __init _populate_rootfs(void)
+static int __init populate_rootfs(void)
 {
 	char *err;
 
@@ -682,17 +681,5 @@ static inline int __init _populate_rootfs(void)
 	load_default_modules();
 
 	return 0;
-}
-
-int __init early_populate_rootfs(void)
-{
-	return _populate_rootfs();
-}
-
-static int __init populate_rootfs(void)
-{
-	if (is_early_userspace)
-		return 0;
-	return _populate_rootfs();
 }
 rootfs_initcall(populate_rootfs);
