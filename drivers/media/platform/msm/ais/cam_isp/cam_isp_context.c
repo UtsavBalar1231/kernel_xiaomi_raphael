@@ -62,104 +62,6 @@ static void __cam_isp_ctx_update_state_monitor_array(
 		jiffies_to_msecs(jiffies);
 }
 
-static const char *__cam_isp_ctx_substate_val_to_type(
-	uint32_t type)
-{
-	switch (type) {
-	case CAM_ISP_CTX_ACTIVATED_SOF:
-		return "SOF";
-	case CAM_ISP_CTX_ACTIVATED_APPLIED:
-		return "APPLIED";
-	case CAM_ISP_CTX_ACTIVATED_EPOCH:
-		return "EPOCH";
-	case CAM_ISP_CTX_ACTIVATED_BUBBLE:
-		return "BUBBLE";
-	case CAM_ISP_CTX_ACTIVATED_BUBBLE_APPLIED:
-		return "BUBBLE_APPLIED";
-	case CAM_ISP_CTX_ACTIVATED_HALT:
-		return "HALT";
-	default:
-		return "CAM_ISP_CTX_INVALID_STATE";
-	}
-}
-
-static const char *__cam_isp_hw_evt_val_to_type(
-	uint32_t evt_id)
-{
-	switch (evt_id) {
-	case CAM_ISP_HW_EVENT_ERROR:
-		return "ERROR";
-	case CAM_ISP_HW_EVENT_SOF:
-		return "SOF";
-	case CAM_ISP_HW_EVENT_REG_UPDATE:
-		return "REG_UPDATE";
-	case CAM_ISP_HW_EVENT_EPOCH:
-		return "EPOCH";
-	case CAM_ISP_HW_EVENT_EOF:
-		return "EOF";
-	case CAM_ISP_HW_EVENT_DONE:
-		return "DONE";
-	default:
-		return "CAM_ISP_EVENT_INVALID";
-	}
-}
-
-static void __cam_isp_ctx_dump_state_monitor_array(
-	struct cam_isp_context *ctx_isp, bool log_rate_limit)
-{
-	int i = 0;
-	uint64_t state_head = 0;
-	uint64_t index;
-	struct cam_isp_context_state_monitor   *ctx_monitor;
-
-	state_head = atomic64_read(&ctx_isp->state_monitor_head);
-
-	ctx_monitor = ctx_isp->cam_isp_ctx_state_monitor;
-
-	if (log_rate_limit)
-		CAM_INFO_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 20,
-			"Dumping state information for preceding requests");
-	else
-		CAM_INFO(CAM_ISP,
-			"Dumping state information for preceding requests");
-
-	for (i = CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES - 1; i >= 0;
-		i--) {
-		index = (((state_head - i) +
-			CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES) %
-			CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES);
-
-		if (log_rate_limit) {
-			CAM_INFO_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 20,
-			"time[%lld] last reported req_id[%u] frame id[%lld] applied id[%lld] current state[%s] next state[%s] hw_event[%s]",
-			ctx_monitor[index].evt_time_stamp,
-			ctx_monitor[index].last_reported_id,
-			ctx_monitor[index].frame_id,
-			ctx_monitor[index].last_applied_req_id,
-			__cam_isp_ctx_substate_val_to_type(
-			ctx_monitor[index].curr_state),
-			__cam_isp_ctx_substate_val_to_type(
-			ctx_monitor[index].next_state),
-			__cam_isp_hw_evt_val_to_type(
-			ctx_monitor[index].hw_event));
-
-		} else {
-			CAM_INFO(CAM_ISP,
-			"time[%lld] last reported req_id[%u] frame id[%lld] applied id[%lld] current state[%s] next state[%s] hw_event[%s]",
-			ctx_monitor[index].evt_time_stamp,
-			ctx_monitor[index].last_reported_id,
-			ctx_monitor[index].frame_id,
-			ctx_monitor[index].last_applied_req_id,
-			__cam_isp_ctx_substate_val_to_type(
-			ctx_monitor[index].curr_state),
-			__cam_isp_ctx_substate_val_to_type(
-			ctx_monitor[index].next_state),
-			__cam_isp_hw_evt_val_to_type(
-			ctx_monitor[index].hw_event));
-		}
-	}
-}
-
 static void cam_isp_ctx_dump_req(struct cam_isp_ctx_req *req_isp)
 {
 	int i = 0, rc = 0;
@@ -747,7 +649,6 @@ static int __cam_isp_ctx_notify_sof_in_activated_state(
 				ctx->ctx_id, request_id,
 				ctx_isp->req_info.reported_req_id);
 
-			__cam_isp_ctx_dump_state_monitor_array(ctx_isp, true);
 		}
 
 		__cam_isp_ctx_send_sof_timestamp(ctx_isp, request_id,
@@ -871,7 +772,6 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 		 * The recovery is to go back to sof state
 		 */
 		CAM_ERR(CAM_ISP, "Ctx:%d No wait request", ctx->ctx_id);
-		__cam_isp_ctx_dump_state_monitor_array(ctx_isp, true);
 		ctx_isp->substate_activated = CAM_ISP_CTX_ACTIVATED_SOF;
 
 		/* Send SOF event as empty frame*/
@@ -888,7 +788,6 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 
 	CAM_INFO(CAM_ISP, "ctx:%d Report Bubble flag %d req id:%lld",
 		ctx->ctx_id, req_isp->bubble_report, req->request_id);
-	__cam_isp_ctx_dump_state_monitor_array(ctx_isp, true);
 	if (req_isp->bubble_report && ctx->ctx_crm_intf &&
 		ctx->ctx_crm_intf->notify_err) {
 		struct cam_req_mgr_error_notify notify;
@@ -1013,7 +912,6 @@ static int __cam_isp_ctx_epoch_in_bubble_applied(
 		 * Just go back to the bubble state.
 		 */
 		CAM_ERR(CAM_ISP, "ctx:%d No pending request.", ctx->ctx_id);
-		__cam_isp_ctx_dump_state_monitor_array(ctx_isp, true);
 		__cam_isp_ctx_send_sof_timestamp(ctx_isp, request_id,
 			CAM_REQ_MGR_SOF_EVENT_SUCCESS);
 
@@ -1027,7 +925,6 @@ static int __cam_isp_ctx_epoch_in_bubble_applied(
 	req_isp->bubble_detected = true;
 	CAM_INFO(CAM_ISP, "Ctx:%d Report Bubble flag %d req id:%lld",
 		ctx->ctx_id, req_isp->bubble_report, req->request_id);
-	__cam_isp_ctx_dump_state_monitor_array(ctx_isp, true);
 
 	if (req_isp->bubble_report && ctx->ctx_crm_intf &&
 		ctx->ctx_crm_intf->notify_err) {
@@ -1929,7 +1826,6 @@ static int __cam_isp_ctx_flush_req_in_top_state(
 			ctx_isp->req_info.last_reported_id_time_stamp,
 			ctx_isp->req_info.last_bufdone_time_stamp);
 
-		__cam_isp_ctx_dump_state_monitor_array(ctx_isp, true);
 	}
 	spin_unlock_bh(&ctx->lock);
 
@@ -2188,7 +2084,6 @@ static int __cam_isp_ctx_rdi_only_sof_in_bubble_applied(
 	req_isp->bubble_detected = true;
 	CAM_INFO(CAM_ISP, "Ctx:%d Report Bubble flag %d req id:%lld",
 		ctx->ctx_id, req_isp->bubble_report, req->request_id);
-	__cam_isp_ctx_dump_state_monitor_array(ctx_isp, true);
 
 	if (req_isp->bubble_report && ctx->ctx_crm_intf &&
 		ctx->ctx_crm_intf->notify_err) {
@@ -3560,7 +3455,6 @@ static int __cam_isp_ctx_apply_req(struct cam_context *ctx,
 		CAM_ERR_RATE_LIMIT(CAM_ISP,
 			"Ctx:%d No handle function in activated substate %d",
 			ctx->ctx_id, ctx_isp->substate_activated);
-		__cam_isp_ctx_dump_state_monitor_array(ctx_isp, true);
 		rc = -EFAULT;
 	}
 
@@ -3597,7 +3491,6 @@ static int __cam_isp_ctx_handle_irq_in_activated(void *context,
 	} else {
 		CAM_INFO(CAM_ISP, "Ctx:%d No handle function for substate %d",
 			ctx->ctx_id, ctx_isp->substate_activated);
-		__cam_isp_ctx_dump_state_monitor_array(ctx_isp, true);
 	}
 	if (evt_id != CAM_ISP_HW_EVENT_DONE)
 		__cam_isp_ctx_update_state_monitor_array(ctx_isp, evt_id,
