@@ -241,21 +241,10 @@ static void dp_rx_defrag_waitlist_add(struct dp_peer *peer, unsigned tid)
 
 	/* TODO: use LIST macros instead of TAIL macros */
 	qdf_spin_lock_bh(&psoc->rx.defrag.defrag_lock);
-	if (TAILQ_EMPTY(&psoc->rx.defrag.waitlist)) {
+	if (TAILQ_EMPTY(&psoc->rx.defrag.waitlist))
 		psoc->rx.defrag.next_flush_ms = rx_reorder->defrag_timeout_ms;
-		/*
-		 * All insertions and deletions to tail queue must specify head
-		 * of the list. TAILQ_INSERT_HEAD updates head of queue
-		 * in the case of addition to empty waitlist.
-		 *
-		 */
-		TAILQ_INSERT_HEAD(&psoc->rx.defrag.waitlist, rx_reorder,
-				  defrag_waitlist_elem);
-	} else {
-		TAILQ_INSERT_TAIL(&psoc->rx.defrag.waitlist, rx_reorder,
-				  defrag_waitlist_elem);
-	}
-
+	TAILQ_INSERT_TAIL(&psoc->rx.defrag.waitlist, rx_reorder,
+				defrag_waitlist_elem);
 	DP_STATS_INC(psoc, rx.rx_frag_wait, 1);
 	qdf_spin_unlock_bh(&psoc->rx.defrag.defrag_lock);
 }
