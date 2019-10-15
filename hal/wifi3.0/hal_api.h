@@ -762,7 +762,7 @@ void *hal_srng_dst_peek_sync_locked(void *hal_soc, void *hal_ring)
  *
  */
 static inline uint32_t hal_srng_dst_num_valid(void *hal_soc, void *hal_ring,
-	int sync_hw_ptr)
+					      int sync_hw_ptr)
 {
 	struct hal_srng *srng = (struct hal_srng *)hal_ring;
 	uint32_t hp;
@@ -779,6 +779,33 @@ static inline uint32_t hal_srng_dst_num_valid(void *hal_soc, void *hal_ring,
 		return (hp - tp) / srng->entry_size;
 	else
 		return (srng->ring_size - tp + hp) / srng->entry_size;
+}
+
+/**
+ * hal_srng_dst_num_valid_locked - Returns num valid entries to be processed
+ *
+ * @hal_soc: Opaque HAL SOC handle
+ * @hal_ring_hdl: Destination ring pointer
+ * @sync_hw_ptr: Sync cached head pointer with HW
+ *
+ * Returns number of valid entries to be processed by the host driver. The
+ * function takes up SRNG lock.
+ *
+ * Return: Number of valid destination entries
+ */
+static inline uint32_t
+hal_srng_dst_num_valid_locked(void *hal_soc,
+			      void *hal_ring_hdl,
+			      int sync_hw_ptr)
+{
+	uint32_t num_valid;
+	struct hal_srng *srng = (struct hal_srng *)hal_ring_hdl;
+
+	SRNG_LOCK(&srng->lock);
+	num_valid = hal_srng_dst_num_valid(hal_soc, hal_ring_hdl, sync_hw_ptr);
+	SRNG_UNLOCK(&srng->lock);
+
+	return num_valid;
 }
 
 /**
@@ -1339,6 +1366,23 @@ static inline qdf_dma_addr_t hal_srng_get_tp_addr(void *hal_soc, void *hal_ring)
 			((unsigned long)(srng->u.dst_ring.tp_addr) -
 			(unsigned long)(hal->shadow_wrptr_mem_vaddr));
 	}
+}
+
+/**
+ * hal_srng_get_num_entries - Get total entries in the HAL Srng
+ *
+ * @hal_soc: Opaque HAL SOC handle
+ * @hal_ring_hdl: Ring pointer (Source or Destination ring)
+ *
+ * Return: total number of entries in hal ring
+ */
+static inline
+uint32_t hal_srng_get_num_entries(void *hal_soc_hdl,
+				  void *hal_ring_hdl)
+{
+	struct hal_srng *srng = (struct hal_srng *)hal_ring_hdl;
+
+	return srng->num_entries;
 }
 
 /**
