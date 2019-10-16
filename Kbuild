@@ -177,6 +177,10 @@ ifeq ($(CONFIG_WLAN_SYSFS), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_sysfs.o
 endif
 
+ifeq ($(CONFIG_WLAN_BCN_RECV_FEATURE), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_bcn_recv.o
+endif
+
 ifeq ($(CONFIG_QCACLD_FEATURE_COEX_CONFIG), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_coex_config.o
 endif
@@ -1786,6 +1790,9 @@ cppflags-$(CONFIG_FEATURE_BECN_STATS) += -DWLAN_FEATURE_BEACON_RECEPTION_STATS
 #Set RX_PERFORMANCE
 cppflags-$(CONFIG_RX_PERFORMANCE) += -DRX_PERFORMANCE
 
+#Set MULTI_IF_LOG
+cppflags-$(CONFIG_MULTI_IF_LOG) += -DMULTI_IF_LOG
+
 #Set SLUB_MEM_OPTIMIZE
 cppflags-$(CONFIG_SLUB_MEM_OPTIMIZE) += -DSLUB_MEM_OPTIMIZE
 
@@ -2073,6 +2080,9 @@ cppflags-$(CONFIG_DISABLE_CHANNEL_LIST) += -DDISABLE_CHANNEL_LIST
 
 #Flag to enable set coex configuration feature
 cppflags-$(CONFIG_QCACLD_FEATURE_COEX_CONFIG) += -DFEATURE_COEX_CONFIG
+
+#Flag to enable/disable WIPS feature
+cppflags-$(CONFIG_WLAN_BCN_RECV_FEATURE) += -DWLAN_BCN_RECV_FEATURE
 
 #Flag to enable MPTA helper feature
 cppflags-$(CONFIG_QCACLD_FEATURE_MPTA_HELPER) += -DFEATURE_MPTA_HELPER
