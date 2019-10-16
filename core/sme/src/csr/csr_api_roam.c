@@ -1706,6 +1706,89 @@ QDF_STATUS csr_create_bg_scan_roam_channel_list(struct mac_context *mac,
 	return status;
 }
 
+#if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/**
+ * csr_check_band_channel_match() - check if passed band and channel match
+ * parameters
+ * @band:       band to match with channel
+ * @channel:    channel to match with band
+ *
+ * Return: bool if match else false
+ */
+static bool
+csr_check_band_channel_match(enum band_info band, uint8_t channel)
+{
+	if (BAND_ALL == band)
+		return true;
+
+	if (BAND_2G == band && WLAN_REG_IS_24GHZ_CH(channel))
+		return true;
+
+	if (BAND_5G == band && WLAN_REG_IS_5GHZ_CH(channel))
+		return true;
+
+	return false;
+}
+/**
+ * is_dfs_unsafe_extra_band_chan() - check if dfs unsafe or extra band channel
+ * @mac_ctx: MAC context
+ * @chan: channel freq to check
+ * @band: band for intra band check
+.*.
+ * Return: bool if match else false
+ */
+static bool
+is_dfs_unsafe_extra_band_chan(struct mac_context *mac_ctx, uint8_t chan,
+			      enum band_info band)
+{
+	uint16_t  unsafe_chan[NUM_CHANNELS];
+	uint16_t  unsafe_chan_cnt = 0;
+	uint16_t  cnt = 0;
+	bool      is_unsafe_chan;
+	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+
+	if (!qdf_ctx) {
+		cds_err("qdf_ctx is NULL");
+		return true;
+	}
+
+	if ((mac_ctx->mlme_cfg->lfr.roaming_dfs_channel ==
+	     ROAMING_DFS_CHANNEL_DISABLED ||
+	     mac_ctx->roam.configParam.sta_roam_policy.dfs_mode ==
+	     CSR_STA_ROAM_POLICY_DFS_DISABLED) &&
+	    (wlan_reg_is_dfs_ch(mac_ctx->pdev, chan))) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			  ("dfs chan %d"), chan);
+		return true;
+	}
+
+	pld_get_wlan_unsafe_channel(qdf_ctx->dev, unsafe_chan,
+				    &unsafe_chan_cnt,
+				    sizeof(unsafe_chan));
+	if (mac_ctx->roam.configParam.sta_roam_policy.skip_unsafe_channels &&
+	    unsafe_chan_cnt) {
+		is_unsafe_chan = false;
+		for (cnt = 0; cnt < unsafe_chan_cnt; cnt++) {
+			if (unsafe_chan[cnt] == chan) {
+				is_unsafe_chan = true;
+				QDF_TRACE(QDF_MODULE_ID_SME,
+					  QDF_TRACE_LEVEL_DEBUG,
+					  ("ignoring unsafe channel chan %d"),
+					  chan);
+				return true;
+			}
+		}
+	}
+	sme_debug("band %d", band);
+	if (!csr_check_band_channel_match(band, chan)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			  ("ignoring non-intra band chan %d"),
+			chan);
+		return true;
+	}
+
+	return false;
+}
 
 #ifdef FEATURE_WLAN_ESE
 /**
@@ -1984,8 +2067,6 @@ QDF_STATUS csr_get_tsm_stats(struct mac_context *mac,
 	return status;
 }
 
-
-#if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /**
  * csr_fetch_ch_lst_from_received_list() - fetch channel list from received list
  * and update req msg
@@ -2006,57 +2087,18 @@ csr_fetch_ch_lst_from_received_list(struct mac_context *mac_ctx,
 	uint8_t i = 0;
 	uint8_t num_channels = 0;
 	uint8_t *ch_lst = NULL;
-	uint16_t  unsafe_chan[NUM_CHANNELS];
-	uint16_t  unsafe_chan_cnt = 0;
-	uint16_t  cnt = 0;
-	bool      is_unsafe_chan;
-	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
-
-	if (!qdf_ctx) {
-		cds_err("qdf_ctx is NULL");
-		return;
-	}
-	pld_get_wlan_unsafe_channel(qdf_ctx->dev, unsafe_chan,
-			&unsafe_chan_cnt,
-			sizeof(unsafe_chan));
+	enum band_info band = BAND_ALL;
 
 	if (curr_ch_lst_info->numOfChannels == 0)
 		return;
 
 	ch_lst = curr_ch_lst_info->ChannelList;
 	for (i = 0; i < curr_ch_lst_info->numOfChannels; i++) {
-		if (((mac_ctx->mlme_cfg->lfr.roaming_dfs_channel ==
-			 ROAMING_DFS_CHANNEL_DISABLED) ||
-		     (mac_ctx->roam.configParam.sta_roam_policy.dfs_mode ==
-			 CSR_STA_ROAM_POLICY_DFS_DISABLED)) &&
-		     (wlan_reg_is_dfs_ch(mac_ctx->pdev, *ch_lst))) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				("ignoring dfs channel %d"), *ch_lst);
+		if (is_dfs_unsafe_extra_band_chan(mac_ctx, *ch_lst, band)) {
 			ch_lst++;
 			continue;
 		}
-
-		if (mac_ctx->roam.configParam.sta_roam_policy.
-				skip_unsafe_channels &&
-				unsafe_chan_cnt) {
-			is_unsafe_chan = false;
-			for (cnt = 0; cnt < unsafe_chan_cnt; cnt++) {
-				if (unsafe_chan[cnt] == *ch_lst) {
-					is_unsafe_chan = true;
-					break;
-				}
-			}
-			if (is_unsafe_chan) {
-				QDF_TRACE(QDF_MODULE_ID_SME,
-						QDF_TRACE_LEVEL_DEBUG,
-					("ignoring unsafe channel %d"),
-					*ch_lst);
-				ch_lst++;
-				continue;
-			}
-		}
-		req_buf->ConnectedNetwork.ChannelCache[num_channels++] =
-			*ch_lst;
+		req_buf->ConnectedNetwork.ChannelCache[num_channels++] = *ch_lst;
 		ch_lst++;
 	}
 	req_buf->ConnectedNetwork.ChannelCount = num_channels;
@@ -18212,29 +18254,6 @@ csr_update_roam_scan_offload_request(struct mac_context *mac_ctx,
 
 #if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /**
- * csr_check_band_channel_match() - check if passed band and channel match
- * parameters
- * @band:       band to match with channel
- * @channel:    channel to match with band
- *
- * Return: bool if match else false
- */
-static bool
-csr_check_band_channel_match(enum band_info band, uint8_t channel)
-{
-	if (BAND_ALL == band)
-		return true;
-
-	if (BAND_2G == band && WLAN_REG_IS_24GHZ_CH(channel))
-		return true;
-
-	if (BAND_5G == band && WLAN_REG_IS_5GHZ_CH(channel))
-		return true;
-
-	return false;
-}
-
-/**
  * csr_populate_roam_chan_list()
  * parameters
  * @mac_ctx:      global mac ctx
@@ -18252,20 +18271,6 @@ csr_populate_roam_chan_list(struct mac_context *mac_ctx,
 	uint8_t i = 0;
 	uint8_t num_channels = 0;
 	uint8_t *ch_lst = src->ChannelList;
-	uint16_t  unsafe_chan[NUM_CHANNELS];
-	uint16_t  unsafe_chan_cnt = 0;
-	uint16_t  cnt = 0;
-	bool      is_unsafe_chan;
-	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
-
-	if (!qdf_ctx) {
-		cds_err("qdf_ctx is NULL");
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	pld_get_wlan_unsafe_channel(qdf_ctx->dev, unsafe_chan,
-			&unsafe_chan_cnt,
-			 sizeof(unsafe_chan));
 
 	/*
 	 * The INI channels need to be filtered with respect to the current band
@@ -18283,41 +18288,13 @@ csr_populate_roam_chan_list(struct mac_context *mac_ctx,
 	num_channels = dst->ChannelCount;
 	for (i = 0; i < src->numOfChannels; i++) {
 		if (csr_is_channel_present_in_list(dst->ChannelCache,
-						   num_channels,
-						   *ch_lst))
-			continue;
-		if (!csr_check_band_channel_match(band, *ch_lst))
-			continue;
-		/* Allow DFS channels only if the DFS roaming is enabled */
-		if (((mac_ctx->mlme_cfg->lfr.roaming_dfs_channel ==
-			 ROAMING_DFS_CHANNEL_DISABLED) ||
-		     (mac_ctx->roam.configParam.sta_roam_policy.dfs_mode ==
-			 CSR_STA_ROAM_POLICY_DFS_DISABLED)) &&
-		    (wlan_reg_is_dfs_ch(mac_ctx->pdev, *ch_lst))) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				("ignoring dfs channel %d"), *ch_lst);
+						   num_channels, *ch_lst)) {
 			ch_lst++;
 			continue;
 		}
-
-		if (mac_ctx->roam.configParam.sta_roam_policy.
-				skip_unsafe_channels &&
-				unsafe_chan_cnt) {
-			is_unsafe_chan = false;
-			for (cnt = 0; cnt < unsafe_chan_cnt; cnt++) {
-				if (unsafe_chan[cnt] == *ch_lst) {
-					is_unsafe_chan = true;
-					break;
-				}
-			}
-			if (is_unsafe_chan) {
-				QDF_TRACE(QDF_MODULE_ID_SME,
-						QDF_TRACE_LEVEL_DEBUG,
-					("ignoring unsafe channel %d"),
-					*ch_lst);
-				ch_lst++;
-				continue;
-			}
+		if (is_dfs_unsafe_extra_band_chan(mac_ctx, *ch_lst, band)) {
+			ch_lst++;
+			continue;
 		}
 		dst->ChannelCache[num_channels++] = *ch_lst;
 		ch_lst++;
@@ -18379,59 +18356,29 @@ csr_fetch_ch_lst_from_occupied_lst(struct mac_context *mac_ctx,
 {
 	uint8_t i = 0;
 	uint8_t num_channels = 0;
-	uint8_t *ch_lst =
-		mac_ctx->scan.occupiedChannels[session_id].channelList;
-	uint16_t  unsafe_chan[NUM_CHANNELS];
-	uint16_t  unsafe_chan_cnt = 0;
-	uint16_t  cnt = 0;
-	bool      is_unsafe_chan;
-	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	uint8_t op_chan;
+	struct csr_roam_session *session;
+	uint8_t *ch_lst;
+	enum band_info band = BAND_ALL;
 
-	if (!qdf_ctx) {
-		cds_err("qdf_ctx is NULL");
-		return;
-	}
+	session = &mac_ctx->roam.roamSession[session_id];
+	ch_lst = mac_ctx->scan.occupiedChannels[session_id].channelList;
+	op_chan = session->connectedProfile.operationChannel;
 
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		"Num of channels before filtering=%d",
 		mac_ctx->scan.occupiedChannels[session_id].numChannels);
-	pld_get_wlan_unsafe_channel(qdf_ctx->dev, unsafe_chan,
-			&unsafe_chan_cnt,
-			 sizeof(unsafe_chan));
+
+	if (CSR_IS_ROAM_INTRA_BAND_ENABLED(mac_ctx)) {
+		band = csr_get_rf_band(op_chan);
+	}
 	for (i = 0; i < mac_ctx->scan.occupiedChannels[session_id].numChannels;
 	     i++) {
-		if (((mac_ctx->mlme_cfg->lfr.roaming_dfs_channel ==
-			 ROAMING_DFS_CHANNEL_DISABLED) ||
-		     (mac_ctx->roam.configParam.sta_roam_policy.dfs_mode ==
-			 CSR_STA_ROAM_POLICY_DFS_DISABLED)) &&
-		    (wlan_reg_is_dfs_ch(mac_ctx->pdev, *ch_lst))) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				("ignoring dfs channel %d"), *ch_lst);
+		if (is_dfs_unsafe_extra_band_chan(mac_ctx, *ch_lst, band)) {
 			ch_lst++;
 			continue;
 		}
-
-		if (mac_ctx->roam.configParam.sta_roam_policy.
-				skip_unsafe_channels &&
-				unsafe_chan_cnt) {
-			is_unsafe_chan = false;
-			for (cnt = 0; cnt < unsafe_chan_cnt; cnt++) {
-				if (unsafe_chan[cnt] == *ch_lst) {
-					is_unsafe_chan = true;
-					break;
-				}
-			}
-			if (is_unsafe_chan) {
-				QDF_TRACE(QDF_MODULE_ID_SME,
-						QDF_TRACE_LEVEL_DEBUG,
-					("ignoring unsafe channel %d"),
-					*ch_lst);
-				ch_lst++;
-				continue;
-			}
-		}
-		req_buf->ConnectedNetwork.ChannelCache[num_channels++] =
-			*ch_lst;
+		req_buf->ConnectedNetwork.ChannelCache[num_channels++] = *ch_lst;
 		if (*ch_lst)
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				"DFSRoam=%d, ChnlState=%d, Chnl=%d, num_ch=%d",
@@ -18464,21 +18411,15 @@ csr_fetch_valid_ch_lst(struct mac_context *mac_ctx,
 	uint32_t host_channels = 0;
 	uint8_t *ch_lst = NULL;
 	uint8_t i = 0, num_channels = 0;
-	uint16_t  unsafe_chan[NUM_CHANNELS];
-	uint16_t  unsafe_chan_cnt = 0;
-	uint16_t  cnt = 0;
-	bool      is_unsafe_chan;
-	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	enum band_info band = BAND_ALL;
+	uint8_t op_chan;
+	struct csr_roam_session *session;
 
-	if (!qdf_ctx) {
-		cds_err("qdf_ctx is NULL");
-		return QDF_STATUS_E_FAILURE;
+	session = &mac_ctx->roam.roamSession[session_id];
+	op_chan = session->connectedProfile.operationChannel;
+	if (CSR_IS_ROAM_INTRA_BAND_ENABLED(mac_ctx)) {
+		band = csr_get_rf_band(op_chan);
 	}
-
-	pld_get_wlan_unsafe_channel(qdf_ctx->dev, unsafe_chan,
-			&unsafe_chan_cnt,
-			sizeof(unsafe_chan));
 
 	host_channels = sizeof(mac_ctx->roam.validChannelList);
 	status = csr_get_cfg_valid_channels(mac_ctx,
@@ -18490,58 +18431,17 @@ csr_fetch_valid_ch_lst(struct mac_context *mac_ctx,
 		return status;
 	}
 
-	if (CSR_IS_ROAM_INTRA_BAND_ENABLED(mac_ctx)) {
-		band = csr_get_rf_band(mac_ctx->roam.roamSession[session_id].
-				connectedProfile.operationChannel);
-		sme_debug("updated band %d operational ch %d", band,
-				mac_ctx->roam.roamSession[session_id].
-				connectedProfile.operationChannel);
-	}
-
 	ch_lst = mac_ctx->roam.validChannelList;
 	mac_ctx->roam.numValidChannels = host_channels;
 
 	for (i = 0; i < mac_ctx->roam.numValidChannels; i++) {
-		if (!csr_check_band_channel_match(band, *ch_lst)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				("ignoring non-intra band channel %d"),
-				*ch_lst);
+		if (is_dfs_unsafe_extra_band_chan(mac_ctx, *ch_lst,
+						  band)) {
 			ch_lst++;
 			continue;
-		}
-
-		if (((mac_ctx->mlme_cfg->lfr.roaming_dfs_channel ==
-			 ROAMING_DFS_CHANNEL_DISABLED) ||
-		     (mac_ctx->roam.configParam.sta_roam_policy.dfs_mode ==
-			 CSR_STA_ROAM_POLICY_DFS_DISABLED)) &&
-		    (wlan_reg_is_dfs_ch(mac_ctx->pdev, *ch_lst))) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				("ignoring dfs channel %d"), *ch_lst);
-			ch_lst++;
-			continue;
-		}
-
-		if (mac_ctx->roam.configParam.
-				sta_roam_policy.skip_unsafe_channels &&
-				unsafe_chan_cnt) {
-			is_unsafe_chan = false;
-			for (cnt = 0; cnt < unsafe_chan_cnt; cnt++) {
-				if (unsafe_chan[cnt] == *ch_lst) {
-					is_unsafe_chan = true;
-					break;
-				}
-			}
-			if (is_unsafe_chan) {
-				QDF_TRACE(QDF_MODULE_ID_SME,
-						QDF_TRACE_LEVEL_DEBUG,
-					("ignoring unsafe channel %d"),
-					*ch_lst);
-				ch_lst++;
-				continue;
-			}
 		}
 		req_buf->ConnectedNetwork.ChannelCache[num_channels++] =
-			*ch_lst;
+								*ch_lst;
 		ch_lst++;
 	}
 	req_buf->ChannelCacheType = CHANNEL_LIST_DYNAMIC;
@@ -18782,52 +18682,50 @@ csr_create_roam_scan_offload_request(struct mac_context *mac_ctx,
 		  ese_neighbor_list_recvd, curr_ch_lst_info->numOfChannels);
 #endif
 
-	if (!CSR_IS_ROAM_INTRA_BAND_ENABLED(mac_ctx)) {
-		if (ese_neighbor_list_recvd ||
-		    curr_ch_lst_info->numOfChannels == 0) {
-			/*
-			 * Retrieve the Channel Cache either from ini or from
-			 * the occupied channels list along with preferred
-			 * channel list configured by the client.
-			 * Give Preference to INI Channels
-			 */
-			if (specific_chan_info->numOfChannels) {
-				status = csr_fetch_ch_lst_from_ini(mac_ctx,
-								   roam_info,
-								   req_buf);
-				if (!QDF_IS_STATUS_SUCCESS(status)) {
-					QDF_TRACE(QDF_MODULE_ID_SME,
-						  QDF_TRACE_LEVEL_DEBUG,
-						  "Fetch channel list from ini failed");
-					qdf_mem_free(req_buf);
-					return NULL;
-				}
-			} else {
-				csr_fetch_ch_lst_from_occupied_lst(mac_ctx,
-						session_id, reason, req_buf,
-						roam_info);
-				/* Add the preferred channel list configured by
-				 * client to the roam channel list along with
-				 * occupied channel list.
-				 */
-				csr_add_ch_lst_from_roam_scan_list(mac_ctx,
-								   req_buf,
-								   roam_info);
-			}
+	if (ese_neighbor_list_recvd ||
+	    curr_ch_lst_info->numOfChannels == 0) {
+		/*
+		 * Retrieve the Channel Cache either from ini or from
+		 * the occupied channels list along with preferred
+		 * channel list configured by the client.
+		 * Give Preference to INI Channels
+		 */
+		if (specific_chan_info->numOfChannels) {
+			status = csr_fetch_ch_lst_from_ini(mac_ctx,
+							   roam_info,
+							   req_buf);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			QDF_TRACE(QDF_MODULE_ID_SME,
+				  QDF_TRACE_LEVEL_DEBUG,
+				  "Fetch channel list from ini failed");
+			qdf_mem_free(req_buf);
+			return NULL;
 		}
-#ifdef FEATURE_WLAN_ESE
-		else {
-			/*
-			 * If ESE is enabled, and a neighbor Report is received,
-			 * then Ignore the INI Channels or the Occupied Channel
-			 * List. Consider the channels in the neighbor list sent
-			 * by the ESE AP
+		} else {
+			csr_fetch_ch_lst_from_occupied_lst(mac_ctx, session_id,
+							   reason, req_buf,
+							   roam_info);
+			/* Add the preferred channel list configured by
+			 * client to the roam channel list along with
+			 * occupied channel list.
 			 */
-			csr_fetch_ch_lst_from_received_list(mac_ctx, roam_info,
-					curr_ch_lst_info, req_buf);
+			csr_add_ch_lst_from_roam_scan_list(mac_ctx,
+							   req_buf,
+							   roam_info);
 		}
-#endif
 	}
+#ifdef FEATURE_WLAN_ESE
+	else {
+		/*
+		 * If ESE is enabled, and a neighbor Report is received,
+		 * then Ignore the INI Channels or the Occupied Channel
+		 * List. Consider the channels in the neighbor list sent
+		 * by the ESE AP
+		 */
+		csr_fetch_ch_lst_from_received_list(mac_ctx, roam_info,
+						    curr_ch_lst_info, req_buf);
+	}
+#endif
 	if (req_buf->ConnectedNetwork.ChannelCount == 0) {
 		/* Maintain the Valid Channels List */
 		status = csr_fetch_valid_ch_lst(mac_ctx, req_buf, session_id);
