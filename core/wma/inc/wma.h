@@ -2594,6 +2594,18 @@ int wma_motion_det_base_line_host_event_handler(void *handle, u_int8_t *event,
 #endif /* WLAN_FEATURE_MOTION_DETECTION */
 
 /**
+ * wma_release_pending_vdev_refs() - release vdev ref taken by interface txrx
+ * node and delete all the peers attached to this vdev.
+ *
+ * This API loop and release vdev ref taken by all iface and all the peers
+ * attached to the vdev, this need to be called on recovery to flush vdev
+ * and peer.
+ *
+ * Return: void.
+ */
+void wma_release_pending_vdev_refs(void);
+
+/**
  * wma_get_rx_chainmask() - API to get rx chainmask from mac phy capability
  * @pdev_id: pdev id
  * @chainmask_2g: pointer to return 2g chainmask

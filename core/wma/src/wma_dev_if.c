@@ -862,6 +862,7 @@ static void wma_force_objmgr_vdev_peer_cleanup(tp_wma_handle wma,
 	struct wlan_objmgr_peer *peer = NULL;
 	struct wlan_objmgr_peer *peer_next = NULL;
 	qdf_list_t *peer_list;
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 
 	if (!iface->vdev)
 		return;
@@ -873,6 +874,9 @@ static void wma_force_objmgr_vdev_peer_cleanup(tp_wma_handle wma,
 	 * wont be deleted for the vdev.
 	 */
 	vdev = iface->vdev;
+
+	if (iface->handle)
+		wma_cdp_vdev_detach(soc, wma, wlan_vdev_get_id(vdev));
 
 	WMA_LOGI("%s: SSR: force cleanup peers in vdev(%d)", __func__,
 		 wlan_vdev_get_id(vdev));
@@ -905,8 +909,8 @@ static void wma_force_objmgr_vdev_peer_cleanup(tp_wma_handle wma,
 	iface->peer_count = 0;
 }
 
-void wma_release_vdev_and_peer_ref(tp_wma_handle wma,
-				   struct wma_txrx_node *iface)
+static void wma_release_vdev_and_peer_ref(tp_wma_handle wma,
+					  struct wma_txrx_node *iface)
 {
 	if (!iface) {
 		WMA_LOGE("iface is NULL");
@@ -915,6 +919,22 @@ void wma_release_vdev_and_peer_ref(tp_wma_handle wma,
 
 	wma_force_objmgr_vdev_peer_cleanup(wma, iface);
 	wma_release_vdev_ref(iface);
+}
+
+void wma_release_pending_vdev_refs(void)
+{
+	int i;
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	/* validate the wma_handle */
+	if (!wma) {
+		WMA_LOGE("%s: Invalid wma handle", __func__);
+		return;
+	}
+
+	for (i = 0; i < wma->max_bssid; i++)
+		/* Release peer and vdev ref hold by wma if not already done */
+		wma_release_vdev_and_peer_ref(wma, &wma->interfaces[i]);
 }
 
 static bool wma_vdev_uses_self_peer(uint32_t vdev_type, uint32_t vdev_subtype)
@@ -990,7 +1010,6 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 			uint8_t generateRsp)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 	uint8_t vdev_id = pdel_sta_self_req_param->session_id;
 	struct wma_txrx_node *iface = &wma_handle->interfaces[vdev_id];
 	struct wma_target_req *req_msg;
@@ -1010,7 +1029,6 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 	 */
 	if (!cds_is_target_ready()) {
 		wma_release_vdev_and_peer_ref(wma_handle, iface);
-		wma_cdp_vdev_detach(soc, wma_handle, vdev_id);
 		goto send_rsp;
 	}
 
