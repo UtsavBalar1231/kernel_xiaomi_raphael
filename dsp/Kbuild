@@ -177,11 +177,8 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-DANI_OS_TYPE_ANDROID=6 \
 		-DPTT_SOCK_SVC_ENABLE \
 		-Wall\
-		-D__linux__
-
-ifneq (,$(filter $(TARGET_PRODUCT), davinci raphael raphaelin))
-	CDEFINES += -DCONFIG_SND_SOC_TFA9874_FOR_DAVI
-endif
+		-D__linux__ \
+		-DCONFIG_SND_SOC_TFA9874_FOR_DAVI
 
 KBUILD_CPPFLAGS += $(CDEFINES)
 
