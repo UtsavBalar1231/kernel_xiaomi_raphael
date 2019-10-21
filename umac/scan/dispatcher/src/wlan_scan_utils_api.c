@@ -180,6 +180,7 @@ static bool util_is_pureg_rate(uint8_t *rates, uint8_t nrates)
 
 	return pureg;
 }
+
 static enum wlan_phymode
 util_scan_get_phymode_5g(struct scan_cache_entry *scan_params)
 {
@@ -201,6 +202,11 @@ util_scan_get_phymode_5g(struct scan_cache_entry *scan_params)
 
 	if (htcap)
 		ht_cap = le16toh(htcap->hc_cap);
+
+	if (ht_cap & WLAN_HTCAP_C_CHWIDTH40)
+		phymode = WLAN_PHYMODE_11NA_HT40;
+	else
+		phymode = WLAN_PHYMODE_11NA_HT20;
 
 	if (util_scan_entry_vhtcap(scan_params) && vhtop) {
 		switch (vhtop->vht_op_chwidth) {
@@ -230,10 +236,34 @@ util_scan_get_phymode_5g(struct scan_cache_entry *scan_params)
 			phymode = WLAN_PHYMODE_11AC_VHT20;
 			break;
 		}
-	} else if (ht_cap & WLAN_HTCAP_C_CHWIDTH40) {
-		phymode = WLAN_PHYMODE_11NA_HT40;
-	} else {
-		phymode = WLAN_PHYMODE_11NA_HT20;
+	}
+
+	if (!util_scan_entry_hecap(scan_params))
+		return phymode;
+
+	/* for 5Ghz Check for HE, only if VHT cap and HE cap are present */
+	if (!IS_WLAN_PHYMODE_VHT(phymode))
+		return phymode;
+
+	switch (phymode) {
+	case WLAN_PHYMODE_11AC_VHT20:
+		phymode = WLAN_PHYMODE_11AXA_HE20;
+		break;
+	case WLAN_PHYMODE_11AC_VHT40:
+		phymode = WLAN_PHYMODE_11AXA_HE40;
+		break;
+	case WLAN_PHYMODE_11AC_VHT80:
+		phymode = WLAN_PHYMODE_11AXA_HE80;
+		break;
+	case WLAN_PHYMODE_11AC_VHT160:
+		phymode = WLAN_PHYMODE_11AXA_HE160;
+		break;
+	case WLAN_PHYMODE_11AC_VHT80_80:
+		phymode = WLAN_PHYMODE_11AXA_HE80_80;
+		break;
+	default:
+		phymode = WLAN_PHYMODE_11AXA_HE20;
+		break;
 	}
 
 	return phymode;
@@ -283,6 +313,10 @@ util_scan_get_phymode_2g(struct scan_cache_entry *scan_params)
 		}
 	}
 
+	/* Check for VHT only if HT cap is present */
+	if (!IS_WLAN_PHYMODE_HT(phymode))
+		return phymode;
+
 	if (util_scan_entry_vhtcap(scan_params) && vhtop) {
 		switch (vhtop->vht_op_chwidth) {
 		case WLAN_VHTOP_CHWIDTH_2040:
@@ -301,6 +335,18 @@ util_scan_get_phymode_2g(struct scan_cache_entry *scan_params)
 			break;
 		}
 	}
+
+	if (!util_scan_entry_hecap(scan_params))
+		return phymode;
+
+	if (phymode == WLAN_PHYMODE_11AC_VHT40PLUS_2G ||
+	    phymode == WLAN_PHYMODE_11NG_HT40PLUS)
+		phymode = WLAN_PHYMODE_11AXG_HE40PLUS;
+	else if (phymode == WLAN_PHYMODE_11AC_VHT40MINUS_2G ||
+		 phymode == WLAN_PHYMODE_11NG_HT40MINUS)
+		phymode = WLAN_PHYMODE_11AXG_HE40MINUS;
+	else
+		phymode = WLAN_PHYMODE_11AXG_HE20;
 
 	return phymode;
 }
