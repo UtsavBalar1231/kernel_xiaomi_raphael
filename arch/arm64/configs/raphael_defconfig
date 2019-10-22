@@ -4404,7 +4404,8 @@ CONFIG_ION=y
 #
 # Qualcomm Atheros CLD WLAN module
 #
-# CONFIG_QCA_CLD_WLAN is not set
+CONFIG_QCA_CLD_WLAN=y
+CONFIG_QCA_CLD_WLAN_PROFILE="default"
 # CONFIG_GOLDFISH is not set
 # CONFIG_CHROME_PLATFORMS is not set
 
