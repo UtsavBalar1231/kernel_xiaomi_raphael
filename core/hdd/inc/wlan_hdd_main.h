@@ -187,6 +187,8 @@ static inline bool in_compat_syscall(void) { return is_compat_task(); }
 #define NUM_CPUS 1
 #endif
 
+#define ACS_COMPLETE_TIMEOUT 3000
+
 #define HDD_PSOC_IDLE_SHUTDOWN_SUSPEND_DELAY (1000)
 /**
  * enum hdd_adapter_flags - event bitmap flags registered net device
@@ -1144,6 +1146,7 @@ struct hdd_context;
  * @vdev_id: Unique identifier assigned to the vdev
  * @event_flags: a bitmap of hdd_adapter_flags
  * @latency_level: 0 - normal, 1 - moderate, 2 - low, 3 - ultralow
+ * @acs_complete_event: acs complete event
  */
 struct hdd_adapter {
 	/* Magic cookie for adapter sanity verification.  Note that this
@@ -1209,6 +1212,7 @@ struct hdd_adapter {
 
 	/* QDF event for session open */
 	qdf_event_t qdf_session_open_event;
+	qdf_event_t acs_complete_event;
 
 	/* TODO: move these to sta ctx. These may not be used in AP */
 	/** completion variable for disconnect callback */
