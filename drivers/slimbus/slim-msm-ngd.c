@@ -1061,7 +1061,7 @@ static int ngd_allocbw(struct slim_device *sb, int *subfrmc, int *clkgear)
 	struct slim_controller *ctrl = sb->ctrl;
 	DECLARE_COMPLETION_ONSTACK(done);
 	u8 wbuf[SLIM_MSGQ_BUF_LEN];
-	struct msm_slim_ctrl *dev = slim_get_ctrldata(ctrl);
+	struct msm_slim_ctrl __maybe_unused *dev = slim_get_ctrldata(ctrl);
 
 	*clkgear = ctrl->clkgear;
 	*subfrmc = 0;
