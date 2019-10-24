@@ -1394,12 +1394,14 @@ struct ap_ps_params {
  * @nallchans: nall chans
  * @append: append to existing chan list
  * @ch_param: pointer to channel_paramw
+ * @max_bw_support_present: max BW support present
  */
 struct scan_chan_list_params {
 	uint32_t pdev_id;
 	uint16_t nallchans;
 	bool append;
 	struct channel_param ch_param[1];
+	bool max_bw_support_present;
 };
 
 #ifndef CMN_VDEV_MGR_TGT_IF_ENABLE
