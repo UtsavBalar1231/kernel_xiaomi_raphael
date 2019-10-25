@@ -2842,6 +2842,26 @@ static inline void hdd_set_tso_flags(struct hdd_context *hdd_ctx,
 void hdd_get_ibss_peer_info_cb(void *pUserData,
 				tSirPeerInfoRspParams *pPeerInfo);
 
+/**
+ * wlan_hdd_get_host_log_nl_proto() - Get host log netlink protocol
+ * @hdd_ctx: HDD context
+ *
+ * This function returns with host log netlink protocol settings
+ *
+ * Return: none
+ */
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+static inline int wlan_hdd_get_host_log_nl_proto(struct hdd_context *hdd_ctx)
+{
+	return hdd_ctx->config->host_log_custom_nl_proto;
+}
+#else
+static inline int wlan_hdd_get_host_log_nl_proto(struct hdd_context *hdd_ctx)
+{
+	return NETLINK_USERSOCK;
+}
+#endif
+
 #ifdef CONFIG_CNSS_LOGGER
 /**
  * wlan_hdd_nl_init() - wrapper function to CNSS_LOGGER case
@@ -2860,7 +2880,7 @@ static inline int wlan_hdd_nl_init(struct hdd_context *hdd_ctx)
 {
 	int proto;
 
-	proto = hdd_ctx->config->host_log_custom_nl_proto;
+	proto = wlan_hdd_get_host_log_nl_proto(hdd_ctx);
 	hdd_ctx->radio_index = nl_srv_init(hdd_ctx->wiphy, proto);
 
 	/* radio_index is assigned from 0, so only >=0 will be valid index  */
@@ -2883,7 +2903,7 @@ static inline int wlan_hdd_nl_init(struct hdd_context *hdd_ctx)
 {
 	int proto;
 
-	proto = hdd_ctx->config->host_log_custom_nl_proto;
+	proto = wlan_hdd_get_host_log_nl_proto(hdd_ctx);
 	return nl_srv_init(hdd_ctx->wiphy, proto);
 }
 #endif
@@ -2983,6 +3003,14 @@ bool hdd_local_unsafe_channel_updated(struct hdd_context *hdd_ctx,
 int hdd_enable_disable_ca_event(struct hdd_context *hddctx,
 				uint8_t set_value);
 void wlan_hdd_undo_acs(struct hdd_adapter *adapter);
+
+void
+hdd_modify_nss_in_hdd_cfg(struct hdd_context *hdd_ctx,
+			  uint8_t rx_nss, uint8_t tx_nss,
+			  enum QDF_OPMODE vdev_op_mode,
+			  enum nss_chains_band_info band);
+
+void hdd_store_nss_chains_cfg_in_vdev(struct hdd_adapter *adapter);
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0))
 static inline int

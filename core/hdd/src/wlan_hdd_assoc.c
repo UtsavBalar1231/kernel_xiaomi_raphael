@@ -134,7 +134,6 @@ uint8_t ccp_rsn_oui_90[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x09};
 #define FT_ASSOC_RSP_IES_OFFSET 6  /* Capability(2) + AID(2) + Status Code(2) */
 #define FT_ASSOC_REQ_IES_OFFSET 4  /* Capability(2) + LI(2) */
 
-#define BEACON_FRAME_IES_OFFSET 12
 #define HDD_PEER_AUTHORIZE_WAIT 10
 
 /**
@@ -1377,10 +1376,10 @@ static void hdd_send_association_event(struct net_device *dev,
 
 		ucfg_p2p_status_connect(adapter->vdev);
 
-		hdd_info("wlan: " MAC_ADDRESS_STR " connected to "
-			MAC_ADDRESS_STR "\n",
-			MAC_ADDR_ARRAY(adapter->mac_addr.bytes),
-			MAC_ADDR_ARRAY(wrqu.ap_addr.sa_data));
+		hdd_info("%s(vdevid-%d): " MAC_ADDRESS_STR " connected to "
+			 MAC_ADDRESS_STR, dev->name, adapter->session_id,
+			 MAC_ADDR_ARRAY(adapter->mac_addr.bytes),
+			 MAC_ADDR_ARRAY(wrqu.ap_addr.sa_data));
 		hdd_send_update_beacon_ies_event(adapter, pCsrRoamInfo);
 
 		/*
@@ -1452,10 +1451,12 @@ static void hdd_send_association_event(struct net_device *dev,
 				adapter->session_id);
 		memcpy(wrqu.ap_addr.sa_data, sta_ctx->conn_info.bssId.bytes,
 				ETH_ALEN);
-		hdd_debug("wlan: new IBSS peer connection to BSSID " MAC_ADDRESS_STR,
-			MAC_ADDR_ARRAY(sta_ctx->conn_info.bssId.bytes));
+		hdd_debug("%s(vdevid-%d): new IBSS peer connection to BSSID " MAC_ADDRESS_STR,
+			  dev->name, adapter->session_id,
+			  MAC_ADDR_ARRAY(sta_ctx->conn_info.bssId.bytes));
 	} else {                /* Not Associated */
-		hdd_info("wlan: disconnected");
+		hdd_info("%s(vdevid-%d): disconnected", dev->name,
+			 adapter->session_id);
 		memset(wrqu.ap_addr.sa_data, '\0', ETH_ALEN);
 		policy_mgr_decr_session_set_pcl(hdd_ctx->psoc,
 				adapter->device_mode, adapter->session_id);
@@ -1545,6 +1546,13 @@ static void hdd_conn_remove_connect_info(struct hdd_station_ctx *sta_ctx)
 	sta_ctx->conn_info.proxyARPService = 0;
 
 	qdf_mem_zero(&sta_ctx->conn_info.SSID, sizeof(tCsrSSIDInfo));
+
+	/*
+	 * Reset the ptk, gtk status flags to avoid using current connection
+	 * status in further connections.
+	 */
+	sta_ctx->conn_info.gtk_installed = false;
+	sta_ctx->conn_info.ptk_installed = false;
 }
 
 /**
@@ -3313,13 +3321,15 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 			qdf_copy_macaddr(&roam_info->bssid,
 					 &sta_ctx->requested_bssid);
 		if (roam_info)
-			hdd_err("wlan: connection failed with " MAC_ADDRESS_STR
-				 " result: %d and Status: %d",
+			hdd_err("%s(vdevid-%d): connection failed with " MAC_ADDRESS_STR
+				 " result: %d and Status: %d", dev->name,
+				 adapter->session_id,
 				 MAC_ADDR_ARRAY(roam_info->bssid.bytes),
 				 roamResult, roamStatus);
 		else
-			hdd_err("wlan: connection failed with " MAC_ADDRESS_STR
-				 " result: %d and Status: %d",
+			hdd_err("%s(vdevid-%d): connection failed with " MAC_ADDRESS_STR
+				 " result: %d and Status: %d", dev->name,
+				 adapter->session_id,
 				 MAC_ADDR_ARRAY(sta_ctx->requested_bssid.bytes),
 				 roamResult, roamStatus);
 

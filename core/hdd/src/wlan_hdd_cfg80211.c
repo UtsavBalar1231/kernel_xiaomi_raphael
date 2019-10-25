@@ -18148,6 +18148,13 @@ static int wlan_hdd_cfg80211_connect_start(struct hdd_adapter *adapter,
 	qdf_mem_zero(&hdd_sta_ctx->conn_info.conn_flag,
 		     sizeof(hdd_sta_ctx->conn_info.conn_flag));
 
+	/*
+	 * Reset the ptk, gtk status flags to avoid using old/previous
+	 * connection status.
+	 */
+	hdd_sta_ctx->conn_info.gtk_installed = false;
+	hdd_sta_ctx->conn_info.ptk_installed = false;
+
 	roam_profile = hdd_roam_profile(adapter);
 	if (roam_profile) {
 		struct hdd_station_ctx *sta_ctx;
@@ -18226,10 +18233,11 @@ static int wlan_hdd_cfg80211_connect_start(struct hdd_adapter *adapter,
 					bssid_hint);
 		}
 
-		hdd_debug("Connect to SSID: %.*s operating Channel: %u",
-		       roam_profile->SSIDs.SSIDList->SSID.length,
-		       roam_profile->SSIDs.SSIDList->SSID.ssId,
-		       operatingChannel);
+		hdd_debug("vdevid %d: Connect to SSID: %.*s operating Channel: %u",
+			  adapter->session_id,
+			  roam_profile->SSIDs.SSIDList->SSID.length,
+			  roam_profile->SSIDs.SSIDList->SSID.ssId,
+			  operatingChannel);
 
 		if (hdd_sta_ctx->wpa_versions) {
 			hdd_set_genie_to_csr(adapter, &RSNAuthType);
@@ -19869,9 +19877,10 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 		   TRACE_CODE_HDD_CFG80211_CONNECT,
 		   adapter->session_id, adapter->device_mode);
 
-	hdd_debug("Device_mode %s(%d)",
-		hdd_device_mode_to_string(adapter->device_mode),
-		adapter->device_mode);
+	hdd_info("%s(vdevid-%d): Device_mode %s(%d)",
+		 ndev->name, adapter->session_id,
+		 hdd_device_mode_to_string(adapter->device_mode),
+		 adapter->device_mode);
 
 	if (adapter->device_mode != QDF_STA_MODE &&
 		adapter->device_mode != QDF_P2P_CLIENT_MODE) {
@@ -19900,6 +19909,25 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 		hdd_err("adapter exist with same mac address " MAC_ADDRESS_STR,
 			MAC_ADDR_ARRAY(bssid));
 		return -EINVAL;
+	}
+
+	/*
+	 * In STA + STA roaming scenario, connection to same ssid but different
+	 * bssid is allowed on both vdevs. So there could be a race where the
+	 * STA1 connectes to a bssid when roaming is in progress on STA2 for
+	 * the same bssid. Here the firwmare would have already created peer for
+	 * the roam candidate and host would have created peer on the other
+	 * vdev. When roam synch indication is received, then peer create fails
+	 * at host for the roaming vdev due to duplicate peer detection logic.
+	 * Still roam synch confirm is sent to the firmware.
+	 * When disconnection is received for STA1, then del bss is sent for
+	 * this vdev and firmware asserts as the peer was not created for this
+	 * vdev.
+	 */
+	if (hdd_is_roaming_in_progress(hdd_ctx) ||
+	    sme_is_any_session_in_middle_of_roaming(hdd_ctx->mac_handle)) {
+		hdd_err("Roaming in progress. Defer connect");
+		return -EBUSY;
 	}
 
 	/*
@@ -20333,8 +20361,9 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 		if (vdev)
 			hdd_objmgr_put_vdev(vdev);
 
-		hdd_info("Disconnect from userspace; reason:%d (%s)",
-			 reason, hdd_ieee80211_reason_code_to_str(reason));
+		hdd_info("%s(vdevid-%d): Disconnect from userspace; reason:%d (%s)",
+			 dev->name, adapter->session_id, reason,
+			 hdd_ieee80211_reason_code_to_str(reason));
 		status = wlan_hdd_disconnect(adapter, reasonCode);
 		if (0 != status) {
 			hdd_err("wlan_hdd_disconnect failed, status: %d", status);
