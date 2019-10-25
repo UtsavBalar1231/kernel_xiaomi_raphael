@@ -372,6 +372,15 @@ rrm_process_neighbor_report_response(struct mac_context *mac,
 		fMobilityDomain =
 			pNeighborRep->NeighborReport[i].MobilityDomain;
 
+		if (!wlan_reg_is_6ghz_supported(mac->pdev) &&
+		    (wlan_reg_is_6ghz_op_class(mac->pdev,
+					       pNeighborRep->NeighborReport[i].
+					       regulatoryClass))) {
+			pe_err("channel belongs to 6 ghz spectrum, abort");
+			qdf_mem_free(pSmeNeighborRpt);
+			return QDF_STATUS_E_FAILURE;
+		}
+
 		pSmeNeighborRpt->sNeighborBssDescription[i].regClass =
 			pNeighborRep->NeighborReport[i].regulatoryClass;
 		pSmeNeighborRpt->sNeighborBssDescription[i].channel =
@@ -486,6 +495,7 @@ rrm_process_beacon_report_req(struct mac_context *mac,
 	uint16_t measDuration, maxMeasduration;
 	int8_t maxDuration;
 	uint8_t sign;
+	tDot11fIEAPChannelReport *ie_ap_chan_rpt;
 
 	if (pBeaconReq->measurement_request.Beacon.BeaconReporting.present &&
 	    (pBeaconReq->measurement_request.Beacon.BeaconReporting.
@@ -596,6 +606,15 @@ rrm_process_beacon_report_req(struct mac_context *mac,
 	pSmeBcnReportReq->msgSource = eRRM_MSG_SOURCE_11K;
 	pSmeBcnReportReq->randomizationInterval =
 		SYS_TU_TO_MS(pBeaconReq->measurement_request.Beacon.randomization);
+
+	if (!wlan_reg_is_6ghz_supported(mac->pdev) &&
+	    (wlan_reg_is_6ghz_op_class(mac->pdev,
+			 pBeaconReq->measurement_request.Beacon.regClass))) {
+		pe_err("channel belongs to 6 ghz spectrum, abort");
+		qdf_mem_free(pSmeBcnReportReq);
+		return eRRM_FAILURE;
+	}
+
 	pSmeBcnReportReq->channelInfo.regulatoryClass =
 		pBeaconReq->measurement_request.Beacon.regClass;
 	pSmeBcnReportReq->channelInfo.channelNum =
@@ -625,8 +644,18 @@ rrm_process_beacon_report_req(struct mac_context *mac,
 
 		for (num_APChanReport = 0;
 		     num_APChanReport <
-		     pBeaconReq->measurement_request.Beacon.num_APChannelReport;
-		     num_APChanReport++) {
+			     pBeaconReq->measurement_request.Beacon.
+			     num_APChannelReport; num_APChanReport++) {
+			ie_ap_chan_rpt = &pBeaconReq->measurement_request.
+				Beacon.APChannelReport[num_APChanReport];
+			if (!wlan_reg_is_6ghz_supported(mac->pdev) &&
+			    (wlan_reg_is_6ghz_op_class(mac->pdev,
+					ie_ap_chan_rpt->regulatoryClass))) {
+				pe_err("channel belongs to 6 ghz spectrum, abort");
+				qdf_mem_free(pSmeBcnReportReq);
+				return eRRM_FAILURE;
+			}
+
 			len = pBeaconReq->measurement_request.Beacon.
 			    APChannelReport[num_APChanReport].num_channelList;
 			if (ch_ctr + len >
