@@ -9580,10 +9580,13 @@ static int __wlan_hdd_cfg80211_get_preferred_freq_list(struct wiphy *wiphy,
 		freq_list[i] = w_pcl[i].freq;
 
 	/* send the freq_list back to supplicant */
-	reply_skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, sizeof(u32) +
-					sizeof(u32) * pcl_len +
-					sizeof(struct weighed_pcl) * pcl_len +
-					NLMSG_HDRLEN);
+	reply_skb = cfg80211_vendor_cmd_alloc_reply_skb(
+			wiphy,
+			(sizeof(u32) + NLA_HDRLEN) +
+			(sizeof(u32) * pcl_len + NLA_HDRLEN) +
+			NLA_HDRLEN +
+			(NLA_HDRLEN * 4 + sizeof(u32) * 3) * pcl_len +
+			NLMSG_HDRLEN);
 
 	if (!reply_skb) {
 		hdd_err("Allocate reply_skb failed");
