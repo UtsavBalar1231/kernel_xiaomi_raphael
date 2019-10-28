@@ -1789,6 +1789,7 @@ is_dfs_unsafe_extra_band_chan(struct mac_context *mac_ctx, uint8_t chan,
 
 	return false;
 }
+#endif
 
 #ifdef FEATURE_WLAN_ESE
 /**
@@ -2067,6 +2068,7 @@ QDF_STATUS csr_get_tsm_stats(struct mac_context *mac,
 	return status;
 }
 
+#if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /**
  * csr_fetch_ch_lst_from_received_list() - fetch channel list from received list
  * and update req msg
