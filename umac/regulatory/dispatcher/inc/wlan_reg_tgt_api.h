@@ -74,4 +74,12 @@ QDF_STATUS tgt_reg_process_ch_avoid_event(struct wlan_objmgr_psoc *psoc,
  */
 bool tgt_reg_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc);
 
+/**
+ * tgt_reg_set_6ghz_supported() - Whether 6ghz is supported by the chip
+ * @psoc: Pointer to psoc
+ * @val: value
+ */
+QDF_STATUS tgt_reg_set_6ghz_supported(struct wlan_objmgr_psoc *psoc,
+				      bool val);
+
 #endif
