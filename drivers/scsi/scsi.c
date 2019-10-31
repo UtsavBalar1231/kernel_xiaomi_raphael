@@ -842,5 +842,5 @@ static void __exit exit_scsi(void)
 	async_unregister_domain(&scsi_sd_probe_domain);
 }
 
-subsys_initcall(init_scsi);
+early_subsys_initcall(init_scsi, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
 module_exit(exit_scsi);

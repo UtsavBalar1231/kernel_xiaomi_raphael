@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -89,5 +89,6 @@ static int __init msm_bus_proxy_client_unvote(void)
 	return 0;
 }
 
-subsys_initcall_sync(msm_bus_proxy_client_init_driver);
+early_subsys_initcall_sync(msm_bus_proxy_client_init_driver,
+EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL2);
 late_initcall_sync(msm_bus_proxy_client_unvote);

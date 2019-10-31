@@ -28,6 +28,7 @@
 #include <linux/ipc_logging.h>
 #include <linux/dmaengine.h>
 #include <linux/msm_gpi.h>
+#include <linux/early_async.h>
 #include <soc/qcom/boot_stats.h>
 
 #define SE_I2C_TX_TRANS_LEN		(0x26C)
@@ -1221,7 +1222,10 @@ static struct platform_driver geni_i2c_driver = {
 	},
 };
 
-module_platform_driver(geni_i2c_driver);
+early_module_platform_driver_async(geni_i2c_driver, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL4);
+
+early_init(_geni_i2c_driver_init_sync, EARLY_SUBSYS_2, EARLY_INIT_LEVEL0);
 
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:i2c_geni");

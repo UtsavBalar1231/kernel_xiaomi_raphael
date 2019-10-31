@@ -2030,7 +2030,8 @@ static int __init geni_se_driver_init(void)
 {
 	return platform_driver_register(&geni_se_driver);
 }
-subsys_initcall(geni_se_driver_init);
+early_subsys_initcall(geni_se_driver_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL3);
 
 static void __exit geni_se_driver_exit(void)
 {

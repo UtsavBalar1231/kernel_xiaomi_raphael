@@ -261,6 +261,7 @@ arch_initcall_sync(deferred_probe_initcall);
 subsys_initcall_sync(deferred_probe_initcall);
 fs_initcall_sync(deferred_probe_initcall);
 device_initcall_sync(deferred_probe_initcall);
+early_init(deferred_probe_initcall, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL6);
 
 static int deferred_probe_enable_fn(void)
 {

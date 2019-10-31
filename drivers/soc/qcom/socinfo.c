@@ -1817,4 +1817,4 @@ int __init socinfo_init(void)
 
 	return 0;
 }
-subsys_initcall(socinfo_init);
+early_subsys_initcall(socinfo_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL0);

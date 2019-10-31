@@ -2005,5 +2005,6 @@ int __init msm_bus_device_late_init(void)
 	init_time = false;
 	return commit_late_init_data(false);
 }
-subsys_initcall(msm_bus_device_init_driver);
+early_subsys_initcall(msm_bus_device_init_driver, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL1);
 late_initcall_sync(msm_bus_device_late_init);
