@@ -780,6 +780,10 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr);
 	module_driver(__i2c_driver, i2c_add_driver, \
 			i2c_del_driver)
 
+#define early_module_i2c_driver(__i2c_driver, subsys, level) \
+	early_module_driver(__i2c_driver, subsys, level, i2c_add_driver, \
+			i2c_del_driver)
+
 /**
  * builtin_i2c_driver() - Helper macro for registering a builtin I2C driver
  * @__i2c_driver: i2c_driver struct

@@ -761,6 +761,35 @@
 		INIT_CALLS_LEVEL(7)					\
 		VMLINUX_SYMBOL(__initcall_end) = .;
 
+#define EARLY_INIT_CALLS_LEVEL(subsys, level)				\
+		VMLINUX_SYMBOL(__early##subsys##_initcall##level##_start) = .; \
+		KEEP(*(.early##subsys##.initcall##level##.init))	\
+
+#define EARLY_INIT_CALLS_SUBSYS(subsys)					\
+		VMLINUX_SYMBOL(__early##subsys##_initcall_start) = .;	\
+		EARLY_INIT_CALLS_LEVEL(subsys, 0)			\
+		EARLY_INIT_CALLS_LEVEL(subsys, 1)			\
+		EARLY_INIT_CALLS_LEVEL(subsys, 2)			\
+		EARLY_INIT_CALLS_LEVEL(subsys, 3)			\
+		EARLY_INIT_CALLS_LEVEL(subsys, 4)			\
+		EARLY_INIT_CALLS_LEVEL(subsys, 5)			\
+		EARLY_INIT_CALLS_LEVEL(subsys, 6)			\
+		EARLY_INIT_CALLS_LEVEL(subsys, 7)			\
+		EARLY_INIT_CALLS_LEVEL(subsys, 8)			\
+		VMLINUX_SYMBOL(__early##subsys##_initcall_end) = .;	\
+
+#define EARLY_INIT_CALLS						\
+		VMLINUX_SYMBOL(__early_initcall_start) = .;		\
+		EARLY_INIT_CALLS_SUBSYS(0)				\
+		EARLY_INIT_CALLS_SUBSYS(1)				\
+		EARLY_INIT_CALLS_SUBSYS(2)				\
+		EARLY_INIT_CALLS_SUBSYS(3)				\
+		EARLY_INIT_CALLS_SUBSYS(4)				\
+		EARLY_INIT_CALLS_SUBSYS(5)				\
+		EARLY_INIT_CALLS_SUBSYS(6)				\
+		EARLY_INIT_CALLS_SUBSYS(7)				\
+		VMLINUX_SYMBOL(__early_initcall_end) = .;
+
 #define CON_INITCALL							\
 		VMLINUX_SYMBOL(__con_initcall_start) = .;		\
 		KEEP(*(.con_initcall.init))				\

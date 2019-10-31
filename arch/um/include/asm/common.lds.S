@@ -49,6 +49,10 @@
 	INIT_CALLS
   }
 
+  .early_initcall.init : {
+        EARLY_INIT_CALLS
+  }
+
   .con_initcall.init : {
 	CON_INITCALL
   }

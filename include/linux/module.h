@@ -85,6 +85,12 @@ extern void cleanup_module(void);
  */
 #define module_init(x)	__initcall(x);
 
+#define early_module_init(x, subsys, level) \
+	__early_initcall(x, subsys, level)
+
+#define early_module_init_async(x, subsys, level) \
+	__early_initcall_async(x, subsys, level)
+
 /**
  * module_exit() - driver exit entry point
  * @x: function to be run when driver is removed
@@ -124,6 +130,16 @@ extern void cleanup_module(void);
 
 #define console_initcall(fn)		module_init(fn)
 #define security_initcall(fn)		module_init(fn)
+
+#define early_subsys_initcall(fn, subsys, level) module_init(fn)
+#define early_device_initcall(fn, subsys, level) module_init(fn)
+#define early_rootfs_initcall(fn, subsys, level) module_init(fn)
+#define early_fs_initcall(fn, subsys, level) module_init(fn)
+#define early_late_initcall(fn, subsys, level) module_init(fn)
+#define early_subsys_initcall_sync(fn, subsys, level) module_init(fn)
+#define early_init(fn, subsys, level)
+#define early_module_init(fn, subsys, level) module_init(fn)
+#define early_module_init_async(fn, subsys, level) module_init(fn)
 
 /* Each module must use one module_init(). */
 #define module_init(initfn)					\
