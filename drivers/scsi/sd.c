@@ -3708,3 +3708,9 @@ static void sd_print_result(const struct scsi_disk *sdkp, const char *msg,
 			  msg, host_byte(result), driver_byte(result));
 }
 
+static int __init early_rootdev_wait(void)
+{
+	async_synchronize_full_domain(&scsi_sd_probe_domain);
+	return 0;
+}
+early_init(early_rootdev_wait, EARLY_SUBSYS_1, EARLY_INIT_LEVEL5);

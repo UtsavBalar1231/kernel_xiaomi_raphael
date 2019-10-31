@@ -1575,7 +1575,7 @@ static int __init socinfo_init_sysfs(void)
 	return 0;
 }
 
-late_initcall(socinfo_init_sysfs);
+early_late_initcall(socinfo_init_sysfs, EARLY_SUBSYS_1, EARLY_INIT_LEVEL4);
 
 static void socinfo_print(void)
 {
