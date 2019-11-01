@@ -475,7 +475,7 @@ void hal_reo_read_write_ctrl_ix(struct hal_soc *hal, bool read, uint32_t *ix0,
 			reg_offset =
 				HWIO_REO_R0_DESTINATION_RING_CTRL_IX_0_ADDR(
 						SEQ_WCSS_UMAC_REO_REG_OFFSET);
-			HAL_REG_WRITE(hal, reg_offset, *ix0);
+			HAL_REG_WRITE_CONFIRM(hal, reg_offset, *ix0);
 		}
 
 		if (ix1) {
