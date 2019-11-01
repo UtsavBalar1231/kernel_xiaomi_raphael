@@ -1675,6 +1675,10 @@ static int DWC_ETH_QOS_configure_netdevice(struct platform_device *pdev)
 	dev->dev_addr[4] = dev_addr[4];
 	dev->dev_addr[5] = dev_addr[5];
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+	dev->max_mtu = DWC_ETH_QOS_MAX_SUPPORTED_MTU;
+#endif
+
 	/* IEMAC TODO: Register base address
 	 * dev->base_addr = dwc_eth_qos_base_addr;
 	 */
