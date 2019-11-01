@@ -12382,6 +12382,7 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_roam_auth_offload_event_id] =
 				WMI_ROAM_PREAUTH_START_EVENTID;
 	event_ids[wmi_get_elna_bypass_event_id] = WMI_GET_ELNA_BYPASS_EVENTID;
+	event_ids[wmi_oem_data_event_id] = WMI_OEM_DATA_EVENTID;
 }
 
 /**
