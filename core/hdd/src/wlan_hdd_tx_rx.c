@@ -2728,6 +2728,7 @@ void hdd_print_netdev_txq_status(struct net_device *dev)
 int hdd_set_mon_rx_cb(struct net_device *dev)
 {
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	struct hdd_context *hdd_ctx =  WLAN_HDD_GET_CTX(adapter);
 	int ret;
 	QDF_STATUS qdf_status;
 	struct ol_txrx_desc_type sta_desc = {0};
@@ -2750,6 +2751,14 @@ int hdd_set_mon_rx_cb(struct net_device *dev)
 		hdd_err("cdp_peer_register() failed to register. Status= %d [0x%08X]",
 			qdf_status, qdf_status);
 		goto exit;
+	}
+
+	qdf_status = sme_create_mon_session(hdd_ctx->mac_handle,
+					    adapter->mac_addr.bytes,
+					    adapter->vdev_id);
+	if (QDF_STATUS_SUCCESS != qdf_status) {
+		hdd_err("sme_create_mon_session() failed to register. Status= %d [0x%08X]",
+			qdf_status, qdf_status);
 	}
 
 exit:
