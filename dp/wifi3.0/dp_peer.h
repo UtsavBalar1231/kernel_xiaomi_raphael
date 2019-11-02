@@ -210,4 +210,15 @@ void
 dp_peer_update_inactive_time(struct dp_pdev *pdev, uint32_t tag_type,
 			     uint32_t *tag_buf);
 
+/*
+ * dp_rx_tid_delete_cb() - Callback to flush reo descriptor HW cache
+ * after deleting the entries (ie., setting valid=0)
+ *
+ * @soc: DP SOC handle
+ * @cb_ctxt: Callback context
+ * @reo_status: REO command status
+ */
+void dp_rx_tid_delete_cb(struct dp_soc *soc,
+			 void *cb_ctxt,
+			 union hal_reo_status *reo_status);
 #endif /* _DP_PEER_H_ */
