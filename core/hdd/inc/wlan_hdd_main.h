@@ -1143,6 +1143,7 @@ struct hdd_context;
  * @vdev_lock: lock to protect vdev context access
  * @vdev_id: Unique identifier assigned to the vdev
  * @event_flags: a bitmap of hdd_adapter_flags
+ * @latency_level: 0 - normal, 1 - moderate, 2 - low, 3 - ultralow
  */
 struct hdd_adapter {
 	/* Magic cookie for adapter sanity verification.  Note that this
@@ -1376,6 +1377,7 @@ struct hdd_adapter {
 	uint32_t track_dest_ipv4;
 	uint32_t mon_chan;
 	uint32_t mon_bandwidth;
+	uint16_t latency_level;
 
 	/* rcpi information */
 	struct rcpi_info rcpi;
