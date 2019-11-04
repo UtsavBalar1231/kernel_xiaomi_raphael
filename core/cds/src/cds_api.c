@@ -759,8 +759,6 @@ QDF_STATUS cds_dp_open(struct wlan_objmgr_psoc *psoc)
 	QDF_STATUS qdf_status;
 	struct dp_txrx_config dp_config;
 
-	cdp_set_intr_mode(cds_get_context(QDF_MODULE_ID_SOC));
-
 	cds_set_context(QDF_MODULE_ID_TXRX,
 		cdp_pdev_attach(cds_get_context(QDF_MODULE_ID_SOC),
 			(struct cdp_ctrl_objmgr_pdev *)gp_cds_context->cfg_ctx,
