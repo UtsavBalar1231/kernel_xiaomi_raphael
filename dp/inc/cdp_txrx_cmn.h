@@ -1671,26 +1671,6 @@ int cdp_txrx_stats_request(ol_txrx_soc_handle soc, struct cdp_vdev *vdev,
 }
 
 /**
- * cdp_set_intr_mode() - set interrupt mode flag in soc.
- * soc: soc handle
- */
-static inline void cdp_set_intr_mode(ol_txrx_soc_handle soc)
-{
-	if (!soc || !soc->ops) {
-		QDF_TRACE(QDF_MODULE_ID_CDP, QDF_TRACE_LEVEL_DEBUG,
-			  "%s: Invalid Instance:", __func__);
-		QDF_BUG(0);
-		return;
-	}
-
-	if (!soc->ops->cmn_drv_ops ||
-	    !soc->ops->cmn_drv_ops->set_intr_mode)
-		return;
-
-	return soc->ops->cmn_drv_ops->set_intr_mode(soc);
-}
-
-/**
  * cdp_txrx_intr_attach(): function to attach and configure interrupt
  * @soc: soc handle
  */
