@@ -228,6 +228,15 @@ extern bool initcall_debug;
 #define late_initcall(fn)		__define_initcall(fn, 7)
 #define late_initcall_sync(fn)		__define_initcall(fn, 7s)
 
+extern initcall_t __early0_initcall_start[];
+extern initcall_t __early1_initcall_start[];
+extern initcall_t __early2_initcall_start[];
+extern initcall_t __early3_initcall_start[];
+extern initcall_t __early4_initcall_start[];
+extern initcall_t __early5_initcall_start[];
+extern initcall_t __early6_initcall_start[];
+extern initcall_t __early7_initcall_start[];
+extern initcall_t __early_initcall_end[];
 extern bool is_early_userspace;
 
 #define early_initcall_type(type, fn, subsys, level) \

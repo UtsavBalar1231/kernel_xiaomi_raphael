@@ -837,13 +837,15 @@ static int __driver_attach(struct device *dev, void *data)
 		return ret;
 	} /* ret > 0 means positive match */
 
-	if (lock_parent(dev))	/* Needed for USB */
+	if (!(is_early_userspace && (dev->bus == &platform_bus_type))
+		&& lock_parent(dev))	/* Needed for USB */
 		device_lock(dev->parent);
 	device_lock(dev);
 	if (!dev->driver)
 		driver_probe_device(drv, dev);
 	device_unlock(dev);
-	if (lock_parent(dev))
+	if (!(is_early_userspace && (dev->bus == &platform_bus_type))
+		&& lock_parent(dev))
 		device_unlock(dev->parent);
 
 	return 0;
