@@ -237,7 +237,8 @@ enum policy_mgr_conc_next_action policy_mgr_need_opportunistic_upgrade(
 		} else if ((pm_conc_connection_list[conn_index].mac == 1) &&
 			pm_conc_connection_list[conn_index].in_use) {
 			mac |= POLICY_MGR_MAC1;
-			if (policy_mgr_is_hw_dbs_2x2_capable(psoc) &&
+			if (policy_mgr_is_hw_dbs_required_for_band(
+					psoc, HW_MODE_MAC_BAND_2G) &&
 			    WLAN_REG_IS_24GHZ_CH(
 				    pm_conc_connection_list[conn_index].chan)
 			    ) {
@@ -519,7 +520,7 @@ bool policy_mgr_is_hwmode_set_for_given_chnl(struct wlan_objmgr_psoc *psoc,
 					     uint8_t channel)
 {
 	enum policy_mgr_band band;
-	bool is_hwmode_dbs, is_2x2_dbs;
+	bool is_hwmode_dbs, dbs_required_for_2g;
 
 	if (policy_mgr_is_hw_dbs_capable(psoc) == false)
 		return true;
@@ -530,12 +531,14 @@ bool policy_mgr_is_hwmode_set_for_given_chnl(struct wlan_objmgr_psoc *psoc,
 		band = POLICY_MGR_BAND_5;
 
 	is_hwmode_dbs = policy_mgr_is_current_hwmode_dbs(psoc);
-	is_2x2_dbs = policy_mgr_is_hw_dbs_2x2_capable(psoc);
+	dbs_required_for_2g = policy_mgr_is_hw_dbs_required_for_band(
+					psoc, HW_MODE_MAC_BAND_2G);
 	/*
 	 * If HW supports 2x2 chains in DBS HW mode and if DBS HW mode is not
 	 * yet set then this is the right time to block the connection.
 	 */
-	if ((band == POLICY_MGR_BAND_24) && is_2x2_dbs && !is_hwmode_dbs) {
+	if (band == POLICY_MGR_BAND_24 && dbs_required_for_2g &&
+	    !is_hwmode_dbs) {
 		policy_mgr_err("HW mode is not yet in DBS!!!!!");
 		return false;
 	}
@@ -819,7 +822,8 @@ policy_mgr_get_next_action(struct wlan_objmgr_psoc *psoc,
 	switch (num_connections) {
 	case 0:
 		if (band == POLICY_MGR_BAND_24)
-			if (policy_mgr_is_hw_dbs_2x2_capable(psoc))
+			if (policy_mgr_is_hw_dbs_required_for_band(
+					psoc, HW_MODE_MAC_BAND_2G))
 				*next_action = PM_DBS;
 			else
 				*next_action = PM_NOP;
@@ -2249,7 +2253,9 @@ QDF_STATUS policy_mgr_check_and_set_hw_mode_for_channel_switch(
 	}
 
 	if (!policy_mgr_is_hw_dbs_capable(psoc) ||
-	    !policy_mgr_is_hw_dbs_2x2_capable(psoc)) {
+	    (!policy_mgr_is_hw_dbs_2x2_capable(psoc) &&
+	    !policy_mgr_is_hw_dbs_required_for_band(
+					psoc, HW_MODE_MAC_BAND_2G))) {
 		policy_mgr_err("2x2 DBS is not enabled");
 		return QDF_STATUS_E_NOSUPPORT;
 	}
@@ -2335,10 +2341,11 @@ void policy_mgr_checkn_update_hw_mode_single_mac_mode(
 				policy_mgr_debug("DBS required");
 				return;
 			}
-			if (policy_mgr_is_hw_dbs_2x2_capable(psoc) &&
+			if (policy_mgr_is_hw_dbs_required_for_band(
+					psoc, HW_MODE_MAC_BAND_2G) &&
 			    (WLAN_REG_IS_24GHZ_CH(channel) ||
-			    WLAN_REG_IS_24GHZ_CH
-				(pm_conc_connection_list[i].chan))) {
+			    WLAN_REG_IS_24GHZ_CH(
+					pm_conc_connection_list[i].chan))) {
 				qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
 				policy_mgr_debug("DBS required");
 				return;
