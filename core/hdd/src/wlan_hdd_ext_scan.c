@@ -2392,10 +2392,6 @@ __wlan_hdd_cfg80211_extscan_get_valid_channels(struct wiphy *wiphy,
 	if (0 != ret)
 		return -EINVAL;
 
-	if (!ucfg_extscan_get_enable(hdd_ctx->psoc)) {
-		hdd_err("extscan not supported");
-		return -ENOTSUPP;
-	}
 	if (wlan_cfg80211_nla_parse(tb,
 			   QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
 			   data, data_len, wlan_hdd_extscan_config_policy)) {
