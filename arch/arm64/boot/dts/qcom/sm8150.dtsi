@@ -791,6 +791,12 @@
 	};
 };
 
+&soc {
+	early_devices: early-devices {
+		compatible = "qcom,early-devices";
+	};
+};
+
 #include "sm8150-gdsc.dtsi"
 
 #include "sm8150-sde-pll.dtsi"
