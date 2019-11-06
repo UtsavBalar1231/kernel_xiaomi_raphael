@@ -3141,6 +3141,8 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		hdd_register_policy_manager_callback(
 			hdd_ctx->psoc);
 
+		hdd_spectral_register_to_dbr(hdd_ctx);
+
 		hdd_sysfs_create_driver_root_obj();
 		hdd_sysfs_create_version_interface(hdd_ctx->psoc);
 		hdd_sysfs_create_powerstats_interface();
