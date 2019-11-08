@@ -2885,6 +2885,14 @@ struct mawc_params {
 	uint8_t mawc_roam_rssi_low_adjust;
 };
 
+/**
+ * struct roam_sync_timeout_timer_info - Info related to roam sync timer
+ * @vdev_id: Vdev id for which host waiting roam sync ind from fw
+ */
+struct roam_sync_timeout_timer_info {
+	uint8_t vdev_id;
+};
+
 typedef struct sSirRoamOffloadScanReq {
 	uint16_t message_type;
 	uint16_t length;
@@ -2970,6 +2978,7 @@ typedef struct sSirRoamOffloadScanReq {
 	bool bss_load_trig_enabled;
 	struct wmi_bss_load_config bss_load_config;
 	bool roaming_scan_policy;
+	uint32_t full_roam_scan_period;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {
