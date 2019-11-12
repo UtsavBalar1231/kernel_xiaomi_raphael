@@ -330,7 +330,7 @@ static int vendor_id_get(struct snd_kcontrol *kcontrol,
 		ucontrol->value.integer.value[0] = VENDOR_ID_NONE;
 
 		if (pTAS2557->spk_id_gpio_p)
-			ucontrol->value.integer.value[0] = spk_id_get(pTAS2557->spk_id_gpio_p);
+			ucontrol->value.integer.value[0] = tas2557_spk_id_get(pTAS2557->spk_id_gpio_p);
 
 		return 0;
 }
