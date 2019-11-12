@@ -215,7 +215,7 @@ static int vendor_id_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[0] = VENDOR_ID_NONE;
 
 	if (cs35l41->pdata.spk_id_gpio_p)
-		ucontrol->value.integer.value[0] = spk_id_get(cs35l41->pdata.spk_id_gpio_p);
+		ucontrol->value.integer.value[0] = cs35l41_spk_id_get(cs35l41->pdata.spk_id_gpio_p);
 
 	return 0;
 }
@@ -1646,7 +1646,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs35l41 = {
 	.idle_bias_off = true,
 };
 
-int spk_id_get(struct device_node *np)
+int cs35l41_spk_id_get(struct device_node *np)
 {
 	int id;
 	int state;
@@ -1742,7 +1742,7 @@ static int cs35l41_handle_of_data(struct device *dev,
 		"cirrus,spk-id-pin", np->full_name);
 		pdata->mnSpkType = VENDOR_ID_NONE;
 	} else {
-		pdata->mnSpkType = spk_id_get(pdata->spk_id_gpio_p);
+		pdata->mnSpkType = cs35l41_spk_id_get(pdata->spk_id_gpio_p);
 	}
 	dev_info(dev, "spk is is %d", pdata->mnSpkType);
 
