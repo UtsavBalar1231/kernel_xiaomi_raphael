@@ -745,7 +745,9 @@ qdf_nbuf_t dp_tx_send_ipa_data_frame(struct cdp_vdev *vdev, qdf_nbuf_t skb)
  *
  * Set all RX packet route to IPA REO ring
  * Program Destination_Ring_Ctrl_IX_0 REO register to point IPA REO ring
- * Return: none
+ *
+ * Return: QDF_STATUS_SUCCESS in case of success
+ *         QDF error code in failure cases
  */
 QDF_STATUS dp_ipa_enable_autonomy(struct cdp_pdev *ppdev)
 {
@@ -756,6 +758,9 @@ QDF_STATUS dp_ipa_enable_autonomy(struct cdp_pdev *ppdev)
 
 	if (!wlan_cfg_is_ipa_enabled(soc->wlan_cfg_ctx))
 		return QDF_STATUS_SUCCESS;
+
+	if (!hif_is_target_ready(HIF_GET_SOFTC(soc->hif_handle)))
+		return QDF_STATUS_E_AGAIN;
 
 	/* Call HAL API to remap REO rings to REO2IPA ring */
 	ix0 = HAL_REO_REMAP_VAL(REO_REMAP_TCL, REO_REMAP_TCL) |
@@ -789,7 +794,9 @@ QDF_STATUS dp_ipa_enable_autonomy(struct cdp_pdev *ppdev)
  *
  * Disable RX packet routing to IPA REO
  * Program Destination_Ring_Ctrl_IX_0 REO register to disable
- * Return: none
+ *
+ * Return: QDF_STATUS_SUCCESS in case of success
+ *         QDF error code in failure cases
  */
 QDF_STATUS dp_ipa_disable_autonomy(struct cdp_pdev *ppdev)
 {
@@ -801,6 +808,9 @@ QDF_STATUS dp_ipa_disable_autonomy(struct cdp_pdev *ppdev)
 
 	if (!wlan_cfg_is_ipa_enabled(soc->wlan_cfg_ctx))
 		return QDF_STATUS_SUCCESS;
+
+	if (!hif_is_target_ready(HIF_GET_SOFTC(soc->hif_handle)))
+		return QDF_STATUS_E_AGAIN;
 
 	/* Call HAL API to remap REO rings to REO2IPA ring */
 	ix0 = HAL_REO_REMAP_VAL(REO_REMAP_TCL, REO_REMAP_TCL) |
