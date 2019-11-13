@@ -1012,9 +1012,14 @@ struct cdp_misc_ops {
 	uint16_t (*get_vdev_id)(struct cdp_vdev *vdev);
 	uint32_t (*get_tx_ack_stats)(struct cdp_pdev *pdev, uint8_t vdev_id);
 	QDF_STATUS (*set_wisa_mode)(struct cdp_vdev *vdev, bool enable);
-	QDF_STATUS (*txrx_data_stall_cb_register)(data_stall_detect_cb cb);
-	QDF_STATUS (*txrx_data_stall_cb_deregister)(data_stall_detect_cb cb);
+	QDF_STATUS (*txrx_data_stall_cb_register)(
+			struct cdp_pdev *pdev,
+			data_stall_detect_cb cb);
+	QDF_STATUS (*txrx_data_stall_cb_deregister)(
+			struct cdp_pdev *pdev,
+			data_stall_detect_cb cb);
 	void (*txrx_post_data_stall_event)(
+			struct cdp_pdev *pdev,
 			enum data_stall_log_event_indicator indicator,
 			enum data_stall_log_event_type data_stall_type,
 			uint32_t pdev_id, uint32_t vdev_id_bitmap,

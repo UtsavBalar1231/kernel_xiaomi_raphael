@@ -9296,6 +9296,94 @@ static uint32_t dp_tx_get_success_ack_stats(struct cdp_pdev *pdev,
 	return tx_success;
 }
 
+#ifdef WLAN_SUPPORT_DATA_STALL
+/**
+ * dp_register_data_stall_detect_cb() - register data stall callback
+ * @opaque_pdev: DP pdev context
+ * @data_stall_detect_callback: data stall callback function
+ *
+ * Return: QDF_STATUS Enumeration
+ */
+static QDF_STATUS dp_register_data_stall_detect_cb(
+				struct cdp_pdev *opaque_pdev,
+				data_stall_detect_cb data_stall_detect_callback)
+{
+	struct dp_pdev *pdev = (struct dp_pdev *)opaque_pdev;
+
+	if (!pdev) {
+		dp_err("pdev NULL!");
+		return QDF_STATUS_E_INVAL;
+	}
+	pdev->data_stall_detect_callback = data_stall_detect_callback;
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * dp_deregister_data_stall_detect_cb() - de-register data stall callback
+ * @opaque_pdev: DP pdev context
+ * @data_stall_detect_callback: data stall callback function
+ *
+ * Return: QDF_STATUS Enumeration
+ */
+static QDF_STATUS dp_deregister_data_stall_detect_cb(
+				struct cdp_pdev *opaque_pdev,
+				data_stall_detect_cb data_stall_detect_callback)
+{
+	struct dp_pdev *pdev = (struct dp_pdev *)opaque_pdev;
+
+	if (!pdev) {
+		dp_err("pdev NULL!");
+		return QDF_STATUS_E_INVAL;
+	}
+	pdev->data_stall_detect_callback = NULL;
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * dp_txrx_post_data_stall_event() - post data stall event
+ * @opaque_pdev: DP pdev context
+ * @indicator: Module triggering data stall
+ * @data_stall_type: data stall event type
+ * @pdev_id: pdev id
+ * @vdev_id_bitmap: vdev id bitmap
+ * @recovery_type: data stall recovery type
+ *
+ * Return: None
+ */
+static void dp_txrx_post_data_stall_event(
+				struct cdp_pdev *opaque_pdev,
+				enum data_stall_log_event_indicator indicator,
+				enum data_stall_log_event_type data_stall_type,
+				uint32_t pdev_id, uint32_t vdev_id_bitmap,
+				enum data_stall_log_recovery_type recovery_type)
+{
+	struct data_stall_event_info data_stall_info;
+	struct dp_pdev *pdev;
+
+	pdev = (struct dp_pdev *)opaque_pdev;
+	if (!pdev) {
+		dp_err("pdev NULL!");
+		return;
+	}
+
+	if (!pdev->data_stall_detect_callback) {
+		dp_err("data stall cb not registered!");
+		return;
+	}
+
+	dp_info("data_stall_type: %x pdev_id: %d",
+		data_stall_type, pdev_id);
+
+	data_stall_info.indicator = indicator;
+	data_stall_info.data_stall_type = data_stall_type;
+	data_stall_info.vdev_id_bitmap = vdev_id_bitmap;
+	data_stall_info.pdev_id = pdev_id;
+	data_stall_info.recovery_type = recovery_type;
+
+	pdev->data_stall_detect_callback(&data_stall_info);
+}
+#endif /* WLAN_SUPPORT_DATA_STALL */
+
 #ifndef CONFIG_WIN
 static struct cdp_misc_ops dp_ops_misc = {
 #ifdef FEATURE_WLAN_TDLS
@@ -9310,6 +9398,11 @@ static struct cdp_misc_ops dp_ops_misc = {
 	.pkt_log_con_service = dp_pkt_log_con_service,
 	.get_num_rx_contexts = dp_get_num_rx_contexts,
 	.get_tx_ack_stats = dp_tx_get_success_ack_stats,
+#ifdef WLAN_SUPPORT_DATA_STALL
+	.txrx_data_stall_cb_register = dp_register_data_stall_detect_cb,
+	.txrx_data_stall_cb_deregister = dp_deregister_data_stall_detect_cb,
+	.txrx_post_data_stall_event = dp_txrx_post_data_stall_event,
+#endif
 };
 
 static struct cdp_flowctl_ops dp_ops_flowctl = {

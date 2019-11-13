@@ -115,11 +115,13 @@ cdp_set_wisa_mode(ol_txrx_soc_handle soc, struct cdp_vdev *vdev, bool enable)
 /**
  * cdp_data_stall_cb_register() - register data stall callback
  * @soc - data path soc handle
+ * @pdev - device instance pointer
  * @cb - callback function
  *
  * Return: QDF_STATUS_SUCCESS register success
  */
 static inline QDF_STATUS cdp_data_stall_cb_register(ol_txrx_soc_handle soc,
+						    struct cdp_pdev *pdev,
 						    data_stall_detect_cb cb)
 {
 	if (!soc || !soc->ops || !soc->ops->misc_ops) {
@@ -129,18 +131,22 @@ static inline QDF_STATUS cdp_data_stall_cb_register(ol_txrx_soc_handle soc,
 	}
 
 	if (soc->ops->misc_ops->txrx_data_stall_cb_register)
-		return soc->ops->misc_ops->txrx_data_stall_cb_register(cb);
+		return soc->ops->misc_ops->txrx_data_stall_cb_register(
+								pdev,
+								cb);
 	return QDF_STATUS_SUCCESS;
 }
 
 /**
  * cdp_data_stall_cb_deregister() - de-register data stall callback
  * @soc - data path soc handle
+ * @pdev - device instance pointer
  * @cb - callback function
  *
  * Return: QDF_STATUS_SUCCESS de-register success
  */
 static inline QDF_STATUS cdp_data_stall_cb_deregister(ol_txrx_soc_handle soc,
+						      struct cdp_pdev *pdev,
 						      data_stall_detect_cb cb)
 {
 	if (!soc || !soc->ops || !soc->ops->misc_ops) {
@@ -150,13 +156,16 @@ static inline QDF_STATUS cdp_data_stall_cb_deregister(ol_txrx_soc_handle soc,
 	}
 
 	if (soc->ops->misc_ops->txrx_data_stall_cb_deregister)
-		return soc->ops->misc_ops->txrx_data_stall_cb_deregister(cb);
+		return soc->ops->misc_ops->txrx_data_stall_cb_deregister(
+								pdev,
+								cb);
 	return QDF_STATUS_SUCCESS;
 }
 
 /**
  * cdp_post_data_stall_event() - post data stall event
  * @soc - data path soc handle
+ * @pdev - device instance pointer
  * @indicator: Module triggering data stall
  * @data_stall_type: data stall event type
  * @pdev_id: pdev id
@@ -167,6 +176,7 @@ static inline QDF_STATUS cdp_data_stall_cb_deregister(ol_txrx_soc_handle soc,
  */
 static inline void
 cdp_post_data_stall_event(ol_txrx_soc_handle soc,
+			  struct cdp_pdev *pdev,
 			  enum data_stall_log_event_indicator indicator,
 			  enum data_stall_log_event_type data_stall_type,
 			  uint32_t pdev_id, uint32_t vdev_id_bitmap,
@@ -184,6 +194,7 @@ cdp_post_data_stall_event(ol_txrx_soc_handle soc,
 		return;
 
 	soc->ops->misc_ops->txrx_post_data_stall_event(
+				pdev,
 				indicator, data_stall_type, pdev_id,
 				vdev_id_bitmap, recovery_type);
 }

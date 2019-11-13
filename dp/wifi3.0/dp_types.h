@@ -1669,6 +1669,10 @@ struct dp_pdev {
 	uint64_t tx_ppdu_proc;
 
 	uint32_t *ppdu_tlv_buf; /* Buffer to hold HTT ppdu stats TLVs*/
+
+#ifdef WLAN_SUPPORT_DATA_STALL
+	data_stall_detect_cb data_stall_detect_callback;
+#endif /* WLAN_SUPPORT_DATA_STALL */
 };
 
 struct dp_peer;
