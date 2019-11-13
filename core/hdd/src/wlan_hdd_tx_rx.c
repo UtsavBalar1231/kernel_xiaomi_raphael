@@ -1284,6 +1284,7 @@ static void __hdd_tx_timeout(struct net_device *dev)
 		adapter->hdd_stats.tx_rx_stats.cont_txtimeout_cnt = 0;
 		if (cdp_cfg_get(soc, cfg_dp_enable_data_stall))
 			cdp_post_data_stall_event(soc,
+					  cds_get_context(QDF_MODULE_ID_TXRX),
 					  DATA_STALL_LOG_INDICATOR_HOST_DRIVER,
 					  DATA_STALL_LOG_HOST_STA_TX_TIMEOUT,
 					  0xFF, 0xFF,

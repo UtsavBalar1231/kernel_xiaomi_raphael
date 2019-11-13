@@ -5026,15 +5026,17 @@ static void ol_deregister_offld_flush_cb(void)
 
 /**
  * ol_register_data_stall_detect_cb() - register data stall callback
+ * @opaque_pdev: dev handle
  * @data_stall_detect_callback: data stall callback function
  *
  *
  * Return: QDF_STATUS Enumeration
  */
 static QDF_STATUS ol_register_data_stall_detect_cb(
+				struct cdp_pdev *opaque_pdev,
 				data_stall_detect_cb data_stall_detect_callback)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)opaque_pdev;
 
 	if (!pdev) {
 		ol_txrx_err("pdev NULL!");
@@ -5046,15 +5048,17 @@ static QDF_STATUS ol_register_data_stall_detect_cb(
 
 /**
  * ol_deregister_data_stall_detect_cb() - de-register data stall callback
+ * @opaque_pdev: dev handle
  * @data_stall_detect_callback: data stall callback function
  *
  *
  * Return: QDF_STATUS Enumeration
  */
 static QDF_STATUS ol_deregister_data_stall_detect_cb(
+				struct cdp_pdev *opaque_pdev,
 				data_stall_detect_cb data_stall_detect_callback)
 {
-	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)opaque_pdev;
 
 	if (!pdev) {
 		ol_txrx_err("pdev NULL!");
@@ -5066,6 +5070,7 @@ static QDF_STATUS ol_deregister_data_stall_detect_cb(
 
 /**
  * ol_txrx_post_data_stall_event() - post data stall event
+ * @opaque_pdev: dev handle
  * @indicator: Module triggering data stall
  * @data_stall_type: data stall event type
  * @pdev_id: pdev id
@@ -5075,48 +5080,42 @@ static QDF_STATUS ol_deregister_data_stall_detect_cb(
  * Return: None
  */
 static void ol_txrx_post_data_stall_event(
+				struct cdp_pdev *opaque_pdev,
 				enum data_stall_log_event_indicator indicator,
 				enum data_stall_log_event_type data_stall_type,
 				uint32_t pdev_id, uint32_t vdev_id_bitmap,
 				enum data_stall_log_recovery_type recovery_type)
 {
-	struct scheduler_msg msg = {0};
-	QDF_STATUS status;
-	struct data_stall_event_info *data_stall_info;
-	ol_txrx_pdev_handle pdev;
+	struct data_stall_event_info data_stall_info;
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)opaque_pdev;
 
-	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: pdev is NULL.", __func__);
 		return;
 	}
-	data_stall_info = qdf_mem_malloc(sizeof(*data_stall_info));
-	if (!data_stall_info)
+
+	if (!pdev->data_stall_detect_callback) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%s: data stall cb not registered", __func__);
 		return;
+	}
 
-	data_stall_info->indicator = indicator;
-	data_stall_info->data_stall_type = data_stall_type;
-	data_stall_info->vdev_id_bitmap = vdev_id_bitmap;
-	data_stall_info->pdev_id = pdev_id;
-	data_stall_info->recovery_type = recovery_type;
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
+		  "%s: data_stall_type: %x pdev_id: %d",
+		  __func__, data_stall_type, pdev_id);
 
-	if (data_stall_info->data_stall_type ==
+	data_stall_info.indicator = indicator;
+	data_stall_info.data_stall_type = data_stall_type;
+	data_stall_info.vdev_id_bitmap = vdev_id_bitmap;
+	data_stall_info.pdev_id = pdev_id;
+	data_stall_info.recovery_type = recovery_type;
+
+	if (data_stall_info.data_stall_type ==
 				DATA_STALL_LOG_FW_RX_REFILL_FAILED)
 		htt_log_rx_ring_info(pdev->htt_pdev);
 
-	sys_build_message_header(SYS_MSG_ID_DATA_STALL_MSG, &msg);
-	/* Save callback and data */
-	msg.callback = pdev->data_stall_detect_callback;
-	msg.bodyptr = data_stall_info;
-	msg.bodyval = 0;
-
-	status = scheduler_post_message(QDF_MODULE_ID_TXRX,
-					QDF_MODULE_ID_HDD,
-					QDF_MODULE_ID_SYS, &msg);
-
-	if (status != QDF_STATUS_SUCCESS)
-		qdf_mem_free(data_stall_info);
+	pdev->data_stall_detect_callback(&data_stall_info);
 }
 
 void

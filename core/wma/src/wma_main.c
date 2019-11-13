@@ -2455,6 +2455,7 @@ static int wma_flush_complete_evt_handler(void *handle,
 			  data_stall_event->recovery_type);
 
 		cdp_post_data_stall_event(soc,
+					cds_get_context(QDF_MODULE_ID_TXRX),
 					DATA_STALL_LOG_INDICATOR_FIRMWARE,
 					data_stall_event->data_stall_type,
 					0XFF,
