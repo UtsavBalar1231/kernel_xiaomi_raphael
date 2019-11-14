@@ -2629,8 +2629,11 @@ cppflags-$(CONFIG_WMI_STA_SUPPORT) += -DWMI_STA_SUPPORT
 cppflags-y += -DDP_PRINT_ENABLE=0
 cppflags-y += -DATH_SUPPORT_WRAP=0
 cppflags-y += -DQCA_HOST2FW_RXBUF_RING
-cppflags-y += -DHIF_CE_HISTORY_MAX=8192
 cppflags-y += -DDP_PRINT_NO_CONSOLE
+
+ifdef CONFIG_HIF_LARGE_CE_RING_HISTORY
+ccflags-y += -DHIF_CE_HISTORY_MAX=$(CONFIG_HIF_LARGE_CE_RING_HISTORY)
+endif
 #endof dummy flags
 
 ccflags-$(CONFIG_ENABLE_SIZE_OPTIMIZE) += -Os
