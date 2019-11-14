@@ -662,6 +662,13 @@ void __init prepare_namespace(void)
 	md_run_setup();
 	dm_run_setup();
 
+	// Try to mount partition labeled "system" first
+	ROOT_DEV = name_to_dev_t("PARTLABEL=system");
+	if (ROOT_DEV) {
+		pr_info("system partition found, mounting it directly to /\n");
+		goto mount;
+	}
+
 	if (saved_root_name[0]) {
 		root_device_name = saved_root_name;
 		if (!strncmp(root_device_name, "mtd", 3) ||
@@ -692,6 +699,7 @@ void __init prepare_namespace(void)
 	if (is_floppy && rd_doload && rd_load_disk(0))
 		ROOT_DEV = Root_RAM0;
 
+mount:
 	mount_root();
 out:
 	devtmpfs_mount("dev");
