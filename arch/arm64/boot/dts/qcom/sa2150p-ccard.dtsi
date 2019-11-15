@@ -65,6 +65,10 @@
 	status = "disabled";
 };
 
+&cnss_sdio {
+	status = "disabled";
+};
+
 &spi_6 {
 	status = "okay";
 
@@ -77,9 +81,14 @@
 
 &i2c_5 {
 	status = "okay";
+	qcom,clk-freq-out = <100000>;
 };
 
 &soc {
+	gpio_keys {
+		status = "disabled";
+	};
+
 	vreg_emac_phy: emac_phy_regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "emac_phy";
@@ -110,6 +119,12 @@
 		pinctrl-0 = <&usb2_vbus_det_default
 				&usb2_id_det_default
 				&usb2_vbus_boost_default>;
+	};
+
+	pps {
+		compatible = "pps-gpio";
+		gpios = <&tlmm 96 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 

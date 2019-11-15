@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -208,6 +208,7 @@ int ath10k_htt_init(struct ath10k *ar)
 		return -EINVAL;
 	}
 	ath10k_htt_set_tx_ops(htt);
+	ath10k_htt_set_rx_ops(htt);
 
 	return 0;
 }
