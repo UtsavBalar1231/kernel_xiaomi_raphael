@@ -1400,6 +1400,8 @@ void pld_lock_reg_window(struct device *dev, unsigned long *flags)
 	case PLD_BUS_TYPE_PCIE:
 		pld_pcie_lock_reg_window(dev, flags);
 		break;
+	case PLD_BUS_TYPE_PCIE_FW_SIM:
+	case PLD_BUS_TYPE_SNOC_FW_SIM:
 	case PLD_BUS_TYPE_SNOC:
 		break;
 	case PLD_BUS_TYPE_SDIO:
@@ -1427,6 +1429,8 @@ void pld_unlock_reg_window(struct device *dev, unsigned long *flags)
 	case PLD_BUS_TYPE_PCIE:
 		pld_pcie_unlock_reg_window(dev, flags);
 		break;
+	case PLD_BUS_TYPE_PCIE_FW_SIM:
+	case PLD_BUS_TYPE_SNOC_FW_SIM:
 	case PLD_BUS_TYPE_SNOC:
 		break;
 	case PLD_BUS_TYPE_SDIO:
