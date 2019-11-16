@@ -1520,6 +1520,21 @@ static int wcd938x_codec_enable_adc(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+void wcd938x_disable_bcs_before_slow_insert(struct snd_soc_codec *codec,
+					    bool bcs_disable)
+{
+	struct wcd938x_priv *wcd938x = snd_soc_codec_get_drvdata(codec);
+
+	if (wcd938x->update_wcd_event) {
+		if (bcs_disable)
+			wcd938x->update_wcd_event(wcd938x->handle,
+						WCD_BOLERO_EVT_BCS_CLK_OFF, 0);
+		else
+			wcd938x->update_wcd_event(wcd938x->handle,
+						WCD_BOLERO_EVT_BCS_CLK_OFF, 1);
+	}
+}
+
 int wcd938x_tx_channel_config(struct snd_soc_codec *codec,
 			      int channel, int mode)
 {
@@ -1624,17 +1639,29 @@ static int wcd938x_enable_req(struct snd_soc_dapm_widget *w,
 		switch (w->shift) {
 		case 0:
 			snd_soc_update_bits(codec,
+				WCD938X_DIGITAL_CDC_TX_ANA_MODE_0_1, 0x0F,
+				0x00);
+			snd_soc_update_bits(codec,
 				WCD938X_DIGITAL_CDC_DIG_CLK_CTL, 0x10, 0x00);
 			break;
 		case 1:
+			snd_soc_update_bits(codec,
+				WCD938X_DIGITAL_CDC_TX_ANA_MODE_0_1, 0xF0,
+				0x00);
 			snd_soc_update_bits(codec,
 				WCD938X_DIGITAL_CDC_DIG_CLK_CTL, 0x20, 0x00);
 			break;
 		case 2:
 			snd_soc_update_bits(codec,
+				WCD938X_DIGITAL_CDC_TX_ANA_MODE_2_3, 0x0F,
+				0x00);
+			snd_soc_update_bits(codec,
 				WCD938X_DIGITAL_CDC_DIG_CLK_CTL, 0x40, 0x00);
 			break;
 		case 3:
+			snd_soc_update_bits(codec,
+				WCD938X_DIGITAL_CDC_TX_ANA_MODE_2_3, 0xF0,
+				0x00);
 			snd_soc_update_bits(codec,
 				WCD938X_DIGITAL_CDC_DIG_CLK_CTL, 0x80, 0x00);
 			break;
@@ -2064,8 +2091,6 @@ static int wcd938x_tx_mode_get(struct snd_kcontrol *kcontrol,
 static int wcd938x_tx_mode_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *widget =
-			snd_soc_dapm_kcontrol_widget(kcontrol);
 	struct snd_soc_codec *codec =
 			snd_soc_kcontrol_codec(kcontrol);
 	struct wcd938x_priv *wcd938x = NULL;
@@ -2078,7 +2103,7 @@ static int wcd938x_tx_mode_put(struct snd_kcontrol *kcontrol,
 
 	wcd938x  = snd_soc_codec_get_drvdata(codec);
 
-	if (!widget || !widget->name || !wcd938x)
+	if (!wcd938x)
 		return -EINVAL;
 
 	ret = wcd938x_tx_path_get(kcontrol->id.name, &path);
