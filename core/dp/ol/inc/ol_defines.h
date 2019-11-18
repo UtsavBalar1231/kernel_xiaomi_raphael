@@ -22,6 +22,8 @@
 #ifndef _DEV_OL_DEFINES_H
 #define _DEV_OL_DEFINES_H
 
+#define NORMALIZED_TO_NOISE_FLOOR (-96)
+
  /**
   * ol_txrx_pdev_handle - opaque handle for txrx physical device
   * object
