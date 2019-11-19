@@ -929,6 +929,7 @@ typedef struct tagCsrRoamConnectedProfile {
 	tCsrEncryptionList EncryptionInfo;
 	eCsrEncryptionType mcEncryptionType;
 	tCsrEncryptionList mcEncryptionInfo;
+	uint8_t country_code[WNI_CFG_COUNTRY_CODE_LEN];
 	uint32_t vht_channel_width;
 	tCsrKeys Keys;
 	/*
@@ -1465,6 +1466,7 @@ struct csr_roam_info {
 	struct sir_sae_info *sae_info;
 #endif
 	uint16_t roam_reason;
+	struct wlan_ies *disconnect_ies;
 };
 
 typedef struct tagCsrFreqScanInfo {
