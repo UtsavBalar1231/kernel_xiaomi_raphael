@@ -114,6 +114,7 @@ static const char wlan_cfg[] = {
 	"gIPAConfig=0x7d\n"
 	"gIPADescSize=800\n"
 	"gIPAForceVotingEnable=1\n"
+	"spectral_disable=1\n"
 	"gIPALowBandwidthMbps=100\n"
 	"gIPAMediumBandwidthMbps=400\n"
 	"gIPAHighBandwidthMbps=800\n"
