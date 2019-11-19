@@ -783,6 +783,7 @@ static void msm_geni_serial_console_write(struct console *co, const char *s,
 	bool locked = true;
 	unsigned long flags;
 	unsigned int geni_status;
+	int irq_en;
 
 	WARN_ON(co->index < 0 || co->index >= GENI_UART_NR_PORTS);
 
@@ -811,11 +812,21 @@ static void msm_geni_serial_console_write(struct console *co, const char *s,
 		}
 		writel_relaxed(M_CMD_CANCEL_EN, uport->membase +
 							SE_GENI_M_IRQ_CLEAR);
-	} else if ((geni_status & M_GENI_CMD_ACTIVE) && !port->cur_tx_remaining)
+	} else if ((geni_status & M_GENI_CMD_ACTIVE) &&
+						!port->cur_tx_remaining) {
 		/* It seems we can interrupt existing transfers unless all data
 		 * has been sent, in which case we need to look for done first.
 		 */
 		msm_geni_serial_poll_cancel_tx(uport);
+
+		/* Enable WATERMARK interrupt for every new console write op */
+		if (uart_circ_chars_pending(&uport->state->xmit)) {
+			irq_en = geni_read_reg_nolog(uport->membase,
+						SE_GENI_M_IRQ_EN);
+			geni_write_reg_nolog(irq_en | M_TX_FIFO_WATERMARK_EN,
+					uport->membase, SE_GENI_M_IRQ_EN);
+		}
+	}
 
 	__msm_geni_serial_console_write(uport, s, count);
 
@@ -1347,6 +1358,7 @@ static int msm_geni_serial_handle_tx(struct uart_port *uport, bool done,
 	unsigned int fifo_width_bytes =
 		(uart_console(uport) ? 1 : (msm_port->tx_fifo_width >> 3));
 	int temp_tail = 0;
+	int irq_en;
 
 	tx_fifo_status = geni_read_reg_nolog(uport->membase,
 					SE_GENI_TX_FIFO_STATUS);
@@ -1370,14 +1382,19 @@ static int msm_geni_serial_handle_tx(struct uart_port *uport, bool done,
 		avail_fifo_bytes = 0;
 
 	temp_tail = xmit->tail;
-	xmit_size = min3((unsigned int)pending,
-		(unsigned int)(UART_XMIT_SIZE - temp_tail), avail_fifo_bytes);
+	xmit_size = min(avail_fifo_bytes, pending);
 	if (!xmit_size)
 		goto exit_handle_tx;
 
 	if (!msm_port->cur_tx_remaining) {
 		msm_geni_serial_setup_tx(uport, pending);
 		msm_port->cur_tx_remaining = pending;
+
+		/* Re-Enable WATERMARK interrupt while starting new transfer */
+		irq_en = geni_read_reg_nolog(uport->membase, SE_GENI_M_IRQ_EN);
+		if (!(irq_en & M_TX_FIFO_WATERMARK_EN))
+			geni_write_reg_nolog(irq_en | M_TX_FIFO_WATERMARK_EN,
+					uport->membase, SE_GENI_M_IRQ_EN);
 	}
 
 	bytes_remaining = xmit_size;
@@ -1390,21 +1407,39 @@ static int msm_geni_serial_handle_tx(struct uart_port *uport, bool done,
 		tx_bytes = ((bytes_remaining < fifo_width_bytes) ?
 					bytes_remaining : fifo_width_bytes);
 
-		for (c = 0; c < tx_bytes ; c++)
-			buf |= (xmit->buf[temp_tail + c] << (c * 8));
+		for (c = 0; c < tx_bytes ; c++) {
+			buf |= (xmit->buf[temp_tail++] << (c * 8));
+			temp_tail &= UART_XMIT_SIZE - 1;
+		}
 
 		geni_write_reg_nolog(buf, uport->membase, SE_GENI_TX_FIFOn);
 
 		i += tx_bytes;
 		bytes_remaining -= tx_bytes;
 		uport->icount.tx += tx_bytes;
-		temp_tail += tx_bytes;
 		msm_port->cur_tx_remaining -= tx_bytes;
 		/* Ensure FIFO write goes through */
 		wmb();
 	}
-	xmit->tail = temp_tail & (UART_XMIT_SIZE - 1);
+	xmit->tail = temp_tail;
+
+	/*
+	 * The tx fifo watermark is level triggered and latched. Though we had
+	 * cleared it in qcom_geni_serial_isr it will have already reasserted
+	 * so we must clear it again here after our writes.
+	 */
+	geni_write_reg_nolog(M_TX_FIFO_WATERMARK_EN, uport->membase,
+						SE_GENI_M_IRQ_CLEAR);
+
 exit_handle_tx:
+	if (!msm_port->cur_tx_remaining) {
+		/* Clear WATERMARK interrupt for each transfer completion */
+		irq_en = geni_read_reg_nolog(uport->membase, SE_GENI_M_IRQ_EN);
+		if (irq_en & M_TX_FIFO_WATERMARK_EN)
+			geni_write_reg_nolog(irq_en & ~M_TX_FIFO_WATERMARK_EN,
+					uport->membase, SE_GENI_M_IRQ_EN);
+	}
+
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(uport);
 	return ret;
@@ -1542,7 +1577,7 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 
 	if (!dma) {
 		if ((m_irq_status & m_irq_en) &
-		    (M_TX_FIFO_WATERMARK_EN | M_CMD_DONE_EN))
+			(M_TX_FIFO_WATERMARK_EN | M_CMD_DONE_EN))
 			msm_geni_serial_handle_tx(uport,
 					m_irq_status & M_CMD_DONE_EN,
 					geni_status & M_GENI_CMD_ACTIVE);
@@ -1686,6 +1721,7 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 {
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
 	unsigned long flags;
+	int ret;
 
 	if (!uart_console(uport)) {
 		msm_geni_serial_power_on(uport);
@@ -1711,7 +1747,13 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 			}
 			msm_port->ioctl_count = 0;
 		}
-		msm_geni_serial_power_off(uport);
+
+		ret = pm_runtime_put_sync_suspend(uport->dev);
+		if (ret) {
+			IPC_LOG_MSG(msm_port->ipc_log_pwr,
+			"%s: Failed to suspend:%d\n", __func__, ret);
+		}
+
 		if (msm_port->wakeup_irq > 0) {
 			irq_set_irq_wake(msm_port->wakeup_irq, 0);
 			disable_irq(msm_port->wakeup_irq);
@@ -1952,13 +1994,13 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 							__func__, ret);
 			return;
 		}
+		disable_irq(uport->irq);
+		msm_geni_serial_set_manual_flow(false, port);
 	}
 	/* Take a spinlock else stop_rx causes a race with an ISR due to Cancel
 	 * and FSM_RESET. This also has a potential race with the dma_map/unmap
 	 * operations of ISR.
 	 */
-	disable_irq(uport->irq);
-	msm_geni_serial_set_manual_flow(false, port);
 	spin_lock_irqsave(&uport->lock, flags);
 	msm_geni_serial_stop_rx(uport);
 	spin_unlock_irqrestore(&uport->lock, flags);
@@ -2062,8 +2104,10 @@ static void msm_geni_serial_set_termios(struct uart_port *uport,
 	IPC_LOG_MSG(port->ipc_log_misc, "BitsChar%d stop bit%d\n",
 				bits_per_char, stop_bit_len);
 exit_set_termios:
-	msm_geni_serial_set_manual_flow(true, port);
-	enable_irq(uport->irq);
+	if (!uart_console(uport)) {
+		msm_geni_serial_set_manual_flow(true, port);
+		enable_irq(uport->irq);
+	}
 	msm_geni_serial_start_rx(uport);
 	if (!uart_console(uport))
 		msm_geni_serial_power_off(uport);

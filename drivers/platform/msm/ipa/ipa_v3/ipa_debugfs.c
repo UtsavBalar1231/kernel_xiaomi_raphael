@@ -88,6 +88,7 @@ const char *ipa3_hdr_l2_type_name[] = {
 	__stringify(IPA_HDR_L2_NONE),
 	__stringify(IPA_HDR_L2_ETHERNET_II),
 	__stringify(IPA_HDR_L2_802_3),
+	__stringify(IPA_HDR_L2_802_1Q),
 };
 
 const char *ipa3_hdr_proc_type_name[] = {
@@ -98,10 +99,11 @@ const char *ipa3_hdr_proc_type_name[] = {
 	__stringify(IPA_HDR_PROC_802_3_TO_802_3),
 	__stringify(IPA_HDR_PROC_L2TP_HEADER_ADD),
 	__stringify(IPA_HDR_PROC_L2TP_HEADER_REMOVE),
+	__stringify(IPA_HDR_PROC_ETHII_TO_ETHII_EX),
 };
 
 static struct dentry *dent;
-static char dbg_buff[IPA_MAX_MSG_LEN];
+static char dbg_buff[IPA_MAX_MSG_LEN + 1];
 static char *active_clients_buf;
 
 static s8 ep_reg_idx;
@@ -562,6 +564,9 @@ static int ipa3_attrib_dump(struct ipa_rule_attrib *attrib,
 
 	if (attrib->attrib_mask & IPA_FLT_MAC_ETHER_TYPE)
 		pr_err("ether_type:%x ", attrib->ether_type);
+
+	if (attrib->attrib_mask & IPA_FLT_VLAN_ID)
+		pr_err("vlan_id:%x ", attrib->vlan_id);
 
 	if (attrib->attrib_mask & IPA_FLT_TCP_SYN)
 		pr_err("tcp syn ");
@@ -1208,6 +1213,26 @@ static ssize_t ipa3_read_odlstats(struct file *file, char __user *ubuf,
 	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
 }
 
+static ssize_t ipa3_read_page_recycle_stats(struct file *file,
+		char __user *ubuf, size_t count, loff_t *ppos)
+{
+	int nbytes;
+	int cnt = 0;
+
+	nbytes = scnprintf(dbg_buff, IPA_MAX_MSG_LEN,
+			"COAL : Total number of packets replenished =%llu\n"
+			"COAL : Number of tmp alloc packets  =%llu\n"
+			"DEF  : Total number of packets replenished =%llu\n"
+			"DEF  : Number of tmp alloc packets  =%llu\n",
+			ipa3_ctx->stats.page_recycle_stats[0].total_replenished,
+			ipa3_ctx->stats.page_recycle_stats[0].tmp_alloc,
+			ipa3_ctx->stats.page_recycle_stats[1].total_replenished,
+			ipa3_ctx->stats.page_recycle_stats[1].tmp_alloc);
+
+	cnt += nbytes;
+
+	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+}
 static ssize_t ipa3_read_wstats(struct file *file, char __user *ubuf,
 		size_t count, loff_t *ppos)
 {
@@ -2497,6 +2522,10 @@ static const struct ipa3_debugfs_file debugfs_files[] = {
 	}, {
 		"odlstats", IPA_READ_ONLY_MODE, NULL, {
 			.read = ipa3_read_odlstats,
+		}
+	}, {
+		"page_recycle_stats", IPA_READ_ONLY_MODE, NULL, {
+			.read = ipa3_read_page_recycle_stats,
 		}
 	}, {
 		"wdi", IPA_READ_ONLY_MODE, NULL, {

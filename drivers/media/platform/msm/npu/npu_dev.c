@@ -23,6 +23,7 @@
 #include <linux/of_platform.h>
 #include <linux/poll.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sizes.h>
 #include <linux/thermal.h>
 #include <linux/soc/qcom/llcc-qcom.h>
 #include <linux/soc/qcom/cdsprm_cxlimit.h>
@@ -37,8 +38,8 @@
  */
 #define CLASS_NAME              "npu"
 #define DRIVER_NAME             "msm_npu"
-#define DDR_MAPPED_START_ADDR   0x80000000
-#define DDR_MAPPED_SIZE         0x60000000
+#define DDR_MAPPED_START_ADDR   0x00000000
+#define DDR_MAPPED_SIZE         (SZ_1G * 4ULL)
 
 #define MBOX_OP_TIMEOUTMS 1000
 
@@ -631,17 +632,18 @@ int npu_enable_core_power(struct npu_device *npu_dev)
 	if (!pwr->pwr_vote_num) {
 		ret = npu_enable_regulators(npu_dev);
 		if (ret)
-			return ret;
+			goto fail;
 
 		ret = npu_enable_core_clocks(npu_dev);
 		if (ret) {
 			npu_disable_regulators(npu_dev);
 			pwr->pwr_vote_num = 0;
-			return ret;
+			goto fail;
 		}
 		npu_resume_devbw(npu_dev);
 	}
 	pwr->pwr_vote_num++;
+fail:
 	mutex_unlock(&npu_dev->dev_lock);
 
 	return ret;

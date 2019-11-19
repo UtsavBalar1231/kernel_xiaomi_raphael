@@ -634,8 +634,8 @@
 			label = "cont_splash_region";
 		};
 
-		dfps_data_memory: dfps_data_region@9df00000 {
-			reg = <0x0 0x9df00000 0x0 0x0100000>;
+		dfps_data_memory: dfps_data_region@9d700000 {
+			reg = <0x0 0x9d700000 0x0 0x0100000>;
 			label = "dfps_data_region";
 		};
 
@@ -1339,6 +1339,28 @@
 		qcom,no-clock-support;
 		iommus = <&apps_smmu 0x0426 0x0011>,
 			<&apps_smmu 0x0436 0x0011>;
+
+		qcom_cedev_ns_cb {
+			compatible = "qcom,qcedev,context-bank";
+			label = "ns_context";
+			iommus = <&apps_smmu 0x432 0>,
+				<&apps_smmu 0x438 0x1>,
+				<&apps_smmu 0x43F 0>;
+			virtual-addr = <0x60000000>;
+			virtual-size = <0x40000000>;
+		};
+
+		qcom_cedev_s_cb {
+			compatible = "qcom,qcedev,context-bank";
+			label = "secure_context";
+			iommus = <&apps_smmu 0x433 0>,
+				<&apps_smmu 0x43C 0x1>,
+				<&apps_smmu 0x43E 0>;
+			qcom,iommu-vmid = <0x9>; /* VMID_CP_BITSTREAM */
+			qcom,secure-context-bank;
+			virtual-addr = <0xa0000000>;
+			virtual-size = <0x40000000>;
+		};
 	};
 
 	qcom,msm-rtb {
@@ -1515,10 +1537,6 @@
 		qcom,pas-id = <23>;
 		qcom,firmware-name = "npu";
 		memory-region = <&pil_npu_mem>;
-
-		/* Outputs to npu */
-		qcom,smem-states = <&npu_smp2p_out 0>;
-		qcom,smem-state-names = "qcom,force-stop";
 	};
 
 	qcom,turing@8300000 {
@@ -2043,8 +2061,9 @@
 		compatible = "qcom,atoll-npucc", "syscon";
 		reg = <0x9980000 0x10000>,
 			<0x9800000 0x10000>,
-			<0x9810000 0x10000>;
-		reg-names = "cc", "qdsp6ss", "qdsp6ss_pll";
+			<0x9810000 0x10000>,
+			<0x007841e0 0x8>;
+		reg-names = "cc", "qdsp6ss", "qdsp6ss_pll", "efuse";
 		npu_gdsc-supply = <&npu_core_gdsc>;
 		vdd_cx-supply = <&VDD_CX_LEVEL>;
 		#clock-cells = <1>;
@@ -2263,7 +2282,7 @@
 		glink_npu: npu {
 			transport = "smem";
 			qcom,remote-pid = <10>;
-			mboxes = <&apcs_glb2 4>;
+			mboxes = <&msm_npu 4>;
 			mbox-names = "npu_smem";
 			interrupts = <GIC_SPI 587 IRQ_TYPE_EDGE_RISING>;
 
@@ -2492,7 +2511,7 @@
 		compatible = "qcom,smp2p";
 		qcom,smem = <617>, <616>;
 		interrupts = <GIC_SPI 589 IRQ_TYPE_EDGE_RISING>;
-		mboxes = <&apcs_glb2 6>;
+		mboxes = <&msm_npu 6>;
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <10>;
 
@@ -2980,7 +2999,10 @@
 		vdd-1.8-xo-supply = <&L1C>;
 		vdd-1.3-rfa-supply = <&L2C>;
 		vdd-3.3-ch0-supply = <&L10C>;
+		vdd-3.3-ch1-supply = <&L11C>;
 		qcom,vdd-cx-mx-config = <640000 640000>;
+		qcom,vdd-3.3-ch0-config = <3000000 3312000>;
+		qcom,vdd-3.3-ch1-config = <3000000 3312000>;
 		qcom,smp2p_map_wlan_1_in {
 			interrupts-extended = <&smp2p_wlan_1_in 0 0>,
 					      <&smp2p_wlan_1_in 1 0>;
@@ -3034,7 +3056,7 @@
 		interrupt-names = "slimbus_irq", "slimbus_bam_irq";
 		qcom,apps-ch-pipes = <0x700000>;
 		qcom,ea-pc = <0x340>;
-		qcom,iommu-s1-bypass;
+		qcom,iommu-atomic-ctx;
 		status = "ok";
 
 		iommu_slim_aud_ctrl_cb: qcom,iommu_slim_ctrl_cb {
@@ -3060,8 +3082,8 @@
 		qca,bt-vdd-xtal-supply = <&pm6150l_l1>;/* X0 */
 
 		qca,bt-vdd-io-voltage-level = <1700000 1900000>;
-		qca,bt-vdd-core-voltage-level = <1245000 1350000>;
-		qca,bt-vdd-pa-voltage-level = <3200000 3400000>;
+		qca,bt-vdd-core-voltage-level = <1304000 1304000>;
+		qca,bt-vdd-pa-voltage-level = <3000000 3312000>;
 		qca,bt-vdd-xtal-voltage-level = <1700000 1900000>;
 
 		qca,bt-vdd-io-current-level = <1>; /* LPM/PFM */
@@ -3357,7 +3379,7 @@
 		governor = "performance";
 		qcom,src-dst-ports = <MSM_BUS_MASTER_NPU MSM_BUS_SLAVE_EBI_CH0>;
 		operating-points-v2 = <&suspendable_ddr_bw_opp_table>;
-		status = "disabled";
+		status = "ok";
 	};
 
 	npudsp_npu_ddr_bwmon: qcom,npudsp-npu-ddr-bwmon@70300 {
@@ -3375,7 +3397,7 @@
 		qcom,hw-timer-hz = <19200000>;
 		qcom,target-dev = <&npudsp_npu_ddr_bw>;
 		qcom,count-unit = <0x10000>;
-		status = "disabled";
+		status = "ok";
 	};
 
 	keepalive_opp_table: keepalive-opp-table {

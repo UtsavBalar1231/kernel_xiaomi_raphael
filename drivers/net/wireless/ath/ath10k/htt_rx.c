@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -25,9 +25,6 @@
 
 #include <linux/log2.h>
 
-#define HTT_RX_RING_SIZE HTT_RX_RING_SIZE_MAX
-#define HTT_RX_RING_FILL_LEVEL (((HTT_RX_RING_SIZE) / 2) - 1)
-
 /* when under memory pressure rx ring refill may fail and needs a retry */
 #define HTT_RX_RING_REFILL_RETRY_MS 50
 
@@ -36,7 +33,7 @@
 static int ath10k_htt_rx_get_csum_state(struct sk_buff *skb);
 
 static struct sk_buff *
-ath10k_htt_rx_find_skb_paddr(struct ath10k *ar, u32 paddr)
+ath10k_htt_rx_find_skb_paddr(struct ath10k *ar, u64 paddr)
 {
 	struct ath10k_skb_rxcb *rxcb;
 
@@ -84,6 +81,60 @@ static void ath10k_htt_rx_ring_free(struct ath10k_htt *htt)
 	       htt->rx_ring.size * sizeof(htt->rx_ring.netbufs_ring[0]));
 }
 
+static size_t ath10k_htt_get_rx_ring_size_32(struct ath10k_htt *htt)
+{
+	return htt->rx_ring.size * sizeof(htt->rx_ring.paddrs_ring_32);
+}
+
+static size_t ath10k_htt_get_rx_ring_size_64(struct ath10k_htt *htt)
+{
+	return htt->rx_ring.size * sizeof(htt->rx_ring.paddrs_ring_64);
+}
+
+static void ath10k_htt_config_paddrs_ring_32(struct ath10k_htt *htt,
+					     void *vaddr)
+{
+	htt->rx_ring.paddrs_ring_32 = vaddr;
+}
+
+static void ath10k_htt_config_paddrs_ring_64(struct ath10k_htt *htt,
+					     void *vaddr)
+{
+	htt->rx_ring.paddrs_ring_64 = vaddr;
+}
+
+static void ath10k_htt_set_paddrs_ring_32(struct ath10k_htt *htt,
+					  dma_addr_t paddr, int idx)
+{
+	htt->rx_ring.paddrs_ring_32[idx] = __cpu_to_le32(paddr);
+}
+
+static void ath10k_htt_set_paddrs_ring_64(struct ath10k_htt *htt,
+					  dma_addr_t paddr, int idx)
+{
+	htt->rx_ring.paddrs_ring_64[idx] = __cpu_to_le64(paddr);
+}
+
+static void ath10k_htt_reset_paddrs_ring_32(struct ath10k_htt *htt, int idx)
+{
+	htt->rx_ring.paddrs_ring_32[idx] = 0;
+}
+
+static void ath10k_htt_reset_paddrs_ring_64(struct ath10k_htt *htt, int idx)
+{
+	htt->rx_ring.paddrs_ring_64[idx] = 0;
+}
+
+static void *ath10k_htt_get_vaddr_ring_32(struct ath10k_htt *htt)
+{
+	return (void *)htt->rx_ring.paddrs_ring_32;
+}
+
+static void *ath10k_htt_get_vaddr_ring_64(struct ath10k_htt *htt)
+{
+	return (void *)htt->rx_ring.paddrs_ring_64;
+}
+
 static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 {
 	struct htt_rx_desc *rx_desc;
@@ -129,13 +180,13 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 		rxcb = ATH10K_SKB_RXCB(skb);
 		rxcb->paddr = paddr;
 		htt->rx_ring.netbufs_ring[idx] = skb;
-		htt->rx_ring.paddrs_ring[idx] = __cpu_to_le32(paddr);
+		htt->rx_ops->htt_set_paddrs_ring(htt, paddr, idx);
 		htt->rx_ring.fill_cnt++;
 
 		if (htt->rx_ring.in_ord_rx) {
 			hash_add(htt->rx_ring.skb_table,
 				 &ATH10K_SKB_RXCB(skb)->hlist,
-				 (u32)paddr);
+				 paddr);
 		}
 
 		num--;
@@ -237,9 +288,8 @@ void ath10k_htt_rx_free(struct ath10k_htt *htt)
 	spin_unlock_bh(&htt->rx_ring.lock);
 
 	dma_free_coherent(htt->ar->dev,
-			  (htt->rx_ring.size *
-			   sizeof(htt->rx_ring.paddrs_ring)),
-			  htt->rx_ring.paddrs_ring,
+			  htt->rx_ops->htt_get_rx_ring_size(htt),
+			  htt->rx_ops->htt_get_vaddr_ring(htt),
 			  htt->rx_ring.base_paddr);
 
 	dma_free_coherent(htt->ar->dev,
@@ -266,7 +316,7 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 	idx = htt->rx_ring.sw_rd_idx.msdu_payld;
 	msdu = htt->rx_ring.netbufs_ring[idx];
 	htt->rx_ring.netbufs_ring[idx] = NULL;
-	htt->rx_ring.paddrs_ring[idx] = 0;
+	htt->rx_ops->htt_reset_paddrs_ring(htt, idx);
 
 	idx++;
 	idx &= htt->rx_ring.size_mask;
@@ -386,7 +436,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 }
 
 static struct sk_buff *ath10k_htt_rx_pop_paddr(struct ath10k_htt *htt,
-					       u32 paddr)
+					       u64 paddr)
 {
 	struct ath10k *ar = htt->ar;
 	struct ath10k_skb_rxcb *rxcb;
@@ -411,12 +461,12 @@ static struct sk_buff *ath10k_htt_rx_pop_paddr(struct ath10k_htt *htt,
 	return msdu;
 }
 
-static int ath10k_htt_rx_pop_paddr_list(struct ath10k_htt *htt,
-					struct htt_rx_in_ord_ind *ev,
-					struct sk_buff_head *list)
+static int ath10k_htt_rx_pop_paddr32_list(struct ath10k_htt *htt,
+					  struct htt_rx_in_ord_ind *ev,
+					  struct sk_buff_head *list)
 {
 	struct ath10k *ar = htt->ar;
-	struct htt_rx_in_ord_msdu_desc *msdu_desc = ev->msdu_descs;
+	struct htt_rx_in_ord_msdu_desc *msdu_desc = ev->msdu_descs32;
 	struct htt_rx_desc *rxd;
 	struct sk_buff *msdu;
 	int msdu_count;
@@ -461,11 +511,60 @@ static int ath10k_htt_rx_pop_paddr_list(struct ath10k_htt *htt,
 	return 0;
 }
 
+static int ath10k_htt_rx_pop_paddr64_list(struct ath10k_htt *htt,
+					  struct htt_rx_in_ord_ind *ev,
+					  struct sk_buff_head *list)
+{
+	struct ath10k *ar = htt->ar;
+	struct htt_rx_in_ord_msdu_desc_ext *msdu_desc = ev->msdu_descs64;
+	struct htt_rx_desc *rxd;
+	struct sk_buff *msdu;
+	int msdu_count;
+	bool is_offload;
+	u64 paddr;
+
+	lockdep_assert_held(&htt->rx_ring.lock);
+
+	msdu_count = __le16_to_cpu(ev->msdu_count);
+	is_offload = !!(ev->info & HTT_RX_IN_ORD_IND_INFO_OFFLOAD_MASK);
+
+	while (msdu_count--) {
+		paddr = __le64_to_cpu(msdu_desc->msdu_paddr);
+		msdu = ath10k_htt_rx_pop_paddr(htt, paddr);
+		if (!msdu) {
+			__skb_queue_purge(list);
+			return -ENOENT;
+		}
+
+		__skb_queue_tail(list, msdu);
+
+		if (!is_offload) {
+			rxd = (void *)msdu->data;
+
+			trace_ath10k_htt_rx_desc(ar, rxd, sizeof(*rxd));
+
+			skb_put(msdu, sizeof(*rxd));
+			skb_pull(msdu, sizeof(*rxd));
+			skb_put(msdu, __le16_to_cpu(msdu_desc->msdu_len));
+
+			if (!(__le32_to_cpu(rxd->attention.flags) &
+			      RX_ATTENTION_FLAGS_MSDU_DONE)) {
+				ath10k_warn(htt->ar, "tried to pop an incomplete frame, oops!\n");
+				return -EIO;
+			}
+		}
+
+		msdu_desc++;
+	}
+
+	return 0;
+}
+
 int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
 	dma_addr_t paddr;
-	void *vaddr;
+	void *vaddr, *vaddr_ring;
 	size_t size;
 	struct timer_list *timer = &htt->rx_ring.refill_retry_timer;
 
@@ -476,7 +575,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	 */
 	htt->rx_ring.size = HTT_RX_RING_SIZE;
 	htt->rx_ring.size_mask = htt->rx_ring.size - 1;
-	htt->rx_ring.fill_level = HTT_RX_RING_FILL_LEVEL;
+	htt->rx_ring.fill_level = ar->hw_params.rx_ring_fill_level;
 
 	if (!is_power_of_2(htt->rx_ring.size)) {
 		ath10k_warn(ar, "htt rx ring size is not power of 2\n");
@@ -489,13 +588,13 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	if (!htt->rx_ring.netbufs_ring)
 		goto err_netbuf;
 
-	size = htt->rx_ring.size * sizeof(htt->rx_ring.paddrs_ring);
+	size = htt->rx_ops->htt_get_rx_ring_size(htt);
 
-	vaddr = dma_alloc_coherent(htt->ar->dev, size, &paddr, GFP_KERNEL);
-	if (!vaddr)
+	vaddr_ring = dma_alloc_coherent(htt->ar->dev, size, &paddr, GFP_KERNEL);
+	if (!vaddr_ring)
 		goto err_dma_ring;
 
-	htt->rx_ring.paddrs_ring = vaddr;
+	htt->rx_ops->htt_config_paddrs_ring(htt, vaddr_ring);
 	htt->rx_ring.base_paddr = paddr;
 
 	vaddr = dma_alloc_coherent(htt->ar->dev,
@@ -529,9 +628,8 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 
 err_dma_idx:
 	dma_free_coherent(htt->ar->dev,
-			  (htt->rx_ring.size *
-			   sizeof(htt->rx_ring.paddrs_ring)),
-			  htt->rx_ring.paddrs_ring,
+			  htt->rx_ops->htt_get_rx_ring_size(htt),
+			  vaddr_ring,
 			  htt->rx_ring.base_paddr);
 err_dma_ring:
 	kfree(htt->rx_ring.netbufs_ring);
@@ -1964,7 +2062,7 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 		   "htt rx in ord vdev %i peer %i tid %i offload %i frag %i msdu count %i\n",
 		   vdev_id, peer_id, tid, offload, frag, msdu_count);
 
-	if (skb->len < msdu_count * sizeof(*resp->rx_in_ord_ind.msdu_descs)) {
+	if (skb->len < msdu_count * sizeof(*resp->rx_in_ord_ind.msdu_descs32)) {
 		ath10k_warn(ar, "dropping invalid in order rx indication\n");
 		return -EINVAL;
 	}
@@ -1973,7 +2071,13 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 	 * extracted and processed.
 	 */
 	__skb_queue_head_init(&list);
-	ret = ath10k_htt_rx_pop_paddr_list(htt, &resp->rx_in_ord_ind, &list);
+	if (ar->hw_params.target_64bit)
+		ret = ath10k_htt_rx_pop_paddr64_list(htt, &resp->rx_in_ord_ind,
+						     &list);
+	else
+		ret = ath10k_htt_rx_pop_paddr32_list(htt, &resp->rx_in_ord_ind,
+						     &list);
+
 	if (ret < 0) {
 		ath10k_warn(ar, "failed to pop paddr list: %d\n", ret);
 		htt->rx_confused = true;
@@ -2431,6 +2535,62 @@ out:
 	rcu_read_unlock();
 }
 
+static void ath10k_fetch_10_2_tx_stats(struct ath10k *ar, u8 *data)
+{
+	struct ath10k_pktlog_hdr *hdr = (struct ath10k_pktlog_hdr *)data;
+	struct ath10k_per_peer_tx_stats *p_tx_stats = &ar->peer_tx_stats;
+	struct ath10k_10_2_peer_tx_stats *tx_stats;
+	struct ieee80211_sta *sta;
+	struct ath10k_peer *peer;
+	u16 log_type = __le16_to_cpu(hdr->log_type);
+	u32 peer_id = 0, i;
+
+	if (log_type != ATH_PKTLOG_TYPE_TX_STAT)
+		return;
+
+	tx_stats = (struct ath10k_10_2_peer_tx_stats *)((hdr->payload) +
+		    ATH10K_10_2_TX_STATS_OFFSET);
+
+	if (!tx_stats->tx_ppdu_cnt)
+		return;
+
+	peer_id = tx_stats->peer_id;
+
+	rcu_read_lock();
+	spin_lock_bh(&ar->data_lock);
+	peer = ath10k_peer_find_by_id(ar, peer_id);
+	if (!peer) {
+		ath10k_warn(ar, "Invalid peer id %d in peer stats buffer\n",
+			    peer_id);
+		goto out;
+	}
+
+	sta = peer->sta;
+	for (i = 0; i < tx_stats->tx_ppdu_cnt; i++) {
+		p_tx_stats->succ_bytes =
+			__le16_to_cpu(tx_stats->success_bytes[i]);
+		p_tx_stats->retry_bytes =
+			__le16_to_cpu(tx_stats->retry_bytes[i]);
+		p_tx_stats->failed_bytes =
+			__le16_to_cpu(tx_stats->failed_bytes[i]);
+		p_tx_stats->ratecode = tx_stats->ratecode[i];
+		p_tx_stats->flags = tx_stats->flags[i];
+		p_tx_stats->succ_pkts = tx_stats->success_pkts[i];
+		p_tx_stats->retry_pkts = tx_stats->retry_pkts[i];
+		p_tx_stats->failed_pkts = tx_stats->failed_pkts[i];
+
+		ath10k_update_per_peer_tx_stats(ar, sta, p_tx_stats);
+	}
+	spin_unlock_bh(&ar->data_lock);
+	rcu_read_unlock();
+
+	return;
+
+out:
+	spin_unlock_bh(&ar->data_lock);
+	rcu_read_unlock();
+}
+
 bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
@@ -2548,6 +2708,10 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 					skb->len -
 					offsetof(struct htt_resp,
 						 pktlog_msg.payload));
+
+		if (ath10k_peer_stats_enabled(ar))
+			ath10k_fetch_10_2_tx_stats(ar,
+						   resp->pktlog_msg.payload);
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_FLUSH: {
@@ -2713,3 +2877,29 @@ exit:
 	return done;
 }
 EXPORT_SYMBOL(ath10k_htt_txrx_compl_task);
+
+static const struct ath10k_htt_rx_ops htt_rx_ops_32 = {
+	.htt_get_rx_ring_size = ath10k_htt_get_rx_ring_size_32,
+	.htt_config_paddrs_ring = ath10k_htt_config_paddrs_ring_32,
+	.htt_set_paddrs_ring = ath10k_htt_set_paddrs_ring_32,
+	.htt_get_vaddr_ring = ath10k_htt_get_vaddr_ring_32,
+	.htt_reset_paddrs_ring = ath10k_htt_reset_paddrs_ring_32,
+};
+
+static const struct ath10k_htt_rx_ops htt_rx_ops_64 = {
+	.htt_get_rx_ring_size = ath10k_htt_get_rx_ring_size_64,
+	.htt_config_paddrs_ring = ath10k_htt_config_paddrs_ring_64,
+	.htt_set_paddrs_ring = ath10k_htt_set_paddrs_ring_64,
+	.htt_get_vaddr_ring = ath10k_htt_get_vaddr_ring_64,
+	.htt_reset_paddrs_ring = ath10k_htt_reset_paddrs_ring_64,
+};
+
+void ath10k_htt_set_rx_ops(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+
+	if (ar->hw_params.target_64bit)
+		htt->rx_ops = &htt_rx_ops_64;
+	else
+		htt->rx_ops = &htt_rx_ops_32;
+}

@@ -327,7 +327,8 @@ static struct ctl_table kern_table[] = {
 		.proc_handler   = proc_dointvec,
 	},
 #endif
-#if defined(CONFIG_IRQSOFF_TRACER) && defined(CONFIG_PREEMPTIRQ_EVENTS)
+#if defined(CONFIG_IRQSOFF_TRACER) && defined(CONFIG_PREEMPTIRQ_EVENTS) && \
+		!defined(CONFIG_PROVE_LOCKING)
 	{
 		.procname       = "irqsoff_tracing_threshold_ns",
 		.data           = &sysctl_irqsoff_tracing_threshold_ns,
@@ -369,6 +370,24 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= sched_boost_handler,
 		.extra1		= &neg_three,
 		.extra2		= &three,
+	},
+	{
+		.procname	= "sched_conservative_pl",
+		.data		= &sysctl_sched_conservative_pl,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.procname	= "sched_many_wakeup_threshold",
+		.data		= &sysctl_sched_many_wakeup_threshold,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &two,
+		.extra2		= &one_thousand,
 	},
 	{
 		.procname	= "sched_walt_rotate_big_tasks",

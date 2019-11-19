@@ -133,6 +133,9 @@ Generic board variants:
 - IOT device:
   compatible = "qcom,iot"
 
+- TTP device:
+  compatible = "qcom,ttp"
+
 
 Boards (SoC type + board variant):
 
@@ -199,6 +202,7 @@ compatible = "qcom,sa6155-adp-air"
 compatible = "qcom,sa6155p-adp-air"
 compatible = "qcom,qcs405-rumi"
 compatible = "qcom,qcs405-iot"
+compatible = "qcom,sa2150p-ccard"
 compatible = "qcom,qcs403-iot"
 compatible = "qcom,qcs401-iot"
 compatible = "qcom,qcs404-iot"
@@ -218,6 +222,7 @@ compatible = "qcom,sdxprairie-rumi"
 compatible = "qcom,sdxprairie-mtp"
 compatible = "qcom,sdxprairie-cdp"
 compatible = "qcom,sa515m-ccard"
+compatible = "qcom,sa515m-ttp"
 compatible = "qcom,sdmmagpie-rumi"
 compatible = "qcom,sdmmagpie-idp"
 compatible = "qcom,sdmmagpie-atp"

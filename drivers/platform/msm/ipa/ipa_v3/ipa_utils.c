@@ -6691,6 +6691,7 @@ int ipa3_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 	api_ctrl->ipa_get_smmu_params = ipa3_get_smmu_params;
 	api_ctrl->ipa_is_vlan_mode = ipa3_is_vlan_mode;
 	api_ctrl->ipa_pm_is_used = ipa3_pm_is_used;
+	api_ctrl->ipa_get_lan_rx_napi = ipa3_get_lan_rx_napi;
 	api_ctrl->ipa_wigig_uc_init = ipa3_wigig_uc_init;
 	api_ctrl->ipa_conn_wigig_rx_pipe_i = ipa3_conn_wigig_rx_pipe_i;
 	api_ctrl->ipa_conn_wigig_client_i = ipa3_conn_wigig_client_i;
@@ -7256,15 +7257,11 @@ static int __ipa3_stop_gsi_channel(u32 clnt_hdl)
 				client_type);
 		}
 	}
-	if (IPA_CLIENT_IS_PROD(ep->client)) {
-		IPADBG("Calling gsi_stop_channel ch:%lu\n",
-			ep->gsi_chan_hdl);
-		res = gsi_stop_channel(ep->gsi_chan_hdl);
-		IPADBG("gsi_stop_channel ch: %lu returned %d\n",
-			ep->gsi_chan_hdl, res);
-		return res;
-	}
 
+	/*
+	 * Apply the GSI stop retry logic if GSI returns err code to retry.
+	 * Apply the retry logic for ipa_client_prod as well as ipa_client_cons.
+	 */
 	for (i = 0; i < IPA_GSI_CHANNEL_STOP_MAX_RETRY; i++) {
 		IPADBG("Calling gsi_stop_channel ch:%lu\n",
 			ep->gsi_chan_hdl);

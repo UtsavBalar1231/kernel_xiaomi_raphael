@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -242,6 +242,16 @@ static int ath10k_send_key(struct ath10k_vif *arvif,
 	case WLAN_CIPHER_SUITE_WEP104:
 		arg.key_cipher = WMI_CIPHER_WEP;
 		break;
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		arg.key_cipher = WMI_CIPHER_AES_CCM;
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		arg.key_cipher = WMI_CIPHER_AES_GCM;
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		WARN_ON(1);
 		return -EINVAL;
@@ -3575,7 +3585,9 @@ ath10k_mac_tx_h_get_txpath(struct ath10k *ar,
 		return ATH10K_MAC_TX_HTT;
 	case ATH10K_HW_TXRX_MGMT:
 		if (test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
-			     ar->running_fw->fw_file.fw_features))
+			     ar->running_fw->fw_file.fw_features) ||
+			     test_bit(WMI_SERVICE_MGMT_TX_WMI,
+				      ar->wmi.svc_map))
 			return ATH10K_MAC_TX_WMI_MGMT;
 		else if (ar->htt.target_version_major >= 3)
 			return ATH10K_MAC_TX_HTT;
@@ -3596,7 +3608,7 @@ static int ath10k_mac_tx_submit(struct ath10k *ar,
 
 	switch (txpath) {
 	case ATH10K_MAC_TX_HTT:
-		ret = ath10k_htt_tx(htt, txmode, skb);
+		ret = htt->tx_ops->htt_tx(htt, txmode, skb);
 		break;
 	case ATH10K_MAC_TX_HTT_MGMT:
 		ret = ath10k_htt_mgmt_tx(htt, skb);
@@ -5641,6 +5653,12 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 		arg.scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
 	}
 
+	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		arg.scan_ctrl_flags |=  WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ;
+		ether_addr_copy(arg.mac_addr.addr, req->mac_addr);
+		ether_addr_copy(arg.mac_mask.addr, req->mac_addr_mask);
+	}
+
 	if (req->n_channels) {
 		arg.n_channels = req->n_channels;
 		for (i = 0; i < arg.n_channels; i++)
@@ -5735,7 +5753,10 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	u32 flags2;
 
 	/* this one needs to be done in software */
-	if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+	if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
+	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
+	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256 ||
+	    key->cipher == WLAN_CIPHER_SUITE_BIP_CMAC_256)
 		return 1;
 
 	if (arvif->nohwcrypt)
@@ -7556,6 +7577,16 @@ ath10k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 				    arvif->vdev_id, ret);
 	}
 
+	if (ath10k_peer_stats_enabled(ar)) {
+		ar->pktlog_filter |= ATH10K_PKTLOG_PEER_STATS;
+		ret = ath10k_wmi_pdev_pktlog_enable(ar,
+						    ar->pktlog_filter);
+		if (ret) {
+			ath10k_warn(ar, "failed to enable pktlog %d\n", ret);
+			goto err_stop;
+		}
+	}
+
 	mutex_unlock(&ar->conf_mutex);
 	return 0;
 
@@ -8147,7 +8178,22 @@ int ath10k_mac_register(struct ath10k *ar)
 		WLAN_CIPHER_SUITE_WEP104,
 		WLAN_CIPHER_SUITE_TKIP,
 		WLAN_CIPHER_SUITE_CCMP,
+
+		/* Do not add hardware supported ciphers before this line.
+		 * Allow software encryption for all chips. Don't forget to
+		 * update n_cipher_suites below.
+		 */
 		WLAN_CIPHER_SUITE_AES_CMAC,
+		WLAN_CIPHER_SUITE_BIP_CMAC_256,
+		WLAN_CIPHER_SUITE_BIP_GMAC_128,
+		WLAN_CIPHER_SUITE_BIP_GMAC_256,
+
+		/* Only QCA99x0 and QCA4019 varients support GCMP-128, GCMP-256
+		 * and CCMP-256 in hardware.
+		 */
+		WLAN_CIPHER_SUITE_GCMP,
+		WLAN_CIPHER_SUITE_GCMP_256,
+		WLAN_CIPHER_SUITE_CCMP_256,
 	};
 	struct ieee80211_supported_band *band;
 	void *channels;
@@ -8219,8 +8265,13 @@ int ath10k_mac_register(struct ath10k *ar)
 			BIT(NL80211_IFTYPE_P2P_GO);
 
 	ieee80211_hw_set(ar->hw, SIGNAL_DBM);
-	ieee80211_hw_set(ar->hw, SUPPORTS_PS);
-	ieee80211_hw_set(ar->hw, SUPPORTS_DYNAMIC_PS);
+
+	if (!test_bit(ATH10K_FW_FEATURE_NO_PS,
+		      ar->running_fw->fw_file.fw_features)) {
+		ieee80211_hw_set(ar->hw, SUPPORTS_PS);
+		ieee80211_hw_set(ar->hw, SUPPORTS_DYNAMIC_PS);
+	}
+
 	ieee80211_hw_set(ar->hw, MFP_CAPABLE);
 	ieee80211_hw_set(ar->hw, REPORTS_TX_ACK_STATUS);
 	ieee80211_hw_set(ar->hw, HAS_RATE_CONTROL);
@@ -8274,7 +8325,8 @@ int ath10k_mac_register(struct ath10k *ar)
 	if (test_bit(WMI_SERVICE_TDLS, ar->wmi.svc_map) ||
 	    test_bit(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY, ar->wmi.svc_map)) {
 		ar->hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
-		ieee80211_hw_set(ar->hw, TDLS_WIDER_BW);
+		if (test_bit(WMI_SERVICE_TDLS_WIDER_BANDWIDTH, ar->wmi.svc_map))
+			ieee80211_hw_set(ar->hw, TDLS_WIDER_BW);
 	}
 
 	ar->hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
@@ -8376,8 +8428,30 @@ int ath10k_mac_register(struct ath10k *ar)
 		goto err_dfs_detector_exit;
 	}
 
+	if (test_bit(WMI_SERVICE_SPOOF_MAC_SUPPORT, ar->wmi.svc_map)) {
+		ret = ath10k_wmi_scan_prob_req_oui(ar, ar->mac_addr);
+		if (ret) {
+			ath10k_err(ar, "failed to set prob req oui: %i\n", ret);
+			goto err_dfs_detector_exit;
+		}
+
+		ar->hw->wiphy->features |=
+			NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
+	}
+
 	ar->hw->wiphy->cipher_suites = cipher_suites;
-	ar->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+
+	/* QCA988x and QCA6174 family chips do not support CCMP-256, GCMP-128
+	 * and GCMP-256 ciphers in hardware. Fetch number of ciphers supported
+	 * from chip specific hw_param table.
+	 */
+	if (!ar->hw_params.n_cipher_suites ||
+	    ar->hw_params.n_cipher_suites > ARRAY_SIZE(cipher_suites)) {
+		ath10k_err(ar, "invalid hw_params.n_cipher_suites %d\n",
+			   ar->hw_params.n_cipher_suites);
+		ar->hw_params.n_cipher_suites = 8;
+	}
+	ar->hw->wiphy->n_cipher_suites = ar->hw_params.n_cipher_suites;
 
 	wiphy_ext_feature_set(ar->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
