@@ -784,30 +784,46 @@ void DWC_ETH_QOS_handle_phy_interrupt(struct DWC_ETH_QOS_prv_data *pdata)
 	int micrel_intr_status = 0;
 	EMACDBG("Enter\n");
 
-	DWC_ETH_QOS_mdio_read_direct(
-		pdata, pdata->phyaddr, DWC_ETH_QOS_BASIC_STATUS, &phy_intr_status);
-	EMACDBG(
-		"Basic Status Reg (%#x) = %#x\n", DWC_ETH_QOS_BASIC_STATUS, phy_intr_status);
+	if ((pdata->phydev->phy_id & pdata->phydev->drv->phy_id_mask) == MICREL_PHY_ID) {
+		DWC_ETH_QOS_mdio_read_direct(
+			pdata, pdata->phyaddr, DWC_ETH_QOS_BASIC_STATUS, &phy_intr_status);
+		EMACDBG(
+			"Basic Status Reg (%#x) = %#x\n", DWC_ETH_QOS_BASIC_STATUS, phy_intr_status);
 
-	DWC_ETH_QOS_mdio_read_direct(
-		pdata, pdata->phyaddr, DWC_ETH_QOS_MICREL_PHY_INTCS, &micrel_intr_status);
-	EMACDBG(
-		"MICREL PHY Intr EN Reg (%#x) = %#x\n", DWC_ETH_QOS_MICREL_PHY_INTCS, micrel_intr_status);
+		DWC_ETH_QOS_mdio_read_direct(
+			pdata, pdata->phyaddr, DWC_ETH_QOS_MICREL_PHY_INTCS, &micrel_intr_status);
+		EMACDBG(
+			"MICREL PHY Intr EN Reg (%#x) = %#x\n", DWC_ETH_QOS_MICREL_PHY_INTCS, micrel_intr_status);
 
-	/* Call ack interrupt to clear the WOL interrupt status fields */
-	if (pdata->phydev->drv->ack_interrupt)
-		pdata->phydev->drv->ack_interrupt(pdata->phydev);
-
-	/* Interrupt received for link state change */
-	if (phy_intr_status & LINK_STATE_MASK) {
-		EMACDBG("Interrupt received for link UP state\n");
-		phy_mac_interrupt(pdata->phydev, LINK_UP);
-	} else if (!(phy_intr_status & LINK_STATE_MASK)) {
-		EMACDBG("Interrupt received for link DOWN state\n");
-		phy_mac_interrupt(pdata->phydev, LINK_DOWN);
-	} else if (!(phy_intr_status & AUTONEG_STATE_MASK)) {
-		EMACDBG("Interrupt received for link down with"
+		/* Interrupt received for link state change */
+		if (phy_intr_status & LINK_STATE_MASK) {
+			EMACDBG("Interrupt received for link UP state\n");
+			phy_mac_interrupt(pdata->phydev, LINK_UP);
+		} else if (!(phy_intr_status & LINK_STATE_MASK)) {
+			EMACDBG("Interrupt received for link DOWN state\n");
+			phy_mac_interrupt(pdata->phydev, LINK_DOWN);
+		} else if (!(phy_intr_status & AUTONEG_STATE_MASK)) {
+			EMACDBG("Interrupt received for link down with"
+					" auto-negotiation error\n");
+		}
+	} else {
+		DWC_ETH_QOS_mdio_read_direct(
+		pdata, pdata->phyaddr, DWC_ETH_QOS_PHY_INTR_STATUS, &phy_intr_status);
+		EMACDBG("Phy Interrupt status Reg at offset 0x13 = %#x\n", phy_intr_status);
+		/* Interrupt received for link state change */
+		if (phy_intr_status & LINK_UP_STATE) {
+			pdata->hw_if.stop_mac_tx_rx();
+			EMACDBG("Interrupt received for link UP state\n");
+			phy_mac_interrupt(pdata->phydev, LINK_UP);
+		} else if (phy_intr_status & LINK_DOWN_STATE) {
+			EMACDBG("Interrupt received for link DOWN state\n");
+			phy_mac_interrupt(pdata->phydev, LINK_DOWN);
+		} else if (phy_intr_status & AUTO_NEG_ERROR) {
+			EMACDBG("Interrupt received for link down with"
 				" auto-negotiation error\n");
+		} else if (phy_intr_status & PHY_WOL) {
+			EMACDBG("Interrupt received for WoL packet\n");
+		}
 	}
 
 	EMACDBG("Exit\n");
@@ -3117,10 +3133,11 @@ static void DWC_ETH_QOS_consume_page_split_hdr(
 {
 	if (page2_used)
 		buffer->page2 = NULL;
-
-	skb->len += length;
-	skb->data_len += length;
-	skb->truesize += length;
+		if (skb != NULL) {
+			skb->len += length;
+			skb->data_len += length;
+			skb->truesize += length;
+		}
 }
 
 /* Receive Checksum Offload configuration */
@@ -3228,7 +3245,7 @@ static int DWC_ETH_QOS_clean_split_hdr_rx_irq(
 	unsigned short payload_len = 0;
 	unsigned char intermediate_desc_cnt = 0;
 	unsigned char buf2_used = 0;
-	int ret;
+	int ret = 0;
 
 	DBGPR("-->DWC_ETH_QOS_clean_split_hdr_rx_irq: qinx = %u, quota = %d\n",
 	      qinx, quota);
@@ -3327,15 +3344,13 @@ static int DWC_ETH_QOS_clean_split_hdr_rx_irq(
 				} else {
 					/* this is the middle of a chain */
 					payload_len = pdata->rx_buffer_len;
-					skb_fill_page_desc(desc_data->skb_top,
-							   skb_shinfo(desc_data->skb_top)->nr_frags,
-						buffer->page2, 0,
-						payload_len);
-
+					if (desc_data->skb_top != NULL)
+						skb_fill_page_desc(desc_data->skb_top,skb_shinfo(desc_data->skb_top)->nr_frags,buffer->page2, 0,payload_len);
 					/* re-use this skb, as consumed only the page */
 					buffer->skb = skb;
 				}
-				DWC_ETH_QOS_consume_page_split_hdr(buffer,
+				if (desc_data->skb_top != NULL)
+						DWC_ETH_QOS_consume_page_split_hdr(buffer,
 								   desc_data->skb_top,
 							 payload_len, buf2_used);
 				goto next_desc;
@@ -3352,17 +3367,15 @@ static int DWC_ETH_QOS_clean_split_hdr_rx_irq(
 							(pdata->rx_buffer_len * intermediate_desc_cnt) -
 							buffer->rx_hdr_size);
 					}
-
-					skb_fill_page_desc(desc_data->skb_top,
-							   skb_shinfo(desc_data->skb_top)->nr_frags,
-						buffer->page2, 0,
-						payload_len);
-
-					/* re-use this skb, as consumed only the page */
-					buffer->skb = skb;
-					skb = desc_data->skb_top;
+					if (desc_data->skb_top != NULL) {
+						skb_fill_page_desc(desc_data->skb_top,skb_shinfo(desc_data->skb_top)->nr_frags,buffer->page2, 0,payload_len);
+						/* re-use this skb, as consumed only the page */
+						buffer->skb = skb;
+						skb = desc_data->skb_top;
+					}
 					desc_data->skb_top = NULL;
-					DWC_ETH_QOS_consume_page_split_hdr(buffer, skb,
+					if (skb != NULL)
+						DWC_ETH_QOS_consume_page_split_hdr(buffer, skb,
 									   payload_len, buf2_used);
 				} else {
 					/* no chain, got both FD + LD together */
@@ -3406,11 +3419,13 @@ static int DWC_ETH_QOS_clean_split_hdr_rx_irq(
 				hdr_len = 0;
 			}
 
-			DWC_ETH_QOS_config_rx_csum(pdata, skb, RX_NORMAL_DESC);
+			if (skb != NULL) {
+				DWC_ETH_QOS_config_rx_csum(pdata, skb, RX_NORMAL_DESC);
 
 #ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
-			DWC_ETH_QOS_get_rx_vlan(pdata, skb, RX_NORMAL_DESC);
+				DWC_ETH_QOS_get_rx_vlan(pdata, skb, RX_NORMAL_DESC);
 #endif
+			}
 
 #ifdef YDEBUG_FILTER
 			DWC_ETH_QOS_check_rx_filter_status(RX_NORMAL_DESC);
@@ -3419,14 +3434,16 @@ static int DWC_ETH_QOS_clean_split_hdr_rx_irq(
 			if ((pdata->hw_feat.tsstssel) && (pdata->hwts_rx_en)) {
 				/* get rx tstamp if available */
 				if (hw_if->rx_tstamp_available(RX_NORMAL_DESC)) {
-					ret = DWC_ETH_QOS_get_rx_hwtstamp(pdata,
+					if (skb != NULL )
+						ret = DWC_ETH_QOS_get_rx_hwtstamp(pdata,
 									  skb, desc_data, qinx);
 					if (ret == 0) {
 						/* device has not yet updated the CONTEXT desc to hold the
 						 * time stamp, hence delay the packet reception
 						 */
 						buffer->skb = skb;
-						buffer->dma = dma_map_single(GET_MEM_PDEV_DEV, skb->data,
+						if (skb != NULL)
+							buffer->dma = dma_map_single(GET_MEM_PDEV_DEV, skb->data,
 								pdata->rx_buffer_len, DMA_FROM_DEVICE);
 						if (dma_mapping_error(GET_MEM_PDEV_DEV, buffer->dma))
 							dev_alert(&pdata->pdev->dev, "failed to do the RX dma map\n");
@@ -3446,8 +3463,10 @@ static int DWC_ETH_QOS_clean_split_hdr_rx_irq(
 #endif
 			/* update the statistics */
 			dev->stats.rx_packets++;
-			dev->stats.rx_bytes += skb->len;
-			DWC_ETH_QOS_receive_skb(pdata, dev, skb, qinx);
+			if ( skb != NULL) {
+				dev->stats.rx_bytes += skb->len;
+				DWC_ETH_QOS_receive_skb(pdata, dev, skb, qinx);
+			}
 			received++;
  next_desc:
 			desc_data->dirty_rx++;
@@ -3508,7 +3527,7 @@ static int DWC_ETH_QOS_clean_jumbo_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 	u16 pkt_len;
 	UCHAR intermediate_desc_cnt = 0;
 	unsigned int buf2_used;
-	int ret;
+	int ret = 0 ;
 
 	DBGPR("-->DWC_ETH_QOS_clean_jumbo_rx_irq: qinx = %u, quota = %d\n",
 	      qinx, quota);
@@ -3579,20 +3598,22 @@ static int DWC_ETH_QOS_clean_jumbo_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 						pdata->rx_buffer_len);
 				} else {
 					/* this is the middle of a chain */
-					skb_fill_page_desc(desc_data->skb_top,
+					if (desc_data->skb_top != NULL) {
+						skb_fill_page_desc(desc_data->skb_top,
 							   skb_shinfo(desc_data->skb_top)->nr_frags,
 						buffer->page, 0,
 						pdata->rx_buffer_len);
-
-					DBGPR("RX: pkt in second buffer pointer\n");
-					skb_fill_page_desc(desc_data->skb_top,
+						DBGPR("RX: pkt in second buffer pointer\n");
+						skb_fill_page_desc(desc_data->skb_top,
 							   skb_shinfo(desc_data->skb_top)->nr_frags,
 						buffer->page2, 0,
 						pdata->rx_buffer_len);
+					}
 					/* re-use this skb, as consumed only the page */
 					buffer->skb = skb;
 				}
-				DWC_ETH_QOS_consume_page(buffer,
+				if (desc_data->skb_top != NULL )
+					DWC_ETH_QOS_consume_page(buffer,
 							 desc_data->skb_top,
 							 (pdata->rx_buffer_len * 2),
 							 buf2_used);
@@ -3603,19 +3624,21 @@ static int DWC_ETH_QOS_clean_jumbo_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 					pkt_len =
 						(pkt_len - (pdata->rx_buffer_len * intermediate_desc_cnt));
 					if (pkt_len > pdata->rx_buffer_len) {
-						skb_fill_page_desc(desc_data->skb_top,
+						if (desc_data->skb_top != NULL) {
+							skb_fill_page_desc(desc_data->skb_top,
 								   skb_shinfo(desc_data->skb_top)->nr_frags,
 							buffer->page, 0,
 							pdata->rx_buffer_len);
-
-						DBGPR("RX: pkt in second buffer pointer\n");
-						skb_fill_page_desc(desc_data->skb_top,
+							DBGPR("RX: pkt in second buffer pointer\n");
+							skb_fill_page_desc(desc_data->skb_top,
 								   skb_shinfo(desc_data->skb_top)->nr_frags,
 							buffer->page2, 0,
 							(pkt_len - pdata->rx_buffer_len));
+						}
 						buf2_used = 1;
 					} else {
-						skb_fill_page_desc(desc_data->skb_top,
+						if (desc_data->skb_top != NULL)
+							skb_fill_page_desc(desc_data->skb_top,
 								   skb_shinfo(desc_data->skb_top)->nr_frags,
 							buffer->page, 0,
 							pkt_len);
@@ -3623,9 +3646,11 @@ static int DWC_ETH_QOS_clean_jumbo_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 					}
 					/* re-use this skb, as consumed only the page */
 					buffer->skb = skb;
-					skb = desc_data->skb_top;
+					if (desc_data->skb_top != NULL)
+						skb = desc_data->skb_top;
 					desc_data->skb_top = NULL;
-					DWC_ETH_QOS_consume_page(buffer, skb,
+					if (skb != NULL)
+						DWC_ETH_QOS_consume_page(buffer, skb,
 								 pkt_len,
 								 buf2_used);
 				} else {
@@ -3675,11 +3700,13 @@ static int DWC_ETH_QOS_clean_jumbo_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 				intermediate_desc_cnt = 0;
 			}
 
-			DWC_ETH_QOS_config_rx_csum(pdata, skb, RX_NORMAL_DESC);
+			if (skb != NULL) {
+				DWC_ETH_QOS_config_rx_csum(pdata, skb, RX_NORMAL_DESC);
 
 #ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
-			DWC_ETH_QOS_get_rx_vlan(pdata, skb, RX_NORMAL_DESC);
+				DWC_ETH_QOS_get_rx_vlan(pdata, skb, RX_NORMAL_DESC);
 #endif
+			}
 
 #ifdef YDEBUG_FILTER
 			DWC_ETH_QOS_check_rx_filter_status(RX_NORMAL_DESC);
@@ -3688,15 +3715,16 @@ static int DWC_ETH_QOS_clean_jumbo_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 			if ((pdata->hw_feat.tsstssel) && (pdata->hwts_rx_en)) {
 				/* get rx tstamp if available */
 				if (hw_if->rx_tstamp_available(RX_NORMAL_DESC)) {
-					ret = DWC_ETH_QOS_get_rx_hwtstamp(pdata,
-									  skb, desc_data, qinx);
+					if (skb != NULL)
+						ret = DWC_ETH_QOS_get_rx_hwtstamp(pdata, skb, desc_data, qinx);
 					if (ret == 0) {
 						/* device has not yet updated the CONTEXT desc to hold the
 						 * time stamp, hence delay the packet reception
 						 */
 						buffer->skb = skb;
-						buffer->dma = dma_map_single(GET_MEM_PDEV_DEV, skb->data,
-								pdata->rx_buffer_len, DMA_FROM_DEVICE);
+						if (skb != NULL)
+							buffer->dma = dma_map_single(GET_MEM_PDEV_DEV, skb->data, pdata->rx_buffer_len, DMA_FROM_DEVICE);
+
 						if (dma_mapping_error(GET_MEM_PDEV_DEV, buffer->dma))
 							dev_alert(&pdata->pdev->dev, "failed to do the RX dma map\n");
 
@@ -3716,16 +3744,16 @@ static int DWC_ETH_QOS_clean_jumbo_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 #endif
 			/* update the statistics */
 			dev->stats.rx_packets++;
-			dev->stats.rx_bytes += skb->len;
-
-			/* eth type trans needs skb->data to point to something */
-			if (!pskb_may_pull(skb, ETH_HLEN)) {
-				dev_alert(&pdata->pdev->dev, "pskb_may_pull failed\n");
-				dev_kfree_skb_any(skb);
-				goto next_desc;
+			if (skb != NULL) {
+				dev->stats.rx_bytes += skb->len;
+				/* eth type trans needs skb->data to point to something */
+				if (!pskb_may_pull(skb, ETH_HLEN)) {
+					dev_alert(&pdata->pdev->dev, "pskb_may_pull failed\n");
+					dev_kfree_skb_any(skb);
+					goto next_desc;
+				}
+				DWC_ETH_QOS_receive_skb(pdata, dev, skb, qinx);
 			}
-
-			DWC_ETH_QOS_receive_skb(pdata, dev, skb, qinx);
 			received++;
  next_desc:
 			desc_data->dirty_rx++;
