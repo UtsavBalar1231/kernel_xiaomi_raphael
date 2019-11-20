@@ -1311,6 +1311,8 @@ static int _sde_kms_get_displays(struct sde_kms *sde_kms)
 	sde_kms->dp_displays = NULL;
 	sde_kms->dp_display_count = dp_display_get_num_of_displays();
 	if (sde_kms->dp_display_count) {
+		int i;
+
 		sde_kms->dp_displays = kcalloc(sde_kms->dp_display_count,
 				sizeof(void *), GFP_KERNEL);
 		if (!sde_kms->dp_displays) {
@@ -1321,7 +1323,10 @@ static int _sde_kms_get_displays(struct sde_kms *sde_kms)
 			dp_display_get_displays(sde_kms->dp_displays,
 					sde_kms->dp_display_count);
 
-		sde_kms->dp_stream_count = dp_display_get_num_of_streams();
+		for (i = 0; i < sde_kms->dp_display_count; i++)
+			sde_kms->dp_stream_count +=
+				dp_display_get_num_of_streams(
+					sde_kms->dp_displays[i]);
 	}
 	return 0;
 
@@ -1549,6 +1554,8 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 	for (i = 0; i < sde_kms->dp_display_count &&
 			priv->num_encoders < max_encoders; ++i) {
 		int idx;
+		int dp_stream_count;
+		u32 dp_intf_idx[DP_STREAM_MAX];
 
 		display = sde_kms->dp_displays[i];
 		encoder = NULL;
@@ -1591,10 +1598,15 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 
 		/* update display cap to MST_MODE for DP MST encoders */
 		info.capabilities |= MSM_DISPLAY_CAP_MST_MODE;
-		sde_kms->dp_stream_count = dp_display_get_num_of_streams();
-		for (idx = 0; idx < sde_kms->dp_stream_count &&
+		dp_stream_count = dp_display_get_num_of_streams(display);
+
+		/* make a copy of h_tile_instance */
+		for (idx = 0; idx < dp_stream_count; idx++)
+			dp_intf_idx[idx] = info.h_tile_instance[idx];
+
+		for (idx = 0; idx < dp_stream_count &&
 				priv->num_encoders < max_encoders; idx++) {
-			info.h_tile_instance[0] = idx;
+			info.h_tile_instance[0] = dp_intf_idx[idx];
 			encoder = sde_encoder_init(dev, &info);
 			if (IS_ERR_OR_NULL(encoder)) {
 				SDE_ERROR("dp mst encoder init failed %d\n", i);
@@ -1612,11 +1624,10 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		}
 
 		/* create super encoder and bridge */
-		if (sde_kms->dp_stream_count > 1 &&
-				priv->num_encoders < max_encoders) {
-			info.num_of_h_tiles = sde_kms->dp_stream_count;
-			for (idx = 0; idx < sde_kms->dp_stream_count; idx++)
-				info.h_tile_instance[idx] = idx;
+		if (dp_stream_count > 1 && priv->num_encoders < max_encoders) {
+			info.num_of_h_tiles = dp_stream_count;
+			for (idx = 0; idx < dp_stream_count; idx++)
+				info.h_tile_instance[idx] = dp_intf_idx[idx];
 
 			encoder = sde_encoder_init(dev, &info);
 			if (IS_ERR_OR_NULL(encoder)) {
@@ -3161,9 +3172,24 @@ static void sde_kms_init_shared_hw(struct sde_kms *sde_kms)
 	if (!sde_kms || !sde_kms->hw_mdp || !sde_kms->catalog)
 		return;
 
-	if (sde_kms->hw_mdp->ops.intf_dp_select)
+	if (sde_kms->hw_mdp->ops.intf_dp_select) {
+		struct dp_display_info dp_info = {0};
+		u32 dp_intf_sel[DP_CTRL_MAX] = {0};
+		int i;
+
+		for (i = 0; i < sde_kms->dp_display_count; i++) {
+			if (dp_display_get_info(sde_kms->dp_displays[i],
+					&dp_info))
+				continue;
+
+			if (dp_info.cell_idx < DP_CTRL_MAX)
+				dp_intf_sel[dp_info.cell_idx] =
+					dp_info.phy_idx + 1;
+		}
+
 		sde_kms->hw_mdp->ops.intf_dp_select(sde_kms->hw_mdp,
-						sde_kms->catalog);
+				dp_intf_sel);
+	}
 
 	if (sde_kms->hw_mdp->ops.reset_ubwc)
 		sde_kms->hw_mdp->ops.reset_ubwc(sde_kms->hw_mdp,

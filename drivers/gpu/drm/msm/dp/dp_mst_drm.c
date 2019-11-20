@@ -113,11 +113,6 @@ struct dp_mst_private {
 	bool mst_session_state;
 };
 
-struct dp_mst_encoder_info_cache {
-	u8 cnt;
-	struct drm_encoder *mst_enc[MAX_DP_MST_DRM_BRIDGES];
-};
-
 #define to_dp_mst_bridge(x)     container_of((x), struct dp_mst_bridge, base)
 #define to_dp_mst_bridge_priv(x) \
 		container_of((x), struct dp_mst_bridge, obj)
@@ -125,9 +120,6 @@ struct dp_mst_encoder_info_cache {
 		container_of((x), struct dp_mst_bridge_state, base)
 #define to_dp_mst_bridge_state(x) \
 		to_dp_mst_bridge_priv_state((x)->obj.state)
-
-struct dp_mst_private dp_mst;
-struct dp_mst_encoder_info_cache dp_mst_enc_cache;
 
 static struct drm_private_state *dp_mst_duplicate_bridge_state(
 		struct drm_private_obj *obj)
@@ -931,19 +923,6 @@ int dp_mst_drm_bridge_init(void *data, struct drm_encoder *encoder)
 	struct msm_drm_private *priv = NULL;
 	struct dp_mst_private *mst = display->dp_mst_prv_info;
 	int i;
-
-	if (!mst || !mst->mst_initialized) {
-		if (dp_mst_enc_cache.cnt >= MAX_DP_MST_DRM_BRIDGES) {
-			pr_info("exceeding max bridge cnt %d\n",
-					dp_mst_enc_cache.cnt);
-			return 0;
-		}
-
-		dp_mst_enc_cache.mst_enc[dp_mst_enc_cache.cnt] = encoder;
-		dp_mst_enc_cache.cnt++;
-		pr_info("mst not initialized. cache encoder information\n");
-		return 0;
-	}
 
 	for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++) {
 		if (!mst->mst_bridge[i].in_use) {
@@ -2300,10 +2279,9 @@ int dp_mst_init(struct dp_display *dp_display)
 {
 	struct drm_device *dev;
 	int conn_base_id = 0;
-	int ret, i;
+	int ret;
 	struct dp_mst_drm_install_info install_info;
-
-	memset(&dp_mst, 0, sizeof(dp_mst));
+	struct dp_mst_private *dp_mst;
 
 	if (!dp_display) {
 		pr_err("invalid params\n");
@@ -2312,56 +2290,53 @@ int dp_mst_init(struct dp_display *dp_display)
 
 	dev = dp_display->drm_dev;
 
+	dp_mst = devm_kzalloc(dev->dev, sizeof(*dp_mst), GFP_KERNEL);
+	if (!dp_mst)
+		return -ENOMEM;
+
 	/* register with DP driver */
-	install_info.dp_mst_prv_info = &dp_mst;
+	install_info.dp_mst_prv_info = dp_mst;
 	install_info.cbs = &dp_mst_display_cbs;
 	dp_display->mst_install(dp_display, &install_info);
 
-	dp_display->get_mst_caps(dp_display, &dp_mst.caps);
+	dp_display->get_mst_caps(dp_display, &dp_mst->caps);
 
-	if (!dp_mst.caps.has_mst) {
+	if (!dp_mst->caps.has_mst) {
 		DP_MST_DEBUG("mst not supported\n");
 		return 0;
 	}
 
-	dp_mst.mst_fw_cbs = &drm_dp_mst_fw_helper_ops;
+	dp_mst->mst_fw_cbs = &drm_dp_mst_fw_helper_ops;
 
-	memset(&dp_mst.mst_mgr, 0, sizeof(dp_mst.mst_mgr));
-	dp_mst.mst_mgr.cbs = &dp_mst_drm_cbs;
+	memset(&dp_mst->mst_mgr, 0, sizeof(dp_mst->mst_mgr));
+	dp_mst->mst_mgr.cbs = &dp_mst_drm_cbs;
 	conn_base_id = dp_display->base_connector->base.id;
-	dp_mst.dp_display = dp_display;
+	dp_mst->dp_display = dp_display;
 
-	mutex_init(&dp_mst.mst_lock);
+	mutex_init(&dp_mst->mst_lock);
 
-	ret = drm_dp_mst_topology_mgr_init(&dp_mst.mst_mgr, dev,
-					dp_mst.caps.drm_aux,
-					dp_mst.caps.max_dpcd_transaction_bytes,
-					dp_mst.caps.max_streams_supported,
+	ret = drm_dp_mst_topology_mgr_init(&dp_mst->mst_mgr, dev,
+					dp_mst->caps.drm_aux,
+					dp_mst->caps.max_dpcd_transaction_bytes,
+					dp_mst->caps.max_streams_supported,
 					conn_base_id);
 	if (ret) {
 		pr_err("dp drm mst topology manager init failed\n");
 		goto error;
 	}
 
-	dp_mst.mst_initialized = true;
-
-	/* create drm_bridges for cached mst encoders and clear cache */
-	for (i = 0; i < dp_mst_enc_cache.cnt; i++) {
-		ret = dp_mst_drm_bridge_init(dp_display,
-				dp_mst_enc_cache.mst_enc[i]);
-	}
-	memset(&dp_mst_enc_cache, 0, sizeof(dp_mst_enc_cache));
+	dp_mst->mst_initialized = true;
 
 	/* choose fixed callback function if fixed topology is found */
 	if (!dp_display->mst_get_fixed_topology_port(dp_display, 0, NULL))
-		dp_mst.mst_mgr.cbs = &dp_mst_fixed_drm_cbs;
+		dp_mst->mst_mgr.cbs = &dp_mst_fixed_drm_cbs;
 
 	DP_MST_INFO_LOG("dp drm mst topology manager init completed\n");
 
 	return ret;
 
 error:
-	mutex_destroy(&dp_mst.mst_lock);
+	mutex_destroy(&dp_mst->mst_lock);
 	return ret;
 }
 
@@ -2383,7 +2358,7 @@ void dp_mst_deinit(struct dp_display *dp_display)
 
 	drm_dp_mst_topology_mgr_destroy(&mst->mst_mgr);
 
-	dp_mst.mst_initialized = false;
+	mst->mst_initialized = false;
 
 	mutex_destroy(&mst->mst_lock);
 

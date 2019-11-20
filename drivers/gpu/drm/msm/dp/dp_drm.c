@@ -431,8 +431,21 @@ int dp_connector_get_info(struct drm_connector *connector,
 
 	info->intf_type = DRM_MODE_CONNECTOR_DisplayPort;
 
-	info->num_of_h_tiles = 1;
-	info->h_tile_instance[0] = 0;
+	if (!display->bridge) {
+		struct dp_display_info dp_info = {0};
+		int rc, i;
+
+		rc = dp_display_get_info(display, &dp_info);
+		if (rc) {
+			pr_err("failed to get info\n");
+			return rc;
+		}
+
+		info->num_of_h_tiles = 1;
+		for (i = 0; i < DP_STREAM_MAX; i++)
+			info->h_tile_instance[i] = dp_info.intf_idx[i];
+	}
+
 	info->is_connected = display->is_sst_connected;
 	info->capabilities = MSM_DISPLAY_CAP_VID_MODE | MSM_DISPLAY_CAP_EDID |
 		MSM_DISPLAY_CAP_HOT_PLUG;

@@ -334,6 +334,12 @@ enum sde_qdss {
 	QDSS_MAX
 };
 
+enum sde_dp_ctrl {
+	DP_CTRL_0,
+	DP_CTRL_1,
+	DP_CTRL_MAX
+};
+
 /**
  * SDE HW,Component order color map
  */

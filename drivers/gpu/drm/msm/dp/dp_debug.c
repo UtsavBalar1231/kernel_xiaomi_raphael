@@ -42,6 +42,7 @@ struct dp_debug_private {
 	char exe_mode[SZ_32];
 	char reg_dump[SZ_32];
 
+	u32 index;
 	struct dp_hpd *hpd;
 	struct dp_link *link;
 	struct dp_panel *panel;
@@ -1881,15 +1882,22 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	struct dp_debug_private *debug = container_of(dp_debug,
 		struct dp_debug_private, dp_debug);
 	struct dentry *dir, *file;
+	char debug_name[16];
 
-	dir = debugfs_create_dir(DEBUG_NAME, NULL);
+	if (!debug->index)
+		strlcpy(debug_name, DEBUG_NAME, sizeof(debug_name));
+	else
+		snprintf(debug_name, sizeof(debug_name), "%s%d", DEBUG_NAME,
+				debug->index);
+
+	dir = debugfs_create_dir(debug_name, NULL);
 	if (IS_ERR_OR_NULL(dir)) {
 		if (!dir)
 			rc = -EINVAL;
 		else
 			rc = PTR_ERR(dir);
 		pr_err("[%s] debugfs create dir failed, rc = %d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error;
 	}
 
@@ -1900,7 +1908,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create file failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1909,7 +1917,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create edid_modes failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1918,7 +1926,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create edid_modes_mst failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1927,7 +1935,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create mst_con_id failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1936,7 +1944,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create mst_conn_info failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1945,7 +1953,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs hpd failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1954,7 +1962,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs connected failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1963,7 +1971,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_bw_code failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_file("exe_mode", 0644, dir,
@@ -1971,7 +1979,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs register failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_file("edid", 0644, dir,
@@ -1979,7 +1987,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs edid failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1988,7 +1996,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs dpcd failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1997,7 +2005,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs tpg failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2007,7 +2015,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs hdr failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2017,7 +2025,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs sim failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2027,7 +2035,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs attention failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2037,7 +2045,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs dump failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2046,7 +2054,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_bw_code failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2055,7 +2063,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_bw_code failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2064,7 +2072,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs force_bond_mode, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2073,7 +2081,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_pclk_khz failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2082,7 +2090,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs force_encryption failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2091,7 +2099,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs hdcp failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2101,7 +2109,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs hdcp_wait_sink_sync failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -2111,7 +2119,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs dsc_feature failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_bool("fec_feature_enable", 0644, dir,
@@ -2119,7 +2127,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs fec_feature_enable failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_file("widebus_mode", 0644, dir,
@@ -2127,7 +2135,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs widebus failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_u32("max_lclk_khz", 0644, dir,
@@ -2135,7 +2143,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_lclk_khz failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	return 0;
@@ -2204,6 +2212,7 @@ struct dp_debug *dp_debug_get(struct dp_debug_in *in)
 	debug->parser = in->parser;
 	debug->ctrl = in->ctrl;
 	debug->power = in->power;
+	debug->index = in->index;
 
 	dp_debug = &debug->dp_debug;
 	dp_debug->vdisplay = 0;

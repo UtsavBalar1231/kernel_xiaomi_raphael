@@ -59,6 +59,7 @@ struct dp_debug {
 /**
  * struct dp_debug_in
  * @dev: device instance of the caller
+ * @index: device index
  * @panel: instance of panel module
  * @hpd: instance of hpd module
  * @link: instance of link module
@@ -71,6 +72,7 @@ struct dp_debug {
  */
 struct dp_debug_in {
 	struct device *dev;
+	u32 index;
 	struct dp_panel *panel;
 	struct dp_hpd *hpd;
 	struct dp_link *link;

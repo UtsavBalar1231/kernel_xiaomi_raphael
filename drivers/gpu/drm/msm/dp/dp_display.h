@@ -23,9 +23,17 @@
 
 #define DP_MST_SIM_MAX_PORTS	2
 
+#define MAX_DP_ACTIVE_DISPLAY	3
+
 enum dp_drv_state {
 	PM_DEFAULT,
 	PM_SUSPEND,
+};
+
+struct dp_display_info {
+	u32 cell_idx;
+	u32 intf_idx[DP_STREAM_MAX];
+	u32 phy_idx;
 };
 
 struct dp_mst_drm_cbs {
@@ -132,5 +140,7 @@ struct dp_display {
 
 int dp_display_get_num_of_displays(void);
 int dp_display_get_displays(void **displays, int count);
-int dp_display_get_num_of_streams(void);
+int dp_display_get_num_of_streams(void *dp_display);
+int dp_display_get_info(void *dp_display, struct dp_display_info *dp_info);
+
 #endif /* _DP_DISPLAY_H_ */
