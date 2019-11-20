@@ -2558,16 +2558,14 @@ QDF_STATUS hdd_hostapd_sap_event_cb(struct sap_event *sap_event,
 	case eSAP_ACS_CHANNEL_SELECTED:
 		hdd_debug("ACS Completed for wlan%d",
 					adapter->dev->ifindex);
-		clear_bit(ACS_PENDING, &adapter->event_flags);
-		clear_bit(ACS_IN_PROGRESS, &hdd_ctx->g_event_flags);
 		ap_ctx->sap_config.acs_cfg.pri_ch =
 			sap_event->sapevt.sap_ch_selected.pri_ch;
 		ap_ctx->sap_config.acs_cfg.ht_sec_ch =
 			sap_event->sapevt.sap_ch_selected.ht_sec_ch;
 		ap_ctx->sap_config.acs_cfg.vht_seg0_center_ch =
-			sap_event->sapevt.sap_ch_selected.vht_seg0_center_ch;
+		sap_event->sapevt.sap_ch_selected.vht_seg0_center_ch;
 		ap_ctx->sap_config.acs_cfg.vht_seg1_center_ch =
-			sap_event->sapevt.sap_ch_selected.vht_seg1_center_ch;
+		sap_event->sapevt.sap_ch_selected.vht_seg1_center_ch;
 		ap_ctx->sap_config.acs_cfg.ch_width =
 			sap_event->sapevt.sap_ch_selected.ch_width;
 		wlan_hdd_cfg80211_acs_ch_select_evt(adapter);
@@ -4965,9 +4963,6 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 	}
 
 	hostapd_state = WLAN_HDD_GET_HOSTAP_STATE_PTR(adapter);
-
-	clear_bit(ACS_PENDING, &adapter->event_flags);
-	clear_bit(ACS_IN_PROGRESS, &hdd_ctx->g_event_flags);
 
 	config = &adapter->session.ap.sap_config;
 	if (!config->channel) {
