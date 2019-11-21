@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -412,6 +412,21 @@ enum sde_3d_blend_mode {
 	BLEND_3D_V_ROW_INT,
 	BLEND_3D_COL_INT,
 	BLEND_3D_MAX
+};
+
+/**
+ * enum sde_layout
+ * Describes SSPP to LM staging layout when using more than 1 pair of LMs
+ * @SDE_LAYOUT_NONE    : SSPPs to LMs staging layout not enabled
+ * @SDE_LAYOUT_LEFT    : SSPPs will be staged on left two LMs
+ * @SDE_LAYOUT_RIGHT   : SSPPs will be staged on right two LMs
+ * @SDE_LAYOUT_MAX     :
+ */
+enum sde_layout {
+	SDE_LAYOUT_NONE = 0,
+	SDE_LAYOUT_LEFT,
+	SDE_LAYOUT_RIGHT,
+	SDE_LAYOUT_MAX,
 };
 
 /** struct sde_format - defines the format configuration which

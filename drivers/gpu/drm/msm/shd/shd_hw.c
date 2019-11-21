@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -181,12 +181,13 @@ static inline int _stage_offset(struct sde_hw_mixer *ctx, enum sde_stage stage)
 }
 
 static void _sde_shd_hw_ctl_setup_blendstage(struct sde_hw_ctl *ctx,
-	enum sde_lm lm, struct sde_hw_stage_cfg *stage_cfg)
+	enum sde_lm lm, int lm_layout, struct sde_hw_stage_cfg *stage_cfg)
 {
 	struct sde_shd_hw_ctl *hw_ctl;
 	int i, j;
 	int pipes_per_stage;
 	u32 pipe_idx, rect_idx;
+	enum sde_layout sspp_layout;
 	const struct ctl_sspp_stage_reg_map *sspp_cfg;
 	u32 mixercfg[CTL_NUM_EXT] = {CTL_MIXER_BORDER_OUT, 0, 0, 0};
 	u32 mixermask[CTL_NUM_EXT] = {0, 0, 0, 0};
@@ -212,6 +213,10 @@ static void _sde_shd_hw_ctl_setup_blendstage(struct sde_hw_ctl *ctx,
 		for (j = 0 ; j < pipes_per_stage; j++) {
 			pipe_idx = stage_cfg->stage[i][j];
 			if (!pipe_idx || pipe_idx >= SSPP_MAX)
+				continue;
+
+			sspp_layout = stage_cfg->sspp_layout[i][j];
+			if (sspp_layout && (sspp_layout != lm_layout))
 				continue;
 
 			rect_idx = (stage_cfg->multirect_index[i][j]
