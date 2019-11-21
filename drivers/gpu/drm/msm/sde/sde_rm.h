@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -159,10 +159,11 @@ struct sde_rm_hw_request {
 
 /**
  * sde_rm_get_topology_name - get the name of the given topology config
+ * @rm: SDE Resource Manager handle
  * @topology: msm_display_topology topology config
  * @Return: name of the given topology
  */
-enum sde_rm_topology_name sde_rm_get_topology_name(
+enum sde_rm_topology_name sde_rm_get_topology_name(struct sde_rm *rm,
 	struct msm_display_topology topology);
 
 
@@ -275,11 +276,13 @@ int sde_rm_cont_splash_res_init(struct msm_drm_private *priv,
 
 /**
  * sde_rm_update_topology - sets topology property of the connector
+ * @rm: SDE Resource Manager handle
  * @conn_state: drm state of the connector
  * @topology: topology selected for the display
  * @return: 0 on success or error
  */
-int sde_rm_update_topology(struct drm_connector_state *conn_state,
+int sde_rm_update_topology(struct sde_rm *rm,
+	struct drm_connector_state *conn_state,
 	struct msm_display_topology *topology);
 
 /**

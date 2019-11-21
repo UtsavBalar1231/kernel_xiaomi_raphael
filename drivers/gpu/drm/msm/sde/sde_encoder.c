@@ -1144,7 +1144,8 @@ static int sde_encoder_virt_atomic_check(
 		if (crtc_state->active)
 			topology = &sde_conn_state->mode_info.topology;
 
-		ret = sde_rm_update_topology(conn_state, topology);
+		ret = sde_rm_update_topology(&sde_kms->rm, conn_state,
+				topology);
 		if (ret) {
 			SDE_ERROR_ENC(sde_enc,
 				"RM failed to update topology, rc: %d\n", ret);

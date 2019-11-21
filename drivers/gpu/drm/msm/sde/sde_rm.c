@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -190,14 +190,14 @@ void sde_rm_init_hw_iter(
 	iter->type = type;
 }
 
-enum sde_rm_topology_name sde_rm_get_topology_name(
+enum sde_rm_topology_name sde_rm_get_topology_name(struct sde_rm *rm,
 	struct msm_display_topology topology)
 {
 	int i;
 
 	for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
-		if (RM_IS_TOPOLOGY_MATCH(g_top_table[i], topology))
-			return g_top_table[i].top_name;
+		if (RM_IS_TOPOLOGY_MATCH(rm->topology_tbl[i], topology))
+			return rm->topology_tbl[i].top_name;
 
 	return SDE_RM_TOPOLOGY_NONE;
 }
@@ -1645,7 +1645,8 @@ static struct drm_connector *_sde_rm_get_connector(
 	return NULL;
 }
 
-int sde_rm_update_topology(struct drm_connector_state *conn_state,
+int sde_rm_update_topology(struct sde_rm *rm,
+	struct drm_connector_state *conn_state,
 	struct msm_display_topology *topology)
 {
 	int i, ret = 0;
@@ -1658,8 +1659,8 @@ int sde_rm_update_topology(struct drm_connector_state *conn_state,
 	if (topology) {
 		top = *topology;
 		for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
-			if (RM_IS_TOPOLOGY_MATCH(g_top_table[i], top)) {
-				top_name = g_top_table[i].top_name;
+			if (RM_IS_TOPOLOGY_MATCH(rm->topology_tbl[i], top)) {
+				top_name = rm->topology_tbl[i].top_name;
 				break;
 			}
 	}
