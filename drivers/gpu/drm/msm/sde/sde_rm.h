@@ -162,7 +162,7 @@ struct sde_rm_hw_request {
  * @topology: msm_display_topology topology config
  * @Return: name of the given topology
  */
-enum sde_rm_topology_name sde_rm_get_topology_name(
+enum sde_rm_topology_name sde_rm_get_topology_name(struct sde_rm *rm,
 	struct msm_display_topology topology);
 
 
@@ -279,7 +279,8 @@ int sde_rm_cont_splash_res_init(struct msm_drm_private *priv,
  * @topology: topology selected for the display
  * @return: 0 on success or error
  */
-int sde_rm_update_topology(struct drm_connector_state *conn_state,
+int sde_rm_update_topology(struct sde_rm *rm,
+	struct drm_connector_state *conn_state,
 	struct msm_display_topology *topology);
 
 /**
