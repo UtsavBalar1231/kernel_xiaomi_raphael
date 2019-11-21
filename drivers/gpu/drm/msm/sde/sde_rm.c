@@ -205,6 +205,18 @@ enum sde_rm_topology_name sde_rm_get_topology_name(struct sde_rm *rm,
 	return SDE_RM_TOPOLOGY_NONE;
 }
 
+int sde_rm_get_topology_num_encoders(struct sde_rm *rm,
+	enum sde_rm_topology_name topology)
+{
+	int i;
+
+	for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
+		if (rm->topology_tbl[i].top_name == topology)
+			return rm->topology_tbl[i].num_comp_enc;
+
+	return 0;
+}
+
 static bool _sde_rm_get_hw_locked(struct sde_rm *rm, struct sde_rm_hw_iter *i)
 {
 	struct list_head *blk_list;

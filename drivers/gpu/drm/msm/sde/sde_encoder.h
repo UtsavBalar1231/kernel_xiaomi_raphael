@@ -24,6 +24,8 @@
 #include "msm_prop.h"
 #include "sde_hw_mdss.h"
 
+
+#define MAX_CHANNELS_PER_ENC 4
 #define SDE_ENCODER_FRAME_EVENT_DONE			BIT(0)
 #define SDE_ENCODER_FRAME_EVENT_ERROR			BIT(1)
 #define SDE_ENCODER_FRAME_EVENT_PANEL_DEAD		BIT(2)
@@ -65,6 +67,7 @@ struct sde_encoder_kickoff_params {
 	u32 is_primary;
 	unsigned long affected_displays;
 	bool recovery_events_enabled;
+	u32 num_channels;
 };
 
 /**
