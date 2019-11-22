@@ -587,6 +587,11 @@ typedef enum {
     /** unmap response with peer ids */
     WMI_PEER_UNMAP_RESPONSE_CMDID,
 
+    /** WMI command for per-peer configuration of VLAN header operations
+     * during TX and RX
+     */
+    WMI_PEER_CONFIG_VLAN_CMDID,
+
 
     /* beacon/management specific commands */
 
@@ -998,6 +1003,8 @@ typedef enum {
     WMI_SET_ELNA_BYPASS_CMDID,
     /** get ELNA BYPASS status */
     WMI_GET_ELNA_BYPASS_CMDID,
+    /** get ANI level of the channels */
+    WMI_GET_CHANNEL_ANI_CMDID,
 
     /*  Offload 11k related requests */
     WMI_11K_OFFLOAD_REPORT_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_11K_OFFLOAD),
@@ -1772,6 +1779,9 @@ typedef enum {
     /** event to get ELNA BYPASS status */
     WMI_GET_ELNA_BYPASS_EVENTID,
 
+    /** event to report ANI level of the channels */
+    WMI_GET_CHANNEL_ANI_EVENTID,
+
     /* GPIO Event */
     WMI_GPIO_INPUT_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_GPIO),
     /** upload H_CV info WMI event
@@ -1805,6 +1815,7 @@ typedef enum {
     WMI_OEM_RESPONSE_EVENTID,
     WMI_OEM_DMA_RING_CFG_RSP_EVENTID,
     WMI_OEM_DMA_BUF_RELEASE_EVENTID,
+    WMI_OEM_DATA_EVENTID,
 
     /* NAN Event */
     WMI_NAN_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_NAN),
@@ -5391,6 +5402,12 @@ typedef struct {
     wmi_mac_addr base_macaddr;
 } wmi_pdev_set_base_macaddr_cmd_fixed_param;
 
+
+enum wmi_spectral_scan_mode {
+    WMI_SPECTRAL_SCAN_NORMAL_MODE,
+    WMI_SPECTRAL_SCAN_AGILE_MODE,
+};
+
 /*
  * For now, the spectral configuration is global rather than
  * per-vdev.  The vdev is a placeholder and will be ignored
@@ -5417,6 +5434,14 @@ typedef struct {
     A_UINT32 spectral_scan_bin_scale;
     A_UINT32 spectral_scan_dBm_adj;
     A_UINT32 spectral_scan_chn_mask;
+    /* See enum wmi_spectral_scan_mode */
+    A_UINT32 spectral_scan_mode;
+    /* agile span center frequency (MHz), 0 for normal scan*/
+    A_UINT32 spectral_scan_center_freq;
+    /* agile span primary channel frequency (MHz), 0 for normal scan*/
+    A_UINT32 spectral_scan_chan_freq;
+    /* agile scan bandwidth (20, 40, 80, 80+80, 160), enum wmi_channel_width */
+    A_UINT32 spectral_scan_chan_width;
 } wmi_vdev_spectral_configure_cmd_fixed_param;
 
 /*
@@ -5432,6 +5457,8 @@ typedef struct {
     A_UINT32 trigger_cmd;
     /* 0 - ignore; 1 - enable, 2 - disable */
     A_UINT32 enable_cmd;
+    /* See enum wmi_spectral_scan_mode */
+    A_UINT32 spectral_scan_mode;
 } wmi_vdev_spectral_enable_cmd_fixed_param;
 
 typedef struct {
@@ -11849,6 +11876,12 @@ typedef struct {
 /* Per peer MISC stats enable or disable */
 #define  WMI_PEER_PARAM_MISC_STATS_ENABLE               0x22
 
+/* Per peer FW congestion enable or disable:
+ * A parameter value of 1 will disable FW tx congestion control for the peer,
+ * a parameter value 0f 0 will enable FW tx congestion control for the peer.
+ */
+#define  WMI_PEER_PARAM_FW_CONGESTION_DISABLE           0x23
+
 /** mimo ps values for the parameter WMI_PEER_MIMO_PS_STATE  */
 #define WMI_PEER_MIMO_PS_NONE                          0x0
 #define WMI_PEER_MIMO_PS_STATIC                        0x1
@@ -12011,6 +12044,7 @@ typedef struct {
 #define WMI_PEER_APSD           0x00000800  /* U-APSD power save enabled */
 #define WMI_PEER_HT             0x00001000  /* HT enabled */
 #define WMI_PEER_40MHZ          0x00002000  /* 40MHz enabld */
+#define WMI_PEER_INTER_BSS_PEER 0x00004000  /* Inter BSS peer */
 #define WMI_PEER_STBC           0x00008000  /* STBC Enabled */
 #define WMI_PEER_LDPC           0x00010000  /* LDPC ENabled */
 #define WMI_PEER_DYN_MIMOPS     0x00020000  /* Dynamic MIMO PS Enabled */
@@ -12229,6 +12263,11 @@ typedef struct {
     A_UINT32 mac_clk_mhz;
     /** unique id identifying the VDEV */
     A_UINT32 vdev_id;
+    /**
+     * Noise Floor value for all chain in dBm.
+     * If per_chain_noise_floor value is 0 then it should be ignored.
+     */
+    A_UINT32 per_chain_noise_floor[WMI_MAX_CHAINS];
 } wmi_chan_info_event_fixed_param;
 
 /**
@@ -23933,6 +23972,15 @@ typedef struct {
 #define WMI_SUPPORT_CHAN_WIDTH_80P80_GET(flags) WMI_GET_BITS(flags, 4, 1)
 #define WMI_SUPPORT_CHAN_WIDTH_80P80_SET(flags, value) WMI_SET_BITS(flags, 4, 1, value)
 
+#define WMI_SUPPORT_AGILE_SPECTRAL_GET(flags) WMI_GET_BITS(flags, 5, 1)
+#define WMI_SUPPORT_AGILE_SPECTRAL_SET(flags, value) WMI_SET_BITS(flags, 5, 1, value)
+
+#define WMI_SUPPORT_AGILE_SPECTRAL_160_GET(flags) WMI_GET_BITS(flags, 6, 1)
+#define WMI_SUPPORT_AGILE_SPECTRAL_160_SET(flags, value) WMI_SET_BITS(flags, 6, 1, value)
+
+#define WMI_SUPPORT_ADFS_160_GET(flags) WMI_GET_BITS(flags, 7, 1)
+#define WMI_SUPPORT_ADFS_160_SET(flags, value) WMI_SET_BITS(flags, 7, 1, value)
+
 #define WMI_SUPPORT_CHAIN_MASK_2G_GET(flags) WMI_GET_BITS(flags, 27, 1)
 #define WMI_SUPPORT_CHAIN_MASK_2G_SET(flags, value) WMI_SET_BITS(flags, 27, 1, value)
 
@@ -23959,7 +24007,10 @@ typedef struct {
                      supports_chan_width_80:1,
                      supports_chan_width_160:1,
                      supports_chan_width_80P80:1,
-                     reserved:22, /* bits 26:5 */
+                     supports_agile_spectral:1,
+                     supports_agile_spectral_160:1,
+                     supports_aDFS_160:1,
+                     reserved:19, /* bits 26:8 */
                      chain_mask_2G:1,
                      chain_mask_5G:1,
                      chain_mask_tx:1,
@@ -24863,6 +24914,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_ATF_SSID_GROUPING_REQUEST_CMDID);
         WMI_RETURN_STRING(WMI_ATF_GROUP_WMM_AC_CONFIG_REQUEST_CMDID);
         WMI_RETURN_STRING(WMI_PEER_ATF_EXT_REQUEST_CMDID);
+        WMI_RETURN_STRING(WMI_GET_CHANNEL_ANI_CMDID);
     }
 
     return "Invalid WMI cmd";
@@ -27941,6 +27993,44 @@ typedef struct {
     A_UINT32 en_dis;
 } wmi_get_elna_bypass_event_fixed_param;
 
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_get_channel_ani_cmd_fixed_param
+     */
+    A_UINT32 tlv_header;
+    /**
+     * TLV (tag length value) parameters follow the
+     * structure. The TLV's are:
+     * list of channels (center freq of primary 20 MHz of the channel, in MHz)
+     * A_UINT32 channel_list[];
+     */
+} wmi_get_channel_ani_cmd_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals
+     * WMITLV_TAG_STRUC_wmi_get_channel_ani_event_fixed_param
+     */
+    A_UINT32 tlv_header;
+    /**
+     * TLV (tag length value) parameters follow the
+     * structure. The TLV's are:
+     * wmi_channel_ani_info_tlv_param ani_info[];
+     */
+} wmi_get_channel_ani_event_fixed_param;
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_channel_ani_info_tlv_param */
+    A_UINT32 tlv_header;
+    /** channel freq (center of 20 MHz primary channel) in MHz */
+    A_UINT32 chan_freq;
+    /**
+     * ANI (noise interference) level corresponding to the channel.
+     * Values range from [0-9], with higher values indicating more
+     * noise interference.
+     */
+    A_UINT32 ani_level;
+} wmi_channel_ani_info_tlv_param;
+
 /* This command is to specify to enable/disable audio frame aggr */
 typedef struct {
     A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_audio_aggr_enable_cmd_fixed_param */
@@ -28189,7 +28279,8 @@ typedef struct {
 #define WMI_CFR_NDPA_NDP_ALL_EN_SET(param, value) \
     WMI_SET_BITS(param, WMI_CFR_NDPA_NDP_ALL_EN_BIT_POS, 1, value)
 
-#define WWMI_CFR_NDPA_NDP_ALL_EN_GET(param)     \
+#define WWMI_CFR_NDPA_NDP_ALL_EN_GET WMI_CFR_NDPA_NDP_ALL_EN_GET
+#define WMI_CFR_NDPA_NDP_ALL_EN_GET(param)     \
     WMI_GET_BITS(param, WMI_CFR_NDPA_NDP_ALL_EN_BIT_POS, 1)
 
 #define WMI_CFR_TA_RA_TYPE_FILTER_EN_SET(param, value) \
@@ -28198,7 +28289,8 @@ typedef struct {
 #define WMI_CFR_TA_RA_TYPE_FILTER_EN_GET(param)     \
     WMI_GET_BITS(param, WMI_CFR_TA_RA_TYPE_FILTER_EN_BIT_POS, 1)
 
-#define WWMI_CFR_ALL_PACKET_EN_SET(param, value) \
+#define WWMI_CFR_ALL_PACKET_EN_SET WMI_CFR_ALL_PACKET_EN_SET
+#define WMI_CFR_ALL_PACKET_EN_SET(param, value) \
     WMI_SET_BITS(param, WMI_CFR_ALL_PACKET_EN_BIT_POS, 1, value)
 
 #define WMI_CFR_ALL_PACKET_EN_GET(param)     \
@@ -28311,6 +28403,138 @@ typedef struct {
  * wmi_cfr_filter_group_config filter_group_config[];
  */
 } wmi_cfr_capture_filter_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_oem_data_event_fixed_param */
+    A_UINT32 data_len; /** length in byte of data[]. */
+/* Following this structure is the TLV:
+ *      A_UINT8 data[]; <-- length in byte given by field data_len.
+ * This data array contains OEM data, the payload begins with a field to tell the HOST regarding the kind of the OEM data.
+ */
+} wmi_oem_data_event_fixed_param;
+
+#define WMI_VLAN_TX_BIT_POS                             0
+#define WMI_VLAN_RX_BIT_POS                             1
+#define WMI_TX_INSERT_OR_STRIP_BIT_POS                  2
+#define WMI_TX_STRIP_INSERT_VLAN_INNER_BIT_POS          3
+#define WMI_TX_STRIP_INSERT_VLAN_OUTER_BIT_POS          4
+#define WMI_RX_STRIP_VLAN_C_TAG_BIT_POS                 5
+#define WMI_RX_STRIP_VLAN_S_TAG_BIT_POS                 6
+#define WMI_RX_INSERT_VLAN_C_TAG_BIT_POS                7
+#define WMI_RX_INSERT_VLAN_S_TAG_BIT_POS                8
+
+#define WMI_TX_INSERT_VLAN_INNER_TCI_NUM_BITS           16
+#define WMI_TX_INSERT_VLAN_INNER_TCI_BIT_POS            0
+
+#define WMI_TX_INSERT_VLAN_OUTER_TCI_NUM_BITS           16
+#define WMI_TX_INSERT_VLAN_OUTER_TCI_BIT_POS            16
+
+
+#define WMI_VLAN_TX_SET(param, value) \
+    WMI_SET_BITS(param, WMI_VLAN_TX_BIT_POS, 1, value)
+
+#define WMI_VLAN_TX_GET(param)     \
+    WMI_GET_BITS(param, WMI_VLAN_TX_BIT_POS, 1)
+
+#define WMI_VLAN_RX_SET(param, value) \
+    WMI_SET_BITS(param, WMI_VLAN_RX_BIT_POS, 1, value)
+
+#define WMI_VLAN_RX_GET(param)     \
+    WMI_GET_BITS(param, WMI_VLAN_RX_BIT_POS, 1)
+
+#define WMI_TX_INSERT_OR_STRIP_SET(param, value) \
+    WMI_SET_BITS(param, WMI_TX_INSERT_OR_STRIP_BIT_POS, 1, value)
+
+#define WMI_TX_INSERT_OR_STRIP_GET(param)     \
+    WMI_GET_BITS(param, WMI_TX_INSERT_OR_STRIP_BIT_POS, 1)
+
+#define WMI_TX_STRIP_INSERT_VLAN_INNER_SET(param, value) \
+    WMI_SET_BITS(param, WMI_TX_STRIP_INSERT_VLAN_INNER_BIT_POS, 1, value)
+
+#define WMI_TX_STRIP_INSERT_VLAN_INNER_GET(param)     \
+    WMI_GET_BITS(param, WMI_TX_STRIP_INSERT_VLAN_INNER_BIT_POS, 1)
+
+#define WMI_TX_STRIP_INSERT_VLAN_OUTER_SET(param, value) \
+    WMI_SET_BITS(param, WMI_TX_STRIP_INSERT_VLAN_OUTER_BIT_POS, 1, value)
+
+#define WMI_TX_STRIP_INSERT_VLAN_OUTER_GET(param)     \
+    WMI_GET_BITS(param, WMI_TX_STRIP_INSERT_VLAN_OUTER_BIT_POS, 1)
+
+#define WMI_RX_STRIP_VLAN_C_TAG_SET(param, value) \
+    WMI_SET_BITS(param, WMI_RX_STRIP_VLAN_C_TAG_BIT_POS, 1, value)
+
+#define WMI_RX_STRIP_VLAN_C_TAG_GET(param)     \
+    WMI_GET_BITS(param, WMI_RX_STRIP_VLAN_C_TAG_BIT_POS, 1)
+
+#define WMI_RX_STRIP_VLAN_S_TAG_SET(param, value) \
+    WMI_SET_BITS(param, WMI_RX_STRIP_VLAN_S_TAG_BIT_POS, 1, value)
+
+#define WMI_RX_STRIP_VLAN_S_TAG_GET(param)     \
+    WMI_GET_BITS(param, WMI_RX_STRIP_VLAN_S_TAG_BIT_POS, 1)
+
+#define WMI_RX_INSERT_VLAN_C_TAG_SET(param, value) \
+    WMI_SET_BITS(param, WMI_RX_INSERT_VLAN_C_TAG_BIT_POS, 1, value)
+
+#define WMI_RX_INSERT_VLAN_C_TAG_GET(param)     \
+    WMI_GET_BITS(param, WMI_RX_INSERT_VLAN_C_TAG_BIT_POS, 1)
+
+#define WMI_RX_INSERT_VLAN_S_TAG_SET(param, value) \
+    WMI_SET_BITS(param, WMI_RX_INSERT_VLAN_S_TAG_BIT_POS, 1, value)
+
+#define WMI_RX_INSERT_VLAN_S_TAG_GET(param)     \
+    WMI_GET_BITS(param, WMI_RX_INSERT_VLAN_S_TAG_BIT_POS, 1)
+
+#define WMI_TX_INSERT_VLAN_INNER_TCI_SET(param, value) \
+    WMI_SET_BITS(param, WMI_TX_INSERT_VLAN_INNER_TCI_BIT_POS, WMI_TX_INSERT_VLAN_INNER_TCI_NUM_BITS, value)
+
+#define WMI_TX_INSERT_VLAN_INNER_TCI_GET(param)     \
+    WMI_GET_BITS(param, WMI_TX_INSERT_VLAN_INNER_TCI_BIT_POS, WMI_TX_INSERT_VLAN_INNER_TCI_NUM_BITS)
+
+#define WMI_TX_INSERT_VLAN_OUTER_TCI_SET(param, value) \
+    WMI_SET_BITS(param, WMI_TX_INSERT_VLAN_OUTER_TCI_BIT_POS, WMI_TX_INSERT_VLAN_OUTER_TCI_NUM_BITS, value)
+
+#define WMI_TX_INSERT_VLAN_OUTER_TCI_GET(param)     \
+    WMI_GET_BITS(param, WMI_TX_INSERT_VLAN_OUTER_TCI_BIT_POS, WMI_TX_INSERT_VLAN_OUTER_TCI_NUM_BITS)
+
+typedef struct {
+   /** TLV tag and len; tag equals
+    * WMITLV_TAG_STRUC_wmi_peer_config_vlan_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /** peer MAC address */
+    wmi_mac_addr peer_macaddr;
+    /* peer_vlan_config_mask:
+     * Field indicates VLAN settings that need to set in RX and TX peer
+     * Bit 0:    Indicates if the settings are present for TX peer
+     *           [1 - present for TX peer]
+     * Bit 1:    Indicates if the settings are present for RX peer
+     *           [1 - present for RX peer]
+     * Bit 2:    Setting the insert_or_strip bit in TX peer
+     *           [0 - Strip, 1 - Insert]
+     * Bit 3:    Setting the strip_insert_vlan_inner bit in TX peer
+     *           [0 - Strip, 1 - Insert]
+     * Bit 4:    Setting the strip_insert_vlan_outer bit in TX peer
+     *           [0 - Strip, 1 - Insert]
+     * Bit 5:    Setting the strip_vlan_c_tag_decap bit in RX peer [1 - Strip]
+     * Bit 6:    Setting the strip_vlan_s_tag_decap bit in RX peer [1 - Strip]
+     * Bit 7:    Setting the rx_insert_vlan_c_tag_padding bit in RX peer
+     *           [1 - Insert]
+     * Bit 8:    Setting the rx_insert_vlan_s_tag_padding bit in RX peer
+     *           [1 - Insert]
+     */
+    A_UINT32 peer_vlan_config_mask;
+
+    /* insert_vlan_tci:
+     * Field indicates the word that needs to be inserted in the
+     * inner or outer tag, if insertion is enabled by the
+     * TX peer strip_insert_vlan_{inner,outer} fields along with
+     * insert_or_strip field
+     * Bits 0:15  insert_vlan_inner_tci
+     * Bits 16:31 insert_vlan_outer_tci
+     */
+    A_UINT32 insert_vlan_tci;
+    /* VDEV identifier */
+    A_UINT32 vdev_id;
+} wmi_peer_config_vlan_cmd_fixed_param;
 
 
 
