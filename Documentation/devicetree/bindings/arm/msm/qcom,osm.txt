@@ -13,7 +13,8 @@ Properties:
 			or "qcom,clk-cpu-osm-sm6150" or
 			"qcom,clk-cpu-osm-sdmmagpie" or
 			"qcom,clk-cpu-osm-trinket" or
-			"qcom,clk-cpu-osm-atoll".
+			"qcom,clk-cpu-osm-atoll" or
+			"qcom,clk-cpu-osm-sdm630".
 
 - reg
 	Usage:      required

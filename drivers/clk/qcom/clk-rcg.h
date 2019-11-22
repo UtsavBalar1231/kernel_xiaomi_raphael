@@ -190,7 +190,9 @@ extern const struct clk_ops clk_byte_ops;
 extern const struct clk_ops clk_byte2_ops;
 extern const struct clk_ops clk_pixel_ops;
 extern const struct clk_ops clk_gfx3d_ops;
+extern const struct clk_ops clk_gfx3d_src_ops;
 extern const struct clk_ops clk_dp_ops;
+extern const struct clk_ops clk_esc_ops;
 
 extern int clk_rcg2_get_dfs_clock_rate(struct clk_rcg2 *clk,
 				struct device *dev, u8 rcg_flags);

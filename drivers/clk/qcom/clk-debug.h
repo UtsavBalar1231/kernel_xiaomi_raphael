@@ -120,8 +120,10 @@ struct clk_debug_mux {
 	struct clk_src *parent;
 	int num_parents;
 	struct regmap **regmap;
+	int num_parent_regmap;
 	void *priv;
 	u32 en_mask;
+	u32 mask;
 	u32 debug_offset;
 	u32 post_div_offset;
 	u32 cbcr_offset;
@@ -141,5 +143,4 @@ extern const struct clk_ops clk_debug_mux_ops;
 int clk_debug_measure_register(struct clk_hw *hw);
 int clk_debug_measure_add(struct clk_hw *hw, struct dentry *dentry);
 void clk_debug_bus_vote(struct clk_hw *hw, bool enable);
-
 #endif
