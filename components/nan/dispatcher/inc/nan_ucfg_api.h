@@ -340,6 +340,13 @@ ucfg_nan_check_and_disable_unsupported_ndi(struct wlan_objmgr_psoc *psoc,
  */
 QDF_STATUS ucfg_ndi_remove_entry_from_policy_mgr(struct wlan_objmgr_vdev *vdev);
 
+/**
+ * ucfg_nan_is_enable_disable_in_progress() - Is NAN enable/disable in progress
+ * @psoc: Pointer to PSOC object
+ *
+ * Return: True if NAN discovery enable/disable is in progress, false otherwise
+ */
+bool ucfg_nan_is_enable_disable_in_progress(struct wlan_objmgr_psoc *psoc);
 #else /* WLAN_FEATURE_NAN */
 
 static inline
@@ -369,6 +376,12 @@ static inline void ucfg_nan_psoc_close(struct wlan_objmgr_psoc *psoc)
 }
 
 static inline bool ucfg_is_nan_disc_active(struct wlan_objmgr_psoc *psoc)
+{
+	return false;
+}
+
+static inline
+bool ucfg_nan_is_enable_disable_in_progress(struct wlan_objmgr_psoc *psoc)
 {
 	return false;
 }
