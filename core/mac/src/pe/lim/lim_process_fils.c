@@ -1006,6 +1006,33 @@ void lim_add_fils_data_to_auth_frame(tpPESession session,
 	lim_fils_data_dump("FILS RSN", fils_info->rsn_ie,
 			fils_info->rsn_ie_len);
 
+	/**
+	 * FT-FILS IEEE-802.11ai specification mandates
+	 * MDIE to be sent in auth frame during initial
+	 * mobility domain association
+	 */
+	if (session->pLimJoinReq->is11Rconnection) {
+		struct bss_description *bss_desc;
+
+		bss_desc = &session->pLimJoinReq->bssDescription;
+
+		if (bss_desc->mdiePresent) {
+			/* Populate MDIE received from AP */
+			*body = SIR_MDIE_ELEMENT_ID;
+			body++;
+			*body = SIR_MDIE_SIZE;
+			body++;
+			qdf_mem_copy(body, &bss_desc->mdie[0],
+			     SIR_MDIE_SIZE);
+			pe_debug("FILS: mdie = %02x %02x %02x",
+				 bss_desc->mdie[0], bss_desc->mdie[1],
+				 bss_desc->mdie[2]);
+			body += SIR_MDIE_SIZE;
+		} else {
+			pe_err("FT-FILS: MDIE not advertised by AP");
+		}
+	}
+
 	/* ***Nounce*** */
 	/* Add element id */
 	*body = SIR_MAX_ELEMENT_ID;
@@ -1090,6 +1117,17 @@ bool lim_process_fils_auth_frame2(tpAniSirGlobal mac_ctx,
 	if (!DOT11F_SUCCEEDED(ret)) {
 		pe_err("unpack failed, ret: %d", ret);
 		return false;
+	}
+
+	/*
+	 * copy FTIE to fils_info and send it over assoc response frame
+	 * for FT-FILS connection
+	 */
+	if (pe_session->is11Rconnection && pe_session->fils_info) {
+		pe_session->fils_info->ft_ie = rx_auth_frm_body->ft_ie;
+		if (!pe_session->fils_info->ft_ie.present) {
+			pe_err("FT-FILS: NO FTIE in auth response");
+		}
 	}
 
 	for (i = 0; i < dot11f_ie_rsn.pmkid_count; i++) {
