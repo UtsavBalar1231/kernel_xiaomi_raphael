@@ -4253,7 +4253,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	 * invalid and all S2CRn as bypass unless overridden.
 	 */
 	if (!(smmu->options & ARM_SMMU_OPT_SKIP_INIT) ||
-			IS_ENABLED(CONFIG_HIBERNATION)) {
+		 (IS_ENABLED(CONFIG_HIBERNATION) && smmu->smmu_restore)) {
 		for (i = 0; i < smmu->num_mapping_groups; ++i)
 			arm_smmu_write_sme(smmu, i);
 
@@ -5454,6 +5454,11 @@ static int qsmmuv500_tbu_halt(struct qsmmuv500_tbu_device *tbu,
 					(status & DEBUG_SR_HALT_ACK_VAL),
 					0, TBU_DBG_TIMEOUT_US)) {
 		dev_err(tbu->dev, "Couldn't halt TBU!\n");
+
+		halt = readl_relaxed(tbu_base + DEBUG_SID_HALT_REG);
+		halt &= ~DEBUG_SID_HALT_VAL;
+		writel_relaxed(halt, tbu_base + DEBUG_SID_HALT_REG);
+
 		spin_unlock_irqrestore(&tbu->halt_lock, flags);
 		return -ETIMEDOUT;
 	}
