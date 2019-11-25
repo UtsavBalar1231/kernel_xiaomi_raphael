@@ -2885,6 +2885,14 @@ struct mawc_params {
 	uint8_t mawc_roam_rssi_low_adjust;
 };
 
+/**
+ * struct roam_sync_timeout_timer_info - Info related to roam sync timer
+ * @vdev_id: Vdev id for which host waiting roam sync ind from fw
+ */
+struct roam_sync_timeout_timer_info {
+	uint8_t vdev_id;
+};
+
 typedef struct sSirRoamOffloadScanReq {
 	uint16_t message_type;
 	uint16_t length;
@@ -3971,6 +3979,29 @@ struct sir_wisa_params {
 	uint8_t vdev_id;
 };
 
+/**
+ * typedef enum wifi_scan_flags - wifi scan flags
+ * @WIFI_SCAN_FLAG_INTERRUPTED: Indicates that scan results are not complete
+ *				because probes were not sent on some channels
+ */
+typedef enum {
+	WIFI_SCAN_FLAG_INTERRUPTED = 1,
+} wifi_scan_flags;
+
+typedef enum {
+	WIFI_BAND_UNSPECIFIED,
+	WIFI_BAND_BG = 1,       /* 2.4 GHz */
+	WIFI_BAND_A = 2,        /* 5 GHz without DFS */
+	WIFI_BAND_ABG = 3,      /* 2.4 GHz + 5 GHz; no DFS */
+	WIFI_BAND_A_DFS_ONLY = 4,       /* 5 GHz DFS only */
+	/* 5 is reserved */
+	WIFI_BAND_A_WITH_DFS = 6,       /* 5 GHz with DFS */
+	WIFI_BAND_ABG_WITH_DFS = 7,     /* 2.4 GHz + 5 GHz with DFS */
+
+	/* Keep it last */
+	WIFI_BAND_MAX
+} tWifiBand;
+
 #ifdef FEATURE_WLAN_EXTSCAN
 
 #define WLAN_EXTSCAN_MAX_CHANNELS                 36
@@ -4002,29 +4033,6 @@ typedef enum {
 	/* Keep this last */
 	eSIR_EXTSCAN_CALLBACK_TYPE_MAX,
 } tSirExtScanCallbackType;
-
-/**
- * typedef enum wifi_scan_flags - wifi scan flags
- * @WIFI_SCAN_FLAG_INTERRUPTED: Indicates that scan results are not complete
- *				because probes were not sent on some channels
- */
-typedef enum {
-	WIFI_SCAN_FLAG_INTERRUPTED = 1,
-} wifi_scan_flags;
-
-typedef enum {
-	WIFI_BAND_UNSPECIFIED,
-	WIFI_BAND_BG = 1,       /* 2.4 GHz */
-	WIFI_BAND_A = 2,        /* 5 GHz without DFS */
-	WIFI_BAND_ABG = 3,      /* 2.4 GHz + 5 GHz; no DFS */
-	WIFI_BAND_A_DFS_ONLY = 4,       /* 5 GHz DFS only */
-	/* 5 is reserved */
-	WIFI_BAND_A_WITH_DFS = 6,       /* 5 GHz with DFS */
-	WIFI_BAND_ABG_WITH_DFS = 7,     /* 2.4 GHz + 5 GHz with DFS */
-
-	/* Keep it last */
-	WIFI_BAND_MAX
-} tWifiBand;
 
 /**
  * enum wifi_extscan_event_type - extscan event type
