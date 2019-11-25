@@ -799,7 +799,6 @@ static inline int DWC_ETH_QOS_configure_io_macro_dll_settings(
 	EMACDBG("Enter\n");
 
 #ifndef DWC_ETH_QOS_EMULATION_PLATFORM
-	if (pdata->emac_hw_version_type == EMAC_HW_v2_0_0 || pdata->emac_hw_version_type == EMAC_HW_v2_3_1)
 	DWC_ETH_QOS_rgmii_io_macro_dll_reset(pdata);
 
 	/* For RGMII ID mode with internal delay*/
@@ -1010,7 +1009,9 @@ void DWC_ETH_QOS_adjust_link(struct net_device *dev)
 				DWC_ETH_QOS_ipa_offload_event_handler(pdata, EV_PHY_LINK_DOWN);
 		}
 
-		if (phydev->link == 0 && pdata->io_macro_phy_intf != RMII_MODE)
+		if (phydev->link == 1)
+			pdata->hw_if.start_mac_tx_rx();
+		else if (phydev->link == 0 && pdata->io_macro_phy_intf != RMII_MODE)
 			DWC_ETH_QOS_set_clk_and_bus_config(pdata, SPEED_10);
 	}
 
