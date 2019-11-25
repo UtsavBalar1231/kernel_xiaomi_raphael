@@ -1721,11 +1721,7 @@ static void __policy_mgr_check_sta_ap_concurrent_ch_intf(void *data)
 		}
 
 end:
-	if (work_info) {
-		qdf_mem_free(work_info);
-		if (pm_ctx)
-			pm_ctx->sta_ap_intf_check_work_info = NULL;
-	}
+	policy_mgr_debug("Check sta ap intf done");
 }
 
 void policy_mgr_check_sta_ap_concurrent_ch_intf(void *data)
@@ -1890,6 +1886,10 @@ void policy_mgr_check_concurrent_intf_and_restart_sap(
 		policy_mgr_err("Invalid context");
 		return;
 	}
+	if (!pm_ctx->sta_ap_intf_check_work_info) {
+		policy_mgr_err("Invalid sta_ap_intf_check_work_info");
+		return;
+	}
 	if (policy_mgr_get_connection_count(psoc) == 1) {
 		/*
 		 * If STA+SAP sessions are on DFS channel and STA+SAP SCC is
@@ -1942,17 +1942,8 @@ sap_restart:
 	 */
 	if (restart_sap ||
 	    ((mcc_to_scc_switch != QDF_MCC_TO_SCC_SWITCH_DISABLE) &&
-	    policy_mgr_valid_sta_channel_check(psoc, operating_channel[0]) &&
-	    !pm_ctx->sta_ap_intf_check_work_info)) {
-		struct sta_ap_intf_check_work_ctx *work_info;
-		work_info = qdf_mem_malloc(
-			sizeof(struct sta_ap_intf_check_work_ctx));
-		pm_ctx->sta_ap_intf_check_work_info = work_info;
-		if (work_info) {
-			work_info->psoc = psoc;
-			qdf_create_work(0, &pm_ctx->sta_ap_intf_check_work,
-				policy_mgr_check_sta_ap_concurrent_ch_intf,
-				work_info);
+	    policy_mgr_valid_sta_channel_check(psoc, operating_channel[0]))) {
+		if (pm_ctx->sta_ap_intf_check_work_info) {
 			qdf_sched_work(0, &pm_ctx->sta_ap_intf_check_work);
 			policy_mgr_info(
 				"Checking for Concurrent Change interference");
