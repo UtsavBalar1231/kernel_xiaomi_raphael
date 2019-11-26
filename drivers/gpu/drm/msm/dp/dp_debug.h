@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -49,6 +49,7 @@ struct dp_debug {
 	char hdcp_status[SZ_128];
 	struct dp_mst_connector dp_mst_connector_list;
 	bool mst_hpd_sim;
+	bool force_bond_mode;
 	u32 mst_port_cnt;
 
 	u8 *(*get_edid)(struct dp_debug *dp_debug);

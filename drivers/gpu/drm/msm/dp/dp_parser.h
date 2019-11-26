@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -208,6 +208,7 @@ static inline char *dp_phy_aux_config_type_to_string(u32 cfg_type)
  * @max_dp_dsc_blks: maximum DSC blks for DP interface
  * @max_dp_dsc_input_width_pixs: Maximum input width for DSC block
  * @has_widebus: widebus (2PPC) feature eanble status
+ * @force_bond_mode: force dp in bond mode
  * @mst_fixed_port: mst port_num reserved for fixed topology
  * @mst_fixed_display_type: mst display_type reserved for fixed topology
  * @display_type: display type as defined in device tree.
@@ -243,6 +244,7 @@ struct dp_parser {
 	u32 max_dp_dsc_blks;
 	u32 max_dp_dsc_input_width_pixs;
 	bool lphw_hpd;
+	bool force_bond_mode;
 	u32 mst_fixed_port[MAX_DP_MST_STREAMS];
 	const char *mst_fixed_display_type[MAX_DP_MST_STREAMS];
 	const char *display_type;

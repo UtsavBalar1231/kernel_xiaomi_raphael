@@ -1085,6 +1085,11 @@ dp_mst_find_sibling_connector(struct drm_connector *connector)
 		if (status != connector_status_connected)
 			continue;
 
+		if (dp_display->force_bond_mode) {
+			sibling_conn = p;
+			break;
+		}
+
 		if (p->has_tile && p->tile_group &&
 			p->tile_group->id == connector->tile_group->id) {
 			sibling_conn = p;
@@ -1098,21 +1103,25 @@ dp_mst_find_sibling_connector(struct drm_connector *connector)
 
 static void dp_mst_fixup_tile_mode(struct drm_connector *connector)
 {
+	struct sde_connector *c_conn = to_sde_connector(connector);
+	struct dp_display *dp_display = c_conn->display;
 	struct drm_display_mode *mode, *newmode;
 	struct list_head tile_modes;
 	struct drm_connector *sibling_conn;
 
 	/* only fixup mode for horizontal tiling */
-	if (!connector->has_tile ||
+	if (!dp_display->force_bond_mode &&
+			(!connector->has_tile ||
 			connector->num_h_tile != MAX_DP_MST_DRM_BRIDGES ||
-			connector->num_v_tile != 1)
+			connector->num_v_tile != 1))
 		return;
 
 	INIT_LIST_HEAD(&tile_modes);
 
 	list_for_each_entry(mode, &connector->probed_modes, head) {
-		if (mode->hdisplay != connector->tile_h_size ||
-			mode->vdisplay != connector->tile_v_size)
+		if (!dp_display->force_bond_mode &&
+			(mode->hdisplay != connector->tile_h_size ||
+			mode->vdisplay != connector->tile_v_size))
 			continue;
 
 		newmode = drm_mode_duplicate(connector->dev, mode);
@@ -1273,6 +1282,15 @@ dp_mst_connector_detect(struct drm_connector *connector, bool force,
 	 * is reported to user
 	 */
 	if (status == connector_status_connected) {
+		if (dp_display->force_bond_mode) {
+			struct drm_connector *p;
+
+			p = dp_mst_find_sibling_connector(connector);
+			if (p && p->connector_type_id <
+					connector->connector_type_id)
+				status = connector_status_disconnected;
+		}
+
 		if (connector->has_tile && connector->tile_h_loc) {
 			if (dp_mst_find_sibling_connector(connector))
 				status = connector_status_disconnected;

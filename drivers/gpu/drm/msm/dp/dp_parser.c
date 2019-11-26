@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -192,6 +192,9 @@ static int dp_parser_misc(struct dp_parser *parser)
 					"qcom,display-type", NULL);
 	if (!parser->display_type)
 		parser->display_type = "unknown";
+
+	parser->force_bond_mode = of_property_read_bool(of_node,
+			"qcom,dp-force-bond-mode");
 
 	return 0;
 }
