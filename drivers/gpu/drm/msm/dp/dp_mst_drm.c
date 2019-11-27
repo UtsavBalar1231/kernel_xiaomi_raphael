@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,6 +34,7 @@
 
 #define MAX_DP_MST_DRM_ENCODERS		2
 #define MAX_DP_MST_DRM_BRIDGES		2
+#define ALL_DP_MST_DRM_BRIDGES		(MAX_DP_MST_DRM_BRIDGES+1)
 #define HPD_STRING_SIZE			30
 
 struct dp_drm_mst_fw_helper_ops {
@@ -66,7 +67,6 @@ struct dp_drm_mst_fw_helper_ops {
 			struct drm_dp_mst_port *port);
 	void (*deallocate_vcpi)(struct drm_dp_mst_topology_mgr *mgr,
 			struct drm_dp_mst_port *port);
-	int (*get_avail_slots)(struct drm_dp_mst_topology_mgr *mgr);
 };
 
 struct dp_mst_bridge {
@@ -105,7 +105,7 @@ struct dp_mst_private {
 	bool mst_initialized;
 	struct dp_mst_caps caps;
 	struct drm_dp_mst_topology_mgr mst_mgr;
-	struct dp_mst_bridge mst_bridge[MAX_DP_MST_DRM_BRIDGES];
+	struct dp_mst_bridge mst_bridge[ALL_DP_MST_DRM_BRIDGES];
 	struct dp_display *dp_display;
 	const struct dp_drm_mst_fw_helper_ops *mst_fw_cbs;
 	struct mutex mst_lock;
@@ -168,11 +168,6 @@ static struct dp_mst_bridge_state *dp_mst_get_bridge_atomic_state(
 		drm_atomic_get_private_obj_state(state, &bridge->obj));
 }
 
-static int _dp_mst_get_avail_slots(struct drm_dp_mst_topology_mgr *mgr)
-{
-	return to_dp_mst_topology_state(mgr->base.state)->avail_slots;
-}
-
 static void _dp_mst_get_vcpi_info(
 		struct drm_dp_mst_topology_mgr *mgr,
 		int vcpi, int *start_slot, int *num_slots)
@@ -223,6 +218,36 @@ static int dp_mst_calc_pbn_mode(struct dp_display_mode *dp_mode)
 	return pbn;
 }
 
+static inline bool
+dp_mst_is_tile_mode(const struct drm_display_mode *mode)
+{
+	return !!(mode->flags & DRM_MODE_FLAG_CLKDIV2);
+}
+
+static inline void
+dp_mst_split_tile_timing(struct drm_display_mode *mode)
+{
+	mode->hdisplay /= MAX_DP_MST_DRM_BRIDGES;
+	mode->hsync_start /= MAX_DP_MST_DRM_BRIDGES;
+	mode->hsync_end /= MAX_DP_MST_DRM_BRIDGES;
+	mode->htotal /= MAX_DP_MST_DRM_BRIDGES;
+	mode->hskew /= MAX_DP_MST_DRM_BRIDGES;
+	mode->clock /= MAX_DP_MST_DRM_BRIDGES;
+	mode->flags &= ~DRM_MODE_FLAG_CLKDIV2;
+}
+
+static inline void
+dp_mst_merge_tile_timing(struct drm_display_mode *mode)
+{
+	mode->hdisplay *= MAX_DP_MST_DRM_BRIDGES;
+	mode->hsync_start *= MAX_DP_MST_DRM_BRIDGES;
+	mode->hsync_end *= MAX_DP_MST_DRM_BRIDGES;
+	mode->htotal *= MAX_DP_MST_DRM_BRIDGES;
+	mode->hskew *= MAX_DP_MST_DRM_BRIDGES;
+	mode->clock *= MAX_DP_MST_DRM_BRIDGES;
+	mode->flags |= DRM_MODE_FLAG_CLKDIV2;
+}
+
 static const struct dp_drm_mst_fw_helper_ops drm_dp_mst_fw_helper_ops = {
 	.calc_pbn_mode             = dp_mst_calc_pbn_mode,
 	.find_vcpi_slots           = drm_dp_find_vcpi_slots,
@@ -238,7 +263,6 @@ static const struct dp_drm_mst_fw_helper_ops drm_dp_mst_fw_helper_ops = {
 	.atomic_release_vcpi_slots = drm_dp_atomic_release_vcpi_slots,
 	.reset_vcpi_slots          = drm_dp_mst_reset_vcpi_slots,
 	.deallocate_vcpi           = drm_dp_mst_deallocate_vcpi,
-	.get_avail_slots           = _dp_mst_get_avail_slots,
 };
 
 /* DP MST Bridge OPs */
@@ -298,6 +322,22 @@ static bool dp_mst_bridge_mode_fixup(struct drm_bridge *drm_bridge,
 	}
 
 	dp = bridge->display;
+
+	if (dp_mst_is_tile_mode(mode)) {
+		struct drm_display_mode tmp;
+
+		/*
+		 * Since all the tiles have equal size, only one
+		 * tile need to be validated
+		 */
+		tmp = *mode;
+		dp_mst_split_tile_timing(&tmp);
+		dp->convert_to_dp_mode(dp, bridge_state->dp_panel,
+				&tmp, &dp_mode);
+		convert_to_drm_mode(&dp_mode, adjusted_mode);
+		dp_mst_merge_tile_timing(adjusted_mode);
+		goto end;
+	}
 
 	dp->convert_to_dp_mode(dp, bridge_state->dp_panel, mode, &dp_mode);
 	convert_to_drm_mode(&dp_mode, adjusted_mode);
@@ -708,6 +748,154 @@ static void dp_mst_bridge_mode_set(struct drm_bridge *drm_bridge,
 	DP_MST_DEBUG("mst bridge [%d] mode set complete\n", bridge->id);
 }
 
+static bool dp_mst_super_bridge_mode_fixup(struct drm_bridge *drm_bridge,
+				  const struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
+{
+	struct dp_mst_bridge *bridge;
+	struct dp_mst_private *mst;
+
+	if (!drm_bridge) {
+		pr_err("Invalid params\n");
+		return false;
+	}
+
+	bridge = to_dp_mst_bridge(drm_bridge);
+	mst = bridge->display->dp_mst_prv_info;
+
+	return drm_bridge_mode_fixup(&mst->mst_bridge[0].base,
+			mode, adjusted_mode);
+}
+
+static void dp_mst_super_bridge_pre_enable(struct drm_bridge *drm_bridge)
+{
+	struct dp_mst_bridge *bridge;
+	struct dp_mst_private *mst;
+	int i;
+
+	if (!drm_bridge) {
+		pr_err("Invalid params\n");
+		return;
+	}
+
+	bridge = to_dp_mst_bridge(drm_bridge);
+	mst = bridge->display->dp_mst_prv_info;
+
+	for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++)
+		drm_bridge_pre_enable(&mst->mst_bridge[i].base);
+}
+
+static void dp_mst_super_bridge_enable(struct drm_bridge *drm_bridge)
+{
+	struct dp_mst_bridge *bridge;
+	struct dp_mst_private *mst;
+	int i;
+
+	if (!drm_bridge) {
+		pr_err("Invalid params\n");
+		return;
+	}
+
+	bridge = to_dp_mst_bridge(drm_bridge);
+	mst = bridge->display->dp_mst_prv_info;
+
+	for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++)
+		drm_bridge_enable(&mst->mst_bridge[i].base);
+}
+
+static void dp_mst_super_bridge_disable(struct drm_bridge *drm_bridge)
+{
+	struct dp_mst_bridge *bridge;
+	struct dp_mst_private *mst;
+	int i;
+
+	if (!drm_bridge) {
+		pr_err("Invalid params\n");
+		return;
+	}
+
+	bridge = to_dp_mst_bridge(drm_bridge);
+	mst = bridge->display->dp_mst_prv_info;
+
+	for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++)
+		drm_bridge_disable(&mst->mst_bridge[i].base);
+}
+
+static void dp_mst_super_bridge_post_disable(struct drm_bridge *drm_bridge)
+{
+	struct dp_mst_bridge *bridge;
+	struct dp_mst_private *mst;
+	struct drm_connector *connector;
+	int i;
+
+	if (!drm_bridge) {
+		pr_err("Invalid params\n");
+		return;
+	}
+
+	bridge = to_dp_mst_bridge(drm_bridge);
+	mst = bridge->display->dp_mst_prv_info;
+
+	for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++) {
+		connector = mst->mst_bridge[i].connector;
+		drm_bridge_post_disable(&mst->mst_bridge[i].base);
+		if (connector)
+			drm_connector_put(connector);
+	}
+}
+
+static void dp_mst_super_bridge_mode_set(struct drm_bridge *drm_bridge,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	struct dp_mst_bridge *bridge;
+	struct dp_mst_private *mst;
+	struct drm_connector *connector;
+	struct drm_display_mode tmp;
+	int i;
+
+	if (!drm_bridge) {
+		pr_err("Invalid params\n");
+		return;
+	}
+
+	bridge = to_dp_mst_bridge(drm_bridge);
+	mst = bridge->display->dp_mst_prv_info;
+
+	tmp = *adjusted_mode;
+	dp_mst_split_tile_timing(&tmp);
+
+	for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++) {
+		drm_bridge_mode_set(&mst->mst_bridge[i].base, &tmp, &tmp);
+		connector = mst->mst_bridge[i].connector;
+		if (connector)
+			drm_connector_get(connector);
+	}
+}
+
+static int dp_mst_super_bridge_clear(struct dp_mst_bridge *bridge,
+		struct drm_atomic_state *state)
+{
+	struct dp_mst_private *mst;
+	struct dp_mst_bridge_state *bridge_state;
+	int i, rc = 0;
+
+	mst = bridge->display->dp_mst_prv_info;
+
+	for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++) {
+		bridge = &mst->mst_bridge[i];
+		bridge_state = dp_mst_get_bridge_atomic_state(state, bridge);
+		if (IS_ERR(bridge_state)) {
+			rc = PTR_ERR(bridge_state);
+			break;
+		}
+		bridge_state->connector = NULL;
+		bridge_state->dp_panel = NULL;
+	}
+
+	return rc;
+}
+
 /* DP MST Bridge APIs */
 
 static struct drm_connector *
@@ -722,6 +910,15 @@ static const struct drm_bridge_funcs dp_mst_bridge_ops = {
 	.disable      = dp_mst_bridge_disable,
 	.post_disable = dp_mst_bridge_post_disable,
 	.mode_set     = dp_mst_bridge_mode_set,
+};
+
+static const struct drm_bridge_funcs dp_mst_super_bridge_ops = {
+	.mode_fixup   = dp_mst_super_bridge_mode_fixup,
+	.pre_enable   = dp_mst_super_bridge_pre_enable,
+	.enable       = dp_mst_super_bridge_enable,
+	.disable      = dp_mst_super_bridge_disable,
+	.post_disable = dp_mst_super_bridge_post_disable,
+	.mode_set     = dp_mst_super_bridge_mode_set,
 };
 
 int dp_mst_drm_bridge_init(void *data, struct drm_encoder *encoder)
@@ -816,9 +1013,234 @@ end:
 	return rc;
 }
 
+int dp_mst_drm_super_bridge_init(void *data, struct drm_encoder *encoder)
+{
+	struct dp_display *display = data;
+	struct dp_mst_private *mst = display->dp_mst_prv_info;
+	struct dp_mst_bridge *bridge =
+		&mst->mst_bridge[MAX_DP_MST_DRM_BRIDGES];
+	struct dp_mst_bridge_state *state;
+	struct drm_device *dev;
+	struct msm_drm_private *priv;
+	int rc;
+
+	dev = display->drm_dev;
+	bridge->id = MAX_DP_MST_DRM_BRIDGES;
+	bridge->encoder = encoder;
+	bridge->display = display;
+	bridge->base.funcs = &dp_mst_super_bridge_ops;
+	bridge->base.encoder = encoder;
+	priv = dev->dev_private;
+
+	rc = drm_bridge_attach(encoder, &bridge->base, NULL);
+	if (rc) {
+		pr_err("failed to attach bridge, rc=%d\n", rc);
+		goto end;
+	}
+
+	encoder->bridge = &bridge->base;
+	priv->bridges[priv->num_bridges++] = &bridge->base;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state == NULL) {
+		rc = -ENOMEM;
+		goto end;
+	}
+
+	drm_atomic_private_obj_init(&bridge->obj,
+				    &state->base,
+				    &dp_mst_bridge_state_funcs);
+
+end:
+	return rc;
+}
+
 void dp_mst_drm_bridge_deinit(void *display)
 {
 	DP_MST_DEBUG("mst bridge deinit\n");
+}
+
+static struct drm_connector *
+dp_mst_find_sibling_connector(struct drm_connector *connector)
+{
+	struct sde_connector *c_conn = to_sde_connector(connector);
+	struct dp_display *dp_display = c_conn->display;
+	struct dp_mst_private *mst = dp_display->dp_mst_prv_info;
+	enum drm_connector_status status;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *sibling_conn = NULL, *p;
+
+	drm_connector_list_iter_begin(connector->dev, &conn_iter);
+	drm_for_each_connector_iter(p, &conn_iter) {
+		if (p == connector)
+			continue;
+
+		c_conn = to_sde_connector(p);
+		if (!c_conn->mst_port)
+			continue;
+
+		status = mst->mst_fw_cbs->detect_port(p,
+				&mst->mst_mgr,
+				c_conn->mst_port);
+		if (status != connector_status_connected)
+			continue;
+
+		if (p->has_tile && p->tile_group &&
+			p->tile_group->id == connector->tile_group->id) {
+			sibling_conn = p;
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	return sibling_conn;
+}
+
+static void dp_mst_fixup_tile_mode(struct drm_connector *connector)
+{
+	struct drm_display_mode *mode, *newmode;
+	struct list_head tile_modes;
+	struct drm_connector *sibling_conn;
+
+	/* only fixup mode for horizontal tiling */
+	if (!connector->has_tile ||
+			connector->num_h_tile != MAX_DP_MST_DRM_BRIDGES ||
+			connector->num_v_tile != 1)
+		return;
+
+	INIT_LIST_HEAD(&tile_modes);
+
+	list_for_each_entry(mode, &connector->probed_modes, head) {
+		if (mode->hdisplay != connector->tile_h_size ||
+			mode->vdisplay != connector->tile_v_size)
+			continue;
+
+		newmode = drm_mode_duplicate(connector->dev, mode);
+		if (!newmode)
+			break;
+
+		dp_mst_merge_tile_timing(newmode);
+		newmode->type |= DRM_MODE_TYPE_PREFERRED;
+		drm_mode_set_name(newmode);
+
+		list_add_tail(&newmode->head, &tile_modes);
+	}
+
+	list_for_each_entry_safe(mode, newmode, &tile_modes, head) {
+		list_del(&mode->head);
+		list_add_tail(&mode->head, &connector->probed_modes);
+	}
+
+	/* update display info for sibling connectors */
+	sibling_conn = dp_mst_find_sibling_connector(connector);
+	if (sibling_conn)
+		sibling_conn->display_info = connector->display_info;
+}
+
+static bool dp_mst_atomic_find_super_encoder(struct drm_connector *connector,
+		void *display, struct drm_connector_state *state,
+		struct drm_encoder **enc)
+{
+	struct dp_display *dp_display = display;
+	struct dp_mst_private *mst = dp_display->dp_mst_prv_info;
+	struct sde_connector *conn;
+	struct dp_mst_bridge_state *bridge_state;
+	struct drm_crtc_state *crtc_state;
+	struct drm_connector *sibling_conn;
+	u32 i;
+
+	/* get current mode */
+	crtc_state = drm_atomic_get_new_crtc_state(state->state,
+			state->crtc);
+
+	/* check super bridge */
+	i = MAX_DP_MST_DRM_BRIDGES;
+
+	/*
+	 * if encoder is already in state, check if switch is needed.
+	 * return false if there is no switch needed, and best_encoder will
+	 * stay unchanged.
+	 */
+	if (state->best_encoder) {
+		if (dp_mst_is_tile_mode(&crtc_state->mode)) {
+			if (state->best_encoder == mst->mst_bridge[i].encoder)
+				return false;
+		} else {
+			if (state->best_encoder != mst->mst_bridge[i].encoder)
+				return false;
+		}
+	}
+
+	/* check if super connector is already selected */
+	bridge_state = dp_mst_get_bridge_atomic_state(
+			state->state, &mst->mst_bridge[i]);
+	if (bridge_state->connector) {
+		if (bridge_state->connector == connector) {
+			if (dp_mst_is_tile_mode(&crtc_state->mode)) {
+				*enc = mst->mst_bridge[i].encoder;
+				return true;
+			}
+
+			/*
+			 * mode is switched from tiled mode to single
+			 * mode, free unused sub bridge.
+			 */
+			bridge_state->connector = NULL;
+			bridge_state->dp_panel = NULL;
+
+			for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++) {
+				bridge_state = dp_mst_get_bridge_atomic_state(
+						state->state,
+						&mst->mst_bridge[i]);
+				if (bridge_state->connector == connector) {
+					*enc = mst->mst_bridge[i].encoder;
+				} else {
+					bridge_state->connector = NULL;
+					bridge_state->dp_panel = NULL;
+				}
+			}
+
+			return true;
+		}
+	}
+
+	if (dp_mst_is_tile_mode(&crtc_state->mode)) {
+		/* fail if tiled conn can't be found */
+		sibling_conn = dp_mst_find_sibling_connector(connector);
+		if (!sibling_conn)
+			return true;
+
+		conn = to_sde_connector(connector);
+		bridge_state->connector = connector;
+		bridge_state->dp_panel = conn->drv_panel;
+
+		/* fail if encoders are in use */
+		for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++) {
+			bridge_state = dp_mst_get_bridge_atomic_state(
+					state->state, &mst->mst_bridge[i]);
+			if (IS_ERR(bridge_state) ||
+					(bridge_state->connector &&
+					bridge_state->connector != connector))
+				return true;
+
+			/* setup sub bridge */
+			if (i == 0) {
+				conn = to_sde_connector(connector);
+				bridge_state->connector = connector;
+				bridge_state->dp_panel = conn->drv_panel;
+			} else {
+				conn = to_sde_connector(sibling_conn);
+				bridge_state->connector = sibling_conn;
+				bridge_state->dp_panel = conn->drv_panel;
+			}
+		}
+
+		/* select super encoder */
+		*enc = mst->mst_bridge[MAX_DP_MST_DRM_BRIDGES].encoder;
+		return true;
+	}
+
+	return false;
 }
 
 /* DP MST Connector OPs */
@@ -844,6 +1266,17 @@ dp_mst_connector_detect(struct drm_connector *connector, bool force,
 	if (mst_conn.conn == connector &&
 			mst_conn.state != connector_status_unknown) {
 		status = mst_conn.state;
+	}
+
+	/*
+	 * hide tiled connectors so only primary connector
+	 * is reported to user
+	 */
+	if (status == connector_status_connected) {
+		if (connector->has_tile && connector->tile_h_loc) {
+			if (dp_mst_find_sibling_connector(connector))
+				status = connector_status_disconnected;
+		}
 	}
 
 	DP_MST_DEBUG("mst connector:%d detect, status:%d\n",
@@ -872,6 +1305,8 @@ static int dp_mst_connector_get_modes(struct drm_connector *connector,
 		rc = dp_display->mst_connector_update_edid(dp_display,
 				connector, edid);
 
+	dp_mst_fixup_tile_mode(connector);
+
 	DP_MST_DEBUG("mst connector get modes. id: %d\n", connector->base.id);
 
 	DP_MST_DEBUG("exit:\n");
@@ -891,6 +1326,9 @@ enum drm_mode_status dp_mst_connector_mode_valid(
 	struct dp_display_mode dp_mode;
 	uint16_t available_pbn, required_pbn;
 	int available_slots, required_slots;
+	struct dp_mst_bridge_state *dp_bridge_state;
+	int i, slots_in_use = 0, active_enc_cnt = 0;
+	const u32 tot_slots = 63;
 
 	if (!connector || !mode || !display) {
 		pr_err("invalid input\n");
@@ -901,8 +1339,66 @@ enum drm_mode_status dp_mst_connector_mode_valid(
 	c_conn = to_sde_connector(connector);
 	mst_port = c_conn->mst_port;
 
-	available_pbn = mst_port->available_pbn;
-	available_slots = mst->mst_fw_cbs->get_avail_slots(&mst->mst_mgr);
+	/* dp bridge state is protected by drm_mode_config.connection_mutex */
+	for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++) {
+		dp_bridge_state = to_dp_mst_bridge_state(&mst->mst_bridge[i]);
+		if (dp_bridge_state->connector &&
+				dp_bridge_state->connector != connector) {
+			active_enc_cnt++;
+			slots_in_use += dp_bridge_state->num_slots;
+		}
+	}
+
+	if (active_enc_cnt < DP_STREAM_MAX) {
+		available_pbn = mst_port->available_pbn;
+		available_slots = tot_slots - slots_in_use;
+	} else {
+		pr_debug("all mst streams are active\n");
+		return MODE_BAD;
+	}
+
+	if (dp_mst_is_tile_mode(mode)) {
+		struct drm_connector *sibling_conn;
+		struct drm_display_mode tmp;
+
+		sibling_conn = dp_mst_find_sibling_connector(connector);
+		if (!sibling_conn) {
+			pr_debug("mode:%s requires dual ports\n", mode->name);
+			return MODE_BAD;
+		}
+
+		dp_bridge_state = to_dp_mst_bridge_state(
+				&mst->mst_bridge[MAX_DP_MST_DRM_BRIDGES]);
+		if (dp_bridge_state->connector != connector &&
+				active_enc_cnt) {
+			pr_debug("mode:%s requires dual streams\n",
+					mode->name);
+			return MODE_BAD;
+		}
+
+		/*
+		 * Since all the tiles have equal size, we only calculate slots
+		 * needed for one of the port and multiple by the tile number.
+		 */
+		tmp = *mode;
+		dp_mst_split_tile_timing(&tmp);
+
+		dp_display->convert_to_dp_mode(dp_display, c_conn->drv_panel,
+				&tmp, &dp_mode);
+
+		required_pbn = mst->mst_fw_cbs->calc_pbn_mode(&dp_mode);
+		required_slots = mst->mst_fw_cbs->find_vcpi_slots(
+				&mst->mst_mgr, required_pbn);
+		required_slots *= MAX_DP_MST_DRM_BRIDGES;
+
+		if (required_pbn > available_pbn ||
+				required_slots > available_slots) {
+			pr_debug("mode:%s not supported\n", mode->name);
+			return MODE_BAD;
+		}
+
+		return dp_connector_mode_valid(connector, &tmp, display);
+	}
 
 	dp_display->convert_to_dp_mode(dp_display, c_conn->drv_panel,
 			mode, &dp_mode);
@@ -956,6 +1452,24 @@ int dp_mst_connector_get_mode_info(struct drm_connector *connector,
 
 	DP_MST_DEBUG("enter:\n");
 
+	if (dp_mst_is_tile_mode(drm_mode)) {
+		struct drm_display_mode tmp;
+
+		tmp = *drm_mode;
+		dp_mst_split_tile_timing(&tmp);
+
+		/* Get single tile mode info */
+		rc = dp_mst_connector_get_mode_info(connector, &tmp, mode_info,
+				max_mixer_width, display);
+		if (rc)
+			return rc;
+
+		mode_info->topology.num_intf *= MAX_DP_MST_DRM_BRIDGES;
+		mode_info->topology.num_lm *= MAX_DP_MST_DRM_BRIDGES;
+		mode_info->topology.num_enc *= MAX_DP_MST_DRM_BRIDGES;
+		return 0;
+	}
+
 	rc = dp_connector_get_mode_info(connector, drm_mode, mode_info,
 			max_mixer_width, display);
 
@@ -977,6 +1491,12 @@ dp_mst_atomic_best_encoder(struct drm_connector *connector,
 	struct drm_encoder *enc = NULL;
 	struct dp_mst_bridge_state *bridge_state;
 	u32 i;
+
+	if (dp_mst_atomic_find_super_encoder(connector, display,
+			state, &enc)) {
+		i = MAX_DP_MST_DRM_BRIDGES;
+		goto end;
+	}
 
 	if (state->best_encoder)
 		return state->best_encoder;
@@ -1095,6 +1615,13 @@ static int dp_mst_connector_atomic_check(struct drm_connector *connector,
 			bridge_state->connector = NULL;
 			bridge_state->dp_panel = NULL;
 
+			/* Clear all sub bridges for tiled bridge */
+			if (bridge->id == MAX_DP_MST_DRM_BRIDGES) {
+				rc = dp_mst_super_bridge_clear(bridge, state);
+				if (rc)
+					goto end;
+			}
+
 			DP_MST_DEBUG("clear best encoder:%d\n", bridge->id);
 		}
 	}
@@ -1129,6 +1656,25 @@ mode_set:
 
 		if (WARN_ON(bridge_state->num_slots)) {
 			rc = -EINVAL;
+			goto end;
+		}
+
+		if (dp_mst_is_tile_mode(&crtc_state->mode)) {
+			struct drm_display_mode tmp;
+
+			slots = 0;
+			tmp = crtc_state->mode;
+			dp_mst_split_tile_timing(&tmp);
+			dp_display->convert_to_dp_mode(dp_display,
+					c_conn->drv_panel, &tmp, &dp_mode);
+			for (i = 0; i < MAX_DP_MST_DRM_BRIDGES; i++) {
+				rc = _dp_mst_compute_config(state, mst,
+						connector, &dp_mode);
+				if (rc < 0)
+					goto end;
+				slots += rc;
+			}
+			bridge_state->num_slots = slots;
 			goto end;
 		}
 
@@ -1312,6 +1858,9 @@ dp_mst_fixed_atomic_best_encoder(struct drm_connector *connector,
 	struct drm_encoder *enc = NULL;
 	struct dp_mst_bridge_state *bridge_state;
 	u32 i;
+
+	if (dp_mst_atomic_find_super_encoder(connector, display, state, &enc))
+		goto end;
 
 	if (state->best_encoder)
 		return state->best_encoder;

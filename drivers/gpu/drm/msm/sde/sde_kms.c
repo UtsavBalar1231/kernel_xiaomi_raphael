@@ -1441,7 +1441,8 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 
 	max_encoders = sde_kms->dsi_display_count + sde_kms->wb_display_count +
 				sde_kms->dp_display_count +
-				sde_kms->dp_stream_count;
+				sde_kms->dp_stream_count +
+				(sde_kms->dp_stream_count >> 1);
 	if (max_encoders > ARRAY_SIZE(priv->encoders)) {
 		max_encoders = ARRAY_SIZE(priv->encoders);
 		SDE_ERROR("capping number of displays to %d", max_encoders);
@@ -1591,7 +1592,8 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		/* update display cap to MST_MODE for DP MST encoders */
 		info.capabilities |= MSM_DISPLAY_CAP_MST_MODE;
 		sde_kms->dp_stream_count = dp_display_get_num_of_streams();
-		for (idx = 0; idx < sde_kms->dp_stream_count; idx++) {
+		for (idx = 0; idx < sde_kms->dp_stream_count &&
+				priv->num_encoders < max_encoders; idx++) {
 			info.h_tile_instance[0] = idx;
 			encoder = sde_encoder_init(dev, &info);
 			if (IS_ERR_OR_NULL(encoder)) {
@@ -1600,6 +1602,29 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 			}
 
 			rc = dp_mst_drm_bridge_init(display, encoder);
+			if (rc) {
+				SDE_ERROR("dp mst bridge %d init failed, %d\n",
+						i, rc);
+				sde_encoder_destroy(encoder);
+				continue;
+			}
+			priv->encoders[priv->num_encoders++] = encoder;
+		}
+
+		/* create super encoder and bridge */
+		if (sde_kms->dp_stream_count > 1 &&
+				priv->num_encoders < max_encoders) {
+			info.num_of_h_tiles = sde_kms->dp_stream_count;
+			for (idx = 0; idx < sde_kms->dp_stream_count; idx++)
+				info.h_tile_instance[idx] = idx;
+
+			encoder = sde_encoder_init(dev, &info);
+			if (IS_ERR_OR_NULL(encoder)) {
+				SDE_ERROR("dp mst super enc init failed\n");
+				continue;
+			}
+
+			rc = dp_mst_drm_super_bridge_init(display, encoder);
 			if (rc) {
 				SDE_ERROR("dp mst bridge %d init failed, %d\n",
 						i, rc);
