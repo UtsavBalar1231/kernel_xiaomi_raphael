@@ -645,6 +645,8 @@ struct cdp_rx_stats {
  * @tso_pkt:total no of TSO packets
  * @non_tso_pkts: non - TSO packets
  * @dropped_host: TSO packets dropped by host
+ * @tso_no_mem_dropped: TSO packets dropped by host due to descriptor
+			unavailability
  * @dropped_target:TSO packets dropped by target
  * @sg_pkt: Total scatter gather packets
  * @non_sg_pkts: non SG packets
@@ -690,6 +692,7 @@ struct cdp_tx_ingress_stats {
 		struct cdp_pkt_info tso_pkt;
 		struct cdp_pkt_info non_tso_pkts;
 		struct cdp_pkt_info  dropped_host;
+		struct cdp_pkt_info  tso_no_mem_dropped;
 		uint32_t dropped_target;
 	} tso;
 

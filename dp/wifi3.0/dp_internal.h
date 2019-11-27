@@ -464,6 +464,7 @@ static inline void dp_update_pdev_ingress_stats(struct dp_pdev *tgtobj,
 	DP_STATS_AGGR(tgtobj, srcobj, tx_i.raw.dma_map_error);
 	DP_STATS_AGGR_PKT(tgtobj, srcobj, tx_i.tso.tso_pkt);
 	DP_STATS_AGGR(tgtobj, srcobj, tx_i.tso.dropped_host.num);
+	DP_STATS_AGGR(tgtobj, srcobj, tx_i.tso.tso_no_mem_dropped.num);
 	DP_STATS_AGGR(tgtobj, srcobj, tx_i.tso.dropped_target);
 	DP_STATS_AGGR(tgtobj, srcobj, tx_i.sg.dropped_host.num);
 	DP_STATS_AGGR(tgtobj, srcobj, tx_i.sg.dropped_target);

@@ -5298,6 +5298,8 @@ dp_print_pdev_tx_stats(struct dp_pdev *pdev)
 		       pdev->stats.tx_i.tso.tso_pkt.bytes);
 	DP_PRINT_STATS("	Dropped By Host = %d",
 		       pdev->stats.tx_i.tso.dropped_host.num);
+	DP_PRINT_STATS("	Dropped By Host(no free TSO desc) = %d",
+		       pdev->stats.tx_i.tso.tso_no_mem_dropped.num);
 	DP_PRINT_STATS("Mcast Enhancement:");
 	DP_PRINT_STATS("	Packets = %d",
 		       pdev->stats.tx_i.mcast_en.mcast_pkt.num);
