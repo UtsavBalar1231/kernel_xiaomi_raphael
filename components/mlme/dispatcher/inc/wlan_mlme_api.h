@@ -2293,4 +2293,41 @@ wlan_mlme_get_status_ring_buffer(struct wlan_objmgr_psoc *psoc,
  * Return: true if peer unmap confirmation support is enabled, else false
  */
 bool wlan_mlme_get_peer_unmap_conf(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * mlme_get_roam_trigger_str() - Get the string for enum
+ * WMI_ROAM_TRIGGER_REASON_ID reason.
+ * @roam_scan_trigger: roam scan trigger ID
+ *
+ *  Return: Meaningful string from enum WMI_ROAM_TRIGGER_REASON_ID
+ */
+char *mlme_get_roam_trigger_str(uint32_t roam_scan_trigger);
+
+/**
+ * mlme_get_converted_timestamp() - Return time of the day
+ * from timestamp
+ * @timestamp:    Timestamp value in milliseconds
+ * @time:         Output buffer to fill time into
+ *
+ * Return: Time of the day in [HH:MM:SS.uS]
+ */
+void mlme_get_converted_timestamp(uint32_t timestamp, char *time);
+
+/**
+ * mlme_get_roam_fail_reason_str() - Get fail string from enum
+ * WMI_ROAM_FAIL_REASON_ID
+ * @result:   Roam fail reason
+ *
+ * Return: Meaningful string from enum
+ */
+char *mlme_get_roam_fail_reason_str(uint32_t result);
+
+/**
+ * mlme_get_sub_reason_str() - Get roam trigger sub reason from enum
+ * WMI_ROAM_TRIGGER_SUB_REASON_ID
+ * @sub_reason: Sub reason value
+ *
+ * Return: Meaningful string from enum WMI_ROAM_TRIGGER_SUB_REASON_ID
+ */
+char *mlme_get_sub_reason_str(uint32_t sub_reason);
 #endif /* _WLAN_MLME_API_H_ */
