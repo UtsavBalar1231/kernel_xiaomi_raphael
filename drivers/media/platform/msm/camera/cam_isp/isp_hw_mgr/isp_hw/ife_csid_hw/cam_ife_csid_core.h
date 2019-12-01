@@ -16,7 +16,6 @@
 #include "cam_hw.h"
 #include "cam_ife_csid_hw_intf.h"
 #include "cam_ife_csid_soc.h"
-#include "cam_csid_ppi_core.h"
 
 #define CAM_IFE_CSID_HW_RES_MAX      4
 #define CAM_IFE_CSID_CID_RES_MAX     4
@@ -327,10 +326,6 @@ struct cam_ife_csid_common_reg_offset {
 	uint32_t ppp_irq_mask_all;
 	uint32_t measure_en_hbi_vbi_cnt_mask;
 	uint32_t format_measure_en_val;
-	uint32_t format_measure_width_shift_val;
-	uint32_t format_measure_width_mask_val;
-	uint32_t format_measure_height_shift_val;
-	uint32_t format_measure_height_mask_val;
 };
 
 /**
@@ -501,11 +496,6 @@ struct cam_ife_csid_path_cfg {
  * @csid_debug:               csid debug information to enable the SOT, EOT,
  *                            SOF, EOF, measure etc in the csid hw
  * @clk_rate                  Clock rate
- * @ipp_path                  ipp path configuration
- * @ppp_path                  ppp path configuration
- * @rdi_path                  RDI path configuration
- * @hbi                       Horizontal blanking
- * @vbi                       Vertical blanking
  * @sof_irq_triggered:        Flag is set on receiving event to enable sof irq
  *                            incase of SOF freeze.
  * @irq_debug_cnt:            Counter to track sof irq's when above flag is set.
@@ -518,10 +508,6 @@ struct cam_ife_csid_path_cfg {
  * @init_frame_drop           Initial frame drop number
  * @res_sof_cnt               path resource sof count value. it used for initial
  *                            frame drop
- * @first_sof_ts              flag to mark the first sof has been registered
- * @ppi_hw_intf               interface to ppi hardware
- * @ppi_enabled               flag to specify if the hardware has ppi bridge
- *                            or not
  * @fatal_err_detected        flag to indicate fatal errror is reported
  * @ctx                       Hw manager context
  * @work                      Work queue to handle CSID IRQ work
@@ -550,11 +536,6 @@ struct cam_ife_csid_hw {
 	struct completion    csid_rdin_complete[CAM_IFE_CSID_RDI_MAX];
 	uint64_t                         csid_debug;
 	uint64_t                         clk_rate;
-	struct cam_isp_sensor_dimension  ipp_path_config;
-	struct cam_isp_sensor_dimension  ppp_path_config;
-	struct cam_isp_sensor_dimension  rdi_path_config[4];
-	uint32_t                         hbi;
-	uint32_t                         vbi;
 	bool                             sof_irq_triggered;
 	uint32_t                         irq_debug_cnt;
 	uint32_t                         error_irq_count;
@@ -563,9 +544,6 @@ struct cam_ife_csid_hw {
 	uint32_t                         dual_usage;
 	uint32_t                         init_frame_drop;
 	uint32_t                         res_sof_cnt[CAM_IFE_PIX_PATH_RES_MAX];
-	uint32_t                         first_sof_ts;
-	struct cam_hw_intf              *ppi_hw_intf[CAM_CSID_PPI_HW_MAX];
-	bool                             ppi_enable;
 	bool                             fatal_err_detected;
 	void                            *ctx;
 	struct cam_req_mgr_core_workq   *work;
