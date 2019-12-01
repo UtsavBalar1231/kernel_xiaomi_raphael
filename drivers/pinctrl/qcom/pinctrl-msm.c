@@ -36,6 +36,7 @@
 #include <linux/log2.h>
 #include <linux/irq.h>
 #include <soc/qcom/scm.h>
+#include <soc/qcom/socinfo.h>
 #include "../core.h"
 #include "../pinconf.h"
 #include "pinctrl-msm.h"
