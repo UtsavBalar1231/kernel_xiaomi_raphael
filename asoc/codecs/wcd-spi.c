@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1045,6 +1046,12 @@ static int wcd_spi_bus_gwrite(void *context, const void *reg,
 		return -EINVAL;
 	}
 
+	if (wcd_spi_is_suspended(wcd_spi)) {
+		dev_err(&spi->dev,
+		"%s: SPI suspended, cannot enable clk\n",
+		 __func__);
+		return -EIO;
+	}
 	memset(tx_buf, 0, WCD_SPI_CMD_IRW_LEN);
 	tx_buf[0] = WCD_SPI_CMD_IRW;
 	tx_buf[1] = *((u8 *)reg);
@@ -1092,6 +1099,12 @@ static int wcd_spi_bus_read(void *context, const void *reg,
 			"%s: Invalid input, reg_len = %zd, val_len = %zd",
 			__func__, reg_len, val_len);
 		return -EINVAL;
+	}
+	if (wcd_spi_is_suspended(wcd_spi)) {
+		dev_err(&spi->dev,
+		"%s: SPI suspended, cannot enable clk\n",
+		__func__);
+		return -EIO;
 	}
 
 	memset(tx_buf, 0, WCD_SPI_CMD_IRR_LEN);

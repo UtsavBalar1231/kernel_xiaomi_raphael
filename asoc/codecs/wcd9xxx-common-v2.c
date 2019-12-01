@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -794,6 +795,7 @@ static void wcd_clsh_state_hph_ear(struct snd_soc_codec *codec,
 			wcd_clsh_set_gain_path(codec, mode);
 			wcd_clsh_set_flyback_mode(codec, mode);
 			wcd_clsh_set_buck_mode(codec, mode);
+			wcd_clsh_set_hph_mode(codec, mode);
 		}
 	} else {
 		if (req_state == WCD_CLSH_STATE_EAR) {
