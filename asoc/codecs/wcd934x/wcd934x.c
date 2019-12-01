@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,6 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/firmware.h>
@@ -639,16 +641,16 @@ struct tavil_priv {
 	int power_active_ref;
 	u8 sidetone_coeff_array[IIR_MAX][BAND_MAX]
 		[WCD934X_CDC_SIDETONE_IIR_COEFF_MAX * 4];
-
+	unsigned short slim_tx_of_uf_cnt[WCD934X_TX_MAX][SB_PORT_ERR_MAX];
 	struct spi_device *spi;
 	struct platform_device *pdev_child_devices
 		[WCD934X_CHILD_DEVICES_MAX];
 	int child_count;
+	int micbias_num;
 	struct regulator *micb_load;
 	int micb_load_low;
 	int micb_load_high;
 	u8 dmic_drv_ctl;
-	unsigned short slim_tx_of_uf_cnt[WCD934X_TX_MAX][SB_PORT_ERR_MAX];
 };
 
 static const struct tavil_reg_mask_val tavil_spkr_default[] = {
@@ -1929,9 +1931,9 @@ static int tavil_codec_enable_slimvi_feedback(struct snd_soc_dapm_widget *w,
 	struct wcd9xxx *core = NULL;
 	struct snd_soc_codec *codec = NULL;
 	struct tavil_priv *tavil_p = NULL;
-	struct wcd9xxx_ch *ch;
 	int ret = 0;
 	struct wcd9xxx_codec_dai_data *dai = NULL;
+	struct wcd9xxx_ch *ch;
 
 	codec = snd_soc_dapm_to_codec(w->dapm);
 	tavil_p = snd_soc_codec_get_drvdata(codec);
@@ -5674,10 +5676,25 @@ static int tavil_compander_put(struct snd_kcontrol *kcontrol,
 		/* Set Gain Source Select based on compander enable/disable */
 		snd_soc_update_bits(codec, WCD934X_HPH_L_EN, 0x20,
 				(value ? 0x00:0x20));
+		/* Disable Compander Clock */
+		snd_soc_update_bits(codec, WCD934X_CDC_RX1_RX_PATH_CFG0, 0x02, 0x00);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER1_CTL0, 0x04, 0x04);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER1_CTL0, 0x02, 0x02);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER1_CTL0, 0x02, 0x00);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER1_CTL0, 0x01, 0x00);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER1_CTL0, 0x04, 0x00);
 		break;
 	case COMPANDER_2:
 		snd_soc_update_bits(codec, WCD934X_HPH_R_EN, 0x20,
 				(value ? 0x00:0x20));
+		/* Disable Compander Clock */
+		snd_soc_update_bits(codec, WCD934X_CDC_RX2_RX_PATH_CFG0, 0x02, 0x00);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER2_CTL0, 0x04, 0x04);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER2_CTL0, 0x02, 0x02);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER2_CTL0, 0x02, 0x00);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER2_CTL0, 0x01, 0x00);
+		snd_soc_update_bits(codec, WCD934X_CDC_COMPANDER2_CTL0, 0x04, 0x00);
+
 		break;
 	case COMPANDER_3:
 	case COMPANDER_4:
@@ -6025,6 +6042,62 @@ static int tavil_mad_input_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static const char *const tavil_micbias_text[] = {
+	"OFF", "MICBIAS1", "MICBIAS2", "MICBIAS3", "MICBIAS4"
+};
+
+static const struct soc_enum tavil_micbias_enum =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(tavil_micbias_text),
+			    tavil_micbias_text);
+
+static int tavil_micb_status_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tavil_priv *priv = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = priv->micbias_num;;
+
+	dev_dbg(codec->dev, "%s: tavil_micbias_num = %s\n", __func__,
+		tavil_micbias_text[priv->micbias_num]);
+
+	return 0;
+}
+
+static int tavil_micb_status_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tavil_priv *priv = snd_soc_codec_get_drvdata(codec);
+	u8 tavil_micbias_num;
+
+	tavil_micbias_num = ucontrol->value.integer.value[0];
+
+	if (tavil_micbias_num >= sizeof(tavil_micbias_text)/
+	    sizeof(tavil_micbias_text[0])) {
+		dev_err(codec->dev,
+			"%s: tavil_micbias_num = %d out of bounds\n",
+			__func__, tavil_micbias_num);
+		return -EINVAL;
+	}
+	priv->micbias_num = tavil_micbias_num;
+
+	if (tavil_micbias_num == 0) {
+		tavil_codec_enable_standalone_micbias(codec, 1, false);
+		tavil_codec_enable_standalone_micbias(codec, 2, false);
+		tavil_codec_enable_standalone_micbias(codec, 3, false);
+		tavil_codec_enable_standalone_micbias(codec, 4, false);
+		dev_err(codec->dev, "====>PFT: %s: turn off all micbias.\n", __func__);
+	} else {
+		tavil_codec_enable_standalone_micbias(codec, tavil_micbias_num, true);
+		dev_err(codec->dev, "====>PFT: %s: turn on micbias %d.\n",
+				__func__, tavil_micbias_num);
+	}
+
+	return 0;
+}
+
+
 static int tavil_ear_pa_gain_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
@@ -6328,8 +6401,8 @@ static const struct snd_kcontrol_new tavil_snd_controls[] = {
 	SOC_ENUM_EXT("SPKR Right Boost Max State", tavil_spkr_boost_stage_enum,
 		     tavil_spkr_right_boost_stage_get,
 		     tavil_spkr_right_boost_stage_put),
-	SOC_SINGLE_TLV("HPHL Volume", WCD934X_HPH_L_EN, 0, 20, 1, line_gain),
-	SOC_SINGLE_TLV("HPHR Volume", WCD934X_HPH_R_EN, 0, 20, 1, line_gain),
+	SOC_SINGLE_TLV("HPHL Volume", WCD934X_HPH_L_EN, 0, 24, 1, line_gain),
+	SOC_SINGLE_TLV("HPHR Volume", WCD934X_HPH_R_EN, 0, 24, 1, line_gain),
 	SOC_SINGLE_TLV("LINEOUT1 Volume", WCD934X_DIFF_LO_LO1_COMPANDER,
 		3, 16, 1, line_gain),
 	SOC_SINGLE_TLV("LINEOUT2 Volume", WCD934X_DIFF_LO_LO2_COMPANDER,
@@ -6523,6 +6596,10 @@ static const struct snd_kcontrol_new tavil_snd_controls[] = {
 
 	SOC_ENUM_EXT("MAD Input", tavil_conn_mad_enum,
 		     tavil_mad_input_get, tavil_mad_input_put),
+
+	SOC_ENUM_EXT("Mic Bias", tavil_micbias_enum,
+		     tavil_micb_status_get, tavil_micb_status_put),
+
 
 	SOC_SINGLE_EXT("DMIC1_CLK_PIN_MODE", SND_SOC_NOPM, 17, 1, 0,
 		tavil_dmic_pin_mode_get, tavil_dmic_pin_mode_put),
@@ -11145,6 +11222,7 @@ static int tavil_probe(struct platform_device *pdev)
 	tavil->swr.plat_data.clk = tavil_swrm_clock;
 	tavil->swr.plat_data.handle_irq = tavil_swrm_handle_irq;
 	tavil->swr.spkr_gain_offset = WCD934X_RX_GAIN_OFFSET_0_DB;
+	tavil->micbias_num = 0;
 
 	/* Register for Clock */
 	wcd_ext_clk = clk_get(tavil->wcd9xxx->dev, "wcd_clk");
