@@ -358,6 +358,10 @@ static void *usbpd_ipc_log;
 #define STOP_USB_HOST		0
 #define START_USB_HOST		1
 
+#define PD_VBUS_MAX_VOLTAGE_LIMIT		9000000
+#define MAX_FIXED_PDO_MA		2000
+#define MAX_NON_COMPLIANT_PPS_UA		2000000
+
 static bool check_vsafe0v = true;
 module_param(check_vsafe0v, bool, 0600);
 
@@ -458,6 +462,8 @@ struct usbpd {
 	struct regulator	*vconn;
 	bool			vbus_enabled;
 	bool			vconn_enabled;
+	u32			limit_pd_vbus;
+	u32			pd_vbus_max_limit;
 
 	u8			tx_msgid[SOPII_MSG + 1];
 	u8			rx_msgid[SOPII_MSG + 1];
@@ -846,6 +852,20 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 
 		pd->requested_voltage =
 			PD_SRC_PDO_FIXED_VOLTAGE(pdo) * 50 * 1000;
+
+		/* pd request uv will less than pd vbus max 9V for fixed pdos */
+		if (pd->requested_voltage > PD_VBUS_MAX_VOLTAGE_LIMIT)
+			return -ENOTSUPP;
+
+		/*
+		 * set maxium allowed current for fixed pdo to 2A if request
+		 * voltage is 9V, as we should limit charger to 18W for more safety
+		 * both for charger and our device(such as charge ic inductor)
+		 */
+		if (pd->requested_voltage == PD_VBUS_MAX_VOLTAGE_LIMIT
+				&& curr >= MAX_FIXED_PDO_MA)
+			curr = MAX_FIXED_PDO_MA;
+
 		pd->rdo = PD_RDO_FIXED(pdo_pos, 0, mismatch, 1, 1, curr / 10,
 				max_current / 10);
 	} else if (type == PD_SRC_PDO_TYPE_AUGMENTED) {
@@ -858,6 +878,16 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 		}
 
 		curr = ua / 1000;
+
+		/* if limit_pd_vbus is enabled, pd request uv will less than pd vbus max */
+		if (pd->limit_pd_vbus && uv > pd->pd_vbus_max_limit)
+			uv = pd->pd_vbus_max_limit;
+
+		if (curr == 0) {
+			ua = MAX_NON_COMPLIANT_PPS_UA;
+			curr = ua / 1000;
+		}
+
 		pd->requested_voltage = uv;
 		pd->rdo = PD_RDO_AUGMENTED(pdo_pos, mismatch, 1, 1,
 				uv / 20000, ua / 50000);
@@ -4147,6 +4177,7 @@ static ssize_t select_pdo_store(struct device *dev,
 		goto out;
 	}
 
+	pr_info("pdo: %d, uv: %d, ua: %d\n", pdo, uv, ua);
 	ret = pd_select_pdo(pd, pdo, uv, ua);
 	if (ret)
 		goto out;
@@ -4960,6 +4991,34 @@ struct usbpd *usbpd_create(struct device *parent)
 			EXTCON_PROP_USB_TYPEC_POLARITY);
 	extcon_set_property_capability(pd->extcon, EXTCON_USB_HOST,
 			EXTCON_PROP_USB_SS);
+
+	pd->vbus = devm_regulator_get(parent, "vbus");
+	if (IS_ERR(pd->vbus)) {
+		ret = PTR_ERR(pd->vbus);
+		goto put_psy;
+	}
+
+	pd->vconn = devm_regulator_get(parent, "vconn");
+	if (IS_ERR(pd->vconn)) {
+		ret = PTR_ERR(pd->vconn);
+		goto put_psy;
+	}
+
+	ret = of_property_read_u32(parent->of_node, "mi,limit_pd_vbus",
+			&pd->limit_pd_vbus);
+	if (ret) {
+		usbpd_err(&pd->dev, "failed to read pd vbus limit\n");
+		pd->limit_pd_vbus = false;
+	}
+
+	if (pd->limit_pd_vbus) {
+		ret = of_property_read_u32(parent->of_node, "mi,pd_vbus_max_limit",
+				&pd->pd_vbus_max_limit);
+		if (ret) {
+			usbpd_err(&pd->dev, "failed to read pd vbus max limit\n");
+			pd->pd_vbus_max_limit = PD_VBUS_MAX_VOLTAGE_LIMIT;
+		}
+	}
 
 	pd->num_sink_caps = device_property_read_u32_array(parent,
 			"qcom,default-sink-caps", NULL, 0);
