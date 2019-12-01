@@ -168,7 +168,7 @@ static struct smb_params smb5_pm8150b_params = {
 		.name   = "DC input current limit",
 		.reg    = DCDC_CFG_REF_MAX_PSNS_REG,
 		.min_u  = 0,
-		.max_u  = 1200000,
+		.max_u  = DCIN_ICL_MAX_UA,
 		.step_u = 40000,
 	},
 	.jeita_cc_comp_hot	= {
@@ -427,7 +427,6 @@ static int smb5_configure_internal_pull(struct smb_charger *chg, int type,
 
 int smblib_change_psns_to_curr(struct smb_charger *chg, int uv)
 {
-	dev_info(chg->dev, "get Vpsns = %d uV \n", uv);
 	uv =  uv * PSNS_CURRENT_SAMPLE_RATE / PSNS_CURRENT_SAMPLE_RESIS;
 
 	return uv;
@@ -490,6 +489,15 @@ static int smb5_parse_dt(struct smb5 *chip)
 
 	chg->support_wireless = of_property_read_bool(node,
 				"qcom,support-wireless");
+
+	chg->lpd_enabled = of_property_read_bool(node,
+				"qcom,lpd-enable");
+
+	chg->dynamic_fv_enabled = of_property_read_bool(node,
+				"qcom,dynamic-fv-enable");
+
+	chg->qc_class_ab = of_property_read_bool(node,
+				"qcom,distinguish-qc-class-ab");
 
 	rc = of_property_read_u32(node, "qcom,wd-bark-time-secs",
 					&chip->dt.wd_bark_time);
@@ -1053,6 +1061,9 @@ static enum power_supply_property smb5_usb_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_QUICK_CHARGE_TYPE,
+	POWER_SUPPLY_PROP_HVDCP3_TYPE,
+	POWER_SUPPLY_PROP_TYPE_RECHECK,
 	POWER_SUPPLY_PROP_PD_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_TYPE,
@@ -1156,16 +1167,23 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 		val->intval = chg->real_charger_type;
 		break;
 	case POWER_SUPPLY_PROP_HVDCP3_TYPE:
-		if (chg->real_charger_type != POWER_SUPPLY_TYPE_USB_HVDCP_3)
+		if (chg->real_charger_type != POWER_SUPPLY_TYPE_USB_HVDCP_3) {
 			val->intval = HVDCP3_NONE; /* 0: none hvdcp3 insert */
-		else {
-			if (chg->is_qc_class_a)
-				val->intval = HVDCP3_CLASSA_18W; /* 18W hvdcp3 insert */
-			else if (chg->is_qc_class_b)
-				val->intval = HVDCP3_CLASSB_27W; /* 27W hvdcp3 insert */
-			else
-				val->intval = HVDCP3_NONE;
-		}
+		} else {
+			if (chg->qc_class_ab) {
+				if (chg->is_qc_class_a)
+					val->intval = HVDCP3_CLASSA_18W; /* 18W hvdcp3 insert */
+				else if (chg->is_qc_class_b)
+					val->intval = HVDCP3_CLASSB_27W; /* 27W hvdcp3 insert */
+				else
+					val->intval = HVDCP3_NONE;
+			} else {/* for F10 */
+				if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP_3)
+					val->intval = HVDCP3_CLASSA_18W; /* 18W hvdcp3 insert  */
+				else
+					val->intval = HVDCP3_NONE;
+			}
+                }
 		break;
 	case POWER_SUPPLY_PROP_QUICK_CHARGE_TYPE:
 		val->intval = smblib_get_quick_charge_type(chg);
@@ -1390,7 +1408,9 @@ static int smb5_usb_set_prop(struct power_supply *psy,
 			rc = -EINVAL;
 		break;
 	case POWER_SUPPLY_PROP_TYPE_RECHECK:
+		pr_err("smblib_set_prop_type_recheck:: real_charger_type=%d val->intval=%d\n", chg->real_charger_type, val->intval);
 		rc = smblib_set_prop_type_recheck(chg, val);
+		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_LIMIT:
 		smblib_set_prop_usb_voltage_max_limit(chg, val);
 		break;
