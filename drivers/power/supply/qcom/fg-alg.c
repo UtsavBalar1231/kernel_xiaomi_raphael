@@ -278,7 +278,7 @@ int get_cycle_counts(struct cycle_counter *counter, const char **buf)
 	return 0;
 }
 
- /**
+/**
  * set_cycle_count -
  * @counter: Cycle counter object
  * @value: The cycle count value to be set

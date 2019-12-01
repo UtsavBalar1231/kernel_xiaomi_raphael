@@ -133,13 +133,19 @@ enum print_reason {
 /* defined for HVDCP2 */
 #define HVDCP2_CURRENT_UA		1500000
 
+/* defined for un_compliant Type-C cable */
+#define CC_UN_COMPLIANT_START_DELAY_MS	700
+
 /* defined for charger type recheck */
 #define CHARGER_RECHECK_DELAY_MS	30000
 #define TYPE_RECHECK_TIME_5S	5000
 #define TYPE_RECHECK_COUNT	3
 
-/* defined for un_compliant Type-C cable */
-#define CC_UN_COMPLIANT_START_DELAY_MS	700
+enum hvdcp3_type {
+	HVDCP3_NONE = 0,
+	HVDCP3_CLASSA_18W,
+	HVDCP3_CLASSB_27W,
+};
 
 #define VBAT_TO_VRAW_ADC(v)		div_u64((u64)v * 1000000UL, 194637UL)
 
@@ -172,12 +178,6 @@ enum print_reason {
 #define RSBU_K_300K_UV	3000000
 
 #define RECHARGE_SOC_THR		99
-
-enum hvdcp3_type {
-	HVDCP3_NONE = 0,
-	HVDCP3_CLASSA_18W,
-	HVDCP3_CLASSB_27W,
-};
 
 #define ROLE_REVERSAL_DELAY_MS		2000
 
@@ -739,6 +739,7 @@ struct smb_charger {
 	int			fake_dc_flag;
 	int			last_batt_stat;
 	/* charger type recheck */
+	bool			hvdcp_recheck_status;
 	int			recheck_charger;
 	int			precheck_charger_type;
 	/* workarounds */
