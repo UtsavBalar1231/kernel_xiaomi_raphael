@@ -82,6 +82,7 @@ int msm_drm_notifier_call_chain(unsigned long val, void *v)
 	return blocking_notifier_call_chain(&msm_drm_notifier_list, val,
 					    v);
 }
+EXPORT_SYMBOL(msm_drm_notifier_call_chain);
 
 void msm_drm_notifier_enable(bool val)
 {
