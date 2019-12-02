@@ -110,6 +110,36 @@ static struct notifier_block nfcc_notifier = {
 
 unsigned int	disable_ctrl;
 
+#define MAX_I2C_DUMP_SIZE 512
+
+static void print_send_buffer(struct nqx_dev *nqx_dev, unsigned char* buf, int len)
+{
+	unsigned char output[MAX_I2C_DUMP_SIZE * 2 + 1];
+	int i;
+
+	if (len > MAX_I2C_DUMP_SIZE)
+		len = MAX_I2C_DUMP_SIZE - 1;
+
+	for (i = 0; i < len; i++) {
+		snprintf(output + i * 2, 3, "%02x ", buf[i]);
+	}
+	dev_warn(&nqx_dev->client->dev, "%3d > %s\n", len, output);
+}
+
+static void print_recv_buffer(struct nqx_dev *nqx_dev, unsigned char* buf, int len)
+{
+	unsigned char output[MAX_I2C_DUMP_SIZE * 2 + 1];
+	int i;
+
+	if (len > MAX_I2C_DUMP_SIZE)
+		len = MAX_I2C_DUMP_SIZE - 1;
+
+	for (i = 0; i < len; i++) {
+		snprintf(output + i * 2, 3, "%02x ", buf[i]);
+	}
+	dev_warn(&nqx_dev->client->dev, "%3d < %s\n", len, output);
+}
+
 static void nqx_init_stat(struct nqx_dev *nqx_dev)
 {
 	nqx_dev->count_irq = 0;
@@ -241,6 +271,7 @@ static ssize_t nfc_read(struct file *filp, char __user *buf,
 		dev_dbg(&nqx_dev->client->dev, "%s : NfcNciRx %x %x %x\n",
 			__func__, tmp[0], tmp[1], tmp[2]);
 #endif
+	print_recv_buffer(nqx_dev, tmp, ret);
 	if (copy_to_user(buf, tmp, ret)) {
 		dev_warn(&nqx_dev->client->dev,
 			"%s : failed to copy to user space\n", __func__);
@@ -295,6 +326,7 @@ static ssize_t nfc_write(struct file *filp, const char __user *buf,
 			__func__, iminor(file_inode(filp)),
 			tmp[0], tmp[1], tmp[2]);
 #endif
+	print_send_buffer(nqx_dev, tmp, count);
 	usleep_range(1000, 1100);
 out_free:
 	kfree(tmp);
