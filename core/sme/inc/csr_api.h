@@ -1545,4 +1545,22 @@ QDF_STATUS csr_update_owe_info(struct mac_context *mac,
 QDF_STATUS
 csr_send_roam_offload_init_msg(struct mac_context *mac, uint32_t vdev_id,
 			       bool enable);
+
+#ifdef WLAN_FEATURE_11W
+/**
+ * csr_update_pmf_cap_from_connected_profile() - Update pmf cap from profile
+ * @profile: connected profile
+ * @filter: scan filter
+ *
+ * Return: None
+ */
+void
+csr_update_pmf_cap_from_connected_profile(tCsrRoamConnectedProfile *profile,
+					  struct scan_filter *filter);
+#else
+static inline void
+csr_update_pmf_cap_from_connected_profile(tCsrRoamConnectedProfile *profile,
+					  struct scan_filter *filter)
+{}
+#endif
 #endif
