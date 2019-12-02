@@ -1769,7 +1769,7 @@ void ufsdbg_add_debugfs(struct ufs_hba *hba)
 	}
 
 	hba->debugfs_files.err_state =
-		debugfs_create_file("err_state", S_IRUSR | S_IWUSR,
+		debugfs_create_file("err_state", S_IRUSR | S_IWUSR | S_IRUGO,
 			hba->debugfs_files.debugfs_root, hba,
 			&ufsdbg_err_state);
 	if (!hba->debugfs_files.err_state) {
