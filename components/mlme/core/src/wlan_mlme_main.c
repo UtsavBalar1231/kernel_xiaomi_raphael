@@ -417,6 +417,7 @@ static void mlme_init_generic_cfg(struct wlan_objmgr_psoc *psoc,
 	gen->enable_remove_time_stamp_sync_cmd =
 		cfg_get(psoc, CFG_REMOVE_TIME_STAMP_SYNC_CMD);
 	gen->mgmt_retry_max = cfg_get(psoc, CFG_MGMT_RETRY_MAX);
+	gen->bmiss_skip_full_scan = cfg_get(psoc, CFG_BMISS_SKIP_FULL_SCAN);
 }
 
 static void mlme_init_edca_ani_cfg(struct wlan_mlme_edca_params *edca_params)

@@ -62,6 +62,7 @@
 #include <wlan_utility.h>
 #include <wlan_mlme_main.h>
 #include "host_diag_core_log.h"
+#include <wlan_mlme_api.h>
 
 /* MCS Based rate table */
 /* HT MCS parameters with Nss = 1 */
@@ -4727,10 +4728,23 @@ static void wma_set_roam_offload_flag(tp_wma_handle wma, uint8_t vdev_id,
 {
 	QDF_STATUS status;
 	uint32_t flag = 0;
+	bool bmiss_skip_full_scan;
 
-	if (is_set)
+	if (is_set) {
 		flag = WMI_ROAM_FW_OFFLOAD_ENABLE_FLAG |
 		       WMI_ROAM_BMISS_FINAL_SCAN_ENABLE_FLAG;
+
+		wlan_mlme_get_bmiss_skip_full_scan_value(wma->psoc,
+							 &bmiss_skip_full_scan);
+		/*
+		 * If WMI_ROAM_BMISS_FINAL_SCAN_ENABLE_FLAG is set, then
+		 * WMI_ROAM_BMISS_FINAL_SCAN_TYPE_FLAG decides whether firmware
+		 * does channel map based partial scan or partial scan followed
+		 * by full scan in case no candidate is found in partial scan.
+		 */
+		if (bmiss_skip_full_scan)
+			flag |= WMI_ROAM_BMISS_FINAL_SCAN_TYPE_FLAG;
+	}
 
 	WMA_LOGD("%s: vdev_id:%d, is_set:%d, flag:%d",
 		 __func__, vdev_id, is_set, flag);

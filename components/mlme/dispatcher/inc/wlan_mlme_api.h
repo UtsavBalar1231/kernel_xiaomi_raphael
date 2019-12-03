@@ -2117,7 +2117,7 @@ wlan_mlme_get_mcc_feature(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_rrm_enabled(struct wlan_objmgr_psoc *psoc,
 				     bool *value);
 
-/*
+/**
  * wlan_mlme_get_dtim_selection_diversity() - get dtim selection diversity
  * bitmap
  * @psoc: pointer to psoc object
@@ -2193,7 +2193,7 @@ QDF_STATUS wlan_mlme_override_bmps_imps(struct wlan_objmgr_psoc *psoc);
 QDF_STATUS wlan_mlme_is_imps_enabled(struct wlan_objmgr_psoc *psoc,
 				     bool *value);
 
-/*
+/**
  * wlan_mlme_get_wps_uuid() - get the wps uuid string
  * @wps_params:   pointer to mlme wps parameters structure
  * @data:          data to which the parameter is to be copied
@@ -2204,7 +2204,7 @@ QDF_STATUS wlan_mlme_is_imps_enabled(struct wlan_objmgr_psoc *psoc,
 void
 wlan_mlme_get_wps_uuid(struct wlan_mlme_wps_params *wps_params, uint8_t *data);
 
-/*
+/**
  * wlan_mlme_get_self_gen_frm_pwr() - get self gen frm pwr
  * @psoc: pointer to psoc object
  * @val:  Pointer to the value which will be filled for the caller
@@ -2214,6 +2214,18 @@ wlan_mlme_get_wps_uuid(struct wlan_mlme_wps_params *wps_params, uint8_t *data);
 QDF_STATUS
 wlan_mlme_get_self_gen_frm_pwr(struct wlan_objmgr_psoc *psoc,
 			       uint32_t *value);
+
+/**
+ * wlan_mlme_get_bmiss_skip_full_scan_value() - To get value of
+ * bmiss_skip_full_scan ini
+ * @psoc: pointer to psoc object
+ * @val:  Pointer to the value which will be filled for the caller
+ *
+ * Return: QDF Status
+ */
+QDF_STATUS
+wlan_mlme_get_bmiss_skip_full_scan_value(struct wlan_objmgr_psoc *psoc,
+					 bool *value);
 
 /**
  * mlme_get_peer_phymode() - get phymode of peer
