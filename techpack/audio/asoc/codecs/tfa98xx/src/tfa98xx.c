@@ -737,14 +737,7 @@ static ssize_t tfa98xx_dbgfs_fw_state_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
 }
 
-#ifdef TFA_NON_DSP_SOLUTION
 extern int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead);
-#else
-int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
-{
-    return 0;
-}
-#endif
 
 static ssize_t tfa98xx_dbgfs_rpc_read(struct file *file,
 	char __user *user_buf, size_t count,
@@ -3393,6 +3386,9 @@ static int tfa98xx_misc_device_rpc_open(struct inode *inode, struct file *file)
 		return -EINVAL;
 	}
 }
+
+extern int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead);
+
 static ssize_t tfa98xx_misc_device_rpc_read(struct file *file, char __user *user_buf,
 											size_t count, loff_t *ppos)
 {

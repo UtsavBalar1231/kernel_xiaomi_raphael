@@ -8601,7 +8601,7 @@ static void afe_release_uevent_data(struct kobject *kobj)
 
 #ifdef CONFIG_SND_SOC_TFA9874_FOR_DAVI
 
-int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
+extern int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 {
 	int32_t result, port_id = AFE_PORT_ID_TFADSP_RX;
 	uint32_t port_index = 0, payload_size = 0;
@@ -8723,7 +8723,6 @@ int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 err:
 	return result;
 }
-EXPORT_SYMBOL(send_tfa_cal_apr);
 
 void send_tfa_cal_unmap_memory(void)
 {
