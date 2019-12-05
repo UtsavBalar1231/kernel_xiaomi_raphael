@@ -26,6 +26,7 @@
 #include <linux/cpu_cooling.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
+#include <linux/cpu.h>
 
 #include <microvisor/microvisor.h>
 
