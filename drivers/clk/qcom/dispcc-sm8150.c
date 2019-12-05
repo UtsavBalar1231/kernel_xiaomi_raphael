@@ -165,8 +165,8 @@ static const struct parent_map disp_cc_parent_map_4[] = {
 
 static const char * const disp_cc_parent_names_4[] = {
 	"bi_tcxo",
-	"edp_phy_pll_link_clk",
-	"edp_phy_pll_vco_div_clk",
+	"edp_link_clk_divsel_ten",
+	"edp_vco_divided_clk_src_mux",
 	"core_bi_pll_test_se",
 };
 
@@ -617,10 +617,15 @@ static struct clk_rcg2 disp_cc_mdss_edp_gtc_clk_src = {
 };
 
 static const struct freq_tbl ftbl_disp_cc_mdss_edp_link_clk_src[] = {
-	F( 19200000, P_BI_TCXO, 1, 0, 0),
-	F( 270000000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
-	F( 594000000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
-	F( 810000000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
+	F( 162000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
+	F( 216000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
+	F( 243000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
+	F( 270000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
+	F( 324000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
+	F( 432000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
+	F( 540000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
+	F( 594000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
+	F( 810000, P_EDP_PHY_PLL_LINK_CLK,   1,   0,   0),
 	{ }
 };
 
@@ -639,10 +644,10 @@ static struct clk_rcg2 disp_cc_mdss_edp_link_clk_src = {
 		.vdd_class = &vdd_mm,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 19200000,
-			[VDD_LOWER] = 270000000,
-			[VDD_LOW_L1] = 594000000,
-			[VDD_NOMINAL] = 810000000},
+			[VDD_MIN] = 19200,
+			[VDD_LOWER] = 270000,
+			[VDD_LOW_L1] = 594000,
+			[VDD_NOMINAL] = 810000},
 	},
 };
 
@@ -660,9 +665,9 @@ static struct clk_rcg2 disp_cc_mdss_edp_pixel_clk_src = {
 		.vdd_class = &vdd_mm,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_MIN] = 19200000,
-			[VDD_LOWER] = 337500000,
-			[VDD_LOW_L1] = 675000000},
+			[VDD_MIN] = 19200,
+			[VDD_LOWER] = 337500,
+			[VDD_LOW_L1] = 675000},
 	},
 };
 
@@ -1571,11 +1576,11 @@ static void disp_cc_sm8150_fixup_sm8150v2(struct regmap *regmap)
 	disp_cc_mdss_dp_pixel_clk_src.clkr.hw.init->rate_max[VDD_NOMINAL] =
 		675000;
 	disp_cc_mdss_edp_link_clk_src.clkr.hw.init->rate_max[VDD_LOW] =
-		594000000;
+		594000;
 	disp_cc_mdss_edp_pixel_clk_src.clkr.hw.init->rate_max[VDD_LOW_L1] =
-		337500000;
+		337500;
 	disp_cc_mdss_edp_pixel_clk_src.clkr.hw.init->rate_max[VDD_NOMINAL] =
-		675000000;
+		675000;
 }
 
 static void disp_cc_sm8150_fixup_sdmshrikev2(struct regmap *regmap)
@@ -1583,11 +1588,11 @@ static void disp_cc_sm8150_fixup_sdmshrikev2(struct regmap *regmap)
 	disp_cc_sm8150_fixup_sm8150v2(regmap);
 
 	disp_cc_mdss_edp_pixel_clk_src.clkr.hw.init->rate_max[VDD_LOWER] =
-		337500000;
+		337500;
 	disp_cc_mdss_edp_pixel_clk_src.clkr.hw.init->rate_max[VDD_LOW_L1] =
-		371500000;
+		371500;
 	disp_cc_mdss_edp_pixel_clk_src.clkr.hw.init->rate_max[VDD_NOMINAL] =
-		675000000;
+		675000;
 }
 
 static int disp_cc_sm8150_fixup(struct platform_device *pdev,
