@@ -367,6 +367,30 @@
 #define TXn_TX_DRV_LVL_V420			(0x0014)
 #define TXn_TX_POL_INV_V420			(0x005C)
 
+
+#define DP_PHY_PD_CTL_V500                      (0x0000001C)
+#define DP_PHY_MODE_V500                        (0x00000020)
+#define DP_PHY_AUX_CFG0_V500                    (0x00000024)
+#define DP_PHY_AUX_CFG1_V500                    (0x00000028)
+#define DP_PHY_AUX_CFG2_V500                    (0x0000002C)
+#define DP_PHY_AUX_CFG3_V500                    (0x00000030)
+#define DP_PHY_AUX_CFG4_V500                    (0x00000034)
+#define DP_PHY_AUX_CFG5_V500                    (0x00000038)
+#define DP_PHY_AUX_CFG6_V500                    (0x0000003C)
+#define DP_PHY_AUX_CFG7_V500                    (0x00000040)
+#define DP_PHY_AUX_CFG8_V500                    (0x00000044)
+#define DP_PHY_AUX_CFG9_V500                    (0x00000048)
+#define DP_PHY_AUX_INTERRUPT_MASK_V500          (0x00000058)
+#define DP_PHY_AUX_INTERRUPT_CLEAR_V500         (0x0000005C)
+#define DP_PHY_AUX_INTERRUPT_STATUS_V500        (0x000000DC)
+#define DP_PHY_SPARE0_V500			(0x00CC)
+#define DP_PHY_VCO_DIV_V500			(0x0074)
+#define TXn_TX_EMP_POST1_LVL_V500		(0x0004)
+#define TXn_TX_DRV_LVL_V500			(0x0014)
+#define TXn_TX_POL_INV_V500			(0x005C)
+#define TXn_LDO_CONFIG_V500			(0x0084)
+
+/*DP PLL Register offsets */
 #define QSERDES_COM_BIAS_EN_CLKBUFLR_EN		(0x004)
 
 /* DP MMSS_CC registers */
@@ -386,6 +410,17 @@
 #define MMSS_DP_PIXEL1_N_V420			(0x01D0)
 #define MMSS_DP_PIXEL2_M_V420			(0x01FC)
 #define MMSS_DP_PIXEL2_N_V420			(0x0200)
+
+#define MMSS_DP_LINK_CMD_RCGR_V500		(0x0270)
+#define MMSS_DP_LINK_CFG_RCGR_V500		(0x0274)
+#define MMSS_DP_PIXEL_M_V500			(0x01B4)
+#define MMSS_DP_PIXEL_N_V500			(0x01B8)
+#define MMSS_DP_PIXEL1_M_V500			(0x01CC)
+#define MMSS_DP_PIXEL1_N_V500			(0x01D0)
+#define MMSS_DP_PIXEL2_M_V500			(0x01FC)
+#define MMSS_DP_PIXEL2_N_V500			(0x0200)
+#define MMSS_EDP_PIXEL_M_V500			(0x0260)
+#define MMSS_EDP_PIXEL_N_V500			(0x0264)
 
 /* DP HDCP 1.3 registers */
 #define DP_HDCP_CTRL                                   (0x0A0)

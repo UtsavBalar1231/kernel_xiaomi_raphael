@@ -717,12 +717,33 @@ static int dp_parser_catalog(struct dp_parser *parser)
 {
 	int rc;
 	u32 version;
+	const char *st = NULL;
 	struct device *dev = &parser->pdev->dev;
 
 	rc = of_property_read_u32(dev->of_node, "qcom,phy-version", &version);
 
 	if (!rc)
 		parser->hw_cfg.phy_version = version;
+
+	/* phy-mode */
+	rc = of_property_read_string(dev->of_node, "qcom,phy-mode", &st);
+
+	if (!rc) {
+		if (!strcmp(st, "dp"))
+			parser->hw_cfg.phy_mode = DP_PHY_MODE_DP;
+		else if (!strcmp(st, "minidp"))
+			parser->hw_cfg.phy_mode = DP_PHY_MODE_MINIDP;
+		else if (!strcmp(st, "edp"))
+			parser->hw_cfg.phy_mode = DP_PHY_MODE_EDP;
+		else if (!strcmp(st, "edp-highswing"))
+			parser->hw_cfg.phy_mode = DP_PHY_MODE_EDP_HIGH_SWING;
+		else {
+			parser->hw_cfg.phy_mode = DP_PHY_MODE_UNKNOWN;
+			pr_warn("unknown phy-mode %s\n", st);
+		}
+	} else {
+		parser->hw_cfg.phy_mode = DP_PHY_MODE_UNKNOWN;
+	}
 
 	return 0;
 }

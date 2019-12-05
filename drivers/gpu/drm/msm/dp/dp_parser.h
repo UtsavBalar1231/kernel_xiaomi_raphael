@@ -145,7 +145,26 @@ enum dp_phy_version {
 	DP_PHY_VERSION_UNKNOWN,
 	DP_PHY_VERSION_2_0_0 = 0x200,
 	DP_PHY_VERSION_4_2_0 = 0x420,
+	DP_PHY_VERSION_5_0_0 = 0x500,
 	DP_PHY_VERSION_MAX
+};
+
+/**
+ * enum dp_phy_mode - mode of the dp phy
+ * @DP_PHY_MODE_UNKNOWN: Unknown PHY mode
+ * @DP_PHY_MODE_DP:      DP PHY mode
+ * @DP_PHY_MODE_MINIDP:  MiniDP PHY mode
+ * @DP_PHY_MODE_EDP:     eDP PHY mode
+ * @DP_PHY_MODE_EDP_HIGH_SWING:   eDP PHY mode, high swing/pre-empahsis
+ * @DP_PHY_MODE_MAX:     max PHY mode
+ */
+enum dp_phy_mode {
+	DP_PHY_MODE_UNKNOWN = 0,
+	DP_PHY_MODE_DP,
+	DP_PHY_MODE_MINIDP,
+	DP_PHY_MODE_EDP,
+	DP_PHY_MODE_EDP_HIGH_SWING,
+	DP_PHY_MODE_MAX
 };
 
 /**
@@ -155,6 +174,7 @@ enum dp_phy_version {
  */
 struct dp_hw_cfg {
 	enum dp_phy_version phy_version;
+	enum dp_phy_mode phy_mode;
 };
 
 enum dp_bond_type {

@@ -250,6 +250,7 @@ struct dp_catalog_priv {
 };
 
 struct dp_catalog {
+	enum dp_phy_mode phy_mode;
 	struct dp_catalog_aux aux;
 	struct dp_catalog_ctrl ctrl;
 	struct dp_catalog_audio audio;
@@ -362,6 +363,9 @@ int dp_catalog_get_v420(struct device *dev, struct dp_catalog *catalog,
 		void *io);
 
 int dp_catalog_get_v200(struct device *dev, struct dp_catalog *catalog,
+		void *io);
+
+int dp_catalog_get_v500(struct device *dev, struct dp_catalog *catalog,
 		void *io);
 
 #endif /* _DP_CATALOG_H_ */
