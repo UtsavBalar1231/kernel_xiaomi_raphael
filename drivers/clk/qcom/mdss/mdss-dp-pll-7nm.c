@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -73,7 +73,13 @@
 #include "mdss-dp-pll.h"
 #include "mdss-dp-pll-7nm.h"
 
-static struct dp_pll_db_7nm dp_pdb_7nm;
+enum {
+	DP_PHY_INDEX_DP_0	= 0,
+	DP_PHY_INDEX_DP_1,
+	DP_PHY_INDEX_MAX,
+};
+
+static struct dp_pll_db_7nm dp_pdb_7nm[DP_PHY_INDEX_MAX];
 static struct clk_ops mux_clk_ops;
 
 static struct regmap_config dp_pll_7nm_cfg = {
@@ -97,67 +103,134 @@ static const struct clk_ops dp_7nm_vco_clk_ops = {
 	.unprepare = dp_vco_unprepare_7nm,
 };
 
-static struct dp_pll_vco_clk dp_vco_clk = {
+static struct dp_pll_vco_clk dp0_vco_clk = {
 	.min_rate = DP_VCO_HSCLK_RATE_1620MHZDIV1000,
 	.max_rate = DP_VCO_HSCLK_RATE_8100MHZDIV1000,
 	.hw.init = &(struct clk_init_data){
-		.name = "dp_vco_clk",
+		.name = "dp0_vco_clk",
 		.parent_names = (const char *[]){ "xo_board" },
 		.num_parents = 1,
 		.ops = &dp_7nm_vco_clk_ops,
 	},
 };
 
-static struct clk_fixed_factor dp_link_clk_divsel_ten = {
+static struct clk_fixed_factor dp0_link_clk_divsel_ten = {
 	.div = 10,
 	.mult = 1,
 
 	.hw.init = &(struct clk_init_data){
-		.name = "dp_link_clk_divsel_ten",
+		.name = "dp0_link_clk_divsel_ten",
 		.parent_names =
-			(const char *[]){ "dp_vco_clk" },
+			(const char *[]){ "dp0_vco_clk" },
 		.num_parents = 1,
 		.flags = (CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT),
 		.ops = &clk_fixed_factor_ops,
 	},
 };
 
-static struct clk_fixed_factor dp_vco_divsel_two_clk_src = {
+static struct clk_fixed_factor dp0_vco_divsel_two_clk_src = {
 	.div = 2,
 	.mult = 1,
 
 	.hw.init = &(struct clk_init_data){
-		.name = "dp_vco_divsel_two_clk_src",
+		.name = "dp0_vco_divsel_two_clk_src",
 		.parent_names =
-			(const char *[]){ "dp_vco_clk" },
+			(const char *[]){ "dp0_vco_clk" },
 		.num_parents = 1,
 		.flags = (CLK_GET_RATE_NOCACHE),
 		.ops = &clk_fixed_factor_ops,
 	},
 };
 
-static struct clk_fixed_factor dp_vco_divsel_four_clk_src = {
+static struct clk_fixed_factor dp0_vco_divsel_four_clk_src = {
 	.div = 4,
 	.mult = 1,
 
 	.hw.init = &(struct clk_init_data){
-		.name = "dp_vco_divsel_four_clk_src",
+		.name = "dp0_vco_divsel_four_clk_src",
 		.parent_names =
-			(const char *[]){ "dp_vco_clk" },
+			(const char *[]){ "dp0_vco_clk" },
 		.num_parents = 1,
 		.flags = (CLK_GET_RATE_NOCACHE),
 		.ops = &clk_fixed_factor_ops,
 	},
 };
 
-static struct clk_fixed_factor dp_vco_divsel_six_clk_src = {
+static struct clk_fixed_factor dp0_vco_divsel_six_clk_src = {
 	.div = 6,
 	.mult = 1,
 
 	.hw.init = &(struct clk_init_data){
-		.name = "dp_vco_divsel_six_clk_src",
+		.name = "dp0_vco_divsel_six_clk_src",
 		.parent_names =
-			(const char *[]){ "dp_vco_clk" },
+			(const char *[]){ "dp0_vco_clk" },
+		.num_parents = 1,
+		.flags = (CLK_GET_RATE_NOCACHE),
+		.ops = &clk_fixed_factor_ops,
+	},
+};
+
+static struct dp_pll_vco_clk dp1_vco_clk = {
+	.min_rate = DP_VCO_HSCLK_RATE_1620MHZDIV1000,
+	.max_rate = DP_VCO_HSCLK_RATE_8100MHZDIV1000,
+	.hw.init = &(struct clk_init_data){
+		.name = "dp1_vco_clk",
+		.parent_names = (const char *[]){ "xo_board" },
+		.num_parents = 1,
+		.ops = &dp_7nm_vco_clk_ops,
+	},
+};
+
+static struct clk_fixed_factor dp1_link_clk_divsel_ten = {
+	.div = 10,
+	.mult = 1,
+
+	.hw.init = &(struct clk_init_data){
+		.name = "dp1_link_clk_divsel_ten",
+		.parent_names =
+			(const char *[]){ "dp1_vco_clk" },
+		.num_parents = 1,
+		.flags = (CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT),
+		.ops = &clk_fixed_factor_ops,
+	},
+};
+
+static struct clk_fixed_factor dp1_vco_divsel_two_clk_src = {
+	.div = 2,
+	.mult = 1,
+
+	.hw.init = &(struct clk_init_data){
+		.name = "dp1_vco_divsel_two_clk_src",
+		.parent_names =
+			(const char *[]){ "dp1_vco_clk" },
+		.num_parents = 1,
+		.flags = (CLK_GET_RATE_NOCACHE),
+		.ops = &clk_fixed_factor_ops,
+	},
+};
+
+static struct clk_fixed_factor dp1_vco_divsel_four_clk_src = {
+	.div = 4,
+	.mult = 1,
+
+	.hw.init = &(struct clk_init_data){
+		.name = "dp1_vco_divsel_four_clk_src",
+		.parent_names =
+			(const char *[]){ "dp1_vco_clk" },
+		.num_parents = 1,
+		.flags = (CLK_GET_RATE_NOCACHE),
+		.ops = &clk_fixed_factor_ops,
+	},
+};
+
+static struct clk_fixed_factor dp1_vco_divsel_six_clk_src = {
+	.div = 6,
+	.mult = 1,
+
+	.hw.init = &(struct clk_init_data){
+		.name = "dp1_vco_divsel_six_clk_src",
+		.parent_names =
+			(const char *[]){ "dp1_vco_clk" },
 		.num_parents = 1,
 		.flags = (CLK_GET_RATE_NOCACHE),
 		.ops = &clk_fixed_factor_ops,
@@ -217,18 +290,18 @@ static unsigned long mux_recalc_rate(struct clk_hw *hw,
 		return (vco->rate / 2);
 }
 
-static struct clk_regmap_mux dp_vco_divided_clk_src_mux = {
+static struct clk_regmap_mux dp0_vco_divided_clk_src_mux = {
 	.reg = 0x64,
 	.shift = 0,
 	.width = 2,
 
 	.clkr = {
 		.hw.init = &(struct clk_init_data){
-			.name = "dp_vco_divided_clk_src_mux",
+			.name = "dp0_vco_divided_clk_src_mux",
 			.parent_names =
-				(const char *[]){"dp_vco_divsel_two_clk_src",
-					"dp_vco_divsel_four_clk_src",
-					"dp_vco_divsel_six_clk_src"},
+				(const char *[]){"dp0_vco_divsel_two_clk_src",
+					"dp0_vco_divsel_four_clk_src",
+					"dp0_vco_divsel_six_clk_src"},
 			.num_parents = 3,
 			.ops = &mux_clk_ops,
 			.flags = (CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT),
@@ -236,13 +309,45 @@ static struct clk_regmap_mux dp_vco_divided_clk_src_mux = {
 	},
 };
 
-static struct clk_hw *mdss_dp_pllcc_7nm[] = {
-	[DP_VCO_CLK] = &dp_vco_clk.hw,
-	[DP_LINK_CLK_DIVSEL_TEN] = &dp_link_clk_divsel_ten.hw,
-	[DP_VCO_DIVIDED_TWO_CLK_SRC] = &dp_vco_divsel_two_clk_src.hw,
-	[DP_VCO_DIVIDED_FOUR_CLK_SRC] = &dp_vco_divsel_four_clk_src.hw,
-	[DP_VCO_DIVIDED_SIX_CLK_SRC] = &dp_vco_divsel_six_clk_src.hw,
-	[DP_VCO_DIVIDED_CLK_SRC_MUX] = &dp_vco_divided_clk_src_mux.clkr.hw,
+static struct clk_regmap_mux dp1_vco_divided_clk_src_mux = {
+	.reg = 0x64,
+	.shift = 0,
+	.width = 2,
+
+	.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "dp1_vco_divided_clk_src_mux",
+			.parent_names =
+				(const char *[]){"dp1_vco_divsel_two_clk_src",
+					"dp1_vco_divsel_four_clk_src",
+					"dp1_vco_divsel_six_clk_src"},
+			.num_parents = 3,
+			.ops = &mux_clk_ops,
+			.flags = (CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT),
+		},
+	},
+};
+
+static struct clk_hw *mdss_dp_pllcc_7nm
+	[DP_PHY_INDEX_MAX][DP_VCO_DIVIDED_CLK_SRC_MUX + 1] = {
+	{
+		[DP_VCO_CLK] = &dp0_vco_clk.hw,
+		[DP_LINK_CLK_DIVSEL_TEN] = &dp0_link_clk_divsel_ten.hw,
+		[DP_VCO_DIVIDED_TWO_CLK_SRC] = &dp0_vco_divsel_two_clk_src.hw,
+		[DP_VCO_DIVIDED_FOUR_CLK_SRC] = &dp0_vco_divsel_four_clk_src.hw,
+		[DP_VCO_DIVIDED_SIX_CLK_SRC] = &dp0_vco_divsel_six_clk_src.hw,
+		[DP_VCO_DIVIDED_CLK_SRC_MUX] =
+				&dp0_vco_divided_clk_src_mux.clkr.hw,
+	},
+	{
+		[DP_VCO_CLK] = &dp1_vco_clk.hw,
+		[DP_LINK_CLK_DIVSEL_TEN] = &dp1_link_clk_divsel_ten.hw,
+		[DP_VCO_DIVIDED_TWO_CLK_SRC] = &dp1_vco_divsel_two_clk_src.hw,
+		[DP_VCO_DIVIDED_FOUR_CLK_SRC] = &dp1_vco_divsel_four_clk_src.hw,
+		[DP_VCO_DIVIDED_SIX_CLK_SRC] = &dp1_vco_divsel_six_clk_src.hw,
+		[DP_VCO_DIVIDED_CLK_SRC_MUX] =
+				&dp1_vco_divided_clk_src_mux.clkr.hw,
+	},
 };
 
 int dp_pll_clock_register_7nm(struct platform_device *pdev,
@@ -250,9 +355,9 @@ int dp_pll_clock_register_7nm(struct platform_device *pdev,
 {
 	int rc = -ENOTSUPP, i = 0;
 	struct clk_onecell_data *clk_data;
-	struct clk *clk;
+	struct clk *clk = NULL;
 	struct regmap *regmap;
-	int num_clks = ARRAY_SIZE(mdss_dp_pllcc_7nm);
+	int num_clks = ARRAY_SIZE(mdss_dp_pllcc_7nm[0]);
 
 	if (!pdev || !pdev->dev.of_node) {
 		pr_err("Invalid input parameters\n");
@@ -262,6 +367,11 @@ int dp_pll_clock_register_7nm(struct platform_device *pdev,
 	if (!pll_res || !pll_res->pll_base || !pll_res->phy_base ||
 		!pll_res->ln_tx0_base || !pll_res->ln_tx1_base) {
 		pr_err("Invalid input parameters\n");
+		return -EINVAL;
+	}
+
+	if (pll_res->index < 0 || pll_res->index >= DP_PHY_INDEX_MAX) {
+		pr_err("Invalid cell_index parameter\n");
 		return -EINVAL;
 	}
 
@@ -278,22 +388,31 @@ int dp_pll_clock_register_7nm(struct platform_device *pdev,
 	}
 	clk_data->clk_num = num_clks;
 
-	pll_res->priv = &dp_pdb_7nm;
-	dp_pdb_7nm.pll = pll_res;
+	pll_res->priv = &dp_pdb_7nm[pll_res->index];
+	dp_pdb_7nm[pll_res->index].pll = pll_res;
 
 	/* Set client data for vco, mux and div clocks */
 	regmap = devm_regmap_init(&pdev->dev, &dp_pixel_mux_regmap_ops,
 			pll_res, &dp_pll_7nm_cfg);
-	dp_vco_divided_clk_src_mux.clkr.regmap = regmap;
+	switch (pll_res->index) {
+	case DP_PHY_INDEX_DP_0:
+		dp0_vco_divided_clk_src_mux.clkr.regmap = regmap;
+		dp0_vco_clk.priv = pll_res;
+		break;
+	case DP_PHY_INDEX_DP_1:
+		dp1_vco_divided_clk_src_mux.clkr.regmap = regmap;
+		dp1_vco_clk.priv = pll_res;
+		break;
+	}
 	mux_clk_ops = clk_regmap_mux_closest_ops;
 	mux_clk_ops.determine_rate = clk_mux_determine_rate;
 	mux_clk_ops.recalc_rate = mux_recalc_rate;
 
-	dp_vco_clk.priv = pll_res;
-
 	for (i = DP_VCO_CLK; i <= DP_VCO_DIVIDED_CLK_SRC_MUX; i++) {
 		pr_debug("reg clk: %d index: %d\n", i, pll_res->index);
-		clk = devm_clk_register(&pdev->dev, mdss_dp_pllcc_7nm[i]);
+
+		clk = devm_clk_register(&pdev->dev,
+			mdss_dp_pllcc_7nm[pll_res->index][i]);
 		if (IS_ERR(clk)) {
 			pr_err("clk registration failed for DP: %d\n",
 					pll_res->index);
