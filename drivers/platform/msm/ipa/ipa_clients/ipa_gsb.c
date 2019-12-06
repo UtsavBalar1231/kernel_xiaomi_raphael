@@ -76,7 +76,6 @@ static struct dentry *dfile_stats;
 #define IPA_GSB_AGGR_BYTE_LIMIT 14
 #define IPA_GSB_AGGR_TIME_LIMIT 1000 /* 1000 us */
 
-
 /**
  * struct stats - driver statistics,
  * @num_ul_packets: number of uplink packets
