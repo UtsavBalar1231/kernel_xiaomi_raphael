@@ -2179,7 +2179,7 @@ static void __exit msm_drm_unregister(void)
 	msm_smmu_driver_cleanup();
 }
 
-module_init(msm_drm_register);
+early_module_init(msm_drm_register, EARLY_SUBSYS_2, EARLY_INIT_LEVEL4);
 module_exit(msm_drm_unregister);
 
 MODULE_AUTHOR("Rob Clark <robdclark@gmail.com");

@@ -496,7 +496,7 @@ static int __init mdss_pll_driver_init(void)
 
 	return rc;
 }
-fs_initcall(mdss_pll_driver_init);
+early_fs_initcall(mdss_pll_driver_init, EARLY_SUBSYS_2, EARLY_INIT_LEVEL2);
 
 static void __exit mdss_pll_driver_deinit(void)
 {
