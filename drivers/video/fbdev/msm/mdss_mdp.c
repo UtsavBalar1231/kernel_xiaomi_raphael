@@ -3280,7 +3280,9 @@ static int mdss_mdp_parse_dt_pipe_helper(struct platform_device *pdev,
 	}
 
 	/* by default works in single rect mode unless otherwise noted */
-	rects_per_sspp = mdata->rects_per_sspp[ptype] ? : 1;
+//	rects_per_sspp = mdata->rects_per_sspp[ptype] ? : 1;
+	rects_per_sspp = 1;
+	pr_err("rects_per_sspp = %u\n", rects_per_sspp);
 
 	pipe_list = devm_kzalloc(&pdev->dev,
 			(sizeof(struct mdss_mdp_pipe) * cnt * rects_per_sspp),
