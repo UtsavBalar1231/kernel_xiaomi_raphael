@@ -455,6 +455,9 @@ static u64 rmnet_shs_wq_get_flow_avg_pps(struct rmnet_shs_wq_hstat_s *hnode)
 		/* More weight to current value */
 		new_weight = rmnet_shs_wq_tuning;
 		old_weight = 100 - rmnet_shs_wq_tuning;
+	} else {
+		old_weight = rmnet_shs_wq_tuning;
+		new_weight = 100 - rmnet_shs_wq_tuning;
 	}
 
 	/* computing weighted average per flow, if the flow has just started,
@@ -1989,7 +1992,6 @@ void rmnet_shs_wq_exit(void)
 	if (!rmnet_shs_wq || !rmnet_shs_delayed_wq)
 		return;
 
-	rmnet_shs_wq_genl_deinit();
 	rmnet_shs_wq_mem_deinit();
 
 	trace_rmnet_shs_wq_high(RMNET_SHS_WQ_EXIT, RMNET_SHS_WQ_EXIT_START,
@@ -2077,10 +2079,6 @@ void rmnet_shs_wq_init(struct net_device *dev)
 	rmnet_shs_wq_init_cpu_rx_flow_tbl();
 	INIT_DEFERRABLE_WORK(&rmnet_shs_delayed_wq->wq,
 			     rmnet_shs_wq_process_wq);
-
-	if (rmnet_shs_wq_genl_init()) {
-		rm_err("%s", "SHS_GNL: Failed to init generic netlink");
-	}
 
 	trace_rmnet_shs_wq_high(RMNET_SHS_WQ_INIT, RMNET_SHS_WQ_INIT_END,
 				0xDEF, 0xDEF, 0xDEF, 0xDEF, NULL, NULL);
@@ -2195,4 +2193,14 @@ u64 rmnet_shs_wq_get_max_allowed_pps(u16 cpu)
 	}
 
 	return rmnet_shs_cpu_rx_max_pps_thresh[cpu];
+}
+
+void rmnet_shs_wq_ep_lock_bh(void)
+{
+	spin_lock_bh(&rmnet_shs_ep_lock);
+}
+
+void rmnet_shs_wq_ep_unlock_bh(void)
+{
+	spin_unlock_bh(&rmnet_shs_ep_lock);
 }
