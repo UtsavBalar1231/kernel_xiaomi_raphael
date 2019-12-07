@@ -40,7 +40,6 @@
 #include <linux/input/mt.h>
 #define INPUT_TYPE_B_PROTOCOL
 #endif
-#include <linux/backlight.h>
 
 #define INPUT_EVENT_START						0
 #define INPUT_EVENT_SENSITIVE_MODE_OFF			0
@@ -1709,24 +1708,6 @@ out:
 	return 0;
 }
 
-static int goodix_bl_state_chg_callback(struct notifier_block *nb, unsigned long val, void *data)
-{
-	struct goodix_ts_core *core_data = container_of(nb, struct goodix_ts_core, bl_notifier);
-	unsigned int blank;
-	if (val != BACKLIGHT_UPDATED)
-		return NOTIFY_OK;
-	if (data && core_data) {
-		blank = *(int *)(data);
-		ts_info("%s val:%lu, blank:%u\n", __func__, val, blank);
-		if (blank == BACKLIGHT_OFF && (atomic_read(&core_data->suspend_stat) && core_data->fod_status)) {
-			ts_info("%s BACKLIGHT OFF, disable irq\n", __func__);
-			goodix_ts_irq_enable(core_data, false);
-		} else
-			goodix_ts_irq_enable(core_data, true);
-	}
-	return NOTIFY_OK;
-}
-
 #ifdef CONFIG_DRM
 /**
  * goodix_ts_msm_drm_notifier_callback - msm drm notifier callback
@@ -2210,11 +2191,6 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	power_supply_reg_notifier(&core_data->power_supply_notifier);
 	INIT_WORK(&core_data->power_supply_work, gtp_power_supply_work);
 
-	core_data->bl_notifier.notifier_call = goodix_bl_state_chg_callback;
-	if (backlight_register_notifier(&core_data->bl_notifier) < 0) {
-		ts_err("ERROR:register bl_notifier failed\n");
-		goto out;
-	}
 	core_data->attrs.attrs = goodix_attr_group;
 	r = sysfs_create_group(&client->dev.kobj, &core_data->attrs);
 	if (r) {
@@ -2265,7 +2241,6 @@ static int goodix_ts_probe(struct platform_device *pdev)
 #endif
 
 out:
-	backlight_unregister_notifier(&core_data->bl_notifier);
 	ts_info("goodix_ts_probe OUT, r:%d", r);
 	return r;
 }

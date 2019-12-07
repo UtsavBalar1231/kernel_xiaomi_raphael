@@ -467,7 +467,6 @@ struct goodix_ts_core {
 	struct early_suspend early_suspend;
 #endif
 	struct notifier_block power_supply_notifier;
-	struct notifier_block bl_notifier;
 	struct workqueue_struct *event_wq;
 	struct work_struct suspend_work;
 	struct work_struct resume_work;
