@@ -82,6 +82,13 @@ int cam_sync_init_group_object(struct sync_table_row *table,
 		child_row = table + sync_objs[i];
 		spin_lock_bh(&sync_dev->row_spinlocks[sync_objs[i]]);
 
+		if (idx == sync_objs[i]) {
+			CAM_ERR(CAM_SYNC, "invalid fence:%d should be released",
+				sync_objs[i]);
+			rc = -EINVAL;
+			goto clean_children_info;
+		}
+
 		/* validate child */
 		if ((child_row->type == CAM_SYNC_TYPE_GROUP) ||
 			(child_row->state == CAM_SYNC_STATE_INVALID)) {
