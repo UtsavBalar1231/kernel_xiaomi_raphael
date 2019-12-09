@@ -22200,6 +22200,7 @@ static QDF_STATUS csr_process_roam_sync_callback(struct mac_context *mac_ctx,
 #endif
 	struct wlan_objmgr_vdev *vdev;
 	struct mlme_roam_after_data_stall *vdev_roam_params;
+	uint32_t chan_id;
 
 	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc, session_id,
 						    WLAN_LEGACY_SME_ID);
@@ -22279,6 +22280,22 @@ static QDF_STATUS csr_process_roam_sync_callback(struct mac_context *mac_ctx,
 	case SIR_ROAM_SYNCH_PROPAGATION:
 		break;
 	case SIR_ROAM_SYNCH_COMPLETE:
+		/* Handle one race condition that if candidate is already
+		 *selected & FW has gone ahead with roaming or about to go
+		 * ahead when set_band comes, it will be complicated for FW
+		 * to stop the current roaming. Instead, host will check the
+		 * roam sync to make sure the new AP is on 2G, or disconnect
+		 * the AP.
+		 */
+		chan_id = wlan_reg_freq_to_chan(mac_ctx->pdev,
+						roam_synch_data->chan_freq);
+		if (wlan_reg_is_disable_ch(mac_ctx->pdev, chan_id)) {
+			csr_roam_disconnect(mac_ctx, session_id,
+					    eCSR_DISCONNECT_REASON_DEAUTH);
+			sme_debug("Roaming Failed for disabled channel or band");
+			vdev_roam_params->roam_invoke_in_progress = false;
+			goto end;
+		}
 		/*
 		 * Following operations need to be done once roam sync
 		 * completion is sent to FW, hence called here:

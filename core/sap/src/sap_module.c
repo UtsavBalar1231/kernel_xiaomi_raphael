@@ -55,6 +55,7 @@
 #include "cfg_ucfg_api.h"
 #include "wlan_mlme_ucfg_api.h"
 #include "wlan_mlme_vdev_mgr_interface.h"
+#include "sap_ch_select.h"
 
 #define SAP_DEBUG
 static struct sap_context *gp_sap_ctx[SAP_MAX_NUM_SESSION];
@@ -1356,6 +1357,8 @@ static char *sap_get_csa_reason_str(enum sap_csa_reason_code reason)
 		return "LTE_COEX";
 	case CSA_REASON_CONCURRENT_NAN_EVENT:
 		return "CONCURRENT_NAN_EVENT";
+	case CSA_REASON_BAND_RESTRICTED:
+		return "BAND_RESTRICTED";
 	default:
 		return "UNKNOWN";
 	}
@@ -3019,4 +3022,117 @@ wlansap_get_safe_channel_from_pcl_and_acs_range(struct sap_context *sap_ctx)
 	 * try to choose a safe channel from acs range.
 	 */
 	return wlansap_get_safe_channel(sap_ctx);
+}
+
+static uint8_t wlansap_get_2g_first_safe_chan(struct sap_context *sap_ctx)
+{
+	uint32_t i;
+	uint8_t chan;
+	enum channel_state state;
+	struct regulatory_channel *cur_chan_list;
+	struct wlan_objmgr_pdev *pdev;
+	struct wlan_objmgr_psoc *psoc;
+	uint8_t *acs_chan_list;
+	uint8_t acs_list_count;
+
+	pdev = sap_ctx->vdev->vdev_objmgr.wlan_pdev;
+	psoc = pdev->pdev_objmgr.wlan_psoc;
+
+	cur_chan_list = qdf_mem_malloc(NUM_CHANNELS *
+			sizeof(struct regulatory_channel));
+	if (!cur_chan_list)
+		return CHANNEL_6;
+
+	if (wlan_reg_get_current_chan_list(pdev, cur_chan_list) !=
+					   QDF_STATUS_SUCCESS) {
+		chan = CHANNEL_6;
+		goto err;
+	}
+
+	acs_chan_list = sap_ctx->acs_cfg->master_ch_list;
+	acs_list_count = sap_ctx->acs_cfg->master_ch_list_count;
+	for (i = 0; i < NUM_CHANNELS; i++) {
+		chan = cur_chan_list[i].center_freq;
+		state = wlan_reg_get_channel_state(pdev, chan);
+		if (state != CHANNEL_STATE_DISABLE &&
+		    state != CHANNEL_STATE_INVALID &&
+		    wlan_reg_is_24ghz_ch(chan) &&
+		    policy_mgr_is_safe_channel(psoc, chan) &&
+		    wlansap_is_channel_present_in_acs_list(chan,
+							   acs_chan_list,
+							   acs_list_count)) {
+			sap_debug("find a 2g channel: %d", chan);
+			goto err;
+		}
+	}
+
+	chan = CHANNEL_6;
+err:
+	qdf_mem_free(cur_chan_list);
+	return chan;
+}
+
+void wlansap_set_band_csa(struct sap_context *sap_ctx,
+			  struct sap_config *sap_config,
+			  enum band_info band)
+{
+	uint8_t restart_chan;
+	enum phy_ch_width restart_ch_width;
+	uint8_t intf_ch;
+	uint32_t phy_mode;
+	struct mac_context *mac;
+	uint8_t cc_mode;
+	uint8_t vdev_id;
+	enum band_info sap_band;
+
+	sap_band = wlan_reg_chan_to_band(sap_ctx->channel);
+	sap_debug("SAP/Go current band: %d, pdev band capability: %d",
+		  sap_band, band);
+	if (sap_band == BAND_5G && band == BAND_2G) {
+		if (sap_ctx->chan_id_before_switch_band ==
+		    sap_ctx->channel)
+			return;
+		sap_ctx->chan_id_before_switch_band = sap_ctx->channel;
+		sap_ctx->chan_width_before_switch_band =
+			sap_ctx->ch_params.ch_width;
+		sap_debug("Save chan info before switch: %d, width: %d",
+			  sap_ctx->channel, sap_ctx->ch_params.ch_width);
+		restart_chan = wlansap_get_2g_first_safe_chan(sap_ctx);
+		restart_ch_width = sap_ctx->ch_params.ch_width;
+		if (restart_ch_width > CH_WIDTH_40MHZ) {
+			sap_debug("set 40M when switch SAP to 2G");
+			restart_ch_width = CH_WIDTH_40MHZ;
+		}
+	} else if (sap_band == BAND_2G &&
+		   (band == BAND_ALL || band == BAND_5G)) {
+		if (sap_ctx->chan_id_before_switch_band == 0)
+			return;
+		restart_chan = sap_ctx->chan_id_before_switch_band;
+		restart_ch_width = sap_ctx->chan_width_before_switch_band;
+		sap_debug("Restore chan: %d, width: %d",
+			  restart_chan, restart_ch_width);
+		sap_ctx->chan_id_before_switch_band = 0;
+		sap_ctx->chan_width_before_switch_band = CH_WIDTH_INVALID;
+
+	} else {
+		sap_debug("No need switch SAP/Go channel");
+		return;
+	}
+
+	mac = cds_get_context(QDF_MODULE_ID_PE);
+	cc_mode = sap_ctx->cc_switch_mode;
+	phy_mode = sap_ctx->csr_roamProfile.phyMode;
+	intf_ch = sme_check_concurrent_channel_overlap(MAC_HANDLE(mac),
+						       restart_chan,
+						       phy_mode,
+						       cc_mode);
+	if (intf_ch)
+		restart_chan = intf_ch;
+	sap_ctx->csa_reason = CSA_REASON_BAND_RESTRICTED;
+	vdev_id = sap_ctx->vdev->vdev_objmgr.vdev_id;
+	sap_debug("vdev: %d, CSA target channel: %d, width: %d",
+		  vdev_id, restart_chan, restart_ch_width);
+	policy_mgr_change_sap_channel_with_csa(mac->psoc, vdev_id,
+					       restart_chan,
+					       restart_ch_width, true);
 }
