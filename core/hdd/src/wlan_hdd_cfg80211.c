@@ -3049,6 +3049,9 @@ void wlan_hdd_cfg80211_acs_ch_select_evt(struct hdd_adapter *adapter)
 	int ret_val;
 	uint16_t ch_width;
 
+	qdf_atomic_set(&adapter->session.ap.acs_in_progress, 0);
+	qdf_event_set(&adapter->acs_complete_event);
+
 	vendor_event = cfg80211_vendor_event_alloc(hdd_ctx->wiphy,
 			&(adapter->wdev),
 			4 * sizeof(u8) + 1 * sizeof(u16) + 4 + NLMSG_HDRLEN,
