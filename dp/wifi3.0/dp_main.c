@@ -9526,7 +9526,7 @@ dp_peer_get_ref_find_by_addr(struct cdp_pdev *dev, uint8_t *peer_mac_addr,
 		return NULL;
 
 	*local_id = peer->local_id;
-	DP_TRACE(INFO, "%s: peer %pK id %d", __func__, peer, *local_id);
+	dp_info_rl("peer %pK id %d", peer, *local_id);
 
 	return peer;
 }
