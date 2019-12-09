@@ -455,6 +455,9 @@ static u64 rmnet_shs_wq_get_flow_avg_pps(struct rmnet_shs_wq_hstat_s *hnode)
 		/* More weight to current value */
 		new_weight = rmnet_shs_wq_tuning;
 		old_weight = 100 - rmnet_shs_wq_tuning;
+	} else {
+		old_weight = rmnet_shs_wq_tuning;
+		new_weight = 100 - rmnet_shs_wq_tuning;
 	}
 
 	/* computing weighted average per flow, if the flow has just started,
@@ -2190,4 +2193,14 @@ u64 rmnet_shs_wq_get_max_allowed_pps(u16 cpu)
 	}
 
 	return rmnet_shs_cpu_rx_max_pps_thresh[cpu];
+}
+
+void rmnet_shs_wq_ep_lock_bh(void)
+{
+	spin_lock_bh(&rmnet_shs_ep_lock);
+}
+
+void rmnet_shs_wq_ep_unlock_bh(void)
+{
+	spin_unlock_bh(&rmnet_shs_ep_lock);
 }
