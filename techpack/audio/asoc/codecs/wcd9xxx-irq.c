@@ -882,6 +882,7 @@ static struct platform_driver wcd9xxx_irq_driver = {
 		.name = "wcd9xxx_intc",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_match),
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 };
 
