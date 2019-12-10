@@ -54,6 +54,9 @@ typedef struct TfaIrqName {
 #define TFA1_BF_SWPROFIL 0x8045    /*!< profile save   */
 #define TFA1_BF_SWVSTEP  0x80a5    /*!< vstep save  */
 
+#define TFA1_BF_TDMNBCK     -1
+#define TFA1_BF_TDMSSIZE     -1
+
 /* missing 'common' defs break the build */
 #define TFA2_BF_CFSM -1
 

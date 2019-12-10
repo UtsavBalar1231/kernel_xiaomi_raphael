@@ -542,8 +542,8 @@
 /*
  * flag_mtp_busy
  */
-#define TFA98XX_STATUS_FLAGS0_MTPB                        (0x1<<6)
-#define TFA98XX_STATUS_FLAGS0_MTPB_POS                           6
+#define TFA98XX_STATUS_FLAGS0_MTPB                        (0x1<<7)
+#define TFA98XX_STATUS_FLAGS0_MTPB_POS                           7
 #define TFA98XX_STATUS_FLAGS0_MTPB_LEN                           1
 #define TFA98XX_STATUS_FLAGS0_MTPB_MAX                           1
 #define TFA98XX_STATUS_FLAGS0_MTPB_MSK                        0x40
@@ -551,12 +551,13 @@
 /*
  * flag_lost_clk
  */
-#define TFA98XX_STATUS_FLAGS0_NOCLK                       (0x1<<7)
-#define TFA98XX_STATUS_FLAGS0_NOCLK_POS                          7
+#define TFA98XX_STATUS_FLAGS0_NOCLK                       (0x1<<8)
+#define TFA98XX_STATUS_FLAGS0_NOCLK_POS                          8
 #define TFA98XX_STATUS_FLAGS0_NOCLK_LEN                          1
 #define TFA98XX_STATUS_FLAGS0_NOCLK_MAX                          1
 #define TFA98XX_STATUS_FLAGS0_NOCLK_MSK                       0x80
 
+#if 0
 /*
  * flag_cf_speakererror
  */
@@ -565,6 +566,7 @@
 #define TFA98XX_STATUS_FLAGS0_SPKS_LEN                           1
 #define TFA98XX_STATUS_FLAGS0_SPKS_MAX                           1
 #define TFA98XX_STATUS_FLAGS0_SPKS_MSK                       0x100
+#endif
 
 /*
  * flag_cold_started
@@ -578,8 +580,8 @@
 /*
  * flag_engage
  */
-#define TFA98XX_STATUS_FLAGS0_SWS                        (0x1<<10)
-#define TFA98XX_STATUS_FLAGS0_SWS_POS                           10
+#define TFA98XX_STATUS_FLAGS0_SWS                        (0x1<<11)
+#define TFA98XX_STATUS_FLAGS0_SWS_POS                           11
 #define TFA98XX_STATUS_FLAGS0_SWS_LEN                            1
 #define TFA98XX_STATUS_FLAGS0_SWS_MAX                            1
 #define TFA98XX_STATUS_FLAGS0_SWS_MSK                        0x400
@@ -587,8 +589,8 @@
 /*
  * flag_watchdog_reset
  */
-#define TFA98XX_STATUS_FLAGS0_WDS                        (0x1<<11)
-#define TFA98XX_STATUS_FLAGS0_WDS_POS                           11
+#define TFA98XX_STATUS_FLAGS0_WDS                        (0x1<<10)
+#define TFA98XX_STATUS_FLAGS0_WDS_POS                           10
 #define TFA98XX_STATUS_FLAGS0_WDS_LEN                            1
 #define TFA98XX_STATUS_FLAGS0_WDS_MAX                            1
 #define TFA98XX_STATUS_FLAGS0_WDS_MSK                        0x800
