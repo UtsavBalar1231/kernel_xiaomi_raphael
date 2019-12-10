@@ -4130,6 +4130,7 @@ static struct i2c_driver tfa98xx_i2c_driver = {
 		.name = "tfa98xx",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(tfa98xx_dt_match),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tfa98xx_i2c_probe,
 	.remove = tfa98xx_i2c_remove,
