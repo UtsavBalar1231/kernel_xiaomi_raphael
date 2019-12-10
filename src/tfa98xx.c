@@ -232,7 +232,7 @@ static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profil
 			pr_err("Error, setting calibration value in mtp, err=%d\n", err_cal);
 		} else {
 			tfa98xx->set_mtp_cal = false;
-			pr_info("Calibration value (%d) set in mtp\n",
+			pr_debug("Calibration value (%d) set in mtp\n",
 				tfa98xx->cal_data);
 		}
 	}
@@ -555,7 +555,7 @@ static ssize_t tfa98xx_dbgfs_start_set(struct file *file,
 		pr_info("[0x%x] Calibration start failed (%d)\n", tfa98xx->i2c->addr, ret);
 		return -EIO;
 	} else {
-		pr_info("[0x%x] Calibration started\n", tfa98xx->i2c->addr);
+		pr_debug("[0x%x] Calibration started\n", tfa98xx->i2c->addr);
 	}
 
 	return count;
@@ -1530,7 +1530,7 @@ static int tfa98xx_set_cal_ctl(struct snd_kcontrol *kcontrol,
 		err = tfa98xx_write_re25(tfa98xx->tfa, tfa98xx->cal_data);
 		tfa98xx->set_mtp_cal = (err != tfa_error_ok);
 		if (tfa98xx->set_mtp_cal == false) {
-			pr_info("Calibration value (%d) set in mtp\n",
+			pr_debug("Calibration value (%d) set in mtp\n",
 				tfa98xx->cal_data);
 		}
 		mutex_unlock(&tfa98xx->dsp_lock);
@@ -2893,7 +2893,7 @@ enum Tfa98xx_Error tfa98xx_adsp_send_calib_values(void)
 		bytes[2] = 0x81;
 		bytes[3] = 0x05;
 
-		pr_info("calibration value send to host DSP.\n");
+		pr_debug("calibration value send to host DSP.\n");
 		ret = send_tfa_cal_in_band(&bytes[1], sizeof(bytes) - 1);
 		msleep(10);
 
@@ -3699,7 +3699,7 @@ static int tfa98xx_read_memtrack_data(struct tfa98xx *tfa98xx, int *pLivedata)
 		},
 	};
 
-	pr_info("entry   tfa_family=%d    rev=0x%x\n", tfa98xx->tfa->tfa_family, tfa98xx->tfa->rev);
+	pr_debug("entry   tfa_family=%d    rev=0x%x\n", tfa98xx->tfa->tfa_family, tfa98xx->tfa->rev);
 	mutex_lock(&tfa98xx->dsp_lock);
 	switch (tfa98xx->tfa->rev & 0xff) {
 		case 0x74:
@@ -3791,7 +3791,7 @@ static int tfa98xx_read_memtrack_data(struct tfa98xx *tfa98xx, int *pLivedata)
 				ret = tfa_dsp_cmd_id_write_read(tfa98xx->tfa, MODULE_FRAMEWORK, FW_PAR_ID_GET_MEMTRACK, item_bytes+3, buffer);
 			}
 
-			pr_info("read memtrack data. ret=%d\n", ret);
+			pr_debug("read memtrack data. ret=%d\n", ret);
 
 			if (Tfa98xx_Error_Ok == ret) {
 				/* Skip the first 3 bytes (this is the Elapsed time, not memtrack data) */
@@ -3851,7 +3851,7 @@ static long tfa98xx_misc_device_control_ioctl(struct file *file,
 				memset((char *)(&livedata[0]), 0x00, sizeof(livedata));
 				/* read original memtrack data from device. */
 				if (Tfa98xx_Error_Ok == tfa98xx_read_memtrack_data(tfa98xx, &livedata[0])) {
-					pr_info("Device 0x%x read memtrack data sucessed.\n", tfa98xx->i2c->addr);
+					pr_debug("Device 0x%x read memtrack data sucessed.\n", tfa98xx->i2c->addr);
 				} else {
 					pr_err("Device 0x%x read memtrack data failed.\n", tfa98xx->i2c->addr);
 				}
@@ -3968,7 +3968,7 @@ int tfa98xx_init_misc_device(struct tfa98xx *tfa98xx)
 {
 	int ret = 0;
 
-	pr_info("entry\n");
+	pr_debug("entry\n");
 	if (tfa98xx == NULL) {
 		pr_err("tfa98xx is NULL.\n");
 		return -EINVAL;
@@ -4052,7 +4052,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	int ret;
 	int spk_name;
 
-	pr_info("addr=0x%x\n", i2c->addr);
+	pr_debug("addr=0x%x\n", i2c->addr);
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C)) {
 		dev_err(&i2c->dev, "check_functionality failed\n");
