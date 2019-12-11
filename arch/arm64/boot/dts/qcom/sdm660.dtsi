@@ -1705,10 +1705,11 @@
 	};
 
 	qcom,rmnet-ipa {
-		compatible = "qcom,rmnet-ipa";
+		compatible = "qcom,rmnet-ipa3";
 		qcom,rmnet-ipa-ssr;
-		qcom,ipa-loaduC;
+		qcom,ipa-platform-type-msm;
 		qcom,ipa-advertise-sg-support;
+		qcom,ipa-napi-enable;
 	};
 
 	qcom,ipc-spinlock@1f40000 {
@@ -1728,9 +1729,8 @@
 	};
 
 	qcom,msm_fastrpc {
-		compatible = "qcom,msm-fastrpc-adsp";
-		qcom,fastrpc-glink;
-		qcom,fastrpc-vmid-heap-shared;
+		compatible = "qcom,msm-fastrpc-compute";
+		qcom,rpc-latency-us = <611>;
 		qcom,fastrpc-adsp-audio-pdr;
 		qcom,fastrpc-adsp-sensors-pdr;
 
@@ -1919,7 +1919,7 @@
 		glink_modem: modem {
 			qcom,remote-pid = <1>;
 			transport = "smem";
-			mboxes = <&apcs_glb 12>;
+			mboxes = <&apcs_glb 15>;
 			mbox-names = "mpss_smem";
 			interrupts = <GIC_SPI 452 IRQ_TYPE_EDGE_RISING>;
 
@@ -1955,7 +1955,7 @@
 		glink_adsp: adsp {
 			qcom,remote-pid = <2>;
 			transport = "smem";
-			mboxes = <&apcs_glb 8>;
+			mboxes = <&apcs_glb 9>;
 			mbox-names = "adsp_smem";
 			interrupts = <GIC_SPI 157 IRQ_TYPE_EDGE_RISING>;
 
@@ -1992,7 +1992,7 @@
 		glink_cdsp: cdsp {
 			qcom,remote-pid = <5>;
 			transport = "smem";
-			mboxes = <&apcs_glb 4>;
+			mboxes = <&apcs_glb 21>;
 			mbox-names = "cdsp_smem";
 			interrupts = <GIC_SPI 513 IRQ_TYPE_EDGE_RISING>;
 
@@ -2150,6 +2150,125 @@
 		};
 	};
 
+	qcom,smp2p_sleepstate {
+		compatible = "qcom,smp2p-sleepstate";
+		qcom,smem-states = <&sleepstate_smp2p_out 0>;
+		interrupt-parent = <&sleepstate_smp2p_in>;
+		interrupts = <0 0>;
+		interrupt-names = "smp2p-sleepstate-in";
+	};
+
+	qcom,smp2p-modem {
+		compatible = "qcom,smp2p";
+		qcom,smem = <435>, <428>;
+		interrupts = <GIC_SPI 451 IRQ_TYPE_EDGE_RISING>;
+		mboxes = <&apcs_glb 14>;
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <1>;
+
+		modem_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		modem_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		smp2p_ipa_1_out: qcom,smp2p-ipa-1-out {
+			qcom,entry-name = "ipa";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		/* ipa - inbound entry from mss */
+		smp2p_ipa_1_in: qcom,smp2p-ipa-1-in {
+			qcom,entry-name = "ipa";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		smp2p_wlan_1_in: qcom,smp2p-wlan-1-in {
+			qcom,entry-name = "wlan";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	qcom,smp2p-adsp {
+		compatible = "qcom,smp2p";
+		qcom,smem = <443>, <429>;
+		interrupts = <GIC_SPI 158 IRQ_TYPE_EDGE_RISING>;
+		mboxes = <&apcs_glb 10>;
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <2>;
+
+		adsp_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		adsp_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		smp2p_rdbg2_out: qcom,smp2p-rdbg2-out {
+			qcom,entry-name = "rdbg";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		smp2p_rdbg2_in: qcom,smp2p-rdbg2-in {
+			qcom,entry-name = "rdbg";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		sleepstate_smp2p_out: sleepstate-out {
+			qcom,entry-name = "sleepstate";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		sleepstate_smp2p_in: qcom,sleepstate-in {
+			qcom,entry-name = "sleepstate_see";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	qcom,smp2p-cdsp {
+		compatible = "qcom,smp2p";
+		qcom,smem = <94>, <432>;
+		interrupts = <GIC_SPI 514 IRQ_TYPE_EDGE_RISING>;
+		mboxes = <&apcs_glb 30>;
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <5>;
+
+		cdsp_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		cdsp_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		smp2p_rdbg5_out: qcom,smp2p-rdbg5-out {
+			qcom,entry-name = "rdbg";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		smp2p_rdbg5_in: qcom,smp2p-rdbg5-in {
+			qcom,entry-name = "rdbg";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
 	rpm_bus: qcom,rpm-smd {
 		compatible = "qcom,rpm-smd";
 		rpm-channel-name = "rpm_requests";
@@ -2281,13 +2400,21 @@
 		memory-region = <&adsp_fw_mem>;
 
 		/* GPIO inputs from lpass */
-		qcom,gpio-err-fatal = <&smp2pgpio_ssr_smp2p_2_in 0 0>;
-		qcom,gpio-proxy-unvote = <&smp2pgpio_ssr_smp2p_2_in 2 0>;
-		qcom,gpio-err-ready = <&smp2pgpio_ssr_smp2p_2_in 1 0>;
-		qcom,gpio-stop-ack = <&smp2pgpio_ssr_smp2p_2_in 3 0>;
+/*		 interrupts-extended = <&wakegic 0 396 1>, */
+		interrupts-extended = <&adsp_smp2p_in 0 0>,
+					<&adsp_smp2p_in 2 0>,
+					<&adsp_smp2p_in 1 0>,
+					<&adsp_smp2p_in 3 0>;
+
+/*		interrupt-names = "qcom,wdog", */
+		interrupt-names = "qcom,err-fatal",
+				"qcom,proxy-unvote",
+				 "qcom,err-ready",
+				"qcom,stop-ack";
 
 		/* GPIO output to lpass */
-		qcom,gpio-force-stop = <&smp2pgpio_ssr_smp2p_2_out 0 0>;
+		qcom,smem-states = <&adsp_smp2p_out 0>;
+		qcom,smem-state-names = "qcom,force-stop";
 		status = "ok";
 	};
 
@@ -2314,14 +2441,22 @@
 		qcom,firmware-name = "cdsp";
 		memory-region = <&cdsp_fw_mem>;
 
-		/* GPIO inputs from turing */
-		qcom,gpio-err-fatal = <&smp2pgpio_ssr_smp2p_5_in 0 0>;
-		qcom,gpio-proxy-unvote = <&smp2pgpio_ssr_smp2p_5_in 2 0>;
-		qcom,gpio-err-ready = <&smp2pgpio_ssr_smp2p_5_in 1 0>;
-		qcom,gpio-stop-ack = <&smp2pgpio_ssr_smp2p_5_in 3 0>;
+		/* Inputs from turing */
+		/*interrupts-extended = <&wakegic 0 265 1>,*/
+		interrupts-extended = <&cdsp_smp2p_in 0 0>,
+				      <&cdsp_smp2p_in 2 0>,
+				      <&cdsp_smp2p_in 1 0>,
+				      <&cdsp_smp2p_in 3 0>;
 
-		/* GPIO output to turing*/
-		qcom,gpio-force-stop = <&smp2pgpio_ssr_smp2p_5_out 0 0>;
+/*		interrupt-names = "qcom,wdog",*/
+		interrupt-names =  "qcom,err-fatal",
+				  "qcom,proxy-unvote",
+				  "qcom,err-ready",
+				  "qcom,stop-ack";
+
+		/* Outputs to turing */
+		qcom,smem-states = <&cdsp_smp2p_out 0>;
+		qcom,smem-state-names = "qcom,force-stop";
 		status = "ok";
 	};
 
@@ -2371,15 +2506,25 @@
 		qcom,complete-ramdump;
 		qcom,cx-ipeak-vote;
 
-		/* GPIO inputs from mss */
-		qcom,gpio-err-fatal = <&smp2pgpio_ssr_smp2p_1_in 0 0>;
-		qcom,gpio-err-ready = <&smp2pgpio_ssr_smp2p_1_in 1 0>;
-		qcom,gpio-proxy-unvote = <&smp2pgpio_ssr_smp2p_1_in 2 0>;
-		qcom,gpio-stop-ack = <&smp2pgpio_ssr_smp2p_1_in 3 0>;
-		qcom,gpio-shutdown-ack = <&smp2pgpio_ssr_smp2p_1_in 7 0>;
+		/* Inputs from mss */
+		/*interrupts-extended = <&wakegic 0 307 1>,*/
+		interrupts-extended = <&modem_smp2p_in 0 0>,
+				<&modem_smp2p_in 2 0>,
+				<&modem_smp2p_in 1 0>,
+				<&modem_smp2p_in 3 0>,
+				<&modem_smp2p_in 7 0>;
 
-		/* GPIO output to mss */
-		qcom,gpio-force-stop = <&smp2pgpio_ssr_smp2p_1_out 0 0>;
+		/*interrupt-names = "qcom,wdog",*/
+		interrupt-names = "qcom,err-fatal",
+				"qcom,proxy-unvote",
+				"qcom,err-ready",
+				"qcom,stop-ack",
+				"qcom,shutdown-ack";
+
+		/* Outputs to mss */
+		qcom,smem-states = <&modem_smp2p_out 0>;
+		qcom,smem-state-names = "qcom,force-stop";
+
 		status = "ok";
 		qcom,mba-mem@0 {
 			compatible = "qcom,pil-mba-mem";
@@ -2784,6 +2929,56 @@
 		clock-names = "core_clk", "core_a_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU7>;
+	};
+
+	qmi-tmd-devices {
+		compatible = "qcom,qmi-cooling-devices";
+
+		modem {
+			qcom,instance-id = <0x0>;
+
+			modem_pa: modem_pa {
+				qcom,qmi-dev-name = "pa";
+				#cooling-cells = <2>;
+			};
+
+			modem_proc: modem_proc {
+				qcom,qmi-dev-name = "modem";
+				#cooling-cells = <2>;
+			};
+
+			modem_current: modem_current {
+				qcom,qmi-dev-name = "modem_current";
+				#cooling-cells = <2>;
+			};
+
+			modem_skin: modem_skin {
+				qcom,qmi-dev-name = "modem_skin";
+				#cooling-cells = <2>;
+			};
+
+			modem_vdd: modem_vdd {
+				qcom,qmi-dev-name = "cpuv_restriction_cold";
+				#cooling-cells = <2>;
+			};
+		};
+
+		adsp {
+			qcom,instance-id = <0x1>;
+
+			adsp_vdd: adsp_vdd {
+				qcom,qmi-dev-name = "cpuv_restriction_cold";
+				#cooling-cells = <2>;
+			};
+		};
+		cdsp {
+			qcom,instance-id = <0x43>;
+
+			cdsp_vdd: cdsp_vdd {
+				qcom,qmi-dev-name = "cpuv_restriction_cold";
+				#cooling-cells = <2>;
+			};
+		};
 	};
 };
 

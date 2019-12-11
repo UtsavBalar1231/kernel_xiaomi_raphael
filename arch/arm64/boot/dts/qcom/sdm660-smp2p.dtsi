@@ -10,76 +10,7 @@
  * GNU General Public License for more details.
  */
 &soc {
-	qcom,smp2p_sleepstate {
-		compatible = "qcom,smp2p-sleepstate";
-		qcom,smem-states = <&sleepstate_smp2p_out 0>;
-		interrupt-parent = <&sleepstate_smp2p_in>;
-		interrupts = <0 0>;
-		interrupt-names = "smp2p-sleepstate-in";
-	};
 
-	qcom,smp2p-modem@17911008 {
-		compatible = "qcom,smp2p";
-		reg = <0x17911008 0x4>;
-		qcom,smem = <435>, <428>;
-		mboxes = <&apcs_glb 14>;
-		qcom,local-pid = <0>;
-		qcom,remote-pid = <1>;
-		qcom,irq-bitmask = <0x4000>;
-		interrupts = <0 451 1>;
-	};
-
-	qcom,smp2p-adsp@17911008 {
-		compatible = "qcom,smp2p";
-		reg = <0x17911008 0x4>;
-		qcom,smem = <443>, <429>;
-		mboxes = <&apcs_glb 10>;
-		qcom,local-pid = <0>;
-		qcom,remote-pid = <2>;
-		qcom,irq-bitmask = <0x400>;
-		interrupts = <0 158 1>;
-		smp2p_rdbg2_out: qcom,smp2p-rdbg2-out {
-			qcom,entry-name = "rdbg";
-			#qcom,smem-state-cells = <1>;
-		};
-
-		smp2p_rdbg2_in: qcom,smp2p-rdbg2-in {
-			qcom,entry-name = "rdbg";
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-		sleepstate_smp2p_out: sleepstate-out {
-			qcom,entry-name = "sleepstate";
-			#qcom,smem-state-cells = <1>;
-		};
-
-		sleepstate_smp2p_in: qcom,sleepstate-in {
-			qcom,entry-name = "sleepstate_see";
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-	};
-
-	qcom,smp2p-cdsp@17911008 {
-		compatible = "qcom,smp2p";
-		reg = <0x17911008 0x4>;
-		qcom,smem = <94>, <432>;
-		qcom,remote-pid = <5>;
-		qcom,irq-bitmask = <0x40000000>;
-		interrupts = <0 514 1>;
-		mboxes = <&apcs_glb 30>;
-		qcom,local-pid = <0>;
-		smp2p_rdbg5_out: qcom,smp2p-rdbg5-out {
-			qcom,entry-name = "rdbg";
-			#qcom,smem-state-cells = <1>;
-		};
-
-		smp2p_rdbg5_in: qcom,smp2p-rdbg5-in {
-			qcom,entry-name = "rdbg";
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-	};
 
 	smp2pgpio_smp2p_15_in: qcom,smp2pgpio-smp2p-15-in {
 		compatible = "qcom,smp2pgpio";
