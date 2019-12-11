@@ -94,6 +94,25 @@
 
 #define BITS_TO_BYTES(x) DIV_ROUND_UP(x, BITS_PER_BYTE)
 
+#define PP_PROGRAM_PA		0x1
+#define PP_PROGRAM_PCC		0x2
+#define PP_PROGRAM_IGC		0x4
+#define PP_PROGRAM_ARGC	0x8
+#define PP_PROGRAM_HIST	0x10
+#define PP_PROGRAM_DITHER	0x20
+#define PP_PROGRAM_GAMUT	0x40
+#define PP_PROGRAM_PGC		0x100
+#define PP_PROGRAM_PA_DITHER	0x400
+#define PP_PROGRAM_AD		0x800
+
+#define PP_NORMAL_PROGRAM_MASK	(PP_PROGRAM_AD | PP_PROGRAM_PCC | \
+				PP_PROGRAM_HIST)
+#define PP_DEFER_PROGRAM_MASK	(PP_PROGRAM_IGC | PP_PROGRAM_PGC | \
+				PP_PROGRAM_ARGC | PP_PROGRAM_GAMUT | \
+				PP_PROGRAM_PA | PP_PROGRAM_DITHER | \
+						PP_PROGRAM_PA_DITHER)
+#define PP_PROGRAM_ALL	(PP_NORMAL_PROGRAM_MASK | PP_DEFER_PROGRAM_MASK)
+
 enum mdss_mdp_perf_state_type {
 	PERF_SW_COMMIT_STATE = 0,
 	PERF_HW_MDP_STATE,
@@ -833,6 +852,7 @@ struct pp_sts_type {
 	u32 sharp_sts;
 	u32 hist_sts;
 	u32 side_sts;
+	u32 pa_dither_sts;
 };
 
 struct mdss_pipe_pp_res {
@@ -845,6 +865,12 @@ struct mdss_pipe_pp_res {
 	void *pcc_cfg_payload;
 	void *igc_cfg_payload;
 	void *hist_lut_cfg_payload;
+};
+
+struct mdss_mdp_pp_program_info {
+	u32 pp_program_mask;
+	u32 pp_opmode_left;
+	u32 pp_opmode_right;
 };
 
 struct mdss_mdp_pipe_smp_map {
@@ -1786,7 +1812,8 @@ int mdss_mdp_pp_overlay_init(struct msm_fb_data_type *mfd);
 int mdss_mdp_pp_resume(struct msm_fb_data_type *mfd);
 
 int mdss_mdp_pp_setup(struct mdss_mdp_ctl *ctl);
-int mdss_mdp_pp_setup_locked(struct mdss_mdp_ctl *ctl);
+int mdss_mdp_pp_setup_locked(struct mdss_mdp_ctl *ctl,
+				struct mdss_mdp_pp_program_info *info);
 int mdss_mdp_pipe_pp_setup(struct mdss_mdp_pipe *pipe, u32 *op);
 void mdss_mdp_pipe_pp_clear(struct mdss_mdp_pipe *pipe);
 int mdss_mdp_pipe_sspp_setup(struct mdss_mdp_pipe *pipe, u32 *op);
@@ -1821,6 +1848,9 @@ int mdss_mdp_dither_config(struct msm_fb_data_type *mfd,
 			   int copy_from_kernel);
 int mdss_mdp_gamut_config(struct msm_fb_data_type *mfd,
 			struct mdp_gamut_cfg_data *config, u32 *copyback);
+int mdss_mdp_pa_dither_config(struct msm_fb_data_type *mfd,
+			struct mdp_dither_cfg_data *config);
+
 
 int mdss_mdp_hist_intr_req(struct mdss_intr *intr, u32 bits, bool en);
 int mdss_mdp_hist_intr_setup(struct mdss_intr *intr, int state);
