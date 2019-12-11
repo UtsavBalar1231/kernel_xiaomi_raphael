@@ -2123,7 +2123,11 @@ static void mdss_mdp_ctl_update_client_vote(struct mdss_data_type *mdata,
 
 	bus_ab_quota = apply_fudge_factor(bus_ab_quota, &mdss_res->ab_factor);
 	ATRACE_INT("bus_quota", bus_ib_quota);
-
+	if (bus_ib_quota == 0)
+	{
+		pr_err("%s: ib quota 0 \n", __func__);
+		bus_ib_quota = 10000;
+	}
 	mdss_bus_scale_set_quota(nrt_client ? MDSS_MDP_NRT : MDSS_MDP_RT,
 		bus_ab_quota, bus_ib_quota);
 	pr_debug("client:%s ab=%llu ib=%llu\n", nrt_client ? "nrt" : "rt",
