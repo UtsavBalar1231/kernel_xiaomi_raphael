@@ -1730,6 +1730,7 @@
 
 	qcom,msm_fastrpc {
 		compatible = "qcom,msm-fastrpc-compute";
+		qcom,fastrpc-vmid-heap-shared;
 		qcom,rpc-latency-us = <611>;
 		qcom,fastrpc-adsp-audio-pdr;
 		qcom,fastrpc-adsp-sensors-pdr;
@@ -1992,7 +1993,7 @@
 		glink_cdsp: cdsp {
 			qcom,remote-pid = <5>;
 			transport = "smem";
-			mboxes = <&apcs_glb 21>;
+			mboxes = <&apcs_glb 29>;
 			mbox-names = "cdsp_smem";
 			interrupts = <GIC_SPI 513 IRQ_TYPE_EDGE_RISING>;
 
