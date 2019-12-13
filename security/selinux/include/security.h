@@ -106,7 +106,7 @@ struct selinux_state {
 	bool android_netlink_route;
 	struct selinux_avc *avc;
 	struct selinux_ss *ss;
-};
+} __randomize_layout;
 
 void selinux_ss_init(struct selinux_ss **ss);
 void selinux_avc_init(struct selinux_avc **avc);
