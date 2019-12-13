@@ -75,6 +75,8 @@ int iommu_dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 void iommu_dma_map_msi_msg(int irq, struct msi_msg *msg);
 void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list);
 
+int iommu_dma_enable_best_fit_algo(struct device *dev);
+
 #else
 
 struct iommu_domain;
@@ -106,6 +108,11 @@ static inline void iommu_dma_map_msi_msg(int irq, struct msi_msg *msg)
 
 static inline void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list)
 {
+}
+
+static inline int iommu_dma_enable_best_fit_algo(struct device *dev)
+{
+	return -ENODEV;
 }
 
 #endif	/* CONFIG_IOMMU_DMA */
