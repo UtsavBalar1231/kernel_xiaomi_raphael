@@ -571,13 +571,12 @@ static u32 __calc_qseed3_mdp_clk_rate(struct mdss_mdp_pipe *pipe,
 	struct mdss_rect src, struct mdss_rect dst, u32 src_h,
 	u32 fps, u32 v_total)
 {
-	u32 active_line_cycle, backfill_cycle, total_cycle;
+	u64 active_line_cycle, backfill_cycle, total_cycle;
 	u64 ver_dwnscale;
-	u32 active_line;
-	u32 backfill_line;
+	u64 active_line;
+	u64 backfill_line;
 
-	ver_dwnscale = src_h << PHASE_STEP_SHIFT;
-	do_div(ver_dwnscale, dst.h);
+	ver_dwnscale = ((u64)src_h << PHASE_STEP_SHIFT) / dst.h;
 
 	if (ver_dwnscale > (MDSS_MDP_QSEED3_VER_DOWNSCALE_LIM
 			<< PHASE_STEP_SHIFT)) {
@@ -600,12 +599,12 @@ static u32 __calc_qseed3_mdp_clk_rate(struct mdss_mdp_pipe *pipe,
 
 	total_cycle = active_line_cycle + backfill_cycle;
 
-	pr_debug("line: active=%d backfill=%d vds=%d\n",
-		active_line, backfill_line, (u32)ver_dwnscale);
-	pr_debug("cycle: total=%d active=%d backfill=%d\n",
+	pr_debug("line: active=%lld backfill=%lld vds=%lld\n",
+		active_line, backfill_line, ver_dwnscale);
+	pr_debug("cycle: total=%lld active=%lld backfill=%lld\n",
 		total_cycle, active_line_cycle, backfill_cycle);
 
-	return total_cycle * (fps * v_total);
+	return (u32)total_cycle * (fps * v_total);
 }
 
 static inline bool __is_vert_downscaling(u32 src_h,
@@ -1506,7 +1505,7 @@ static bool is_mdp_prefetch_needed(struct mdss_panel_info *pinfo)
  * the mdp fetch lines  as the last (25 - vbp - vpw) lines of vertical
  * front porch.
  */
-int mdss_mdp_get_prefetch_lines(struct mdss_panel_info *pinfo)
+int mdss_mdp_get_prefetch_lines(struct mdss_panel_info *pinfo, bool is_fixed)
 {
 	int prefetch_avail = 0;
 	int v_total, vfp_start;
@@ -1515,7 +1514,11 @@ int mdss_mdp_get_prefetch_lines(struct mdss_panel_info *pinfo)
 	if (!is_mdp_prefetch_needed(pinfo))
 		return 0;
 
-	v_total = mdss_panel_get_vtotal(pinfo);
+	if (is_fixed)
+		v_total = mdss_panel_get_vtotal_fixed(pinfo);
+	else
+		v_total = mdss_panel_get_vtotal(pinfo);
+
 	vfp_start = (pinfo->lcdc.v_back_porch + pinfo->lcdc.v_pulse_width +
 			pinfo->yres);
 

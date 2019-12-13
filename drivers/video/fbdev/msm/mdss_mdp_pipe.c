@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -44,6 +44,8 @@
 
 #define QSEED3_DEFAULT_PRELAOD_H  0x4
 #define QSEED3_DEFAULT_PRELAOD_V  0x3
+
+#define TS_CLK 19200000
 
 static DEFINE_MUTEX(mdss_mdp_sspp_lock);
 static DEFINE_MUTEX(mdss_mdp_smp_lock);
@@ -1251,12 +1253,12 @@ cursor_done:
 }
 
 struct mdss_mdp_pipe *mdss_mdp_pipe_alloc(struct mdss_mdp_mixer *mixer,
-	u32 type, struct mdss_mdp_pipe *left_blend_pipe)
+	u32 off, u32 type, struct mdss_mdp_pipe *left_blend_pipe)
 {
 	struct mdss_mdp_pipe *pipe;
 
 	mutex_lock(&mdss_mdp_sspp_lock);
-	pipe = mdss_mdp_pipe_init(mixer, type, 0, left_blend_pipe);
+	pipe = mdss_mdp_pipe_init(mixer, type, off, left_blend_pipe);
 	mutex_unlock(&mdss_mdp_sspp_lock);
 	return pipe;
 }
@@ -2301,6 +2303,24 @@ static int mdss_mdp_src_addr_setup(struct mdss_mdp_pipe *pipe,
 	return 0;
 }
 
+static void  __set_pipe_multirect_opmode(struct mdss_mdp_pipe *pipe)
+{
+	u32 multirect_opmode = 0;
+	/*
+	 * enable multirect only when both RECT0 and RECT1 are enabled,
+	 * othwerise expect to work in non-multirect only in RECT0
+	 */
+	if (pipe->multirect.mode != MDSS_MDP_PIPE_MULTIRECT_NONE) {
+		multirect_opmode = BIT(0) | BIT(1);
+
+		if (pipe->multirect.mode == MDSS_MDP_PIPE_MULTIRECT_SERIAL)
+			multirect_opmode |= BIT(2);
+	}
+
+	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_MULTI_REC_OP_MODE,
+			multirect_opmode);
+}
+
 static int mdss_mdp_pipe_solidfill_setup(struct mdss_mdp_pipe *pipe)
 {
 	int ret;
@@ -2352,6 +2372,8 @@ static int mdss_mdp_pipe_solidfill_setup(struct mdss_mdp_pipe *pipe)
 			MDSS_MDP_REG_SSPP_SRC_OP_MODE_REC1, opmode);
 	}
 
+	__set_pipe_multirect_opmode(pipe);
+
 	if (pipe->type != MDSS_MDP_PIPE_TYPE_DMA) {
 		mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SCALE_CONFIG, 0);
 		if (pipe->type == MDSS_MDP_PIPE_TYPE_VIG)
@@ -2393,8 +2415,16 @@ bool mdss_mdp_is_amortizable_pipe(struct mdss_mdp_pipe *pipe,
 	struct mdss_mdp_mixer *mixer, struct mdss_data_type *mdata)
 {
 	/* do not apply for rotator or WB */
-	return ((pipe->src.y > mdata->prefill_data.ts_threshold) &&
-		(mixer->type == MDSS_MDP_MIXER_TYPE_INTF));
+	if (!((pipe->dst.y > mdata->prefill_data.ts_threshold) &&
+		(mixer->type == MDSS_MDP_MIXER_TYPE_INTF)))
+		return false;
+
+	/* do not apply for sdm660 in command mode */
+	if ((IS_MDSS_MAJOR_MINOR_SAME(mdata->mdp_rev,
+		MDSS_MDP_HW_REV_320)) && !mixer->ctl->is_video_mode)
+		return false;
+
+	return true;
 }
 
 static inline void __get_ordered_rects(struct mdss_mdp_pipe *pipe,
@@ -2411,7 +2441,7 @@ static inline void __get_ordered_rects(struct mdss_mdp_pipe *pipe,
 	*high_pipe = pipe->multirect.next;
 
 	/* if pipes are not in order, order them according to position */
-	if ((*low_pipe)->src.y > (*high_pipe)->src.y) {
+	if ((*low_pipe)->dst.y > (*high_pipe)->dst.y) {
 		*low_pipe = pipe->multirect.next;
 		*high_pipe = pipe;
 	}
@@ -2421,7 +2451,7 @@ static u32 __get_ts_count(struct mdss_mdp_pipe *pipe,
 	struct mdss_mdp_mixer *mixer, bool is_low_pipe)
 {
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
-	u32 ts_diff, ts_ypos;
+	u32 ts_diff, ts_ypos, rate_factor;
 	struct mdss_mdp_pipe *low_pipe, *high_pipe;
 	u32 ts_count = 0;
 	u32 v_total, fps, h_total, xres;
@@ -2437,8 +2467,10 @@ static u32 __get_ts_count(struct mdss_mdp_pipe *pipe,
 		if (mdss_mdp_is_amortizable_pipe(pipe, mixer, mdata)) {
 			ts_diff = mdata->prefill_data.ts_threshold -
 					mdata->prefill_data.ts_end;
-			ts_ypos = pipe->src.y - ts_diff;
-			ts_count = mult_frac(ts_ypos, 19200000, fps * v_total);
+			ts_ypos = pipe->dst.y - ts_diff;
+			rate_factor = TS_CLK / fps;
+			ts_count = mult_frac(ts_ypos, rate_factor, v_total);
+			MDSS_XLOG(ts_diff, ts_ypos, rate_factor, ts_count);
 		}
 	} else { /* high pipe */
 
@@ -2446,8 +2478,11 @@ static u32 __get_ts_count(struct mdss_mdp_pipe *pipe,
 		if (pipe &&
 		    pipe->multirect.mode == MDSS_MDP_PIPE_MULTIRECT_SERIAL) {
 			__get_ordered_rects(pipe, &low_pipe, &high_pipe);
-			ts_count = high_pipe->src.y - low_pipe->src.y - 1;
-			ts_count = mult_frac(ts_count, 19200000, fps * v_total);
+			ts_ypos = high_pipe->dst.y -
+				(low_pipe->dst.y + low_pipe->dst.h) - 1;
+			rate_factor = TS_CLK / fps;
+			ts_count = mult_frac(ts_ypos, rate_factor, v_total);
+			MDSS_XLOG(ts_ypos, rate_factor, ts_count);
 		}
 	}
 
@@ -2464,7 +2499,14 @@ static u32 __calc_ts_bytes(struct mdss_rect *src, u32 fps, u32 bpp)
 	ts_bytes = mult_frac(ts_bytes,
 		mdata->prefill_data.ts_rate.numer,
 		mdata->prefill_data.ts_rate.denom);
-	ts_bytes /= 19200000;
+	ts_bytes = DIV_ROUND_UP(ts_bytes, TS_CLK);
+
+	pr_debug("ts:%d, w:%d h:%d fps:%d bpp:%d\n", ts_bytes,
+		src->w, src->h, fps, bpp);
+	MDSS_XLOG(ts_bytes, src->w, src->h, fps, bpp);
+
+	if (ts_bytes == 0)
+		ts_bytes = 1;
 
 	return ts_bytes;
 }
@@ -2511,7 +2553,7 @@ static u32 __get_ts_bytes(struct mdss_mdp_pipe *pipe,
 		/* calculate ts bytes as the sum of both rects */
 		ts_bytes_low = __calc_ts_bytes(&low_pipe->src, fps,
 			low_pipe->src_fmt->bpp);
-		ts_bytes_high = __calc_ts_bytes(&low_pipe->src, fps,
+		ts_bytes_high = __calc_ts_bytes(&high_pipe->src, fps,
 			high_pipe->src_fmt->bpp);
 
 		ts_bytes = ts_bytes_low + ts_bytes_high;
@@ -2531,9 +2573,9 @@ static u32 __get_ts_bytes(struct mdss_mdp_pipe *pipe,
 		/* amortize depending on the lower pipe amortization */
 		if (mdss_mdp_is_amortizable_pipe(low_pipe, mixer, mdata))
 			ts_bytes = DIV_ROUND_UP_ULL(max(low_pipe_bw,
-				high_pipe_bw), 19200000);
+				high_pipe_bw), TS_CLK);
 		else
-			ts_bytes = DIV_ROUND_UP_ULL(high_pipe_bw, 19200000);
+			ts_bytes = DIV_ROUND_UP_ULL(high_pipe_bw, TS_CLK);
 		break;
 	default:
 		pr_err("unknown multirect mode!\n");
@@ -2589,6 +2631,8 @@ static int mdss_mdp_set_ts_pipe(struct mdss_mdp_pipe *pipe)
 		ts_rec1 = ts_count_low;
 	}
 
+	mdss_mdp_vsync_clk_enable(1, false);
+
 	mdss_mdp_pipe_qos_ctrl(pipe, false, MDSS_MDP_PIPE_QOS_VBLANK_AMORTIZE);
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_TRAFFIC_SHAPER, ts_bytes);
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_TRAFFIC_SHAPER_PREFILL,
@@ -2607,7 +2651,7 @@ int mdss_mdp_pipe_queue_data(struct mdss_mdp_pipe *pipe,
 	int ret = 0;
 	struct mdss_mdp_ctl *ctl;
 	u32 params_changed;
-	u32 opmode = 0, multirect_opmode = 0;
+	u32 opmode = 0;
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	bool roi_changed = false;
 	bool delayed_programming;
@@ -2674,6 +2718,16 @@ int mdss_mdp_pipe_queue_data(struct mdss_mdp_pipe *pipe,
 
 		if (pipe->scaler.enable)
 			mdss_mdp_pipe_program_pixel_extn(pipe);
+
+		ret = mdss_mdp_pipe_pp_setup(pipe, &opmode);
+		if (ret) {
+			pr_err("pipe pp setup error for pnum=%d\n", pipe->num);
+
+			MDSS_XLOG(pipe->num, pipe->mixer_left->num,
+				pipe->play_cnt, 0xbad);
+
+			goto done;
+		}
 	}
 
 	if ((!(pipe->flags & MDP_VPU_PIPE) && (src_data == NULL)) ||
@@ -2689,13 +2743,6 @@ int mdss_mdp_pipe_queue_data(struct mdss_mdp_pipe *pipe,
 
 	if (params_changed) {
 		pipe->params_changed = 0;
-
-		ret = mdss_mdp_pipe_pp_setup(pipe, &opmode);
-		if (ret) {
-			pr_err("pipe pp setup error for pnum=%d rect=%d\n",
-					pipe->num, pipe->multirect.num);
-			goto done;
-		}
 
 		ret = mdss_mdp_image_setup(pipe, src_data);
 		if (ret) {
@@ -2732,19 +2779,8 @@ int mdss_mdp_pipe_queue_data(struct mdss_mdp_pipe *pipe,
 		}
 	}
 
-	/*
-	 * enable multirect only when both RECT0 and RECT1 are enabled,
-	 * othwerise expect to work in non-multirect only in RECT0
-	 */
-	if (pipe->multirect.mode != MDSS_MDP_PIPE_MULTIRECT_NONE) {
-		multirect_opmode = BIT(0) | BIT(1);
+	__set_pipe_multirect_opmode(pipe);
 
-		if (pipe->multirect.mode == MDSS_MDP_PIPE_MULTIRECT_SERIAL)
-			multirect_opmode |= BIT(2);
-	}
-
-	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_MULTI_REC_OP_MODE,
-			    multirect_opmode);
 	if (src_data == NULL) {
 		pr_debug("src_data=%pK pipe num=%dx\n",
 				src_data, pipe->num);

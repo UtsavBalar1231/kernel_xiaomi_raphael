@@ -162,6 +162,12 @@
  */
 #define MDP_COMMIT_CWB_DSPP 0x1000
 
+/*
+ * Flag to indicate that rectangle number is being assigned
+ * by userspace in multi-rectangle mode
+ */
+#define MDP_COMMIT_RECT_NUM 0x2000
+
 #define MDP_COMMIT_VERSION_1_0		0x00010000
 
 /*
@@ -336,8 +342,14 @@ struct mdp_input_layer {
 	 */
 	int			error_code;
 
+	/*
+	 * For source pipes supporting multi-rectangle, this field identifies
+	 * the rectangle index of the source pipe.
+	 */
+	uint32_t		rect_num;
+
 	/* 32bits reserved value for future usage. */
-	uint32_t		reserved[6];
+	uint32_t		reserved[5];
 };
 
 struct mdp_output_layer {

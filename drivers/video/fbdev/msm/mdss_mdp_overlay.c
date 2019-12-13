@@ -619,6 +619,7 @@ int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 	bool is_vig_needed = false;
 	u32 left_lm_w = left_lm_w_from_mfd(mfd);
 	u32 flags = 0;
+	u32 off = 0;
 
 	if (mdp5_data->ctl == NULL)
 		return -ENODEV;
@@ -702,18 +703,29 @@ int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 			break;
 		case PIPE_TYPE_AUTO:
 		default:
-			if (req->flags & MDP_OV_PIPE_FORCE_DMA)
+			if (req->flags & MDP_OV_PIPE_FORCE_DMA) {
 				pipe_type = MDSS_MDP_PIPE_TYPE_DMA;
-			else if (fmt->is_yuv ||
+				/*
+				 * For paths using legacy API's for pipe
+				 * allocation, use offset of 2 for allocating
+				 * right pipe for pipe type DMA. This is
+				 * because from SDM 3.x.x. onwards one DMA
+				 * pipe has two instances for multirect.
+				 */
+				off = (mixer_mux == MDSS_MDP_MIXER_MUX_RIGHT)
+						? 2 : 0;
+			} else if (fmt->is_yuv ||
 				(req->flags & MDP_OV_PIPE_SHARE) ||
-				is_vig_needed)
+				is_vig_needed) {
 				pipe_type = MDSS_MDP_PIPE_TYPE_VIG;
-			else
+			} else {
 				pipe_type = MDSS_MDP_PIPE_TYPE_RGB;
+			}
 			break;
 		}
 
-		pipe = mdss_mdp_pipe_alloc(mixer, pipe_type, left_blend_pipe);
+		pipe = mdss_mdp_pipe_alloc(mixer, off,
+				pipe_type, left_blend_pipe);
 
 		/* RGB pipes can be used instead of DMA */
 		if (IS_ERR_OR_NULL(pipe) &&
@@ -722,7 +734,7 @@ int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 			pr_debug("giving RGB pipe for fb%d. flags:0x%x\n",
 				mfd->index, req->flags);
 			pipe_type = MDSS_MDP_PIPE_TYPE_RGB;
-			pipe = mdss_mdp_pipe_alloc(mixer, pipe_type,
+			pipe = mdss_mdp_pipe_alloc(mixer, off, pipe_type,
 				left_blend_pipe);
 		}
 
@@ -733,7 +745,7 @@ int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 			pr_debug("giving ViG pipe for fb%d. flags:0x%x\n",
 				mfd->index, req->flags);
 			pipe_type = MDSS_MDP_PIPE_TYPE_VIG;
-			pipe = mdss_mdp_pipe_alloc(mixer, pipe_type,
+			pipe = mdss_mdp_pipe_alloc(mixer, off, pipe_type,
 				left_blend_pipe);
 		}
 
@@ -1235,7 +1247,7 @@ static void mdss_mdp_overlay_cleanup(struct msm_fb_data_type *mfd,
 		 * fetch halt will be skipped for the 1st rect.
 		 */
 		list_for_each_entry_from(tmp, destroy_pipes, list) {
-			if (tmp->num == pipe->num) {
+			if ((tmp != pipe) && (tmp->num == pipe->num)) {
 				pair_found = true;
 				break;
 			}
@@ -3471,6 +3483,13 @@ static void mdss_mdp_overlay_pan_display(struct msm_fb_data_type *mfd)
 		goto iommu_disable;
 	}
 
+	if (l_pipe_allocated &&
+			(l_pipe->multirect.num == MDSS_MDP_PIPE_RECT1)) {
+		pr_err("Invalid: L_Pipe-%d is assigned for RECT-%d\n",
+				l_pipe->num, l_pipe->multirect.num);
+		goto pipe_release;
+	}
+
 	if (mdss_mdp_pipe_map(l_pipe)) {
 		pr_err("unable to map base pipe\n");
 		goto pipe_release;
@@ -3516,6 +3535,16 @@ static void mdss_mdp_overlay_pan_display(struct msm_fb_data_type *mfd)
 		if (ret) {
 			pr_err("unable to allocate right base pipe\n");
 			goto pipe_release;
+		}
+
+		if (l_pipe_allocated && r_pipe_allocated &&
+				(l_pipe->num != r_pipe->num) &&
+				(r_pipe->multirect.num ==
+				 MDSS_MDP_PIPE_RECT1)) {
+			pr_err("Invalid: L_Pipe-%d,RECT-%d R_Pipe-%d,RECT-%d\n",
+					l_pipe->num, l_pipe->multirect.num,
+					r_pipe->num, l_pipe->multirect.num);
+			goto iommu_disable;
 		}
 
 		if (mdss_mdp_pipe_map(r_pipe)) {
@@ -3800,7 +3829,7 @@ static void dfps_update_panel_params(struct mdss_panel_data *pdata,
 		dfps_update_fps(&pdata->panel_info, new_fps);
 
 		pdata->panel_info.prg_fet =
-			mdss_mdp_get_prefetch_lines(&pdata->panel_info);
+			mdss_mdp_get_prefetch_lines(&pdata->panel_info, false);
 
 	} else if (pdata->panel_info.dfps_update ==
 			DFPS_IMMEDIATE_PORCH_UPDATE_MODE_HFP) {
@@ -6050,6 +6079,7 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 	struct mdss_overlay_private *mdp5_data;
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	struct mdss_mdp_mixer *mixer;
+	struct mdss_mdp_pipe *pipe, *tmp;
 	int need_cleanup;
 	int retire_cnt;
 	bool destroy_ctl = false;
@@ -6093,6 +6123,13 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 		mixer->cursor_enabled = 0;
 
 	mutex_lock(&mdp5_data->list_lock);
+	if (!list_empty(&mdp5_data->pipes_used)) {
+		list_for_each_entry_safe(
+			pipe, tmp, &mdp5_data->pipes_used, list) {
+			pipe->file = NULL;
+			list_move(&pipe->list, &mdp5_data->pipes_cleanup);
+		}
+	}
 	need_cleanup = !list_empty(&mdp5_data->pipes_cleanup);
 	mutex_unlock(&mdp5_data->list_lock);
 	mutex_unlock(&mdp5_data->ov_lock);
