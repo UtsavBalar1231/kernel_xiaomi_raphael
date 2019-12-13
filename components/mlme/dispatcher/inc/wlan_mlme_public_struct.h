@@ -1105,6 +1105,7 @@ struct wlan_mlme_chainmask {
  * @enable_change_channel_bandwidth: enable/disable change channel bw in mission
  * mode
  * @as_enabled: antenna sharing enabled or not (FW capability)
+ * @mgmt_retry_max: maximum retries for management frame
  */
 struct wlan_mlme_generic {
 	enum band_info band_capability;
@@ -1136,6 +1137,7 @@ struct wlan_mlme_generic {
 	bool data_stall_recovery_fw_support;
 	bool enable_change_channel_bandwidth;
 	bool as_enabled;
+	uint8_t mgmt_retry_max;
 };
 
 /*

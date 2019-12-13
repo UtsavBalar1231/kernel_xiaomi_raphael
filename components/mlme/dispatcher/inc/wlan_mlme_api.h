@@ -2248,4 +2248,16 @@ QDF_STATUS mlme_set_tgt_wpa3_roam_cap(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc,
 					bool *disabled);
+
+/**
+ * wlan_mlme_get_mgmt_max_retry() - Get the
+ * max mgmt retry
+ * @psoc: pointer to psoc object
+ * @max_retry: output pointer to hold user config
+ *
+ * Return: QDF Status
+ */
+QDF_STATUS
+wlan_mlme_get_mgmt_max_retry(struct wlan_objmgr_psoc *psoc,
+			     uint8_t *max_retry);
 #endif /* _WLAN_MLME_API_H_ */

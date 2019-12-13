@@ -3522,3 +3522,20 @@ wlan_mlme_get_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc,
 	*disabled = mlme_obj->cfg.reg.ignore_fw_reg_offload_ind;
 	return QDF_STATUS_SUCCESS;
 }
+
+QDF_STATUS
+wlan_mlme_get_mgmt_max_retry(struct wlan_objmgr_psoc *psoc,
+			     uint8_t *max_retry)
+{
+	struct wlan_mlme_psoc_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_obj(psoc);
+
+	if (!mlme_obj) {
+		*max_retry = cfg_default(CFG_MGMT_RETRY_MAX);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	*max_retry = mlme_obj->cfg.gen.mgmt_retry_max;
+	return QDF_STATUS_SUCCESS;
+}
