@@ -2611,6 +2611,7 @@ cppflags-y += -DDP_PRINT_ENABLE=0
 cppflags-y += -DATH_SUPPORT_WRAP=0
 cppflags-y += -DQCA_HOST2FW_RXBUF_RING
 cppflags-y += -DHIF_CE_HISTORY_MAX=8192
+cppflags-y += -DDP_PRINT_NO_CONSOLE
 #endof dummy flags
 
 ccflags-$(CONFIG_ENABLE_SIZE_OPTIMIZE) += -Os
