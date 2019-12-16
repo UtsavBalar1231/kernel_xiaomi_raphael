@@ -30,7 +30,7 @@
 #include <asm/uaccess.h>
 #include <asm/fcntl.h>
 
-#include <drm/drm_notifier.h>
+#include <linux/msm_drm_notify.h>
 
 #define DSI_READ_WRITE_PANEL_DEBUG 1
 #if DSI_READ_WRITE_PANEL_DEBUG
@@ -5018,8 +5018,8 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 			if (host)
 				display = container_of(host, struct dsi_display, host);
 
-			if ((display->drm_dev && display->drm_dev->doze_state == DRM_BLANK_LP1) ||
-				(display->drm_dev && display->drm_dev->doze_state == DRM_BLANK_LP2)) {
+			if ((display->drm_dev && display->drm_dev->doze_state == MSM_DRM_BLANK_LP1) ||
+				(display->drm_dev && display->drm_dev->doze_state == MSM_DRM_BLANK_LP2)) {
 #if 0
 				if (panel->last_bl_lvl > panel->doze_backlight_threshold) {
 					pr_info("hbm fod off DSI_CMD_SET_DOZE_HBM");
@@ -5150,8 +5150,8 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_DIMMINGOFF);
 			rc = dsi_panel_update_backlight(panel, panel->last_bl_lvl);
 
-			if ((display->drm_dev && display->drm_dev->doze_state == DRM_BLANK_LP1) ||
-				(display->drm_dev && display->drm_dev->doze_state == DRM_BLANK_LP2)) {
+			if ((display->drm_dev && display->drm_dev->doze_state == MSM_DRM_BLANK_LP1) ||
+				(display->drm_dev && display->drm_dev->doze_state == MSM_DRM_BLANK_LP2)) {
 #if 0
 				if (panel->last_bl_lvl > panel->doze_backlight_threshold) {
 					pr_info("FOD backlight restore DSI_CMD_SET_DOZE_HBM");
