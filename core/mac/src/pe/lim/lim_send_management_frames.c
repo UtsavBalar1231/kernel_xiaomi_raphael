@@ -1907,9 +1907,17 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			(unsigned int) bssdescr->mdie[2]);
 		populate_mdie(mac_ctx, &frm->MobilityDomain,
 			pe_session->pLimJoinReq->bssDescription.mdie);
-	} else {
-		/* No 11r IEs dont send any MDIE */
-		pe_debug("MDIE not present");
+
+		/*
+		 * IEEE80211-ai [13.2.4 FT initial mobility domain association
+		 * over FILS in an RSN]
+		 * Populate FT IE in association request. This FT IE should be
+		 * same as the FT IE received in auth response frame during the
+		 * FT-FILS authentication.
+		 */
+		if (lim_is_fils_connection(pe_session))
+			populate_fils_ft_info(mac_ctx, &frm->FTInfo,
+					      pe_session);
 	}
 
 #ifdef FEATURE_WLAN_ESE
@@ -2322,6 +2330,13 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 				frame_len += (2 + SIR_MDIE_SIZE);
 			}
 		}
+
+		/* include MDIE in FILS authentication frame */
+		if (session->pLimJoinReq &&
+		    session->pLimJoinReq->is11Rconnection &&
+		    auth_frame->authAlgoNumber == SIR_FILS_SK_WITHOUT_PFS &&
+		    session->pLimJoinReq->bssDescription.mdiePresent)
+			frame_len += (2 + SIR_MDIE_SIZE);
 		break;
 
 	case SIR_MAC_AUTH_FRAME_2:
@@ -2499,10 +2514,11 @@ alloc_packet:
 						pbssDescription->mdie[0],
 					SIR_MDIE_SIZE);
 			}
-		} else if (auth_frame->authAlgoNumber ==
-				SIR_FILS_SK_WITHOUT_PFS) {
-			/* TODO MDIE */
-			pe_debug("appending fils Auth data");
+		} else if ((auth_frame->authAlgoNumber ==
+					SIR_FILS_SK_WITHOUT_PFS) &&
+			   (auth_frame->authTransactionSeqNumber ==
+						SIR_MAC_AUTH_FRAME_1)) {
+			pe_debug("FILS: appending fils Auth data");
 			lim_add_fils_data_to_auth_frame(session, body);
 		}
 
