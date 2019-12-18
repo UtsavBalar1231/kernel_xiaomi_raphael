@@ -356,10 +356,6 @@
 			   "chg_temp";
 };
 
-&wil6210 {
-	status = "ok";
-};
-
 &mhi_0 {
 	mhi,fw-name = "debug.mbn";
 };
