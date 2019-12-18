@@ -668,6 +668,7 @@ static QDF_STATUS scm_add_update_entry(struct wlan_objmgr_psoc *psoc,
 	QDF_STATUS status;
 	struct scan_dbs *scan_db;
 	struct wlan_scan_obj *scan_obj;
+	uint8_t security_type;
 
 	scan_db = wlan_pdev_get_scan_db(psoc, pdev);
 	if (!scan_db) {
@@ -696,7 +697,8 @@ static QDF_STATUS scm_add_update_entry(struct wlan_objmgr_psoc *psoc,
 	is_dup_found = scm_find_duplicate(pdev, scan_obj, scan_db, scan_params,
 					  &dup_node);
 
-	scm_nofl_debug("Received %s: BSSID: %pM tsf_delta %u Seq %d ssid: %.*s rssi: %d chan %d phy_mode %d hidden %d chan_mismatch %d pdev %d",
+	security_type = scan_params->security_type;
+	scm_nofl_debug("Received %s: BSSID: %pM tsf_delta %u Seq %d ssid: %.*s rssi: %d chan %d phy_mode %d hidden %d chan_mismatch %d %s%s%s%s pdev %d",
 		       (scan_params->frm_subtype == MGMT_SUBTYPE_PROBE_RESP) ?
 		       "Probe Rsp" : "Beacon", scan_params->bssid.bytes,
 		       scan_params->tsf_delta, scan_params->seq_num,
@@ -705,6 +707,10 @@ static QDF_STATUS scm_add_update_entry(struct wlan_objmgr_psoc *psoc,
 		       scan_params->channel.chan_idx, scan_params->phy_mode,
 		       scan_params->is_hidden_ssid,
 		       scan_params->channel_mismatch,
+		       security_type & SCAN_SECURITY_TYPE_WPA ? "[WPA]" : "",
+		       security_type & SCAN_SECURITY_TYPE_RSN ? "[RSN]" : "",
+		       security_type & SCAN_SECURITY_TYPE_WAPI ? "[WAPI]" : "",
+		       security_type & SCAN_SECURITY_TYPE_WEP ? "[WEP]" : "",
 		       wlan_objmgr_pdev_get_pdev_id(pdev));
 
 	if (scan_obj->cb.inform_beacon)

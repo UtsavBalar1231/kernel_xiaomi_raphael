@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -281,6 +281,11 @@ struct scan_mbssid_info {
 	uint8_t trans_bssid[QDF_MAC_ADDR_SIZE];
 };
 
+#define SCAN_SECURITY_TYPE_WEP 0x01
+#define SCAN_SECURITY_TYPE_WPA 0x02
+#define SCAN_SECURITY_TYPE_WAPI 0x04
+#define SCAN_SECURITY_TYPE_RSN 0x08
+
 /**
  * struct scan_cache_entry: structure containing scan entry
  * @frm_subtype: updated from beacon/probe
@@ -288,6 +293,7 @@ struct scan_mbssid_info {
  * @mac_addr: mac address
  * @ssid: ssid
  * @is_hidden_ssid: is AP having hidden ssid.
+ * @security_type: security supported
  * @seq_num: sequence number
  * @phy_mode: Phy mode of the AP
  * @avg_rssi: Average RSSI fof the AP
@@ -327,6 +333,7 @@ struct scan_cache_entry {
 	struct qdf_mac_addr mac_addr;
 	struct wlan_ssid ssid;
 	bool is_hidden_ssid;
+	uint8_t security_type;
 	uint16_t seq_num;
 	enum wlan_phymode phy_mode;
 	int32_t avg_rssi;
