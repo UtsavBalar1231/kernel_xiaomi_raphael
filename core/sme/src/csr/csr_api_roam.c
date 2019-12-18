@@ -64,6 +64,7 @@
 #include "wlan_qct_sys.h"
 #include "wlan_blm_api.h"
 #include "wlan_policy_mgr_i.h"
+#include "wlan_scan_utils_api.h"
 
 #define RSN_AUTH_KEY_MGMT_SAE           WLAN_RSN_SEL(WLAN_AKM_SAE)
 #define MAX_PWR_FCC_CHAN_12 8
@@ -995,6 +996,37 @@ static void csr_add_social_channels(struct mac_context *mac,
 }
 #endif
 
+/**
+ * csr_scan_event_handler() - callback for scan event
+ * @vdev: wlan objmgr vdev pointer
+ * @event: scan event
+ * @arg: global mac context pointer
+ *
+ * Return: void
+ */
+static void csr_scan_event_handler(struct wlan_objmgr_vdev *vdev,
+					    struct scan_event *event,
+					    void *arg)
+{
+	bool success = false;
+	QDF_STATUS lock_status;
+	struct mac_context *mac = arg;
+
+	if (!mac)
+		return;
+
+	if (!util_is_scan_completed(event, &success))
+		return;
+
+	lock_status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(lock_status))
+		return;
+
+	if (mac->scan.pending_channel_list_req)
+		csr_update_channel_list(mac);
+	sme_release_global_lock(&mac->sme);
+}
+
 QDF_STATUS csr_update_channel_list(struct mac_context *mac)
 {
 	tSirUpdateChanList *pChanList;
@@ -1010,12 +1042,32 @@ QDF_STATUS csr_update_channel_list(struct mac_context *mac)
 	uint16_t cnt = 0;
 	uint8_t  channel;
 	bool is_unsafe_chan;
+	enum scm_scan_status scan_status;
+	QDF_STATUS lock_status;
+
 	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 
 	if (!qdf_ctx) {
 		sme_err("qdf_ctx is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	lock_status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(lock_status))
+		return lock_status;
+
+	if (mac->mlme_cfg->reg.enable_pending_chan_list_req) {
+		scan_status = ucfg_scan_get_pdev_status(mac->pdev);
+		if (scan_status == SCAN_IS_ACTIVE ||
+		    scan_status == SCAN_IS_ACTIVE_AND_PENDING) {
+			mac->scan.pending_channel_list_req = true;
+			sme_release_global_lock(&mac->sme);
+			sme_debug("scan in progress postpone channel list req ");
+			return QDF_STATUS_SUCCESS;
+		}
+		mac->scan.pending_channel_list_req = false;
+	}
+	sme_release_global_lock(&mac->sme);
 
 	pld_get_wlan_unsafe_channel(qdf_ctx->dev, unsafe_chan,
 		    &unsafe_chan_cnt,
@@ -1216,6 +1268,14 @@ QDF_STATUS csr_start(struct mac_context *mac)
 		mac->scan.requester_id = ucfg_scan_register_requester(
 						mac->psoc,
 						"CSR", csr_scan_callback, mac);
+
+		if (mac->mlme_cfg->reg.enable_pending_chan_list_req) {
+			status = ucfg_scan_register_event_handler(mac->pdev,
+					csr_scan_event_handler, mac);
+
+			if (QDF_IS_STATUS_ERROR(status))
+				sme_err("scan event registration failed ");
+		}
 	} while (0);
 	return status;
 }
@@ -1224,6 +1284,10 @@ QDF_STATUS csr_stop(struct mac_context *mac)
 {
 	uint32_t sessionId;
 
+	if (mac->mlme_cfg->reg.enable_pending_chan_list_req)
+		ucfg_scan_unregister_event_handler(mac->pdev,
+						   csr_scan_event_handler,
+						   mac);
 	ucfg_scan_psoc_set_disable(mac->psoc, REASON_SYSTEM_DOWN);
 	ucfg_scan_unregister_requester(mac->psoc, mac->scan.requester_id);
 
