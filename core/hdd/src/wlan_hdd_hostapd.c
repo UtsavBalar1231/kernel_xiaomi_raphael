@@ -3086,8 +3086,6 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	struct hdd_ap_ctx *hdd_ap_ctx;
 	uint8_t intf_ch = 0, sap_ch = 0;
 	struct hdd_context *hdd_ctx;
-	struct hdd_station_ctx *hdd_sta_ctx;
-	struct hdd_adapter *sta_adapter;
 	uint8_t mcc_to_scc_switch = 0;
 	struct ch_params ch_params;
 	struct hdd_adapter *ap_adapter = wlan_hdd_get_adapter_from_vdev(
@@ -3104,13 +3102,6 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	/* TODO: need work for 3 port case with sta+sta */
-	sta_adapter = hdd_get_adapter(hdd_ctx, QDF_STA_MODE);
-	if (!sta_adapter) {
-		hdd_err("sta_adapter is NULL");
-		return QDF_STATUS_E_FAILURE;
-	}
-
 	if (!channel || !sec_ch) {
 		hdd_err("Null parameters");
 		return QDF_STATUS_E_FAILURE;
@@ -3122,7 +3113,6 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	}
 
 	hdd_ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(ap_adapter);
-	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(sta_adapter);
 
 	mac_handle = hdd_ctx->mac_handle;
 	if (!mac_handle) {
@@ -3152,21 +3142,29 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	 * Need to take care of 3 port cases with 2 STA iface in future.
 	 */
 	intf_ch = wlansap_check_cc_intf(hdd_ap_ctx->sap_context);
-	hdd_info("sap_vdev %d intf_ch: %d", vdev_id, intf_ch);
+	policy_mgr_get_chan_by_session_id(psoc, vdev_id, &sap_ch);
+	hdd_info("sap_vdev %d intf_ch: %d, orig ch: %d",
+		 vdev_id, intf_ch, sap_ch);
 	if (QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION !=
 		mcc_to_scc_switch) {
-		policy_mgr_get_chan_by_session_id(psoc, vdev_id, &sap_ch);
 		if (QDF_IS_STATUS_ERROR(
-			policy_mgr_valid_sap_conc_channel_check(
-				hdd_ctx->psoc, &intf_ch, sap_ch, vdev_id))) {
-			hdd_debug("can't move sap to %d",
-				hdd_sta_ctx->conn_info.channel);
+		    policy_mgr_valid_sap_conc_channel_check(
+		    hdd_ctx->psoc, &intf_ch, sap_ch, vdev_id))) {
+			hdd_debug("can't move sap to chan: %u",
+				  intf_ch);
 			return QDF_STATUS_E_FAILURE;
 		}
 	}
 
 sap_restart:
-	if (intf_ch == 0) {
+	if (!intf_ch) {
+		intf_ch = wlansap_get_chan_band_restrict(hdd_ap_ctx->sap_context);
+		if (intf_ch == sap_ch)
+			intf_ch = 0;
+	} else if (hdd_ap_ctx->sap_context)
+		hdd_ap_ctx->sap_context->csa_reason =
+				CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
+	if (!intf_ch) {
 		hdd_debug("interface channel is 0");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -3175,9 +3173,6 @@ sap_restart:
 		 hdd_ap_ctx->sap_config.channel, intf_ch);
 	ch_params.ch_width = CH_WIDTH_MAX;
 	hdd_ap_ctx->bss_stop_reason = BSS_STOP_DUE_TO_MCC_SCC_SWITCH;
-	if (hdd_ap_ctx->sap_context)
-		hdd_ap_ctx->sap_context->csa_reason =
-			CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
 
 	wlan_reg_set_channel_params(hdd_ctx->pdev,
 				    intf_ch,

@@ -3072,9 +3072,7 @@ err:
 	return chan;
 }
 
-void wlansap_set_band_csa(struct sap_context *sap_ctx,
-			  struct sap_config *sap_config,
-			  enum band_info band)
+uint8_t wlansap_get_chan_band_restrict(struct sap_context *sap_ctx)
 {
 	uint8_t restart_chan;
 	enum phy_ch_width restart_ch_width;
@@ -3082,25 +3080,35 @@ void wlansap_set_band_csa(struct sap_context *sap_ctx,
 	uint32_t phy_mode;
 	struct mac_context *mac;
 	uint8_t cc_mode;
-	uint8_t vdev_id;
 	enum band_info sap_band;
+	enum band_info band;
 
 	if (cds_is_driver_recovering())
-		return;
+		return 0;
 
-	sap_band = wlan_reg_chan_to_band(sap_ctx->channel);
+	mac = cds_get_context(QDF_MODULE_ID_PE);
+	if (!mac || !mac->pdev)
+		return 0;
+	if (ucfg_reg_get_curr_band(mac->pdev, &band) != QDF_STATUS_SUCCESS) {
+		sap_err("Failed to get current band config");
+		return 0;
+	}
+	if (!sap_ctx->channel)
+		return 0;
+	sap_band = sap_ctx->channel <= 14 ? BAND_2G : BAND_5G;
 	sap_debug("SAP/Go current band: %d, pdev band capability: %d",
 		  sap_band, band);
 	if (sap_band == BAND_5G && band == BAND_2G) {
-		if (sap_ctx->chan_id_before_switch_band ==
-		    sap_ctx->channel)
-			return;
 		sap_ctx->chan_id_before_switch_band = sap_ctx->channel;
 		sap_ctx->chan_width_before_switch_band =
 			sap_ctx->ch_params.ch_width;
 		sap_debug("Save chan info before switch: %d, width: %d",
 			  sap_ctx->channel, sap_ctx->ch_params.ch_width);
 		restart_chan = wlansap_get_2g_first_safe_chan(sap_ctx);
+		if (restart_chan == 0) {
+			sap_debug("use default chan 6");
+			restart_chan = CHANNEL_6;
+		}
 		restart_ch_width = sap_ctx->ch_params.ch_width;
 		if (restart_ch_width > CH_WIDTH_40MHZ) {
 			sap_debug("set 40M when switch SAP to 2G");
@@ -3109,7 +3117,7 @@ void wlansap_set_band_csa(struct sap_context *sap_ctx,
 	} else if (sap_band == BAND_2G &&
 		   (band == BAND_ALL || band == BAND_5G)) {
 		if (sap_ctx->chan_id_before_switch_band == 0)
-			return;
+			return 0;
 		restart_chan = sap_ctx->chan_id_before_switch_band;
 		restart_ch_width = sap_ctx->chan_width_before_switch_band;
 		sap_debug("Restore chan: %d, width: %d",
@@ -3119,10 +3127,9 @@ void wlansap_set_band_csa(struct sap_context *sap_ctx,
 
 	} else {
 		sap_debug("No need switch SAP/Go channel");
-		return;
+		return 0;
 	}
 
-	mac = cds_get_context(QDF_MODULE_ID_PE);
 	cc_mode = sap_ctx->cc_switch_mode;
 	phy_mode = sap_ctx->csr_roamProfile.phyMode;
 	intf_ch = sme_check_concurrent_channel_overlap(MAC_HANDLE(mac),
@@ -3131,11 +3138,8 @@ void wlansap_set_band_csa(struct sap_context *sap_ctx,
 						       cc_mode);
 	if (intf_ch)
 		restart_chan = intf_ch;
+	sap_debug("CSA target ch: %d", restart_chan);
 	sap_ctx->csa_reason = CSA_REASON_BAND_RESTRICTED;
-	vdev_id = sap_ctx->vdev->vdev_objmgr.vdev_id;
-	sap_debug("vdev: %d, CSA target channel: %d, width: %d",
-		  vdev_id, restart_chan, restart_ch_width);
-	policy_mgr_change_sap_channel_with_csa(mac->psoc, vdev_id,
-					       restart_chan,
-					       restart_ch_width, true);
+
+	return restart_chan;
 }

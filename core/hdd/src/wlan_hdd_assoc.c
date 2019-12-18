@@ -3553,6 +3553,8 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		if ((roam_result == eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE) &&
 		    hddDisconInProgress)
 			complete(&adapter->disconnect_comp_var);
+
+		policy_mgr_check_concurrent_intf_and_restart_sap(hdd_ctx->psoc);
 	}
 
 	return QDF_STATUS_SUCCESS;
