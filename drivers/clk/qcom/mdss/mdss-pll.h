@@ -94,6 +94,8 @@ struct mdss_pll_resources {
 	void __iomem	*ln_tx1_base;
 	void __iomem	*gdsc_base;
 	void __iomem	*dyn_pll_base;
+	void __iomem	*usb_dp_com_base;
+	void __iomem	*usb_pll_base;
 
 	bool	is_init_locked;
 	s64	vco_current_rate;

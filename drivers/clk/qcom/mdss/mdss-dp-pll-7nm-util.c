@@ -23,6 +23,14 @@
 #include "mdss-dp-pll.h"
 #include "mdss-dp-pll-7nm.h"
 
+/* PHY PLL bond mode and its role */
+enum bond_mode_role {
+	NON_PLL_BOND_MODE,	/* Non-bond mode or PCLK bond mode */
+	BOND_MODE_MASTER,	/* Bond mode master PLL */
+	BOND_MODE_SLAVE,	/* Bond mode slave PLL */
+	BOND_MODE_RESERVED,	/* Should not be used */
+};
+
 #define DP_PHY_CFG				0x0010
 #define DP_PHY_PD_CTL				0x0018
 #define DP_PHY_MODE				0x001C
@@ -35,6 +43,9 @@
 
 #define DP_PHY_SPARE0				0x00C8
 #define DP_PHY_STATUS				0x00DC
+
+#define DP_PHY_AUX_CFG12			0x0050
+#define DP_PHY_TSYNC_OVRD			0x0074
 
 /* Tx registers */
 #define TXn_CLKBUF_ENABLE			0x0008
@@ -62,10 +73,17 @@
 
 /* PLL register offset */
 #define QSERDES_COM_BG_TIMER			0x000C
+#define QSERDES_COM_SSC_EN_CENTER		0x0010
+#define QSERDES_COM_SSC_ADJ_PER1		0x0014
+#define QSERDES_COM_SSC_PER1			0x001C
+#define QSERDES_COM_SSC_PER2			0x0020
+#define QSERDES_COM_SSC_STEP_SIZE1_MODE0	0x0024
+#define QSERDES_COM_SSC_STEP_SIZE2_MODE0	0x0028
 #define QSERDES_COM_BIAS_EN_CLKBUFLR_EN		0x0044
 #define QSERDES_COM_CLK_ENABLE1			0x0048
 #define QSERDES_COM_SYS_CLK_CTRL		0x004C
 #define QSERDES_COM_SYSCLK_BUF_ENABLE		0x0050
+#define QSERDES_COM_PLL_EN			0x0054
 #define QSERDES_COM_PLL_IVCO			0x0058
 
 #define QSERDES_COM_CP_CTRL_MODE0		0x0074
@@ -96,6 +114,20 @@
 #define QSERDES_COM_CMN_CONFIG			0x017C
 
 #define QSERDES_COM_SVS_MODE_CLK_SEL		0x0184
+
+/* USB DP register offset */
+#define USB3_DP_COM_PHY_MODE_CTRL		0x0000
+#define USB3_DP_COM_SW_RESET			0x0004
+#define USB3_DP_COM_POWER_DOWN_CTRL		0x0008
+#define USB3_DP_COM_SWI_CTRL			0x000c
+#define USB3_DP_COM_TYPEC_CTRL			0x0010
+#define USB3_DP_COM_DP_BIST_CFG_0		0x0018
+#define USB3_DP_COM_RESET_OVRD_CTRL		0x001C
+
+/* USB PLL register offset */
+#define USB3_QSERDES_COM_BIAS_EN_CLKBUFLR_EN	0x0044
+#define USB3_QSERDES_COM_SYSCLK_EN_SEL		0x0094
+#define USB3_QSERDES_COM_CMN_MODE		0x01a4
 
 #define DP_PHY_PLL_POLL_SLEEP_US		500
 #define DP_PHY_PLL_POLL_TIMEOUT_US		10000
@@ -175,6 +207,55 @@ int dp_mux_get_parent_7nm(void *context, unsigned int reg, unsigned int *val)
 	return 0;
 }
 
+static bool dp_7nm_pll_lock_status(struct mdss_pll_resources *dp_res)
+{
+	u32 status;
+	bool pll_locked;
+
+	if (readl_poll_timeout_atomic((dp_res->pll_base +
+			QSERDES_COM_C_READY_STATUS),
+			status,
+			((status & BIT(0)) > 0),
+			DP_PHY_PLL_POLL_SLEEP_US,
+			DP_PHY_PLL_POLL_TIMEOUT_US)) {
+		pr_err("C_READY status is not high. Status=%x\n", status);
+		pll_locked = false;
+	} else {
+		pr_debug("C_READY status is high. Status=%x\n", status);
+		pll_locked = true;
+	}
+
+	return pll_locked;
+}
+
+static bool dp_7nm_phy_rdy_status(struct mdss_pll_resources *dp_res)
+{
+	u32 status;
+	bool phy_ready = true;
+
+	/* poll for PHY ready status */
+	if (readl_poll_timeout_atomic((dp_res->phy_base +
+			DP_PHY_STATUS),
+			status,
+			((status & (BIT(1))) > 0),
+			DP_PHY_PLL_POLL_SLEEP_US,
+			DP_PHY_PLL_POLL_TIMEOUT_US)) {
+		pr_err("Phy_ready is not high. Status=%x\n", status);
+		phy_ready = false;
+	} else {
+		pr_debug("Phy_ready is high. Status=%x\n", status);
+	}
+
+	return phy_ready;
+}
+
+static enum bond_mode_role get_bond_mode(struct mdss_pll_resources *dp_res)
+{
+	u32 spare_value = MDSS_PLL_REG_R(dp_res->phy_base, DP_PHY_SPARE0);
+
+	return (enum bond_mode_role)((spare_value & 0xC0) >> 6);
+}
+
 static int dp_vco_pll_init_db_7nm(struct dp_pll_db_7nm *pdb,
 		unsigned long rate)
 {
@@ -183,7 +264,7 @@ static int dp_vco_pll_init_db_7nm(struct dp_pll_db_7nm *pdb,
 
 	spare_value = MDSS_PLL_REG_R(dp_res->phy_base, DP_PHY_SPARE0);
 	pdb->lane_cnt = spare_value & 0x0F;
-	pdb->orientation = (spare_value & 0xF0) >> 4;
+	pdb->orientation = (spare_value & 0x30) >> 4;
 
 	pr_debug("spare_value=0x%x, ln_cnt=0x%x, orientation=0x%x\n",
 			spare_value, pdb->lane_cnt, pdb->orientation);
@@ -247,11 +328,11 @@ static int dp_vco_pll_init_db_7nm(struct dp_pll_db_7nm *pdb,
 	return 0;
 }
 
-static int dp_config_vco_rate_7nm(struct dp_pll_vco_clk *vco,
-		unsigned long rate)
+static int dp_config_vco_rate_7nm_mission_mode(
+		struct mdss_pll_resources *dp_res,
+		unsigned long rate, bool bond_mode)
 {
 	u32 res = 0;
-	struct mdss_pll_resources *dp_res = vco->priv;
 	struct dp_pll_db_7nm *pdb = (struct dp_pll_db_7nm *)dp_res->priv;
 
 	pr_debug("DP%d %lu", dp_res->index, rate);
@@ -260,6 +341,28 @@ static int dp_config_vco_rate_7nm(struct dp_pll_vco_clk *vco,
 	if (res) {
 		pr_err("VCO Init DB failed\n");
 		return res;
+	}
+
+	/*
+	 * Reset following registers to default values,
+	 * allow bond->mission mode switch.
+	 * USB3_DP_COM_DP_BIST_CFG_0 is the one most critical.
+	 */
+	if (!bond_mode && dp_res->usb_dp_com_base && dp_res->usb_pll_base) {
+		MDSS_PLL_REG_W(dp_res->usb_dp_com_base,
+			USB3_DP_COM_DP_BIST_CFG_0, 0x06);
+		MDSS_PLL_REG_W(dp_res->pll_base,
+			QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x14);
+		MDSS_PLL_REG_W(dp_res->usb_pll_base,
+			USB3_QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x14);
+		MDSS_PLL_REG_W(dp_res->usb_pll_base,
+			USB3_QSERDES_COM_SYSCLK_EN_SEL, 0x14);
+		MDSS_PLL_REG_W(dp_res->usb_pll_base,
+			USB3_QSERDES_COM_CMN_MODE, 0x04);
+		MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_AUX_CFG12, 0x00);
+		MDSS_PLL_REG_W(dp_res->usb_dp_com_base,
+			USB3_DP_COM_TYPEC_CTRL, 0x00);
+		MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_TSYNC_OVRD, 0x10);
 	}
 
 	if (pdb->lane_cnt != 4) {
@@ -308,13 +411,19 @@ static int dp_config_vco_rate_7nm(struct dp_pll_vco_clk *vco,
 		QSERDES_COM_LOCK_CMP1_MODE0, pdb->lock_cmp1_mode0);
 	MDSS_PLL_REG_W(dp_res->pll_base,
 		QSERDES_COM_LOCK_CMP2_MODE0, pdb->lock_cmp2_mode0);
+	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_PLL_EN, 0x01);
 	/* Make sure the PLL register writes are done */
 	wmb();
 
 	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_BG_TIMER, 0x0a);
 	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_CORECLK_DIV_MODE0, 0x0a);
 	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_VCO_TUNE_CTRL, 0x00);
-	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x17);
+	if (bond_mode)
+		MDSS_PLL_REG_W(dp_res->pll_base,
+			QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x1F);
+	else
+		MDSS_PLL_REG_W(dp_res->pll_base,
+			QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x17);
 	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_CORE_CLK_EN, 0x1f);
 	/* Make sure the PHY register writes are done */
 	wmb();
@@ -361,50 +470,110 @@ static int dp_config_vco_rate_7nm(struct dp_pll_vco_clk *vco,
 	wmb();
 
 	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_VCO_DIV, pdb->phy_vco_div);
+	/* Make sure the PHY register writes are done */
+	wmb();
 
 	return res;
 }
 
-static bool dp_7nm_pll_lock_status(struct mdss_pll_resources *dp_res)
+static int dp_config_vco_rate_7nm_bond_master(struct mdss_pll_resources *dp_res,
+		unsigned long rate)
 {
-	u32 status;
-	bool pll_locked;
-
-	if (readl_poll_timeout_atomic((dp_res->pll_base +
-			QSERDES_COM_C_READY_STATUS),
-			status,
-			((status & BIT(0)) > 0),
-			DP_PHY_PLL_POLL_SLEEP_US,
-			DP_PHY_PLL_POLL_TIMEOUT_US)) {
-		pr_err("C_READY status is not high. Status=%x\n", status);
-		pll_locked = false;
-	} else {
-		pll_locked = true;
-	}
-
-	return pll_locked;
+	return dp_config_vco_rate_7nm_mission_mode(dp_res, rate, true);
 }
 
-static bool dp_7nm_phy_rdy_status(struct mdss_pll_resources *dp_res)
+static int dp_config_vco_rate_7nm_bond_slave(struct mdss_pll_resources *dp_res,
+		unsigned long rate)
 {
-	u32 status;
-	bool phy_ready = true;
+	u32 res = 0;
+	struct dp_pll_db_7nm *pdb = (struct dp_pll_db_7nm *)dp_res->priv;
 
-	/* poll for PHY ready status */
-	if (readl_poll_timeout_atomic((dp_res->phy_base +
-			DP_PHY_STATUS),
-			status,
-			((status & (BIT(1))) > 0),
-			DP_PHY_PLL_POLL_SLEEP_US,
-			DP_PHY_PLL_POLL_TIMEOUT_US)) {
-		pr_err("Phy_ready is not high. Status=%x\n", status);
-		phy_ready = false;
+	if (!dp_res->usb_dp_com_base || !dp_res->usb_pll_base) {
+		pr_err("Invalid USB registers\n");
+		res = -EINVAL;
+		goto lock_err;
 	}
 
-	return phy_ready;
+	res = dp_vco_pll_init_db_7nm(pdb, rate);
+	if (res) {
+		pr_err("VCO Init DB failed\n");
+		return res;
+	}
+
+	res = dp_config_vco_rate_7nm_mission_mode(dp_res, rate, true);
+	if (res) {
+		pr_err("Init slave PHY mission mode failed\n");
+		goto lock_err;
+	}
+
+	pr_debug("DP%d", dp_res->index);
+
+	// Enable the PLL/PHY
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_AUX_CFG2, 0x24);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x01);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x05);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x01);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x09);
+	/* Make sure the PHY register writes are done */
+	wmb();
+
+	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_RESETSM_CNTRL, 0x20);
+	/* Make sure the PHY register writes are done */
+	wmb();
+
+	if (!dp_7nm_pll_lock_status(dp_res)) {
+		res = -EINVAL;
+		goto lock_err;
+	}
+
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x19);
+	/* Make sure the PHY register writes are done */
+	wmb();
+	udelay(200);
+
+	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_PLL_EN, 0x02);
+
+	MDSS_PLL_REG_W(dp_res->usb_dp_com_base,
+		USB3_DP_COM_DP_BIST_CFG_0, 0x3f);
+	udelay(100);
+	MDSS_PLL_REG_W(dp_res->usb_dp_com_base,
+		USB3_DP_COM_DP_BIST_CFG_0, 0x3b);
+
+	MDSS_PLL_REG_W(dp_res->pll_base,
+		QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x1F);
+	MDSS_PLL_REG_W(dp_res->usb_pll_base,
+		USB3_QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x1F);
+	MDSS_PLL_REG_W(dp_res->usb_pll_base,
+		USB3_QSERDES_COM_SYSCLK_EN_SEL, 0x3b);
+	udelay(20);
+	MDSS_PLL_REG_W(dp_res->usb_pll_base, USB3_QSERDES_COM_CMN_MODE, 0x14);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_AUX_CFG12, 0x01);
+	MDSS_PLL_REG_W(dp_res->usb_pll_base, USB3_QSERDES_COM_CMN_MODE, 0x14);
+
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x11);
+	/* Make sure the PHY register writes are done */
+	wmb();
+
+lock_err:
+	return res;
 }
 
-static int dp_pll_enable_7nm(struct clk_hw *hw)
+static int dp_config_vco_rate_7nm(struct dp_pll_vco_clk *vco,
+		unsigned long rate)
+{
+	struct mdss_pll_resources *dp_res = vco->priv;
+	enum bond_mode_role bond_mode = get_bond_mode(dp_res);
+
+	if (bond_mode == BOND_MODE_MASTER)
+		return dp_config_vco_rate_7nm_bond_master(dp_res, rate);
+	else if (bond_mode == BOND_MODE_SLAVE)
+		return dp_config_vco_rate_7nm_bond_slave(dp_res, rate);
+	else
+		return dp_config_vco_rate_7nm_mission_mode(dp_res, rate, false);
+}
+
+static int dp_pll_enable_7nm_mission_mode(struct clk_hw *hw,
+		bool slave_bond_mode)
 {
 	int rc = 0;
 	struct dp_pll_vco_clk *vco = to_dp_vco_hw(hw);
@@ -414,31 +583,40 @@ static int dp_pll_enable_7nm(struct clk_hw *hw)
 
 	pr_debug("DP%d", dp_res->index);
 
-	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_AUX_CFG2, 0x24);
-	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x01);
-	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x05);
-	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x01);
-	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x09);
-	wmb(); /* Make sure the PHY register writes are done */
+	if (!slave_bond_mode) {
+		/**
+		 * Slave PHY bond mode has done this step in
+		 * dp_config_vco_rate_7nm_bond_slave
+		 */
+		MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_AUX_CFG2, 0x24);
+		MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x01);
+		MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x05);
+		MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x01);
+		MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x09);
+		/* Make sure the PHY register writes are done */
+		wmb();
 
-	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_RESETSM_CNTRL, 0x20);
-	wmb();	/* Make sure the PLL register writes are done */
+		MDSS_PLL_REG_W(dp_res->pll_base,
+			QSERDES_COM_RESETSM_CNTRL, 0x20);
+		/* Make sure the PHY register writes are done */
+		wmb();
 
-	if (!dp_7nm_pll_lock_status(dp_res)) {
-		rc = -EINVAL;
-		goto lock_err;
+		if (!dp_7nm_pll_lock_status(dp_res)) {
+			rc = -EINVAL;
+			goto lock_err;
+		}
+
+		MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x19);
+		/* Make sure the PHY register writes are done */
+		wmb();
+		/* poll for PHY ready status */
+		if (!dp_7nm_phy_rdy_status(dp_res)) {
+			rc = -EINVAL;
+			goto lock_err;
+		}
+
+		pr_debug("PLL is locked\n");
 	}
-
-	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x19);
-	/* Make sure the PHY register writes are done */
-	wmb();
-	/* poll for PHY ready status */
-	if (!dp_7nm_phy_rdy_status(dp_res)) {
-		rc = -EINVAL;
-		goto lock_err;
-	}
-
-	pr_debug("PLL is locked\n");
 
 	if (pdb->lane_cnt == 1) {
 		bias_en = 0x3e;
@@ -461,31 +639,35 @@ static int dp_pll_enable_7nm(struct clk_hw *hw)
 				TXn_TRANSCEIVER_BIAS_EN, bias_en);
 		}
 	} else {
-		MDSS_PLL_REG_W(dp_res->ln_tx0_base, TXn_HIGHZ_DRVR_EN, drvr_en);
+		MDSS_PLL_REG_W(dp_res->ln_tx0_base,
+			TXn_HIGHZ_DRVR_EN, drvr_en);
 		MDSS_PLL_REG_W(dp_res->ln_tx0_base,
 			TXn_TRANSCEIVER_BIAS_EN, bias_en);
-		MDSS_PLL_REG_W(dp_res->ln_tx1_base, TXn_HIGHZ_DRVR_EN, drvr_en);
+		MDSS_PLL_REG_W(dp_res->ln_tx1_base,
+			TXn_HIGHZ_DRVR_EN, drvr_en);
 		MDSS_PLL_REG_W(dp_res->ln_tx1_base,
 			TXn_TRANSCEIVER_BIAS_EN, bias_en);
 	}
 
 	MDSS_PLL_REG_W(dp_res->ln_tx0_base, TXn_TX_POL_INV, 0x0a);
 	MDSS_PLL_REG_W(dp_res->ln_tx1_base, TXn_TX_POL_INV, 0x0a);
-	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x18);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG,
+		slave_bond_mode ? 0x10 : 0x18);
 	udelay(2000);
 
-	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x19);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG,
+		slave_bond_mode ? 0x11 : 0x19);
 
-	/*
-	 * Make sure all the register writes are completed before
-	 * doing any other operation
-	 */
+	/* Make sure the PHY register writes are done */
 	wmb();
 
-	/* poll for PHY ready status */
-	if (!dp_7nm_phy_rdy_status(dp_res)) {
-		rc = -EINVAL;
-		goto lock_err;
+	/* Slave PHY bond mode doesn't need this step */
+	if (!slave_bond_mode) {
+		/* poll for PHY ready status */
+		if (!dp_7nm_phy_rdy_status(dp_res)) {
+			rc = -EINVAL;
+			goto lock_err;
+		}
 	}
 
 	MDSS_PLL_REG_W(dp_res->ln_tx0_base, TXn_TX_DRV_LVL, 0x3f);
@@ -503,6 +685,119 @@ static int dp_pll_enable_7nm(struct clk_hw *hw)
 
 lock_err:
 	return rc;
+}
+
+static int dp_pll_enable_7nm_bond_master(struct clk_hw *hw)
+{
+	int rc = 0;
+	struct dp_pll_vco_clk *vco = to_dp_vco_hw(hw);
+	struct mdss_pll_resources *dp_res = vco->priv;
+
+	rc = dp_pll_enable_7nm_mission_mode(hw, false);
+	if (rc) {
+		pr_err("Enable master PHY mission mode failed\n");
+		goto lock_err;
+	}
+
+	pr_debug("DP%d", dp_res->index);
+
+	/* Program Master PHY registers, apply pulse on TSync from master PHY */
+	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x11);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x09);
+	udelay(1);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x19);
+
+
+	/**
+	 * Program Master PHY registers, CLK EN from master PHY,
+	 * then enable Retime for master
+	 */
+	MDSS_PLL_REG_W(dp_res->pll_base, QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x1D);
+	/* Make sure the PHY register writes are done */
+	wmb();
+
+	/* poll for PHY ready status */
+	if (!dp_7nm_phy_rdy_status(dp_res)) {
+		rc = -EINVAL;
+		goto lock_err;
+	}
+
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x18);
+	udelay(1);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x19);
+	/* Make sure the PHY register writes are done */
+	wmb();
+
+	udelay(500);
+
+lock_err:
+	return rc;
+}
+
+static int dp_pll_enable_7nm_bond_slave(struct clk_hw *hw)
+{
+	int rc = 0;
+	struct dp_pll_vco_clk *vco = to_dp_vco_hw(hw);
+	struct mdss_pll_resources *dp_res = vco->priv;
+
+	if (!dp_res->usb_dp_com_base || !dp_res->usb_pll_base) {
+		pr_err("Invalid USB registers\n");
+		rc = -EINVAL;
+		goto lock_err;
+	}
+
+	rc = dp_pll_enable_7nm_mission_mode(hw, true);
+	if (rc) {
+		pr_err("Enable slave PHY mission mode failed\n");
+		goto lock_err;
+	}
+
+	pr_debug("DP%d", dp_res->index);
+
+	/* Tsync override */
+	MDSS_PLL_REG_W(dp_res->usb_dp_com_base, USB3_DP_COM_TYPEC_CTRL, 0xa0);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_TSYNC_OVRD, 0x1c);
+	/* Make sure the PHY register writes are done */
+	wmb();
+
+	/* Program Slave PHY registers, apply TSync on slave PHY */
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_TSYNC_OVRD, 0x1f);
+	udelay(100);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_TSYNC_OVRD, 0x1e);
+	/* Make sure the PHY register writes are done */
+	wmb();
+	udelay(50);
+
+	/* Program Slave PHY registers, enable Retime for slave */
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x18);
+	udelay(1);
+	MDSS_PLL_REG_W(dp_res->phy_base, DP_PHY_CFG, 0x19);
+	/* Make sure the PHY register writes are done */
+	wmb();
+
+	/* poll for PHY ready status */
+	if (!dp_7nm_phy_rdy_status(dp_res)) {
+		rc = -EINVAL;
+		goto lock_err;
+	}
+	udelay(500);
+
+lock_err:
+	return rc;
+}
+
+static int dp_pll_enable_7nm(struct clk_hw *hw)
+{
+	struct dp_pll_vco_clk *vco = to_dp_vco_hw(hw);
+	struct mdss_pll_resources *dp_res = vco->priv;
+	enum bond_mode_role bond_mode = get_bond_mode(dp_res);
+
+	if (bond_mode == BOND_MODE_MASTER)
+		return dp_pll_enable_7nm_bond_master(hw);
+	else if (bond_mode == BOND_MODE_SLAVE)
+		return dp_pll_enable_7nm_bond_slave(hw);
+	else
+		return dp_pll_enable_7nm_mission_mode(hw, false);
 }
 
 static int dp_pll_disable_7nm(struct clk_hw *hw)
@@ -565,6 +860,7 @@ int dp_vco_prepare_7nm(struct clk_hw *hw)
 	}
 
 	mdss_pll_resource_enable(dp_res, false);
+
 error:
 	return rc;
 }
@@ -642,6 +938,8 @@ unsigned long dp_vco_recalc_rate_7nm(struct clk_hw *hw,
 	u32 hsclk_sel, link_clk_divsel, hsclk_div, link_clk_div = 0;
 	unsigned long vco_rate;
 	struct mdss_pll_resources *dp_res;
+	struct mdss_pll_resources *dp_brother_res = NULL;
+	enum bond_mode_role bond_mode;
 
 	if (!hw) {
 		pr_err("invalid input parameters\n");
@@ -650,6 +948,9 @@ unsigned long dp_vco_recalc_rate_7nm(struct clk_hw *hw,
 
 	vco = to_dp_vco_hw(hw);
 	dp_res = vco->priv;
+	bond_mode = get_bond_mode(dp_res);
+	if (bond_mode != NON_PLL_BOND_MODE && vco->brother)
+		dp_brother_res = vco->brother->priv;
 
 	rc = mdss_pll_resource_enable(dp_res, true);
 	if (rc) {
@@ -660,7 +961,12 @@ unsigned long dp_vco_recalc_rate_7nm(struct clk_hw *hw,
 	pr_debug("DP%d input rates: parent=%lu, vco=%lu\n",
 		dp_res->index, parent_rate, vco->rate);
 
-	hsclk_sel = MDSS_PLL_REG_R(dp_res->pll_base, QSERDES_COM_HSCLK_SEL);
+	if (bond_mode == BOND_MODE_SLAVE && dp_brother_res)
+		hsclk_sel = MDSS_PLL_REG_R(dp_brother_res->pll_base,
+					QSERDES_COM_HSCLK_SEL);
+	else
+		hsclk_sel = MDSS_PLL_REG_R(dp_res->pll_base,
+					QSERDES_COM_HSCLK_SEL);
 	hsclk_sel &= 0x0f;
 
 	if (hsclk_sel == 5)
@@ -676,7 +982,12 @@ unsigned long dp_vco_recalc_rate_7nm(struct clk_hw *hw,
 		hsclk_div = 5;
 	}
 
-	link_clk_divsel = MDSS_PLL_REG_R(dp_res->phy_base, DP_PHY_AUX_CFG2);
+	if (bond_mode == BOND_MODE_SLAVE && dp_brother_res)
+		link_clk_divsel = MDSS_PLL_REG_R(dp_brother_res->phy_base,
+					DP_PHY_AUX_CFG2);
+	else
+		link_clk_divsel = MDSS_PLL_REG_R(dp_res->phy_base,
+					DP_PHY_AUX_CFG2);
 	link_clk_divsel >>= 2;
 	link_clk_divsel &= 0x3;
 

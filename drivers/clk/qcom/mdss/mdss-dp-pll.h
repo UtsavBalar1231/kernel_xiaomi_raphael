@@ -20,6 +20,7 @@ struct dp_pll_vco_clk {
 	u64		min_rate;	/* min vco rate */
 	u64		max_rate;	/* max vco rate */
 	void		*priv;
+	struct dp_pll_vco_clk *brother;	/* bond mode only */
 };
 
 static inline struct dp_pll_vco_clk *to_dp_vco_hw(struct clk_hw *hw)

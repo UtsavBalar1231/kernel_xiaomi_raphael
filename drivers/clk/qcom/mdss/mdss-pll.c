@@ -219,6 +219,8 @@ static int mdss_pll_probe(struct platform_device *pdev)
 	struct resource *tx0_base_reg, *tx1_base_reg;
 	struct resource *dynamic_pll_base_reg;
 	struct resource *gdsc_base_reg;
+	struct resource *usb_dp_com_base_reg;
+	struct resource *usb_pll_base_reg;
 	struct mdss_pll_resources *pll_res;
 
 	if (!pdev->dev.of_node) {
@@ -357,6 +359,30 @@ static int mdss_pll_probe(struct platform_device *pdev)
 		goto gdsc_io_error;
 	}
 
+	usb_dp_com_base_reg = platform_get_resource_byname(pdev,
+					IORESOURCE_MEM, "usb_dp_com");
+	if (usb_dp_com_base_reg) {
+		pll_res->usb_dp_com_base = ioremap(usb_dp_com_base_reg->start,
+				resource_size(usb_dp_com_base_reg));
+		if (!pll_res->usb_dp_com_base) {
+			pr_err("Unable to remap usb_dp_com base resources\n");
+			rc = -ENOMEM;
+			goto usb_dp_com_io_error;
+		}
+	}
+
+	usb_pll_base_reg = platform_get_resource_byname(pdev,
+					IORESOURCE_MEM, "usb_pll");
+	if (usb_pll_base_reg) {
+		pll_res->usb_pll_base = ioremap(usb_pll_base_reg->start,
+				resource_size(usb_pll_base_reg));
+		if (!pll_res->usb_pll_base) {
+			pr_err("Unable to remap usb_pll base resources\n");
+			rc = -ENOMEM;
+			goto usb_pll_io_error;
+		}
+	}
+
 	rc = mdss_pll_resource_init(pdev, pll_res);
 	if (rc) {
 		pr_err("Pll ndx=%d resource init failed rc=%d\n",
@@ -378,6 +404,12 @@ static int mdss_pll_probe(struct platform_device *pdev)
 clock_register_error:
 	mdss_pll_resource_deinit(pdev, pll_res);
 res_init_error:
+	if (pll_res->usb_pll_base)
+		iounmap(pll_res->usb_pll_base);
+usb_pll_io_error:
+	if (pll_res->usb_dp_com_base)
+		iounmap(pll_res->usb_dp_com_base);
+usb_dp_com_io_error:
 	if (pll_res->gdsc_base)
 		iounmap(pll_res->gdsc_base);
 gdsc_io_error:
