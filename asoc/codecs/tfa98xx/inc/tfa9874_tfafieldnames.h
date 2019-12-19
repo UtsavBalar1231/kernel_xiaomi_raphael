@@ -1,13 +1,17 @@
-/** Filename: tfa9874_tfafieldnames.h
- *  This file was generated automatically on 08/22/17 at 13:43:43. 
- *  Source file: TFA9874N1C0_DefaultI2CSettings.xlsx
+/*
+ * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  */
 
 #ifndef _TFA9874_TFAFIELDNAMES_H
 #define _TFA9874_TFAFIELDNAMES_H
 
 
-#define TFA9874_I2CVERSION    1
+#define TFA9874_I2CVERSION    1.16
 
 typedef enum nxpTfa9874BfEnumList {
     TFA9874_BF_PWDN  = 0x0000,    /*!< Powerdown selection                                */
@@ -159,6 +163,7 @@ typedef enum nxpTfa9874BfEnumList {
     TFA9874_BF_DCTRACK= 0x7430,    /*!< Boost algorithm selection, effective only when boost_intelligent is set to 1 */
     TFA9874_BF_DCTRIP= 0x7444,    /*!< 1st Adaptive boost trip levels, effective only when DCIE is set to 1 */
     TFA9874_BF_DCHOLD= 0x7494,    /*!< Hold time for DCDC booster, effective only when boost_intelligent is set to 1 */
+    TFA9874_BF_DCINT = 0x74e0,    /*!< Selection of data for adaptive boost algorithm, effective only when boost_intelligent is set to 1 */
     TFA9874_BF_DCTRIP2= 0x7534,    /*!< 2nd Adaptive boost trip levels, effective only when DCIE is set to 1 */
     TFA9874_BF_DCTRIPT= 0x7584,    /*!< Track Adaptive boost trip levels, effective only when boost_intelligent is set to 1 */
     TFA9874_BF_DCTRIPHYSTE= 0x75f0,    /*!< Enable hysteresis on booster trip levels           */
@@ -332,6 +337,7 @@ typedef enum nxpTfa9874BfEnumList {
    { 0x7430, "DCTRACK"},    /* Boost algorithm selection, effective only when boost_intelligent is set to 1, */\
    { 0x7444, "DCTRIP"},    /* 1st Adaptive boost trip levels, effective only when DCIE is set to 1, */\
    { 0x7494, "DCHOLD"},    /* Hold time for DCDC booster, effective only when boost_intelligent is set to 1, */\
+   { 0x74e0, "DCINT"},    /* Selection of data for adaptive boost algorithm, effective only when boost_intelligent is set to 1, */\
    { 0x7534, "DCTRIP2"},    /* 2nd Adaptive boost trip levels, effective only when DCIE is set to 1, */\
    { 0x7584, "DCTRIPT"},    /* Track Adaptive boost trip levels, effective only when boost_intelligent is set to 1, */\
    { 0x75f0, "DCTRIPHYSTE"},    /* Enable hysteresis on booster trip levels          , */\

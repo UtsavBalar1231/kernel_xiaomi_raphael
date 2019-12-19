@@ -1,13 +1,17 @@
-/** Filename: tfa9912_tfafieldnames.h
- *  This file was generated automatically on 06/14/17 at 18:04:05. 
- *  Source file: TFA9912_N1A_I2C_regmap_V1.41.xlsx
+/*
+ * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  */
 
 #ifndef _TFA9912_TFAFIELDNAMES_H
 #define _TFA9912_TFAFIELDNAMES_H
 
 
-#define TFA9912_I2CVERSION    1.41
+#define TFA9912_I2CVERSION    1.43
 
 typedef enum nxpTfa9912BfEnumList {
     TFA9912_BF_PWDN  = 0x0000,    /*!< Powerdown selection                                */
@@ -1760,5 +1764,6 @@ enum tfa9912_irq {
 	{ 42, "STSAMMOD"},\
 	{ 43, "STTAPMOD"},\
 	{ 44, "STTAPTRG"},\
+	{ 45, "45"},\
 };
 #endif /* _TFA9912_TFAFIELDNAMES_H */

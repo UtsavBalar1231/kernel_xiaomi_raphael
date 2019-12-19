@@ -65,7 +65,6 @@ ifdef CONFIG_SND_SOC_TFA9874
 	TFA98XX_OBJS += src/tfa_container.o
 	TFA98XX_OBJS += src/tfa_dsp.o
 	TFA98XX_OBJS += src/tfa_init.o
-	#TFA98XX_OBJS += src/tfa_debug.o
 endif
 
 LINUX_INC += -Iinclude/linux

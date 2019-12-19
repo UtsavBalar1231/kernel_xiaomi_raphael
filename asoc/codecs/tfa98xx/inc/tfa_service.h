@@ -1,26 +1,15 @@
 /*
- * Copyright 2014-2017 NXP Semiconductors
- * Copyright (C) 2019 XiaoMi, Inc.
+ * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 #ifndef TFA_SERVICE_H
 #define TFA_SERVICE_H
 
-//#include "config.h"
-// workaround for Visual Studio: 
-// fatal error C1083: Cannot open include file: 'config.h': No such file or directory
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else
@@ -36,9 +25,9 @@ extern "C" {
 #include "versions.h"
 #endif
 #ifdef TFA98XX_GIT_VERSIONS
-  #define TFA98XX_API_REV_STR TFA98XX_GIT_VERSIONS
+  #define TFA98XX_API_REV_STR "v6.6.3"/*TFA98XX_GIT_VERSIONS*/
 #else
-  #define TFA98XX_API_REV_STR "v6.5.2"
+  #define TFA98XX_API_REV_STR "v6.6.3"
 #endif
 
 #include "tfa_device.h"
@@ -771,7 +760,7 @@ enum Tfa98xx_Error mem_write(struct tfa_device *tfa, unsigned short address, int
 enum Tfa98xx_Error mem_read(struct tfa_device *tfa, unsigned int start_offset, int num_words, int *pValues);
 
 enum Tfa98xx_Error dsp_partial_coefficients(struct tfa_device *tfa, uint8_t *prev, uint8_t *next);
-
+int is_94_N2_device(struct tfa_device *tfa);
 /**
  * write/read raw msg functions:
  * the buffer is provided in little endian format, each word occupying 3 bytes, length is in bytes.
@@ -1016,6 +1005,7 @@ enum Tfa98xx_Error tfa_status(struct tfa_device *tfa);
  */
 int tfa_dev_get_mtpb(struct tfa_device *tfa);
 
+enum Tfa98xx_Error tfaGetFwApiVersion(struct tfa_device *tfa, unsigned char *pFirmwareVersion);
 #ifdef __cplusplus
 }
 #endif

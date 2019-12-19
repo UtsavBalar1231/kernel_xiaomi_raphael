@@ -1,6 +1,10 @@
-/** Filename: tfa9896_tfafieldnames.h
- *  This file was generated automatically on 08/15/16 at 09:43:38. 
- *  Source file: TFA9896_N1B1_I2C_regmap_V16.xlsx
+/*
+ * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  */
 
 #ifndef _TFA9896_TFAFIELDNAMES_H

@@ -1,20 +1,11 @@
 /*
- * Copyright 2014-2017 NXP Semiconductors
- * Copyright (C) 2019 XiaoMi, Inc.
+ * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
-
 
 /**\file
  *
@@ -79,6 +70,7 @@ struct tfa_device_ops {
 	enum Tfa98xx_Error (*set_mute)(struct tfa_device *tfa, int mute); /**< set mute */
 	enum Tfa98xx_Error (*faim_protect)(struct tfa_device *tfa, int state); /**< Protect FAIM from being corrupted  */
 	enum Tfa98xx_Error(*set_osc_powerdown)(struct tfa_device *tfa, int state); /**< Allow to change internal osc. gating settings */
+	enum Tfa98xx_Error(*update_lpm)(struct tfa_device *tfa, int state); /**< Allow to change lowpowermode settings */
 };
 
 /**
@@ -145,8 +137,10 @@ struct tfa_device {
 	int convert_dsp32; /**< convert 24 bit DSP messages to 32 bit */
 	int sync_iv_delay; /**< synchronize I/V delay at cold start */
 	int is_probus_device; /**< probus device: device without internal DSP */
+	int advance_keys_handling;
 	int needs_reset; /**< add the reset trigger for SetAlgoParams and SetMBDrc commands */
 	struct kmem_cache *cachep;	/**< Memory allocator handle */
+	char fw_itf_ver[4];          /* Firmware ITF version */
 };
 
 /**
@@ -226,7 +220,7 @@ enum tfa_error tfa_dev_stop(struct tfa_device *tfa);
  *  @param state struct = desired device state after function return
  *  @return tfa_error enum
  */
-enum tfa_error tfa_dev_set_state(struct tfa_device *tfa, enum tfa_state state, int is_calibration);
+enum tfa_error tfa_dev_set_state(struct tfa_device *tfa, enum tfa_state state,int is_calibration);
 
 /**
  * Retrieve the current state of this instance in an active way.
@@ -299,4 +293,3 @@ int tfa_irq_unmask(struct tfa_device *tfa);
 //debug?
 
 #endif /* __TFA_DEVICE_H__ */
-

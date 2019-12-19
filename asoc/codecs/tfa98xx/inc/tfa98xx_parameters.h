@@ -1,33 +1,15 @@
 /*
- * Copyright 2013-2017 NXP Semiconductors
- * Copyright (C) 2019 XiaoMi, Inc.
+ * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * tfa98xx_parameters.h
- *
- *  Created on: Jul 22, 2013
- *      Author: NLV02095
  */
 
 #ifndef TFA98XXPARAMETERS_H_
 #define TFA98XXPARAMETERS_H_
 
-//#include "config.h"
-// workaround for Visual Studio: 
-// fatal error C1083: Cannot open include file: 'config.h': No such file or directory
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else

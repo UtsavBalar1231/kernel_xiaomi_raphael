@@ -1,17 +1,14 @@
 /*
- * tfa9891_tfafieldnames.h
+ * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
  *
- *  Created on: Jul 16, 2015
- *      Author: wim
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  */
 
 #ifndef TFA_INC_TFA9891_TFAFIELDNAMES_H_
 #define TFA_INC_TFA9891_TFAFIELDNAMES_H_
-
-/** Filename: Tfa9891_TfaFieldnames.h
- *  This file was generated automatically on 07/16/15 at 15:00:02.
- *  Source file: TFA9891_I2C_list_V13.xls
- */
 
 #define TFA9891_I2CVERSION    13
 
