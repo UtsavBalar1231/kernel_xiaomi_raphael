@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -36,6 +36,7 @@
 #include "wni_cfg.h"
 #include <cdp_txrx_tx_delay.h>
 #include <cdp_txrx_peer_ops.h>
+#include "cdp_txrx_misc.h"
 
 #include "qdf_nbuf.h"
 #include "qdf_types.h"
@@ -3720,12 +3721,24 @@ QDF_STATUS wma_stats_ext_req(void *wma_ptr, tpStatsExtRequest preq)
 	tp_wma_handle wma = (tp_wma_handle) wma_ptr;
 	struct stats_ext_params *params;
 	size_t params_len;
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	struct cdp_pdev *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	struct cdp_vdev *vdev;
 	QDF_STATUS status;
 
 	if (!wma) {
 		WMA_LOGE("%s: wma handle is NULL", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	vdev = cdp_get_vdev_from_vdev_id(soc, pdev, preq->vdev_id);
+	if (!vdev) {
+		WMA_LOGE("%s vdev is null", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	/* Request RX HW stats */
+	cdp_request_rx_hw_stats(soc, vdev);
 
 	params_len = sizeof(*params) + preq->request_data_len;
 	params = qdf_mem_malloc(params_len);
