@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -1043,6 +1043,11 @@ struct cdp_misc_ops {
 					       uint32_t time_in_ms,
 					       uint32_t high_th,
 					       uint32_t low_th);
+	QDF_STATUS (*txrx_ext_stats_request)(struct cdp_pdev *pdev,
+					     struct cdp_txrx_ext_stats *req);
+	void (*request_rx_hw_stats)(struct cdp_soc_t *soc_hdl,
+				    struct cdp_vdev *vdev);
+	QDF_STATUS (*wait_for_ext_rx_stats)(struct cdp_soc_t *soc_hdl);
 };
 
 /**

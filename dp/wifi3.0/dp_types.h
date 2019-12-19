@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1143,6 +1143,17 @@ struct dp_soc {
 	} ipa_uc_rx_rsc;
 
 	qdf_atomic_t ipa_pipes_enabled;
+#endif
+
+#ifdef WLAN_FEATURE_STATS_EXT
+	struct {
+		uint32_t rx_mpdu_received;
+		uint32_t rx_mpdu_missed;
+	} ext_stats;
+	qdf_event_t rx_hw_stats_event;
+
+	/* Ignore reo command queue status during peer delete */
+	bool ignore_reo_status_cb;
 #endif
 
 	/* Smart monitor capability for HKv2 */

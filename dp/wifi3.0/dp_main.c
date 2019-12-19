@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2732,6 +2732,17 @@ static void dp_enable_verbose_debug(struct dp_soc *soc)
 }
 #endif
 
+#ifdef WLAN_FEATURE_STATS_EXT
+static inline void dp_create_ext_stats_event(struct dp_soc *soc)
+{
+	qdf_event_create(&soc->rx_hw_stats_event);
+}
+#else
+static inline void dp_create_ext_stats_event(struct dp_soc *soc)
+{
+}
+#endif
+
 /*
  * dp_soc_cmn_setup() - Common SoC level initializion
  * @soc:		Datapath SOC handle
@@ -2963,6 +2974,7 @@ static int dp_soc_cmn_setup(struct dp_soc *soc)
 		wlan_cfg_get_defrag_timeout_check(soc_cfg_ctx);
 	qdf_spinlock_create(&soc->rx.defrag.defrag_lock);
 
+	dp_create_ext_stats_event(soc);
 out:
 	/*
 	 * set the fragment destination ring
@@ -5077,6 +5089,26 @@ static inline void dp_peer_rx_bufq_resources_init(struct dp_peer *peer)
 }
 #endif
 
+#ifdef WLAN_FEATURE_STATS_EXT
+/*
+ * dp_set_ignore_reo_status_cb() - set ignore reo status cb flag
+ * @soc: dp soc handle
+ * @flag: flag to set or reset
+ *
+ * Return: None
+ */
+static inline void dp_set_ignore_reo_status_cb(struct dp_soc *soc,
+					       bool flag)
+{
+	soc->ignore_reo_status_cb = flag;
+}
+#else
+static inline void dp_set_ignore_reo_status_cb(struct dp_soc *soc,
+					       bool flag)
+{
+}
+#endif
+
 /*
  * dp_peer_create_wifi3() - attach txrx peer
  * @txrx_vdev: Datapath VDEV handle
@@ -5234,6 +5266,12 @@ static void *dp_peer_create_wifi3(struct cdp_vdev *vdev_handle,
 	    qdf_mem_cmp(peer->mac_addr.raw, vdev->mac_addr.raw,
 			QDF_MAC_ADDR_SIZE) == 0) {
 		vdev->vap_self_peer = peer;
+	}
+
+	if (wlan_op_mode_sta == vdev->opmode &&
+	    qdf_mem_cmp(peer->mac_addr.raw, vdev->mac_addr.raw,
+			QDF_MAC_ADDR_SIZE) != 0) {
+		dp_set_ignore_reo_status_cb(soc, false);
 	}
 
 	for (i = 0; i < DP_MAX_TIDS; i++)
@@ -6001,6 +6039,12 @@ static void dp_peer_delete_wifi3(void *peer_handle, uint32_t bitmap)
 	dp_peer_rx_bufq_resources_deinit(peer);
 
 	qdf_spinlock_destroy(&peer->peer_info_lock);
+
+	if (wlan_op_mode_sta == peer->vdev->opmode &&
+	    qdf_mem_cmp(peer->mac_addr.raw, peer->vdev->mac_addr.raw,
+			QDF_MAC_ADDR_SIZE) != 0) {
+		dp_set_ignore_reo_status_cb(peer->vdev->pdev->soc, true);
+	}
 
 	/*
 	 * Remove the reference added during peer_attach.
@@ -9406,6 +9450,118 @@ static void dp_txrx_post_data_stall_event(
 }
 #endif /* WLAN_SUPPORT_DATA_STALL */
 
+#ifdef WLAN_FEATURE_STATS_EXT
+/* rx hw stats event wait timeout in ms */
+#define DP_REO_STATUS_STATS_TIMEOUT 1000
+/**
+ * dp_txrx_ext_stats_request - request dp txrx extended stats request
+ * @ppdev: pdev handle
+ * @req: stats request
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS
+dp_txrx_ext_stats_request(struct cdp_pdev *ppdev,
+			  struct cdp_txrx_ext_stats *req)
+{
+	struct dp_pdev *pdev = (struct dp_pdev *)ppdev;
+	struct dp_soc *soc = pdev->soc;
+
+	if (!pdev) {
+		dp_err("pdev is null");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	dp_aggregate_pdev_stats(pdev);
+
+	req->tx_msdu_enqueue = pdev->stats.tx_i.processed.num;
+	req->tx_msdu_overflow = pdev->stats.tx_i.dropped.ring_full;
+	req->rx_mpdu_received = soc->ext_stats.rx_mpdu_received;
+	req->rx_mpdu_delivered = soc->ext_stats.rx_mpdu_received;
+	req->rx_mpdu_missed = soc->ext_stats.rx_mpdu_missed;
+	req->rx_mpdu_error = soc->stats.rx.err_ring_pkts -
+				soc->stats.rx.rx_frags;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * dp_rx_hw_stats_cb - request rx hw stats response callback
+ * @soc: soc handle
+ * @cb_ctxt: callback context
+ * @reo_status: reo command response status
+ *
+ * Return: None
+ */
+static void dp_rx_hw_stats_cb(struct dp_soc *soc, void *cb_ctxt,
+			      union hal_reo_status *reo_status)
+{
+	struct dp_rx_tid *rx_tid = (struct dp_rx_tid *)cb_ctxt;
+	struct hal_reo_queue_status *queue_status = &reo_status->queue_status;
+
+	if (soc->ignore_reo_status_cb) {
+		qdf_event_set(&soc->rx_hw_stats_event);
+		return;
+	}
+
+	if (queue_status->header.status != HAL_REO_CMD_SUCCESS) {
+		dp_info("REO stats failure %d for TID %d",
+			queue_status->header.status, rx_tid->tid);
+		return;
+	}
+
+	soc->ext_stats.rx_mpdu_received += queue_status->mpdu_frms_cnt;
+	soc->ext_stats.rx_mpdu_missed += queue_status->late_recv_mpdu_cnt;
+
+	if (rx_tid->tid == (DP_MAX_TIDS - 1))
+		qdf_event_set(&soc->rx_hw_stats_event);
+}
+
+/**
+ * dp_request_rx_hw_stats - request rx hardware stats
+ * @soc_hdl: soc handle
+ * @pvdev: vdev handle
+ *
+ * Return: None
+ */
+static void
+dp_request_rx_hw_stats(struct cdp_soc_t *soc_hdl, struct cdp_vdev *pvdev)
+{
+	struct dp_soc *soc = (struct dp_soc *)soc_hdl;
+	struct dp_vdev *vdev = (struct dp_vdev *)pvdev;
+	struct dp_peer *peer;
+
+	peer = vdev->vap_bss_peer;
+
+	if (!peer || peer->delete_in_progress) {
+		dp_err("Peer deletion in progress");
+		qdf_event_set(&soc->rx_hw_stats_event);
+		return;
+	}
+
+	qdf_event_reset(&soc->rx_hw_stats_event);
+	dp_peer_rxtid_stats(peer, dp_rx_hw_stats_cb, NULL);
+}
+
+/**
+ * dp_wait_for_ext_rx_stats - wait for rx reo status for rx stats
+ * @soc_hdl: cdp opaque soc handle
+ *
+ * Return: status
+ */
+static QDF_STATUS
+dp_wait_for_ext_rx_stats(struct cdp_soc_t *soc_hdl)
+{
+	struct dp_soc *soc = (struct dp_soc *)soc_hdl;
+	QDF_STATUS status;
+
+	status = qdf_wait_single_event(&soc->rx_hw_stats_event,
+				       DP_REO_STATUS_STATS_TIMEOUT);
+
+	return status;
+}
+#endif /* WLAN_FEATURE_STATS_EXT */
+
 #ifndef CONFIG_WIN
 static struct cdp_misc_ops dp_ops_misc = {
 #ifdef FEATURE_WLAN_TDLS
@@ -9424,6 +9580,12 @@ static struct cdp_misc_ops dp_ops_misc = {
 	.txrx_data_stall_cb_register = dp_register_data_stall_detect_cb,
 	.txrx_data_stall_cb_deregister = dp_deregister_data_stall_detect_cb,
 	.txrx_post_data_stall_event = dp_txrx_post_data_stall_event,
+#endif
+
+#ifdef WLAN_FEATURE_STATS_EXT
+	.txrx_ext_stats_request = dp_txrx_ext_stats_request,
+	.request_rx_hw_stats = dp_request_rx_hw_stats,
+	.wait_for_ext_rx_stats = dp_wait_for_ext_rx_stats,
 #endif
 };
 
