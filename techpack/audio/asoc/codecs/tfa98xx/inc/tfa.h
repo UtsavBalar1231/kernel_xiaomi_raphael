@@ -42,6 +42,7 @@ int tfa_plop_noise_interrupt(struct tfa_device *tfa, int profile, int vstep, u8 
 #else
 int tfa_plop_noise_interrupt(struct tfa_device *tfa, int profile, int vstep);
 #endif
+/*[nxp34663] CR: support 16bit/24bit/32bit audio data. end*/
 void tfa_lp_mode_interrupt(struct tfa_device *tfa);
 
 #endif /* TFA_H_ */
