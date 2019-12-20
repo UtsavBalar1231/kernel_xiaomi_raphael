@@ -293,3 +293,4 @@ int tfa_irq_unmask(struct tfa_device *tfa);
 //debug?
 
 #endif /* __TFA_DEVICE_H__ */
+
