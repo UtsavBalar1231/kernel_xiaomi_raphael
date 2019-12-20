@@ -56,8 +56,6 @@ struct hab_driver hab_driver = {
 	.devp = hab_devices,
 	.uctx_list = LIST_HEAD_INIT(hab_driver.uctx_list),
 	.drvlock = __SPIN_LOCK_UNLOCKED(hab_driver.drvlock),
-	.imp_list = LIST_HEAD_INIT(hab_driver.imp_list),
-	.imp_lock = __SPIN_LOCK_UNLOCKED(hab_driver.imp_lock),
 };
 
 struct uhab_context *hab_ctx_alloc(int kernel)
@@ -114,8 +112,7 @@ void hab_ctx_free(struct kref *ref)
 	int i;
 	struct uhab_context *ctxdel, *ctxtmp;
 	struct hab_open_node *node;
-	struct export_desc *exp = NULL,
-			*exp_tmp = NULL;
+	struct export_desc *exp, *exp_tmp;
 
 	/* garbage-collect exp/imp buffers */
 	write_lock_bh(&ctx->exp_lock);
