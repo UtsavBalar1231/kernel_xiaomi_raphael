@@ -1,0 +1,66 @@
+Qualcomm Technologies, Inc. clock controller based PWM driver
+------------------------------------------------------------
+
+Qualcomm Technologies, Inc. provides clock controller to be connected to LED
+to generate PWM. Driver for configuring duty cycle of clock to get the required
+brightnes. Complete clock period/duty cycle is 100 and brightness is the
+period in which signal is active.
+
+Required properties:
+- compatible: Should be "qcom,clk-led-pwm".
+- clock_names: Should be "src_clk".
+- clocks: Should contain the source clock.
+- assgined-clocks: Should be same as source clock.
+- assinged-clock-rates: Required frequency of the source clock.
+- qcom,max_duty: Maximum duty cyles that can be set on the clock.
+		   Should be less than 100.
+- pinctrl-names: Property should contain "active" and "sleep" for the
+		   pin configurations during the usecase and during idle.
+- pinctrl-x: phandle to the default/sleep pin configurations.
+
+Optional properties:
+- qcom,label: Label for the sysfs node.
+
+
+Example:
+
+qcom_clk_led {
+	compatible = "qcom,clk-led-pwm";
+	qcom,label = "led_clk_pwm";
+	qcom,max_duty = <80>;
+	clocks = <&clock_gcc GCC_GP2_CLK>;
+	clock-names = "src_clk";
+	assigned-clocks = <&clock_gcc GCC_GP2_CLK>;
+	assigned-clock-rates = <80000>;
+	pinctrl-names = "active", "sleep";
+	pinctrl-0 = <&qcom_clk_led_gp2_active>;
+	pinctrl-1 = <&qcom_clk_led_gp2_sleep>;
+};
+
+qcom_clk_led_gp2_pins: qcom_clk_led_gp2_pins {
+	qcom_clk_led_gp2_active: qcom_clk_led_gp2_active {
+		mux {
+			pins = "gpio21";
+			function = "gcc_gp2";
+		};
+
+		config {
+			pins = "gpio21";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	qcom_clk_led_gp2_sleep: qqcom_clk_led_gp2_sleep {
+		mux {
+			pins = "gpio21";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio21";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+};
