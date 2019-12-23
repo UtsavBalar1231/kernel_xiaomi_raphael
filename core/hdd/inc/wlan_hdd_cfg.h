@@ -221,6 +221,7 @@ struct hdd_config {
 #ifdef WLAN_FEATURE_TSF_PLUS
 	uint8_t tsf_ptp_options;
 #endif /* WLAN_FEATURE_TSF_PLUS */
+	uint32_t dp_proto_event_bitmap;
 };
 
 /**
