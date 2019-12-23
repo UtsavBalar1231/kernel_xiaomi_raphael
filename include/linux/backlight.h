@@ -45,12 +45,6 @@ enum backlight_type {
 enum backlight_notification {
 	BACKLIGHT_REGISTERED,
 	BACKLIGHT_UNREGISTERED,
-	BACKLIGHT_UPDATED,
-};
-
-enum backlight_brightness {
-	BACKLIGHT_OFF,
-	BACKLIGHT_ON,
 };
 
 struct backlight_device;
