@@ -51,9 +51,12 @@
 
 void *ipc_emac_log_ctxt;
 
-static UCHAR dev_addr[6] = {0, 0x55, 0x7b, 0xb5, 0x7d, 0xf7};
+#define MAC_ADDR_CFG_FPATH "/data/emac_config.ini"
+static UCHAR dev_addr[ETH_ALEN] = {0, 0x55, 0x7b, 0xb5, 0x7d, 0xf7};
 struct DWC_ETH_QOS_res_data dwc_eth_qos_res_data = {0, };
 static struct msm_bus_scale_pdata *emac_bus_scale_vec = NULL;
+
+UCHAR config_dev_addr[ETH_ALEN];
 
 ULONG dwc_eth_qos_base_addr;
 ULONG dwc_rgmii_io_csr_base_addr;
@@ -89,38 +92,6 @@ MODULE_PARM_DESC(phy_interrupt_en,
 
 struct ip_params pparams = {};
 #ifdef DWC_ETH_QOS_BUILTIN
-/*!
- * \brief API to extract MAC Address from given string
- *
- * \param[in] pointer to MAC Address string
- *
- * \return None
- */
-void DWC_ETH_QOS_extract_macid(char *mac_addr)
-{
-	char *input = NULL;
-	int i = 0;
-	UCHAR mac_id = 0;
-
-	if (!mac_addr)
-		return;
-
-	/* Extract MAC ID byte by byte */
-	input = strsep(&mac_addr, ":");
-	while(input != NULL && i < DWC_ETH_QOS_MAC_ADDR_LEN) {
-		sscanf(input, "%x", &mac_id);
-		pparams.mac_addr[i++] = mac_id;
-		input = strsep(&mac_addr, ":");
-	}
-	if (!is_valid_ether_addr(pparams.mac_addr)) {
-		EMACERR("Invalid Mac address programmed: %s\n", mac_addr);
-		return;
-	} else
-		pparams.is_valid_mac_addr = true;
-
-	return;
-}
-
 static int __init set_early_ethernet_ipv4(char *ipv4_addr_in)
 {
 	int ret = 1;
@@ -170,17 +141,25 @@ __setup("eipv6=", set_early_ethernet_ipv6);
 static int __init set_early_ethernet_mac(char* mac_addr)
 {
 	int ret = 1;
-	char temp_mac_addr[DWC_ETH_QOS_MAC_ADDR_STR_LEN];
-	pparams.is_valid_mac_addr = false;
+	bool valid_mac = false;
 
+	pparams.is_valid_mac_addr = false;
 	if(!mac_addr)
 		return ret;
 
-	strlcpy(temp_mac_addr, mac_addr, sizeof(temp_mac_addr));
-	EMACDBG("Early ethernet MAC address assigned: %s\n", temp_mac_addr);
-	temp_mac_addr[DWC_ETH_QOS_MAC_ADDR_STR_LEN-1] = '\0';
+	valid_mac = mac_pton(mac_addr, pparams.mac_addr);
+	if(!valid_mac)
+		goto fail;
 
-	DWC_ETH_QOS_extract_macid(temp_mac_addr);
+	valid_mac = is_valid_ether_addr(pparams.mac_addr);
+	if (!valid_mac)
+		goto fail;
+
+	pparams.is_valid_mac_addr = true;
+	return ret;
+
+fail:
+	EMACERR("Invalid Mac address programmed: %s\n", mac_addr);
 	return ret;
 }
 __setup("ermac=", set_early_ethernet_mac);
@@ -1604,6 +1583,47 @@ u32 l3mdev_fib_table1 (const struct net_device *dev)
 
 const struct l3mdev_ops l3mdev_op1 = {.l3mdev_fib_table = l3mdev_fib_table1};
 
+/*!
+ * \brief Parse the config file to obtain the MAC address
+ *
+ * \param[in] None
+ *
+ * \return None
+ *
+ */
+
+static void DWC_ETH_QOS_read_mac_addr_from_config(void)
+{
+	int ret = -ENOENT;
+	void *data = NULL;
+	char *file_path = MAC_ADDR_CFG_FPATH;
+	loff_t size = 0;
+	loff_t max_size = 30;
+
+	EMACDBG("Enter\n");
+
+	ret = kernel_read_file_from_path(file_path, &data, &size,
+				max_size, READING_POLICY);
+
+	if (ret < 0) {
+		EMACINFO("unable to open file: %s (%d)\n", file_path, ret);
+		goto ret;
+	}
+
+	if (!mac_pton(data, config_dev_addr) && !is_valid_ether_addr(config_dev_addr)) {
+		EMACERR("Invalid mac addr found in emac_config.ini\n");
+		goto ret;
+	}
+
+	EMACDBG("mac address read from config.ini successfully\n");
+	ether_addr_copy(dev_addr, config_dev_addr);
+
+ret:
+	if (data)
+		vfree(data);
+	return;
+}
+
 static int DWC_ETH_QOS_configure_netdevice(struct platform_device *pdev)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = NULL;
@@ -1629,6 +1649,8 @@ static int DWC_ETH_QOS_configure_netdevice(struct platform_device *pdev)
 
 	if (pparams.is_valid_mac_addr == true)
 		ether_addr_copy(dev_addr, pparams.mac_addr);
+	else
+		DWC_ETH_QOS_read_mac_addr_from_config();
 
 	dev->dev_addr[0] = dev_addr[0];
 	dev->dev_addr[1] = dev_addr[1];
@@ -2264,6 +2286,13 @@ int DWC_ETH_QOS_remove(struct platform_device *pdev)
 static void DWC_ETH_QOS_shutdown(struct platform_device *pdev)
 {
 	pr_info("qcom-emac-dwc-eqos: DWC_ETH_QOS_shutdown\n");
+#ifdef DWC_ETH_QOS_BUILTIN
+	if (gDWC_ETH_QOS_prv_data->dev->flags & IFF_UP) {
+		gDWC_ETH_QOS_prv_data->dev->netdev_ops->ndo_stop(gDWC_ETH_QOS_prv_data->dev);
+		gDWC_ETH_QOS_prv_data->dev->flags &= ~IFF_UP;
+	}
+	DWC_ETH_QOS_remove(pdev);
+#endif
 }
 
 #ifdef CONFIG_PM
