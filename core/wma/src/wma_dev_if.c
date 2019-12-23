@@ -2758,6 +2758,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	struct wlan_objmgr_peer *obj_peer;
 	struct wlan_objmgr_vdev *vdev;
 	uint32_t retry;
+	uint8_t amsdu_val;
 
 	qdf_mem_zero(&tx_rx_aggregation_size, sizeof(tx_rx_aggregation_size));
 	WMA_LOGD("mac %pM, vdev_id %hu, type %d, sub_type %d, nss 2g %d, 5g %d",
@@ -2841,6 +2842,25 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	qdf_mem_copy(wma_handle->interfaces[vdev_id].addr,
 		     self_sta_req->self_mac_addr,
 		     sizeof(wma_handle->interfaces[vdev_id].addr));
+
+	status = wlan_mlme_get_max_amsdu_num(wma_handle->psoc, &amsdu_val);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGE("failed to get amsdu aggr.size %d", status);
+	} else {
+
+		tx_rx_aggregation_size.tx_aggregation_size =
+			amsdu_val;
+		tx_rx_aggregation_size.rx_aggregation_size =
+			amsdu_val;
+		tx_rx_aggregation_size.vdev_id = vdev_id;
+		tx_rx_aggregation_size.aggr_type =
+			WMI_VDEV_CUSTOM_AGGR_TYPE_AMSDU;
+		status = wma_set_tx_rx_aggregation_size(&tx_rx_aggregation_size);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			WMA_LOGE("failed to set amsdu aggr.size %d", status);
+		}
+	}
+
 
 	tx_rx_aggregation_size.tx_aggregation_size =
 				self_sta_req->tx_aggregation_size;
