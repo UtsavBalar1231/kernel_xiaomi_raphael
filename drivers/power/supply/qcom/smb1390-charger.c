@@ -536,8 +536,8 @@ static int smb1390_ilim_vote_cb(struct votable *votable, void *data,
 		return -EINVAL;
 	}
 
-	/* ILIM less than 1A is not accurate; disable charging */
-	if (ilim_uA < 1000000) {
+	/* ILIM less than 0.9A is not accurate; disable charging */
+	if (ilim_uA < 900000) {
 		pr_debug("ILIM %duA is too low to allow charging\n", ilim_uA);
 		vote(chip->disable_votable, ILIM_VOTER, true, 0);
 	} else {
