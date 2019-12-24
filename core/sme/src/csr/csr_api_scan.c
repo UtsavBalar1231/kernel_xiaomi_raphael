@@ -1274,6 +1274,7 @@ void csr_scan_callback(struct wlan_objmgr_vdev *vdev,
 	struct csr_roam_session *session;
 	uint32_t session_id = 0;
 	uint8_t chan = 0;
+	QDF_STATUS status;
 	bool success = false;
 
 	mac_ctx = (tpAniSirGlobal)arg;
@@ -1288,10 +1289,16 @@ void csr_scan_callback(struct wlan_objmgr_vdev *vdev,
 		scan_status = eCSR_SCAN_SUCCESS;
 
 	session_id = wlan_vdev_get_id(vdev);
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_ERROR(status))
+		return;
+
 	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
 		sme_err("session %d is invalid", session_id);
+		sme_release_global_lock(&mac_ctx->sme);
 		return;
 	}
+
 	session = CSR_GET_SESSION(mac_ctx, session_id);
 
 	sme_debug("Scan Completion: status %d session %d scan_id %d",
@@ -1301,6 +1308,7 @@ void csr_scan_callback(struct wlan_objmgr_vdev *vdev,
 	if (session->scan_info.scan_id != event->scan_id) {
 		sme_debug("Scan Completion on wrong scan_id %d, expected %d",
 			session->scan_info.scan_id, event->scan_id);
+		sme_release_global_lock(&mac_ctx->sme);
 		return;
 	}
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
@@ -1312,6 +1320,8 @@ void csr_scan_callback(struct wlan_objmgr_vdev *vdev,
 	/* We reuse the command here instead reissue a new command */
 	csr_handle_nxt_cmd(mac_ctx, NextCommand,
 			   session_id, chan);
+
+	sme_release_global_lock(&mac_ctx->sme);
 }
 
 tCsrScanResultInfo *csr_scan_result_get_first(tpAniSirGlobal pMac,
@@ -1656,7 +1666,7 @@ static void csr_save_tx_power_to_cfg(tpAniSirGlobal pMac, tDblLinkList *pList,
 				ch_pwr_set++;
 			}
 		} else {
-			if (cbLen >= dataLen) {
+			if (cbLen + sizeof(tSirMacChanInfo) >= dataLen) {
 				/* this entry will overflow our allocation */
 				sme_err(
 					"Buffer overflow, start %d, num %d, offset %d",
@@ -2212,6 +2222,10 @@ static enum wlan_auth_type csr_covert_auth_type_new(eCsrAuthType auth)
 		return WLAN_AUTH_TYPE_SUITEB_EAP_SHA384;
 	case eCSR_AUTH_TYPE_SAE:
 		return WLAN_AUTH_TYPE_SAE;
+	case eCSR_AUTH_TYPE_FT_SAE:
+		return WLAN_AUTH_TYPE_FT_SAE;
+	case eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384:
+		return WLAN_AUTH_TYPE_FT_SUITEB_EAP_SHA384;
 	case eCSR_NUM_OF_SUPPORT_AUTH_TYPE:
 	default:
 		return WLAN_AUTH_TYPE_OPEN_SYSTEM;
@@ -2271,6 +2285,10 @@ static eCsrAuthType csr_covert_auth_type_old(enum wlan_auth_type auth)
 		return eCSR_AUTH_TYPE_SUITEB_EAP_SHA384;
 	case WLAN_AUTH_TYPE_SAE:
 		return eCSR_AUTH_TYPE_SAE;
+	case WLAN_AUTH_TYPE_FT_SAE:
+		return eCSR_AUTH_TYPE_FT_SAE;
+	case WLAN_AUTH_TYPE_FT_SUITEB_EAP_SHA384:
+		return eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384;
 	case WLAN_NUM_OF_SUPPORT_AUTH_TYPE:
 	default:
 		return eCSR_AUTH_TYPE_OPEN_SYSTEM;
@@ -3150,7 +3168,7 @@ void csr_init_occupied_channels_list(tpAniSirGlobal mac_ctx,
 		sme_debug("Invalid session");
 		return;
 	}
-	if (neighbor_roam_info->cfgParams.channelInfo.numOfChannels) {
+	if (neighbor_roam_info->cfgParams.specific_chan_info.numOfChannels) {
 		/*
 		 * Ini file contains neighbor scan channel list, hence NO need
 		 * to build occupied channel list"
