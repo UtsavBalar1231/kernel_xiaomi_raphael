@@ -3083,6 +3083,10 @@ uint8_t wlansap_get_chan_band_restrict(struct sap_context *sap_ctx)
 	enum band_info sap_band;
 	enum band_info band;
 
+	if (!sap_ctx) {
+		sap_err("sap_ctx NULL parameter");
+		return 0;
+	}
 	if (cds_is_driver_recovering())
 		return 0;
 

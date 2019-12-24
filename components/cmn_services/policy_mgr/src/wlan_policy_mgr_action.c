@@ -1883,6 +1883,12 @@ void policy_mgr_check_concurrent_intf_and_restart_sap(
 		policy_mgr_err("Invalid sta_ap_intf_check_work_info");
 		return;
 	}
+	if (!policy_mgr_is_sap_go_existed(psoc)) {
+		policy_mgr_debug(
+			"No action taken at check_concurrent_intf_and_restart_sap");
+		return;
+	}
+
 	if (policy_mgr_get_connection_count(psoc) == 1) {
 		/*
 		 * If STA+SAP sessions are on DFS channel and STA+SAP SCC is
@@ -1918,13 +1924,6 @@ void policy_mgr_check_concurrent_intf_and_restart_sap(
 		policy_mgr_get_mcc_to_scc_switch_mode(psoc);
 	policy_mgr_info("MCC to SCC switch: %d chan: %d",
 			mcc_to_scc_switch, operating_channel[0]);
-
-	if (!policy_mgr_is_sap_go_existed(psoc)) {
-		policy_mgr_debug(
-			"No action taken at check_concurrent_intf_and_restart_sap");
-		return;
-	}
-
 sap_restart:
 	/*
 	 * If sta_sap_scc_on_dfs_chan is true then standalone SAP is not

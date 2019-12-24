@@ -3090,6 +3090,7 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	struct ch_params ch_params;
 	struct hdd_adapter *ap_adapter = wlan_hdd_get_adapter_from_vdev(
 					psoc, vdev_id);
+	struct sap_context *sap_context;
 
 	if (!ap_adapter) {
 		hdd_err("ap_adapter is NULL");
@@ -3113,10 +3114,18 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	}
 
 	hdd_ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(ap_adapter);
-
 	mac_handle = hdd_ctx->mac_handle;
 	if (!mac_handle) {
 		hdd_err("mac_handle is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+	sap_context = hdd_ap_ctx->sap_context;
+	if (!sap_context) {
+		hdd_err("sap_context is null");
+		return QDF_STATUS_E_FAILURE;
+	}
+	if (QDF_IS_STATUS_ERROR(wlansap_context_get(sap_context))) {
+		hdd_err("sap_context is invalid");
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -3141,7 +3150,7 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	 * supported, return from here if DBS is not supported.
 	 * Need to take care of 3 port cases with 2 STA iface in future.
 	 */
-	intf_ch = wlansap_check_cc_intf(hdd_ap_ctx->sap_context);
+	intf_ch = wlansap_check_cc_intf(sap_context);
 	policy_mgr_get_chan_by_session_id(psoc, vdev_id, &sap_ch);
 	hdd_info("sap_vdev %d intf_ch: %d, orig ch: %d",
 		 vdev_id, intf_ch, sap_ch);
@@ -3152,6 +3161,7 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 		    hdd_ctx->psoc, &intf_ch, sap_ch, vdev_id))) {
 			hdd_debug("can't move sap to chan: %u",
 				  intf_ch);
+			wlansap_context_put(sap_context);
 			return QDF_STATUS_E_FAILURE;
 		}
 	}
@@ -3165,6 +3175,7 @@ sap_restart:
 		hdd_ap_ctx->sap_context->csa_reason =
 				CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
 	if (!intf_ch) {
+		wlansap_context_put(sap_context);
 		hdd_debug("interface channel is 0");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -3187,6 +3198,7 @@ sap_restart:
 	hdd_sap_restart_chan_switch_cb(psoc, vdev_id,
 		intf_ch,
 		ch_params.ch_width, false);
+	wlansap_context_put(sap_context);
 
 	return QDF_STATUS_SUCCESS;
 }
