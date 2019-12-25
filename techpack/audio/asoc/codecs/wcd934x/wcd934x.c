@@ -175,7 +175,7 @@ static int custom_hp_left = 0;
 static int custom_hp_right = 0;
 #endif
 
-static int dig_core_collapse_enable = 1;
+static int dig_core_collapse_enable = 0;
 module_param(dig_core_collapse_enable, int, 0664);
 MODULE_PARM_DESC(dig_core_collapse_enable, "enable/disable power gating");
 
