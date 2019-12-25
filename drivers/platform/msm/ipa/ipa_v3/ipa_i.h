@@ -1025,6 +1025,7 @@ struct ipa3_sys_context {
 	struct work_struct repl_work;
 	void (*repl_hdlr)(struct ipa3_sys_context *sys);
 	struct ipa3_repl_ctx *repl;
+	struct ipa3_repl_ctx *page_recycle_repl;
 	u32 pkt_sent;
 	struct napi_struct *napi_obj;
 	struct list_head pending_pkts[GSI_VEID_MAX];
@@ -2850,6 +2851,7 @@ void ipa3_counter_remove_hdl(int hdl);
 void ipa3_counter_id_remove_all(void);
 int ipa3_id_alloc(void *ptr);
 void *ipa3_id_find(u32 id);
+bool ipa3_check_idr_if_freed(void *ptr);
 void ipa3_id_remove(u32 id);
 int ipa3_enable_force_clear(u32 request_id, bool throttle_source,
 	u32 source_pipe_bitmask);
