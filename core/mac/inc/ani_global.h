@@ -898,6 +898,7 @@ typedef struct sAniSirGlobal {
 	/* Beacon stats enabled/disabled from ini */
 	bool enable_beacon_reception_stats;
 	uint32_t ft_akm_service_bitmap;
+	bool is_adaptive_11r_roam_supported;
 #ifdef FEATURE_ANI_LEVEL_REQUEST
 	struct ani_level_params ani_params;
 #endif

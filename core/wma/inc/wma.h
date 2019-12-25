@@ -44,6 +44,7 @@
 #include "wlan_objmgr_psoc_obj.h"
 #include <cdp_txrx_handle.h>
 #include <wlan_policy_mgr_api.h>
+#include "wmi_unified_param.h"
 
 /* Platform specific configuration for max. no. of fragments */
 #define QCA_OL_11AC_TX_MAX_FRAGS            2
@@ -1247,6 +1248,8 @@ typedef struct {
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr,
 		enum sir_roam_op_code reason);
+	QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
+					uint8_t vdev_id);
 	qdf_wake_lock_t wmi_cmd_rsp_wake_lock;
 	qdf_runtime_lock_t wmi_cmd_rsp_runtime_lock;
 	bool apf_enabled;
@@ -1954,8 +1957,27 @@ WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 				u8 dot11_mode);
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
-QDF_STATUS wma_start_oem_data_req(tp_wma_handle wma_handle,
-				  struct oem_data_req *oem_req);
+/**
+ * wma_start_oem_req_cmd() - send oem request command to fw
+ * @wma_handle: wma handle
+ * @oem_data_req: the pointer of oem req buf
+ *
+ * Return: QDF status
+ */
+QDF_STATUS wma_start_oem_req_cmd(tp_wma_handle wma_handle,
+				 struct oem_data_req *oem_data_req);
+#endif
+
+#ifdef FEATURE_OEM_DATA
+/**
+ * wma_start_oem_data_cmd() - send oem data command to fw
+ * @wma_handle: wma handle
+ * @oem_data: the pointer of oem data buf
+ *
+ * Return: QDF status
+ */
+QDF_STATUS wma_start_oem_data_cmd(tp_wma_handle wma_handle,
+				  struct oem_data *oem_data);
 #endif
 
 QDF_STATUS wma_enable_disable_caevent_ind(tp_wma_handle wma_handle,
