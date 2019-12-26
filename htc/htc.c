@@ -845,13 +845,17 @@ void htc_stop(HTC_HANDLE HTCHandle)
 	 * In SSR case, HTC tx completion callback for wmi will be blocked
 	 * by TARGET_STATUS_RESET and HTC packets will be left unfreed on
 	 * lookup queue.
+	 *
+	 * In case of target failing to send wmi_ready_event, the htc connect
+	 * msg buffer will be left unmapped and not freed. So calling the
+	 * completion handler for this buffer will handle this scenario.
 	 */
 	HTC_INFO("%s: flush endpoints Tx lookup queue\n", __func__);
 	for (i = 0; i < ENDPOINT_MAX; i++) {
 		endpoint = &target->endpoint[i];
-		if (endpoint->service_id == WMI_CONTROL_SVC ||
-		    endpoint->service_id == WMI_CONTROL_SVC_WMAC1 ||
-		    endpoint->service_id == WMI_CONTROL_SVC_WMAC2)
+		if (endpoint->service_id == WMI_CONTROL_SVC)
+			htc_flush_endpoint_txlookupQ(target, i, false);
+		else if (endpoint->service_id == HTC_CTRL_RSVD_SVC)
 			htc_flush_endpoint_txlookupQ(target, i, true);
 	}
 	HTC_INFO("%s: resetting endpoints state\n", __func__);
