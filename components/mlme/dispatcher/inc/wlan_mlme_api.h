@@ -2272,4 +2272,17 @@ wlan_mlme_get_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_mgmt_max_retry(struct wlan_objmgr_psoc *psoc,
 			     uint8_t *max_retry);
+/**
+ * wlan_mlme_get_status_ring_buffer() - Get the
+ * status of ring buffer
+ * @psoc: pointer to psoc object
+ * @enable_ring_buffer: output pointer to point the configured value of
+ * ring buffer
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wlan_mlme_get_status_ring_buffer(struct wlan_objmgr_psoc *psoc,
+				 bool *enable_ring_buffer);
+
 #endif /* _WLAN_MLME_API_H_ */

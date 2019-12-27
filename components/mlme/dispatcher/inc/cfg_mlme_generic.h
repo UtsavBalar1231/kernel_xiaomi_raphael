@@ -642,6 +642,27 @@
 #define CFG_BMISS_SKIP_FULL_SCAN CFG_INI_BOOL("bmiss_skip_full_scan", \
 			0, \
 			"To decide partial/partial scan followed by full scan")
+/*
+ * <ini>
+ * gEnableRingBuffer - Enable Ring Buffer for Bug Report
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable Ring Buffer
+ *
+ * Related: None
+ *
+ * Supported Feature: STA/SAP
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_RING_BUFFER CFG_INI_BOOL( \
+			"gEnableRingBuffer", \
+			1, \
+			"To Enable Ring Buffer")
 
 #define CFG_GENERIC_ALL \
 	CFG(CFG_ENABLE_DEBUG_PACKET_LOG) \
@@ -670,5 +691,6 @@
 	CFG(CFG_ENABLE_BEACON_RECEPTION_STATS) \
 	CFG(CFG_REMOVE_TIME_STAMP_SYNC_CMD) \
 	CFG(CFG_MGMT_RETRY_MAX) \
-	CFG(CFG_BMISS_SKIP_FULL_SCAN)
+	CFG(CFG_BMISS_SKIP_FULL_SCAN) \
+	CFG(CFG_ENABLE_RING_BUFFER)
 #endif /* __CFG_MLME_GENERIC_H */
