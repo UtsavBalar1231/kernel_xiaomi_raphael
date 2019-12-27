@@ -1313,7 +1313,6 @@ void dwc3_ep0_interrupt(struct dwc3 *dwc,
 	u8 epnum = event->endpoint_number;
 
 	dep = dwc->eps[epnum];
-	u8		cmd;
 
 	switch (event->endpoint_event) {
 	case DWC3_DEPEVT_XFERCOMPLETE:

@@ -210,9 +210,9 @@ struct cfqg_stats {
 	/* total time with empty current active q with other requests queued */
 	struct blkg_stat		empty_time;
 	/* fields after this shouldn't be cleared on stat reset */
-	uint64_t			start_group_wait_time;
-	uint64_t			start_idle_time;
-	uint64_t			start_empty_time;
+	u64				start_group_wait_time;
+	u64				start_idle_time;
+	u64				start_empty_time;
 	uint16_t			flags;
 #endif	/* CONFIG_DEBUG_BLK_CGROUP */
 #endif	/* CONFIG_CFQ_GROUP_IOSCHED */
@@ -225,6 +225,7 @@ struct cfq_group_data {
 
 	unsigned int weight;
 	unsigned int leaf_weight;
+	u64 group_idle;
 };
 
 /* This is per cgroup per device grouping structure */
@@ -310,6 +311,7 @@ struct cfq_group {
 	struct cfq_queue *async_cfqq[2][IOPRIO_BE_NR];
 	struct cfq_queue *async_idle_cfqq;
 
+	u64 group_idle;
 };
 
 struct cfq_io_cq {
@@ -491,13 +493,13 @@ CFQG_FLAG_FNS(empty)
 /* This should be called with the queue_lock held. */
 static void cfqg_stats_update_group_wait_time(struct cfqg_stats *stats)
 {
-	unsigned long long now;
+	u64 now;
 
 	if (!cfqg_stats_waiting(stats))
 		return;
 
-	now = sched_clock();
-	if (time_after64(now, stats->start_group_wait_time))
+	now = ktime_get_ns();
+	if (now > stats->start_group_wait_time)
 		blkg_stat_add(&stats->group_wait_time,
 			      now - stats->start_group_wait_time);
 	cfqg_stats_clear_waiting(stats);
@@ -513,20 +515,20 @@ static void cfqg_stats_set_start_group_wait_time(struct cfq_group *cfqg,
 		return;
 	if (cfqg == curr_cfqg)
 		return;
-	stats->start_group_wait_time = sched_clock();
+	stats->start_group_wait_time = ktime_get_ns();
 	cfqg_stats_mark_waiting(stats);
 }
 
 /* This should be called with the queue_lock held. */
 static void cfqg_stats_end_empty_time(struct cfqg_stats *stats)
 {
-	unsigned long long now;
+	u64 now;
 
 	if (!cfqg_stats_empty(stats))
 		return;
 
-	now = sched_clock();
-	if (time_after64(now, stats->start_empty_time))
+	now = ktime_get_ns();
+	if (now > stats->start_empty_time)
 		blkg_stat_add(&stats->empty_time,
 			      now - stats->start_empty_time);
 	cfqg_stats_clear_empty(stats);
@@ -552,7 +554,7 @@ static void cfqg_stats_set_start_empty_time(struct cfq_group *cfqg)
 	if (cfqg_stats_empty(stats))
 		return;
 
-	stats->start_empty_time = sched_clock();
+	stats->start_empty_time = ktime_get_ns();
 	cfqg_stats_mark_empty(stats);
 }
 
@@ -561,9 +563,9 @@ static void cfqg_stats_update_idle_time(struct cfq_group *cfqg)
 	struct cfqg_stats *stats = &cfqg->stats;
 
 	if (cfqg_stats_idling(stats)) {
-		unsigned long long now = sched_clock();
+		u64 now = ktime_get_ns();
 
-		if (time_after64(now, stats->start_idle_time))
+		if (now > stats->start_idle_time)
 			blkg_stat_add(&stats->idle_time,
 				      now - stats->start_idle_time);
 		cfqg_stats_clear_idling(stats);
@@ -576,7 +578,7 @@ static void cfqg_stats_set_start_idle_time(struct cfq_group *cfqg)
 
 	BUG_ON(cfqg_stats_idling(stats));
 
-	stats->start_idle_time = sched_clock();
+	stats->start_idle_time = ktime_get_ns();
 	cfqg_stats_mark_idling(stats);
 }
 
@@ -701,17 +703,19 @@ static inline void cfqg_stats_update_io_merged(struct cfq_group *cfqg,
 }
 
 static inline void cfqg_stats_update_completion(struct cfq_group *cfqg,
-			uint64_t start_time, uint64_t io_start_time,
-			unsigned int op)
+						u64 start_time_ns,
+						u64 io_start_time_ns,
+						unsigned int op)
 {
 	struct cfqg_stats *stats = &cfqg->stats;
-	unsigned long long now = sched_clock();
+	u64 now = ktime_get_ns();
 
-	if (time_after64(now, io_start_time))
-		blkg_rwstat_add(&stats->service_time, op, now - io_start_time);
-	if (time_after64(io_start_time, start_time))
+	if (now > io_start_time_ns)
+		blkg_rwstat_add(&stats->service_time, op,
+				now - io_start_time_ns);
+	if (io_start_time_ns > start_time_ns)
 		blkg_rwstat_add(&stats->wait_time, op,
-				io_start_time - start_time);
+						io_start_time_ns - start_time_ns);
 }
 
 /* @stats = 0 */
@@ -797,10 +801,22 @@ static inline void cfqg_stats_update_io_remove(struct cfq_group *cfqg,
 static inline void cfqg_stats_update_io_merged(struct cfq_group *cfqg,
 			unsigned int op) { }
 static inline void cfqg_stats_update_completion(struct cfq_group *cfqg,
-			uint64_t start_time, uint64_t io_start_time,
-			unsigned int op) { }
+						u64 start_time_ns,
+						u64 io_start_time_ns,
+						unsigned int op) { }
 
 #endif	/* CONFIG_CFQ_GROUP_IOSCHED */
+
+static inline u64 get_group_idle(struct cfq_data *cfqd)
+{
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+	struct cfq_queue *cfqq = cfqd->active_queue;
+
+	if (cfqq && cfqq->cfqg)
+		return cfqq->cfqg->group_idle;
+#endif
+	return cfqd->cfq_group_idle;
+}
 
 #define cfq_log(cfqd, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq " fmt, ##args)
@@ -822,7 +838,7 @@ static inline bool cfq_io_thinktime_big(struct cfq_data *cfqd,
 	if (!sample_valid(ttime->ttime_samples))
 		return false;
 	if (group_idle)
-		slice = cfqd->cfq_group_idle;
+		slice = get_group_idle(cfqd);
 	else
 		slice = cfqd->cfq_slice_idle;
 	return ttime->ttime_mean > slice;
@@ -1589,6 +1605,7 @@ static void cfq_cpd_init(struct blkcg_policy_data *cpd)
 
 	cgd->weight = weight;
 	cgd->leaf_weight = weight;
+	cgd->group_idle = cfq_group_idle;
 }
 
 static void cfq_cpd_free(struct blkcg_policy_data *cpd)
@@ -1633,6 +1650,7 @@ static void cfq_pd_init(struct blkg_policy_data *pd)
 
 	cfqg->weight = cgd->weight;
 	cfqg->leaf_weight = cgd->leaf_weight;
+	cfqg->group_idle = cgd->group_idle;
 }
 
 static void cfq_pd_offline(struct blkg_policy_data *pd)
@@ -1641,14 +1659,20 @@ static void cfq_pd_offline(struct blkg_policy_data *pd)
 	int i;
 
 	for (i = 0; i < IOPRIO_BE_NR; i++) {
-		if (cfqg->async_cfqq[0][i])
+		if (cfqg->async_cfqq[0][i]) {
 			cfq_put_queue(cfqg->async_cfqq[0][i]);
-		if (cfqg->async_cfqq[1][i])
+			cfqg->async_cfqq[0][i] = NULL;
+		}
+		if (cfqg->async_cfqq[1][i]) {
 			cfq_put_queue(cfqg->async_cfqq[1][i]);
+			cfqg->async_cfqq[1][i] = NULL;
+		}
 	}
 
-	if (cfqg->async_idle_cfqq)
+	if (cfqg->async_idle_cfqq) {
 		cfq_put_queue(cfqg->async_idle_cfqq);
+		cfqg->async_idle_cfqq = NULL;
+	}
 
 	/*
 	 * @blkg is going offline and will be ignored by
@@ -1751,6 +1775,19 @@ static int cfq_print_leaf_weight(struct seq_file *sf, void *v)
 		val = cgd->leaf_weight;
 
 	seq_printf(sf, "%u\n", val);
+	return 0;
+}
+
+static int cfq_print_group_idle(struct seq_file *sf, void *v)
+{
+	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
+	struct cfq_group_data *cgd = blkcg_to_cfqgd(blkcg);
+	u64 val = 0;
+
+	if (cgd)
+		val = cgd->group_idle;
+
+	seq_printf(sf, "%llu\n", div_u64(val, NSEC_PER_USEC));
 	return 0;
 }
 
@@ -1873,6 +1910,37 @@ static int cfq_set_leaf_weight(struct cgroup_subsys_state *css,
 			       struct cftype *cft, u64 val)
 {
 	return __cfq_set_weight(css, val, false, false, true);
+}
+
+static int cfq_set_group_idle(struct cgroup_subsys_state *css,
+			       struct cftype *cft, u64 val)
+{
+	struct blkcg *blkcg = css_to_blkcg(css);
+	struct cfq_group_data *cfqgd;
+	struct blkcg_gq *blkg;
+	int ret = 0;
+
+	spin_lock_irq(&blkcg->lock);
+	cfqgd = blkcg_to_cfqgd(blkcg);
+	if (!cfqgd) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	cfqgd->group_idle = val * NSEC_PER_USEC;
+
+	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
+		struct cfq_group *cfqg = blkg_to_cfqg(blkg);
+
+		if (!cfqg)
+			continue;
+
+		cfqg->group_idle = cfqgd->group_idle;
+	}
+
+out:
+	spin_unlock_irq(&blkcg->lock);
+	return ret;
 }
 
 static int cfqg_print_stat(struct seq_file *sf, void *v)
@@ -2019,6 +2087,11 @@ static struct cftype cfq_blkcg_legacy_files[] = {
 		.name = "leaf_weight",
 		.seq_show = cfq_print_leaf_weight,
 		.write_u64 = cfq_set_leaf_weight,
+	},
+	{
+		.name = "group_idle",
+		.seq_show = cfq_print_group_idle,
+		.write_u64 = cfq_set_group_idle,
 	},
 
 	/* statistics, covers only the tasks in the cfqg */
@@ -2914,7 +2987,7 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	 * with sync vs async workloads.
 	 */
 	if (blk_queue_nonrot(cfqd->queue) && cfqd->hw_tag &&
-		!cfqd->cfq_group_idle)
+		!get_group_idle(cfqd))
 		return;
 
 	WARN_ON(!RB_EMPTY_ROOT(&cfqq->sort_list));
@@ -2925,9 +2998,8 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	 */
 	if (!cfq_should_idle(cfqd, cfqq)) {
 		/* no queue idling. Check for group idling */
-		if (cfqd->cfq_group_idle)
-			group_idle = cfqd->cfq_group_idle;
-		else
+		group_idle = get_group_idle(cfqd);
+		if (!group_idle)
 			return;
 	}
 
@@ -2968,7 +3040,7 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	cfq_mark_cfqq_wait_request(cfqq);
 
 	if (group_idle)
-		sl = cfqd->cfq_group_idle;
+		sl = group_idle;
 	else
 		sl = cfqd->cfq_slice_idle;
 
@@ -3317,7 +3389,7 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	 * this group, wait for requests to complete.
 	 */
 check_group_idle:
-	if (cfqd->cfq_group_idle && cfqq->cfqg->nr_cfqq == 1 &&
+	if (get_group_idle(cfqd) && cfqq->cfqg->nr_cfqq == 1 &&
 	    cfqq->cfqg->dispatched &&
 	    !cfq_io_thinktime_big(cfqd, &cfqq->cfqg->ttime, true)) {
 		cfqq = NULL;
@@ -3663,6 +3735,7 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct cfq_io_cq *cic)
 	switch (ioprio_class) {
 	default:
 		printk(KERN_ERR "cfq: bad prio %x\n", ioprio_class);
+		/* fall through */
 	case IOPRIO_CLASS_NONE:
 		/*
 		 * no prio set, inherit CPU scheduling settings
@@ -3880,7 +3953,7 @@ cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			cfqd->cfq_slice_idle);
 	}
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-	__cfq_update_io_thinktime(&cfqq->cfqg->ttime, cfqd->cfq_group_idle);
+	__cfq_update_io_thinktime(&cfqq->cfqg->ttime, get_group_idle(cfqd));
 #endif
 }
 
@@ -4278,7 +4351,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		if (cfq_should_wait_busy(cfqd, cfqq)) {
 			u64 extend_sl = cfqd->cfq_slice_idle;
 			if (!cfqd->cfq_slice_idle)
-				extend_sl = cfqd->cfq_group_idle;
+				extend_sl = get_group_idle(cfqd);
 			cfqq->slice_end = now + extend_sl;
 			cfq_mark_cfqq_wait_busy(cfqq);
 			cfq_log_cfqq(cfqd, cfqq, "will busy wait");
