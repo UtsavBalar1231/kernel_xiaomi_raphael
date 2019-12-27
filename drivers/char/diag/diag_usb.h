@@ -66,6 +66,7 @@ struct diag_usb_info {
 	unsigned long write_cnt;
 	spinlock_t lock;
 	spinlock_t write_lock;
+	spinlock_t event_lock;
 	struct usb_diag_ch *hdl;
 	struct diag_mux_ops *ops;
 	unsigned char *read_buf;
