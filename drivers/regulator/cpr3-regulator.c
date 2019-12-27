@@ -1425,8 +1425,7 @@ static int cpr3_regulator_init_ctrl(struct cpr3_controller *ctrl)
 			for (k = 0; k < ctrl->thread[i].vreg[j].corner_count;
 			     k++)
 				for (m = 0; m < CPR3_RO_COUNT; m++)
-					if (ctrl->thread[i].vreg[j].corner[k].
-					    target_quot[m])
+					if (ctrl->thread[i].vreg[j].corner[k].target_quot[m])
 						ro_used |= BIT(m);
 
 	/* Configure the GCNT of the RO's that will be used */

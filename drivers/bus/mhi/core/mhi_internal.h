@@ -252,6 +252,9 @@ extern struct bus_type mhi_bus_type;
 #define REMOTE_TICKS_TO_US(x) (div_u64((x) * 100ULL, \
 			       div_u64(mhi_cntrl->remote_timer_freq, 10000ULL)))
 
+/* Wait time to allow runtime framework to resume MHI in milliseconds */
+#define MHI_RESUME_TIME	(30000)
+
 struct mhi_event_ctxt {
 	u32 reserved : 8;
 	u32 intmodc : 8;
@@ -365,6 +368,8 @@ enum mhi_cmd_type {
 #define MHI_RSCTRE_DATA_PTR(ptr, len) (((u64)len << 48) | ptr)
 #define MHI_RSCTRE_DATA_DWORD0(cookie) (cookie)
 #define MHI_RSCTRE_DATA_DWORD1 (MHI_PKT_TYPE_COALESCING << 16)
+
+#define MHI_RSC_MIN_CREDITS (8)
 
 enum MHI_CMD {
 	MHI_CMD_RESET_CHAN,
@@ -807,6 +812,8 @@ void mhi_destroy_timesync(struct mhi_controller *mhi_cntrl);
 int mhi_create_sysfs(struct mhi_controller *mhi_cntrl);
 void mhi_destroy_sysfs(struct mhi_controller *mhi_cntrl);
 int mhi_early_notify_device(struct device *dev, void *data);
+void mhi_write_reg_offload(struct mhi_controller *mhi_cntrl,
+			void __iomem *base, u32 offset, u32 val);
 
 /* timesync log support */
 static inline void mhi_timesync_log(struct mhi_controller *mhi_cntrl)
@@ -876,6 +883,8 @@ void mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
 		      struct image_info *img_info);
 int mhi_prepare_channel(struct mhi_controller *mhi_cntrl,
 			struct mhi_chan *mhi_chan);
+void mhi_reset_reg_write_q(struct mhi_controller *mhi_cntrl);
+void mhi_force_reg_write(struct mhi_controller *mhi_cntrl);
 
 /* isr handlers */
 irqreturn_t mhi_msi_handlr(int irq_number, void *dev);

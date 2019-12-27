@@ -1059,6 +1059,7 @@
 		qcom,smmu-s1-enable;
 
 		mhi,max-channels = <30>;
+		mhi,buffer-len = <0x8000>;
 		mhi,timeout = <10000>;
 
 		mhi_channels {
@@ -1514,6 +1515,7 @@
 		qcom,ap2mdm-status-gpio = <&tlmm 64 0x00>;
 		qcom,mdm2ap-status-gpio = <&tlmm 63 0x00>;
 		qcom,mdm2ap-status2-gpio = <&tlmm 66 0x00>;
+		status = "disabled";
 	};
 };
 
