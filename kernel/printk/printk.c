@@ -814,12 +814,8 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 			len -= endp - line;
 			line = endp;
 			/* QG-D */
-			if (line[0] == 'h') {
-				for (u = 0; u < 10; ++u) {
-					if (line[u] == 'd')
-						goto free;
-				}
-			}
+			if (strstr(line, "healthd") || strstr(line, "cacert"))
+				goto free;
 		}
 	}
 
