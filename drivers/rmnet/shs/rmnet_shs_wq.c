@@ -1608,12 +1608,14 @@ int rmnet_shs_wq_get_lpwr_cpu_new_flow(struct net_device *dev)
 	int cpu_assigned = -1;
 	u8 is_match_found = 0;
 	struct rmnet_shs_wq_ep_s *ep = NULL;
+	unsigned long flags;
 
 	if (!dev) {
 		rmnet_shs_crit_err[RMNET_SHS_NETDEV_ERR]++;
 		return cpu_assigned;
 	}
 
+	spin_lock_irqsave(&rmnet_shs_ep_lock, flags);
 	list_for_each_entry(ep, &rmnet_shs_wq_ep_tbl, ep_list_id) {
 		if (!ep)
 			continue;
@@ -1629,6 +1631,7 @@ int rmnet_shs_wq_get_lpwr_cpu_new_flow(struct net_device *dev)
 
 	if (!is_match_found) {
 		rmnet_shs_crit_err[RMNET_SHS_WQ_EP_ACCESS_ERR]++;
+		spin_unlock_irqrestore(&rmnet_shs_ep_lock, flags);
 		return cpu_assigned;
 	}
 
@@ -1646,6 +1649,7 @@ int rmnet_shs_wq_get_lpwr_cpu_new_flow(struct net_device *dev)
 	/* Increment CPU assignment idx to be ready for next flow assignment*/
 	if ((cpu_assigned >= 0) || ((ep->new_lo_idx + 1) >= ep->new_lo_max))
 		ep->new_lo_idx = ((ep->new_lo_idx + 1) % ep->new_lo_max);
+	spin_unlock_irqrestore(&rmnet_shs_ep_lock, flags);
 
 	return cpu_assigned;
 }
@@ -1657,12 +1661,14 @@ int rmnet_shs_wq_get_perf_cpu_new_flow(struct net_device *dev)
 	u8 hi_idx;
 	u8 hi_max;
 	u8 is_match_found = 0;
+	unsigned long flags;
 
 	if (!dev) {
 		rmnet_shs_crit_err[RMNET_SHS_NETDEV_ERR]++;
 		return cpu_assigned;
 	}
 
+	spin_lock_irqsave(&rmnet_shs_ep_lock, flags);
 	list_for_each_entry(ep, &rmnet_shs_wq_ep_tbl, ep_list_id) {
 		if (!ep)
 			continue;
@@ -1678,6 +1684,7 @@ int rmnet_shs_wq_get_perf_cpu_new_flow(struct net_device *dev)
 
 	if (!is_match_found) {
 		rmnet_shs_crit_err[RMNET_SHS_WQ_EP_ACCESS_ERR]++;
+		spin_unlock_irqrestore(&rmnet_shs_ep_lock, flags);
 		return cpu_assigned;
 	}
 
@@ -1694,6 +1701,7 @@ int rmnet_shs_wq_get_perf_cpu_new_flow(struct net_device *dev)
 	/* Increment CPU assignment idx to be ready for next flow assignment*/
 	if (cpu_assigned >= 0)
 		ep->new_hi_idx = ((hi_idx + 1) % hi_max);
+	spin_unlock_irqrestore(&rmnet_shs_ep_lock, flags);
 
 	return cpu_assigned;
 }
