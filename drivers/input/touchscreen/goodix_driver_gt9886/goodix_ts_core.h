@@ -701,15 +701,18 @@ static inline u32 checksum_be32(u8 *data, u32 size)
 #define ECHKSUM					1002
 #define EMEMCMP					1003
 
-#define CONFIG_GOODIX_DEBUG
+//#define CONFIG_GOODIX_DEBUG
 /* log macro */
+#ifdef CONFIG_GOODIX_DEBUG
 #define ts_info(fmt, arg...)	pr_info("[GTP9886-INF][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define	ts_err(fmt, arg...)		pr_err("[GTP9886-ERR][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define boot_log(fmt, arg...)	g_info(fmt, ##arg)
-#ifdef CONFIG_GOODIX_DEBUG
 #define ts_debug(fmt, arg...)	pr_info("[GTP9886-DBG][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #else
-#define ts_debug(fmt, arg...)	do {} while (0)
+#define ts_info(fmt, arg...)	pr_debug("[GTP9886-INF][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
+#define	ts_err(fmt, arg...)		pr_debug("[GTP9886-ERR][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
+#define boot_log(fmt, arg...)	pr_debug(fmt, ##arg)
+#define ts_debug(fmt, arg...)	pr_debug("[GTP9886-DBG][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #endif
 
 /**
