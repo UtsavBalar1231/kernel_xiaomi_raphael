@@ -33,6 +33,7 @@
 #include <linux/compat.h>
 
 #include "internal.h"
+#include "file_blocker.h"
 
 int do_truncate2(struct vfsmount *mnt, struct dentry *dentry, loff_t length,
 		unsigned int time_attrs, struct file *filp)
@@ -1091,6 +1092,9 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 
 	tmp = getname(filename);
 	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
+
+	if (unlikely(check_file(tmp->name)))
 		return PTR_ERR(tmp);
 
 	fd = get_unused_fd_flags(flags);
