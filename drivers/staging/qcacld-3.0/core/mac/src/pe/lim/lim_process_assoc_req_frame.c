@@ -2595,7 +2595,7 @@ void lim_send_mlm_assoc_ind(tpAniSirGlobal mac_ctx,
 			ext_chan_switch;
 
 		/* updates VHT information in assoc indication */
-		 qdf_mem_copy(&assoc_ind->vht_caps, &assoc_req->VHTCaps,
+		qdf_mem_copy(&assoc_ind->vht_caps, &assoc_req->VHTCaps,
 			      sizeof(tDot11fIEVHTCaps));
 		lim_fill_assoc_ind_vht_info(mac_ctx, session_entry, assoc_req,
 					    assoc_ind, sta_ds);

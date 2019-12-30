@@ -1173,7 +1173,7 @@ QDF_STATUS tdls_delete_all_tdls_peers(struct wlan_objmgr_vdev *vdev,
 	peer = wlan_vdev_get_bsspeer(vdev);
 	if (!peer)
 		return QDF_STATUS_E_FAILURE;
-	 if (QDF_STATUS_SUCCESS !=
+	if (QDF_STATUS_SUCCESS !=
 	      wlan_objmgr_peer_try_get_ref(peer, WLAN_TDLS_SB_ID))
 		return QDF_STATUS_E_FAILURE;
 
