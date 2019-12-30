@@ -1949,9 +1949,6 @@ void rmnet_shs_wq_update_stats(void)
 	}
 
 	rmnet_shs_wq_refresh_new_flow_list();
-	/*Invoke after both the locks are released*/
-	rmnet_shs_wq_cleanup_hash_tbl(PERIODIC_CLEAN);
-	rmnet_shs_wq_debug_print_flows();
 }
 
 void rmnet_shs_wq_process_wq(struct work_struct *work)
@@ -1965,6 +1962,10 @@ void rmnet_shs_wq_process_wq(struct work_struct *work)
 	spin_lock_irqsave(&rmnet_shs_ep_lock, flags);
 	rmnet_shs_wq_update_stats();
 	spin_unlock_irqrestore(&rmnet_shs_ep_lock, flags);
+
+        /*Invoke after both the locks are released*/
+        rmnet_shs_wq_cleanup_hash_tbl(PERIODIC_CLEAN);
+        rmnet_shs_wq_debug_print_flows();
 
 	queue_delayed_work(rmnet_shs_wq, &rmnet_shs_delayed_wq->wq,
 					rmnet_shs_wq_frequency);
