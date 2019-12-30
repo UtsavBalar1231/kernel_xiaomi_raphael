@@ -124,7 +124,7 @@ alternative_else
 alternative_endif
 	mrs	x13, sp_el0
 	stp	x2, x3, [x0]
-	stp	x4, x5, [x0, #16]
+	stp	x4, x18, [x0, #16]
 	stp	x6, x7, [x0, #32]
 	stp	x8, x9, [x0, #48]
 	stp	x10, x11, [x0, #64]
@@ -140,7 +140,7 @@ ENDPROC(cpu_do_suspend)
 	.pushsection ".idmap.text", "awx"
 ENTRY(cpu_do_resume)
 	ldp	x2, x3, [x0]
-	ldp	x4, x5, [x0, #16]
+	ldp	x4, x18, [x0, #16]
 	ldp	x6, x8, [x0, #32]
 	ldp	x9, x10, [x0, #48]
 	ldp	x11, x12, [x0, #64]

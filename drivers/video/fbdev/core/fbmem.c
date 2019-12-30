@@ -643,12 +643,15 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 	}
 
 	/* What depth we asked for might be different from what we get */
-	if (fb_logo.logo->type == LINUX_LOGO_CLUT224)
+	if (fb_logo.logo->type == LINUX_LOGO_CLUT224) {
 		fb_logo.depth = 8;
-	else if (fb_logo.logo->type == LINUX_LOGO_VGA16)
+	}
+	else if (fb_logo.logo->type == LINUX_LOGO_VGA16) {
 		fb_logo.depth = 4;
-	else
+	}
+	else {
 		fb_logo.depth = 1;
+	}
 
 
  	if (fb_logo.depth > 4 && depth > 4) {

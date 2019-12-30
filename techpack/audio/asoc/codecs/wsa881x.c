@@ -968,7 +968,7 @@ static void wsa881x_ocp_ctl_work(struct work_struct *work)
 	else
 		snd_soc_update_bits(codec, WSA881X_SPKR_OCP_CTL, 0xC0, 0xC0);
 
-	schedule_delayed_work(&wsa881x->ocp_ctl_work,
+	queue_delayed_work(system_power_efficient_wq, &wsa881x->ocp_ctl_work,
 			msecs_to_jiffies(wsa881x_ocp_poll_timer_sec * 1000));
 }
 
@@ -1027,7 +1027,7 @@ static int wsa881x_spkr_pa_event(struct snd_soc_dapm_widget *w,
 					    0x07, 0x01);
 			wsa881x_visense_adc_ctrl(codec, ENABLE);
 		}
-		schedule_delayed_work(&wsa881x->ocp_ctl_work,
+		queue_delayed_work(system_power_efficient_wq, &wsa881x->ocp_ctl_work,
 			msecs_to_jiffies(WSA881X_OCP_CTL_TIMER_SEC * 1000));
 		/* Force remove group */
 		swr_remove_from_group(wsa881x->swr_slave,
