@@ -22,6 +22,8 @@ restart@fc4ab000 {
 * Compatible strings:
 
 SoCs:
+- MDM9607
+  compatible = "qcom,mdm9607"
 
 - APQ8016
   compatible = "qcom,apq8016"
@@ -85,6 +87,9 @@ SoCs:
 
 - QCS410
   compatible = "qcom,qcs410"
+
+- SDM660
+  compatible = "qcom,sdm660"
 
 Generic board variants:
 
@@ -242,5 +247,13 @@ compatible = "qcom,atollp"
 compatible = "qcom,atollp-idp"
 compatible = "qcom,atollp-atp"
 compatible = "qcom,atollp-qrd"
+compatible = "qcom,atoll-ab"
+compatible = "qcom,atoll-ab-idp"
+compatible = "qcom,atoll-ab-atp"
+compatible = "qcom,atoll-ab-qrd"
 compatible = "qcom,qcs610-iot"
 compatible = "qcom,qcs410-iot"
+compatible = "qcom,mdm9607-mtp"
+compatible = "qcom,sdm660-cdp"
+compatible = "qcom,sdm660-mtp"
+compatible = "qcom,sdm660-qrd"
