@@ -1680,7 +1680,7 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 	uint32_t i, j, val, min, isArate = 0;
 	qdf_size_t val_len;
 	tDot11fIEhe_cap *peer_he_caps;
-	tSchBeaconStruct *pBeaconStruct;
+	tSchBeaconStruct *pBeaconStruct = NULL;
 	struct bss_description *bssDescription =
 		&pe_session->lim_join_req->bssDescription;
 
@@ -1839,6 +1839,9 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 		pe_session->nss = NSS_1x1_MODE;
 	}
 	pe_debug("nss: %d", pe_session->nss);
+
+	if (pBeaconStruct)
+		qdf_mem_free(pBeaconStruct);
 
 	return QDF_STATUS_SUCCESS;
 } /*** lim_populate_peer_rate_set() ***/
