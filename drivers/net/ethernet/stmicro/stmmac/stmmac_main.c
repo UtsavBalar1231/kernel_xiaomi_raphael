@@ -365,7 +365,6 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 {
 	struct net_device *ndev = priv->dev;
 	int interface = priv->plat->interface;
-	unsigned long flags;
 	bool ret = false;
 
 	if ((interface != PHY_INTERFACE_MODE_MII) &&
@@ -790,7 +789,6 @@ static void stmmac_adjust_link(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
-	unsigned long flags;
 	bool new_state = false;
 
 	if (!phydev)
@@ -2533,6 +2531,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 			netdev_warn(priv->dev, "PTP init failed\n");
 		else
 			ret = clk_set_rate(priv->plat->clk_ptp_ref, 96000000);
+		ret = ethqos_init_pps(priv);
 	}
 
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
@@ -2615,7 +2614,12 @@ static int stmmac_open(struct net_device *dev)
 		goto init_error;
 	}
 
+#ifdef CONFIG_PTPSUPPORT_OBJ
 	ret = stmmac_hw_setup(dev, true);
+#else
+	ret = stmmac_hw_setup(dev, false);
+#endif
+
 	if (ret < 0) {
 		netdev_err(priv->dev, "%s: Hw setup failed\n", __func__);
 		goto init_error;
@@ -4384,7 +4388,6 @@ int stmmac_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	unsigned long flags;
 
 	if (!ndev || !netif_running(ndev))
 		return 0;
@@ -4459,7 +4462,6 @@ int stmmac_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	unsigned long flags;
 
 	if (!netif_running(ndev))
 		return 0;
