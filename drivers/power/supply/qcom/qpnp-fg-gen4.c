@@ -2377,7 +2377,7 @@ done:
 	batt_psy_initialized(fg);
 	fg_notify_charger(fg);
 
-	schedule_delayed_work(&chip->ttf->ttf_work, msecs_to_jiffies(10000));
+	queue_delayed_work(system_power_efficient_wq, &chip->ttf->ttf_work, msecs_to_jiffies(10000));
 	fg_dbg(fg, FG_STATUS, "profile loaded successfully");
 out:
 	if (!chip->esr_fast_calib || is_debug_batt_id(fg)) {
@@ -2390,7 +2390,7 @@ out:
 		chip->batt_age_level = chip->last_batt_age_level;
 	fg->soc_reporting_ready = true;
 	vote(fg->awake_votable, ESR_FCC_VOTER, true, 0);
-	schedule_delayed_work(&chip->pl_enable_work, msecs_to_jiffies(5000));
+	queue_delayed_work(system_power_efficient_wq, &chip->pl_enable_work, msecs_to_jiffies(5000));
 	vote(fg->awake_votable, PROFILE_LOAD, false, 0);
 	if (!work_pending(&fg->status_change_work)) {
 		pm_stay_awake(fg->dev);
@@ -3411,7 +3411,7 @@ static irqreturn_t fg_batt_missing_irq_handler(int irq, void *data)
 	}
 
 	clear_battery_profile(fg);
-	schedule_delayed_work(&fg->profile_load_work, 0);
+	queue_delayed_work(system_power_efficient_wq, &fg->profile_load_work, 0);
 
 	if (fg->fg_psy)
 		power_supply_changed(fg->fg_psy);
@@ -4123,7 +4123,7 @@ static void sram_dump_work(struct work_struct *work)
 	fg_dbg(fg, FG_STATUS, "SRAM Dump done at %lld.%d\n",
 		quotient, remainder);
 resched:
-	schedule_delayed_work(&fg->sram_dump_work,
+	queue_delayed_work(system_power_efficient_wq, &fg->sram_dump_work,
 			msecs_to_jiffies(fg_sram_dump_period_ms));
 }
 
@@ -4160,7 +4160,7 @@ static int fg_sram_dump_sysfs(const char *val, const struct kernel_param *kp)
 	}
 
 	if (fg_sram_dump)
-		schedule_delayed_work(&fg->sram_dump_work,
+		queue_delayed_work(system_power_efficient_wq, &fg->sram_dump_work,
 				msecs_to_jiffies(fg_sram_dump_period_ms));
 	else
 		cancel_delayed_work_sync(&fg->sram_dump_work);
@@ -4507,7 +4507,7 @@ static int fg_psy_set_property(struct power_supply *psy,
 			return -EINVAL;
 		chip->last_batt_age_level = chip->batt_age_level;
 		chip->batt_age_level = pval->intval;
-		schedule_delayed_work(&fg->profile_load_work, 0);
+		queue_delayed_work(system_power_efficient_wq, &fg->profile_load_work, 0);
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
 		if (fg->vbatt_full_volt_uv != pval->intval)
@@ -5858,7 +5858,7 @@ static void soc_work_fn(struct work_struct *work)
 		prev_soc = soc;
 	}
 
-	schedule_delayed_work(
+	queue_delayed_work(system_power_efficient_wq,
 		&fg->soc_work,
 		msecs_to_jiffies(SOC_WORK_MS));
 }
@@ -5896,7 +5896,7 @@ static void empty_restart_fg_work(struct work_struct *work)
 			if (batt_psy_initialized(fg))
 				power_supply_changed(fg->batt_psy);
 		} else {
-			schedule_delayed_work(
+			queue_delayed_work(system_power_efficient_wq,
 					&fg->empty_restart_fg_work,
 					msecs_to_jiffies(RESTART_FG_WORK_MS));
 		}
@@ -6217,13 +6217,13 @@ static int fg_gen4_probe(struct platform_device *pdev)
 
 	device_init_wakeup(fg->dev, true);
 	if (!fg->battery_missing)
-		schedule_delayed_work(&fg->profile_load_work, 0);
+		queue_delayed_work(system_power_efficient_wq, &fg->profile_load_work, 0);
 
-	schedule_delayed_work(&fg->soc_work, 0);
+	queue_delayed_work(system_power_efficient_wq, &fg->soc_work, 0);
 
 	if ((volt_uv >= VBAT_RESTART_FG_EMPTY_UV)
 			&& (msoc == 0) && (batt_temp >= TEMP_THR_RESTART_FG))
-		schedule_delayed_work(&fg->empty_restart_fg_work,
+		queue_delayed_work(system_power_efficient_wq, &fg->empty_restart_fg_work,
 				msecs_to_jiffies(RESTART_FG_START_WORK_MS));
 	fg_gen4_post_init(chip);
 
@@ -6312,11 +6312,11 @@ static int fg_gen4_resume(struct device *dev)
 	if (!fg->input_present)
 		fg_get_batt_isense(fg, &val);
 
-	schedule_delayed_work(
+	queue_delayed_work(system_power_efficient_wq,
 			&fg->soc_work, msecs_to_jiffies(SOC_WORK_MS));
-	schedule_delayed_work(&chip->ttf->ttf_work, 0);
+	queue_delayed_work(system_power_efficient_wq, &chip->ttf->ttf_work, 0);
 	if (fg_sram_dump)
-		schedule_delayed_work(&fg->sram_dump_work,
+		queue_delayed_work(system_power_efficient_wq, &fg->sram_dump_work,
 				msecs_to_jiffies(fg_sram_dump_period_ms));
 	return 0;
 }

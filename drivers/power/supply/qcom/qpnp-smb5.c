@@ -2381,7 +2381,7 @@ static int smb5_dr_set_property(struct dual_role_phy_instance *dual_role,
 		if (chg->pr_swap_in_progress && !rc) {
 			cancel_delayed_work_sync(&chg->role_reversal_check);
 			vote(chg->awake_votable, DR_SWAP_VOTER, true, 0);
-			schedule_delayed_work(&chg->role_reversal_check,
+			queue_delayed_work(system_power_efficient_wq, &chg->role_reversal_check,
 				msecs_to_jiffies(ROLE_REVERSAL_DELAY_MS));
 		}
 		break;
@@ -4090,7 +4090,7 @@ static int smb5_probe(struct platform_device *pdev)
 		pr_err("Failed in getting charger status rc=%d\n", rc);
 		goto free_irq;
 	}
-	schedule_delayed_work(&chg->reg_work, 30 * HZ);
+	queue_delayed_work(system_power_efficient_wq, &chg->reg_work, 30 * HZ);
 
 	device_init_wakeup(chg->dev, true);
 
