@@ -21149,9 +21149,9 @@ int wlan_hdd_disconnect(struct hdd_adapter *adapter, u16 reason)
  * Return: string conversion of reason code, if match found;
  *         "Unknown" otherwise.
  */
-#ifdef WLAN_DEBUG
 static const char *hdd_ieee80211_reason_code_to_str(uint16_t reason)
 {
+#ifdef WLAN_DEBUG
 	switch (reason) {
 	CASE_RETURN_STRING(WLAN_REASON_UNSPECIFIED);
 	CASE_RETURN_STRING(WLAN_REASON_PREV_AUTH_NOT_VALID);
@@ -21203,8 +21203,9 @@ static const char *hdd_ieee80211_reason_code_to_str(uint16_t reason)
 	default:
 		return "Unknown";
 	}
-}
 #endif
+	return "";
+}
 
 /**
  * hdd_print_netdev_txq_status() - print netdev tx queue status

@@ -357,10 +357,10 @@ else
 endif
 
 # Compile all log levels by default
-CONFIG_WLAN_LOG_FATAL := y
-CONFIG_WLAN_LOG_ERROR := y
-CONFIG_WLAN_LOG_WARN := y
-CONFIG_WLAN_LOG_INFO := y
+CONFIG_WLAN_LOG_FATAL := n
+CONFIG_WLAN_LOG_ERROR := n
+CONFIG_WLAN_LOG_WARN := n
+CONFIG_WLAN_LOG_INFO := n
 
 #Enable OL debug and wmi unified functions
 CONFIG_ATH_PERF_PWR_OFFLOAD := y
