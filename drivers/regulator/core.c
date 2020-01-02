@@ -1331,7 +1331,7 @@ static const struct file_operations constraint_flags_fops = {
 #endif
 };
 
-#define REG_STR_SIZE	64
+#define REG_STR_SIZE	128
 
 static struct regulator *create_regulator(struct regulator_dev *rdev,
 					  struct device *dev,
