@@ -438,6 +438,7 @@ static struct msm_soc_info cpu_of_id[] = {
 
 	/* SDM660 ID */
 	[317] = {MSM_CPU_SDM660, "SDM660"},
+	[324] = {MSM_CPU_SDA660, "SDA660"},
 
 	/* atollab ID */
 	[443] = {MSM_CPU_ATOLL_AB, "ATOLL-AB"},
@@ -1441,6 +1442,10 @@ static void * __init setup_dummy_socinfo(void)
 	} else if (early_machine_is_atoll_ab()) {
 		dummy_socinfo.id = 443;
 		strlcpy(dummy_socinfo.build_id, "atoll-ab - ",
+		sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_sda660()) {
+		dummy_socinfo.id = 324;
+		strlcpy(dummy_socinfo.build_id, "sda660 - ",
 		sizeof(dummy_socinfo.build_id));
 	} else
 		strlcat(dummy_socinfo.build_id, "Dummy socinfo",
