@@ -20678,8 +20678,10 @@ int wlan_hdd_try_disconnect(struct hdd_adapter *adapter)
 				&adapter->roaming_comp_var,
 				msecs_to_jiffies(WLAN_WAIT_TIME_STOP_ROAM));
 			if (!rc) {
-				hdd_err("roaming comp var timed out session Id: %d",
+				hdd_err("roaming_comp_var time out vdev Id: %d",
 					adapter->session_id);
+				/* Clear roaming in progress flag */
+				hdd_set_roaming_in_progress(false);
 			}
 			if (adapter->roam_ho_fail) {
 				INIT_COMPLETION(adapter->disconnect_comp_var);
@@ -21107,8 +21109,10 @@ int wlan_hdd_disconnect(struct hdd_adapter *adapter, u16 reason)
 				&adapter->roaming_comp_var,
 				msecs_to_jiffies(WLAN_WAIT_TIME_STOP_ROAM));
 			if (!rc) {
-				hdd_err("roaming comp var timed out session Id: %d",
+				hdd_err("roaming_comp_var time out vdev id: %d",
 					adapter->session_id);
+				/* Clear roaming in progress flag */
+				hdd_set_roaming_in_progress(false);
 			}
 			if (adapter->roam_ho_fail) {
 				INIT_COMPLETION(adapter->disconnect_comp_var);
@@ -23794,6 +23798,11 @@ __wlan_hdd_cfg80211_update_connect_params(struct wiphy *wiphy,
 
 		fils_info->sequence_number = req->fils_erp_next_seq_num + 1;
 		fils_info->r_rk_length = req->fils_erp_rrk_len;
+
+		if (fils_info->r_rk_length > FILS_MAX_RRK_LENGTH) {
+			hdd_err("r_rk_length is invalid");
+			return -EINVAL;
+		}
 
 		if (req->fils_erp_rrk_len && req->fils_erp_rrk)
 			qdf_mem_copy(fils_info->r_rk, req->fils_erp_rrk,
