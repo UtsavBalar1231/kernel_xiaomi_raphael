@@ -1180,33 +1180,11 @@ static DEVICE_ATTR(fod_test, (S_IRUGO | S_IWUSR | S_IWGRP),
 static DEVICE_ATTR(touch_suspend_notify, (S_IRUGO | S_IRGRP),
 			gtp_touch_suspend_notify_show, NULL);
 
-static void goodix_switch_mode_work(struct work_struct *work)
-{
-	struct goodix_mode_switch *ms =
-		container_of(work, struct goodix_mode_switch, switch_mode_work);
-
-	struct goodix_ts_core *info = ms->info;
-	unsigned char value = ms->mode;
-
-#ifdef CONFIG_GOODIX_HWINFO
-	char ch[16] = { 0x0, };
-#endif
-	if (value >= INPUT_EVENT_WAKUP_MODE_OFF
-		&& value <= INPUT_EVENT_WAKUP_MODE_ON) {
-		info->double_wakeup = value - INPUT_EVENT_WAKUP_MODE_OFF;
-		info->gesture_enabled = info->double_wakeup | info->fod_status;
-		/*goodix_gesture_enable(!!info->gesture_enabled);*/
-#ifdef CONFIG_GOODIX_HWINFO
-		snprintf(ch, sizeof(ch), "%s", info->gesture_enabled ? "enabled" : "disabled");
-#endif
-	}
-}
-
 static int goodix_input_event(struct input_dev *dev, unsigned int type,
 		unsigned int code, int value)
 {
 	struct goodix_ts_core *core_data = input_get_drvdata(dev);
-	struct goodix_mode_switch *ms;
+	struct goodix_mode_switch ms;
 
 	if (!core_data) {
 		ts_err("core_data is NULL");
@@ -1215,22 +1193,23 @@ static int goodix_input_event(struct input_dev *dev, unsigned int type,
 
 	if (type == EV_SYN && code == SYN_CONFIG) {
 		if (value >= INPUT_EVENT_START && value <= INPUT_EVENT_END) {
-			ms = (struct goodix_mode_switch *)
-				kmalloc(sizeof(struct goodix_mode_switch), GFP_ATOMIC);
-			if (ms != NULL) {
-				ms->info = core_data;
-				ms->mode = (unsigned char)value;
-				INIT_WORK(&ms->switch_mode_work,
-					goodix_switch_mode_work);
-				schedule_work(&ms->switch_mode_work);
-			} else {
-				ts_err("failed in allocating memory for switching mode");
-				return -ENOMEM;
+#ifdef CONFIG_GOODIX_HWINFO
+			char ch[16] = { 0x0, };
+#endif
+			ms.info = core_data;
+			ms.mode = (unsigned char)value;
+			if (value >= INPUT_EVENT_WAKUP_MODE_OFF && value <= INPUT_EVENT_WAKUP_MODE_ON) {
+				ms.info->double_wakeup = value - INPUT_EVENT_WAKUP_MODE_OFF;
+				ms.info->gesture_enabled = ms.info->double_wakeup | ms.info->fod_status;
+				/*goodix_gesture_enable(!!info->gesture_enabled);*/
+#ifdef CONFIG_GOODIX_HWINFO
+				snprintf(ch, sizeof(ch), "%s", ms.info->gesture_enabled ? "enabled" : "disabled");
+#endif
 			}
-		} else {
-			ts_err("Invalid event value");
-			return -EINVAL;
 		}
+	} else {
+		ts_err("Invalid event value");
+		return -EINVAL;
 	}
 	return 0;
 }
