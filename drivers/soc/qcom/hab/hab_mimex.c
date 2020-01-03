@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -79,23 +79,20 @@ static int hab_export_ack_wait(struct uhab_context *ctx,
  * Once generated it will not be erased
  * assumptions: no handshake or memory map/unmap in this helper function
  */
-struct export_desc_super *habmem_add_export(
-		struct virtual_channel *vchan,
+static struct export_desc *habmem_add_export(struct virtual_channel *vchan,
 		int sizebytes,
 		uint32_t flags)
 {
-	struct uhab_context *ctx = NULL;
-	struct export_desc *exp = NULL;
-	struct export_desc_super *exp_super = NULL;
+	struct uhab_context *ctx;
+	struct export_desc *exp;
 
 	if (!vchan || !sizebytes)
 		return NULL;
 
-	exp_super = kzalloc(sizebytes, GFP_KERNEL);
-	if (!exp_super)
+	exp = kzalloc(sizebytes, GFP_KERNEL);
+	if (!exp)
 		return NULL;
 
-	exp = &exp_super->exp;
 	idr_preload(GFP_KERNEL);
 	spin_lock(&vchan->pchan->expid_lock);
 	exp->export_id =
@@ -118,21 +115,18 @@ struct export_desc_super *habmem_add_export(
 	list_add_tail(&exp->node, &ctx->exp_whse);
 	write_unlock(&ctx->exp_lock);
 
-	return exp_super;
+	return exp;
 }
 
 void habmem_remove_export(struct export_desc *exp)
 {
-	struct uhab_context *ctx = NULL;
-	struct export_desc_super *exp_super =
-			container_of(exp,
-				struct export_desc_super,
-				exp);
+	struct physical_channel *pchan;
+	struct uhab_context *ctx;
 
-	if (!exp || !exp->ctx) {
+	if (!exp || !exp->ctx || !exp->pchan) {
 		if (exp)
-			pr_err("invalid info in exp %pK ctx %pK\n",
-			   exp, exp->ctx);
+			pr_err("invalid info in exp %pK ctx %pK pchan %pK\n",
+			   exp, exp->ctx, exp->pchan);
 		else
 			pr_err("invalid exp\n");
 		return;
@@ -140,35 +134,6 @@ void habmem_remove_export(struct export_desc *exp)
 
 	ctx = exp->ctx;
 	ctx->export_total--;
-	exp->ctx = NULL;
-
-	habmem_export_put(exp_super);
-}
-
-static void habmem_export_destroy(struct kref *refcount)
-{
-	struct physical_channel *pchan = NULL;
-	struct export_desc_super *exp_super =
-			container_of(
-				refcount,
-				struct export_desc_super,
-				refcount);
-	struct export_desc *exp = NULL;
-
-	if (!exp_super) {
-		pr_err("invalid exp_super\n");
-		return;
-	}
-
-	exp = &exp_super->exp;
-	if (!exp || !exp->pchan) {
-		if (exp)
-			pr_err("invalid info in exp %pK pchan %pK\n",
-			   exp, exp->pchan);
-		else
-			pr_err("invalid exp\n");
-		return;
-	}
 
 	pchan = exp->pchan;
 
@@ -176,8 +141,42 @@ static void habmem_export_destroy(struct kref *refcount)
 	idr_remove(&pchan->expid_idr, exp->export_id);
 	spin_unlock(&pchan->expid_lock);
 
-	habmem_exp_release(exp_super);
-	kfree(exp_super);
+	kfree(exp);
+}
+
+static int compress_pfns(void **pfns, int npages, unsigned int *data_size)
+{
+	int i, j = 0;
+	struct grantable *item = (struct grantable *)*pfns;
+	int region_size = 1;
+	struct compressed_pfns *new_table =
+		vmalloc(sizeof(struct compressed_pfns) +
+			npages * sizeof(struct region));
+
+	if (!new_table)
+		return -ENOMEM;
+
+	new_table->first_pfn = item[0].pfn;
+	for (i = 1; i < npages; i++) {
+		if (item[i].pfn-1 == item[i-1].pfn) {
+			region_size++; /* continuous pfn */
+		} else {
+			new_table->region[j].size  = region_size;
+			new_table->region[j].space = item[i].pfn -
+							item[i-1].pfn - 1;
+			j++;
+			region_size = 1;
+		}
+	}
+	new_table->region[j].size = region_size;
+	new_table->region[j].space = 0;
+	new_table->nregions = j+1;
+	vfree(*pfns);
+
+	*data_size = sizeof(struct compressed_pfns) +
+		sizeof(struct region)*new_table->nregions;
+	*pfns = new_table;
+	return 0;
 }
 
 /*
@@ -187,9 +186,11 @@ static void habmem_export_destroy(struct kref *refcount)
  */
 static int habmem_export_vchan(struct uhab_context *ctx,
 		struct virtual_channel *vchan,
+		void *pdata,
 		int payload_size,
+		int nunits,
 		uint32_t flags,
-		uint32_t export_id)
+		uint32_t *export_id)
 {
 	int ret;
 	struct export_desc *exp;
@@ -197,12 +198,13 @@ static int habmem_export_vchan(struct uhab_context *ctx,
 	struct hab_export_ack expected_ack = {0};
 	struct hab_header header = HAB_HEADER_INITIALIZER;
 
-	exp = idr_find(&vchan->pchan->expid_idr, export_id);
-	if (!exp) {
-		pr_err("export vchan failed: exp_id %d, pchan %s\n",
-				export_id, vchan->pchan->name);
-		return -EINVAL;
-	}
+	exp = habmem_add_export(vchan, sizebytes, flags);
+	if (!exp)
+		return -ENOMEM;
+
+	 /* append the pdata to the export descriptor */
+	exp->payload_count = nunits;
+	memcpy(exp->payload, pdata, payload_size);
 
 	HAB_HEADER_SET_SIZE(header, sizebytes);
 	HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_EXPORT);
@@ -225,17 +227,9 @@ static int habmem_export_vchan(struct uhab_context *ctx,
 		return ret;
 	}
 
+	*export_id = exp->export_id;
+
 	return ret;
-}
-
-void habmem_export_get(struct export_desc_super *exp_super)
-{
-	kref_get(&exp_super->refcount);
-}
-
-int habmem_export_put(struct export_desc_super *exp_super)
-{
-	return kref_put(&exp_super->refcount, habmem_export_destroy);
 }
 
 int hab_mem_export(struct uhab_context *ctx,
@@ -243,7 +237,8 @@ int hab_mem_export(struct uhab_context *ctx,
 		int kernel)
 {
 	int ret = 0;
-	unsigned int payload_size = 0;
+	void *pdata_exp = NULL;
+	unsigned int pdata_size = 0;
 	uint32_t export_id = 0;
 	struct virtual_channel *vchan;
 	int page_count;
@@ -259,39 +254,49 @@ int hab_mem_export(struct uhab_context *ctx,
 	}
 
 	page_count = param->sizebytes/PAGE_SIZE;
-	if (kernel) {
-		ret = habmem_hyp_grant(vchan,
-			(unsigned long)param->buffer,
-			page_count,
-			param->flags,
-			vchan->pchan->dom_id,
-			&compressed,
-			&payload_size,
-			&export_id);
-	} else {
-		ret = habmem_hyp_grant_user(vchan,
-			(unsigned long)param->buffer,
-			page_count,
-			param->flags,
-			vchan->pchan->dom_id,
-			&compressed,
-			&payload_size,
-			&export_id);
-	}
-	if (ret < 0) {
-		pr_err("habmem_hyp_grant vc %x failed size=%d ret=%d\n",
-			   param->vcid, payload_size, ret);
+	pdata_exp = habmm_hyp_allocate_grantable(page_count, &pdata_size);
+	if (!pdata_exp) {
+		ret = -ENOMEM;
 		goto err;
 	}
 
+	if (kernel) {
+		ret = habmem_hyp_grant((unsigned long)param->buffer,
+			page_count,
+			param->flags,
+			vchan->pchan->dom_id,
+			pdata_exp,
+			&compressed,
+			&pdata_size);
+	} else {
+		ret = habmem_hyp_grant_user((unsigned long)param->buffer,
+			page_count,
+			param->flags,
+			vchan->pchan->dom_id,
+			pdata_exp,
+			&compressed,
+			&pdata_size);
+	}
+	if (ret < 0) {
+		pr_err("habmem_hyp_grant vc %x failed size=%d ret=%d\n",
+			   param->vcid, pdata_size, ret);
+		goto err;
+	}
+
+	if (!compressed)
+		compress_pfns(&pdata_exp, page_count, &pdata_size);
+
 	ret = habmem_export_vchan(ctx,
 		vchan,
-		payload_size,
+		pdata_exp,
+		pdata_size,
+		page_count,
 		param->flags,
-		export_id);
+		&export_id);
 
 	param->exportid = export_id;
 err:
+	vfree(pdata_exp);
 	if (vchan)
 		hab_vchan_put(vchan);
 	return ret;
@@ -302,7 +307,7 @@ int hab_mem_unexport(struct uhab_context *ctx,
 		int kernel)
 {
 	int ret = 0, found = 0;
-	struct export_desc *exp = NULL, *tmp = NULL;
+	struct export_desc *exp, *tmp;
 	struct virtual_channel *vchan;
 
 	if (!ctx || !param)
