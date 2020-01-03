@@ -1991,8 +1991,6 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 		else
 			left_plist[left_cnt++] = pipe;
 
-		pr_err("id:0x%x flags:0x%x dst_x:%d\n",
-			layer->pipe_ndx, layer->flags, layer->dst_rect.x);
 		layer->z_order -= MDSS_MDP_STAGE_0;
 	}
 
