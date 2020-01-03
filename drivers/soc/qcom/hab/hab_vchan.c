@@ -146,7 +146,7 @@ hab_vchan_get(struct physical_channel *pchan, struct hab_header *header)
 				payload_type, sizebytes);
 			vchan = NULL;
 		} else if (vchan->otherend_closed || vchan->closed) {
-			pr_err("closed already remote %d local %d vcid %x remote %x session %d refcnt %d header %x session %d type %d sz %zd\n",
+			pr_debug("closed already remote %d local %d vcid %x remote %x session %d refcnt %d header %x session %d type %d sz %zd\n",
 				vchan->otherend_closed, vchan->closed,
 				vchan->id, vchan->otherend_id,
 				vchan->session_id, get_refcnt(vchan->refcount),
@@ -245,7 +245,7 @@ static int hab_vchans_empty(int vmid)
 				if (!hab_vchans_per_pchan_empty(pchan)) {
 					empty = 0;
 					spin_unlock_bh(&hab_dev->pchan_lock);
-					pr_info("vmid %d %s's vchans are not closed\n",
+					pr_debug("vmid %d %s's vchans are not closed\n",
 							vmid, pchan->name);
 					break;
 				}

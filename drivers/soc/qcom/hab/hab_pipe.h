@@ -14,10 +14,27 @@
 #define HAB_PIPE_H
 
 struct hab_shared_buf {
-	uint32_t rd_count;
-	uint32_t wr_count;
+	volatile uint32_t rd_count;
+	volatile uint32_t wr_count;
 	uint32_t size;
-	unsigned char data[];
+	volatile unsigned char data[];
+};
+
+/* debug only */
+struct dbg_item {
+	uint32_t rd_cnt;
+	uint32_t wr_cnt;
+	void *va; /* local for read or write */
+	uint32_t index; /* local */
+	uint32_t sz; /* size in */
+	uint32_t ret; /* actual bytes read */
+};
+
+#define DBG_ITEM_SIZE 20
+
+struct dbg_items {
+  struct dbg_item it[DBG_ITEM_SIZE];
+  int idx;
 };
 
 struct hab_pipe_endpoint {
@@ -55,6 +72,9 @@ uint32_t hab_pipe_write(struct hab_pipe_endpoint *ep,
 void hab_pipe_write_commit(struct hab_pipe_endpoint *ep);
 
 uint32_t hab_pipe_read(struct hab_pipe_endpoint *ep,
-		unsigned char *p, uint32_t size);
+		unsigned char *p, uint32_t size, uint32_t clear);
+
+// debug only
+void hab_pipe_rxinfo(struct hab_pipe_endpoint *ep, uint32_t *rd_cnt, uint32_t *wr_cnt, uint32_t *idx);
 
 #endif /* HAB_PIPE_H */
