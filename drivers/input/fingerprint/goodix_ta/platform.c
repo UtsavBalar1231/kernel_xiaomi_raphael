@@ -131,9 +131,9 @@ int gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
 	}
 
 	gpio_direction_output(gf_dev->reset_gpio, 0);
-	mdelay(3);
+	mdelay(5);
 	gpio_set_value(gf_dev->reset_gpio, 1);
-	mdelay(delay_ms);
+	mdelay(delay_ms*5);
 	pr_info("%s\n", __func__);
 	return 0;
 }
