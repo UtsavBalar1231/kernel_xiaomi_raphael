@@ -169,7 +169,7 @@ long kgsl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	struct kgsl_device_private *dev_priv = filep->private_data;
 	struct kgsl_device *device = dev_priv->device;
-	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
+	struct adreno_device __maybe_unused *adreno_dev = ADRENO_DEVICE(device);
 	long ret;
 
 	ret = kgsl_ioctl_helper(filep, cmd, arg, kgsl_ioctl_funcs,
