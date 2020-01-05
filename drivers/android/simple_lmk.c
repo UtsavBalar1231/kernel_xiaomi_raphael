@@ -245,11 +245,9 @@ static void scan_and_kill(unsigned long pages_needed)
 
 static int simple_lmk_reclaim_thread(void *data)
 {
-	static const struct sched_param sched_max_rt_prio = {
-		.sched_priority = MAX_RT_PRIO - 1
-	};
+	struct sched_param param = { .sched_priority = 7 };
 
-	sched_setscheduler_nocheck(current, SCHED_FIFO, &sched_max_rt_prio);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 
 	while (1) {
 		wait_event(oom_waitq, atomic_read(&needs_reclaim));
