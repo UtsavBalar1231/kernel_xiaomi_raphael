@@ -179,7 +179,7 @@ static void dcc_sram_memset(const struct device *dev, void __iomem *dst,
 	}
 
 	while (count >= 4) {
-		__raw_writel_no_log(qc, dst);
+		__raw_writel(qc, dst);
 		dst += 4;
 		count -= 4;
 	}
@@ -195,7 +195,7 @@ static int dcc_sram_memcpy(void *to, const void __iomem *from,
 	}
 
 	while (count >= 4) {
-		*(unsigned int *)to = __raw_readl_no_log(from);
+		*(unsigned int *)to = __raw_readl(from);
 		to += 4;
 		from += 4;
 		count -= 4;
