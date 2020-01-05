@@ -131,17 +131,13 @@ static long spi_clk_max_rate(struct clk *clk, unsigned long rate)
 	long guess = rate;
 	int max_steps = 10;
 	cur = clk_round_rate(clk, rate);
-
-	if (cur == rate) {
+	if (cur == rate)
 		return rate;
-	}
 
 	/* if we got here then: cur > rate */
 	lowest_available = clk_round_rate(clk, 0);
-
-	if (lowest_available > rate) {
+	if (lowest_available > rate)
 		return -EINVAL;
-	}
 
 	step_size = (rate - lowest_available) >> 1;
 	nearest_low = lowest_available;
@@ -150,21 +146,18 @@ static long spi_clk_max_rate(struct clk *clk, unsigned long rate)
 		guess += step_size * step_direction;
 		cur = clk_round_rate(clk, guess);
 
-		if ((cur < rate) && (cur > nearest_low)) {
+		if ((cur < rate) && (cur > nearest_low))
 			nearest_low = cur;
-		}
-
 		/*
 		 * if we stepped too far, then start stepping in the other
 		 * direction with half the step size
 		 */
 		if (((cur > rate) && (step_direction > 0))
-		    || ((cur < rate) && (step_direction < 0))) {
+				|| ((cur < rate) && (step_direction < 0))) {
 			step_direction = -step_direction;
 			step_size >>= 1;
 		}
 	}
-
 	return nearest_low;
 }
 
@@ -172,11 +165,11 @@ static void spi_clock_set(struct gf_dev *gf_dev, int speed)
 {
 	long rate;
 	int rc;
-	rate = spi_clk_max_rate(gf_dev->core_clk, speed);
 
+	rate = spi_clk_max_rate(gf_dev->core_clk, speed);
 	if (rate < 0) {
 		pr_debug("%s: no match found for requested clock frequency:%d",
-			 __func__, speed);
+				__func__, speed);
 		return;
 	}
 
@@ -186,44 +179,39 @@ static void spi_clock_set(struct gf_dev *gf_dev, int speed)
 static int gfspi_ioctl_clk_init(struct gf_dev *data)
 {
 	pr_debug("%s: enter\n", __func__);
+
 	data->clk_enabled = 0;
 	data->core_clk = clk_get(&data->spi->dev, "core_clk");
-
 	if (IS_ERR_OR_NULL(data->core_clk)) {
 		pr_err("%s: fail to get core_clk\n", __func__);
 		return -EPERM;
 	}
-
 	data->iface_clk = clk_get(&data->spi->dev, "iface_clk");
-
 	if (IS_ERR_OR_NULL(data->iface_clk)) {
 		pr_err("%s: fail to get iface_clk\n", __func__);
 		clk_put(data->core_clk);
 		data->core_clk = NULL;
 		return -ENOENT;
 	}
-
 	return 0;
 }
 
 static int gfspi_ioctl_clk_enable(struct gf_dev *data)
 {
 	int err;
+
 	pr_debug("%s: enter\n", __func__);
 
-	if (data->clk_enabled) {
+	if (data->clk_enabled)
 		return 0;
-	}
 
 	err = clk_prepare_enable(data->core_clk);
-
 	if (err) {
 		pr_err("%s: fail to enable core_clk\n", __func__);
 		return -EPERM;
 	}
 
 	err = clk_prepare_enable(data->iface_clk);
-
 	if (err) {
 		pr_err("%s: fail to enable iface_clk\n", __func__);
 		clk_disable_unprepare(data->core_clk);
@@ -231,6 +219,7 @@ static int gfspi_ioctl_clk_enable(struct gf_dev *data)
 	}
 
 	data->clk_enabled = 1;
+
 	return 0;
 }
 
@@ -238,13 +227,13 @@ static int gfspi_ioctl_clk_disable(struct gf_dev *data)
 {
 	pr_debug("%s: enter\n", __func__);
 
-	if (!data->clk_enabled) {
+	if (!data->clk_enabled)
 		return 0;
-	}
 
 	clk_disable_unprepare(data->core_clk);
 	clk_disable_unprepare(data->iface_clk);
 	data->clk_enabled = 0;
+
 	return 0;
 }
 
@@ -252,9 +241,8 @@ static int gfspi_ioctl_clk_uninit(struct gf_dev *data)
 {
 	pr_debug("%s: enter\n", __func__);
 
-	if (data->clk_enabled) {
+	if (data->clk_enabled)
 		gfspi_ioctl_clk_disable(data);
-	}
 
 	if (!IS_ERR_OR_NULL(data->core_clk)) {
 		clk_put(data->core_clk);
@@ -341,11 +329,11 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 {
 	uint32_t key_input = 0;
 
-	if (GF_KEY_HOME == gf_key->key) {
+	if (gf_key->key == GF_KEY_HOME) {
 		key_input = GF_KEY_INPUT_HOME;
-	} else if (GF_KEY_POWER == gf_key->key) {
+	} else if (gf_key->key == GF_KEY_POWER) {
 		key_input = GF_KEY_INPUT_POWER;
-	} else if (GF_KEY_CAMERA == gf_key->key) {
+	} else if (gf_key->key == GF_KEY_CAMERA) {
 		key_input = GF_KEY_INPUT_CAMERA;
 	} else {
 		/* add special key define */
@@ -355,15 +343,15 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 	pr_debug("%s: received key event[%d], key=%d, value=%d\n",
 		 __func__, key_input, gf_key->key, gf_key->value);
 
-	if ((GF_KEY_POWER == gf_key->key || GF_KEY_CAMERA == gf_key->key)
-	    && (gf_key->value == 1)) {
+	if ((gf_key->key == GF_KEY_POWER || gf_key->key == GF_KEY_CAMERA)
+			&& (gf_key->value == 1)) {
 		input_report_key(gf_dev->input, key_input, 1);
 		input_sync(gf_dev->input);
 		input_report_key(gf_dev->input, key_input, 0);
 		input_sync(gf_dev->input);
 	}
 
-	if (GF_KEY_HOME == gf_key->key) {
+	if (gf_key->key == GF_KEY_HOME) {
 		input_report_key(gf_dev->input, key_input, gf_key->value);
 		input_sync(gf_dev->input);
 	}
@@ -380,28 +368,24 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	u8 netlink_route = NETLINK_TEST;
 	struct gf_ioc_chip_info info;
 
-	if (_IOC_TYPE(cmd) != GF_IOC_MAGIC) {
+	if (_IOC_TYPE(cmd) != GF_IOC_MAGIC)
 		return -ENODEV;
-	}
 
-	if (_IOC_DIR(cmd) & _IOC_READ) {
+	if (_IOC_DIR(cmd) & _IOC_READ)
 		retval = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
-	} else if (_IOC_DIR(cmd) & _IOC_WRITE) {
+	else if (_IOC_DIR(cmd) & _IOC_WRITE)
 		retval = !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
-	}
-
-	if (retval) {
+	if (retval)
 		return -EFAULT;
-	}
 
-	if (gf_dev->device_available == 0) {
-		if ((cmd == GF_IOC_ENABLE_POWER) || (cmd == GF_IOC_DISABLE_POWER)) {
-			pr_debug("power cmd\n");
-		} else {
-			pr_debug("get cmd %d, but sensor is power off currently.\n", _IOC_NR(cmd));
-			return -ENODEV;
-		}
-	}
+       if (gf_dev->device_available == 0) {
+               if ((cmd == GF_IOC_ENABLE_POWER) || (cmd == GF_IOC_DISABLE_POWER)) {
+                       pr_debug("power cmd\n");
+               } else {
+                       pr_debug("get cmd %d, but sensor is power off currently.\n", _IOC_NR(cmd));
+                       return -ENODEV;
+               }
+       }
 
 	switch (cmd) {
 		case GF_IOC_INIT:
@@ -547,12 +531,12 @@ static irqreturn_t gf_irq(int irq, void *handle)
 {
 	struct gf_dev *gf_dev = &gf;
 #if defined(GF_NETLINK_ENABLE)
-	char temp[4] = { 0x0 };
+	char msg = 0;
 	uint32_t key_input = 0;
-	temp[0] = GF_NET_EVENT_IRQ;
+	msg = GF_NET_EVENT_IRQ;
 	pr_debug("%s enter\n", __func__);
 	__pm_wakeup_event(&fp_wakelock, WAKELOCK_HOLD_TIME);
-	sendnlmsg(temp);
+	sendnlmsg(&msg);
 
 	if ((gf_dev->wait_finger_down == true) && (gf_dev->device_available == 1) &&
 	    (gf_dev->fb_black == 1)) {
@@ -591,7 +575,7 @@ static int gf_open(struct inode *inode, struct file *filp)
 		}
 	}
 #ifdef CONFIG_FINGERPRINT_FP_VREG_CONTROL
-	pr_info("Try to enable fp_vdd_vreg\n");
+	pr_debug("Try to enable fp_vdd_vreg\n");
 	gf_dev->vreg = regulator_get(&gf_dev->spi->dev, "fp_vdd_vreg");
 
 	if (gf_dev->vreg == NULL) {
@@ -601,7 +585,7 @@ static int gf_open(struct inode *inode, struct file *filp)
 	}
 
 	if (regulator_is_enabled(gf_dev->vreg)) {
-		pr_info("fp_vdd_vreg is already enabled!\n");
+		pr_debug("fp_vdd_vreg is already enabled!\n");
 	} else {
 		rc = regulator_enable(gf_dev->vreg);
 
@@ -614,7 +598,7 @@ static int gf_open(struct inode *inode, struct file *filp)
 		}
 	}
 
-	pr_info("fp_vdd_vreg is enabled!\n");
+	pr_debug("fp_vdd_vreg is enabled!\n");
 #endif
 
 	if (status == 0) {
@@ -692,7 +676,7 @@ static int gf_release(struct inode *inode, struct file *filp)
 	 *Disable fp_vdd_vreg regulator
 	 */
 #ifdef CONFIG_FINGERPRINT_FP_VREG_CONTROL
-	pr_info("disable fp_vdd_vreg!\n");
+	pr_debug("disable fp_vdd_vreg!\n");
 
 	if (regulator_is_enabled(gf_dev->vreg)) {
 		regulator_disable(gf_dev->vreg);
@@ -743,11 +727,10 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 	struct gf_dev *gf_dev;
 	struct fb_event *evdata = data;
 	unsigned int blank;
-	char temp[4] = { 0x0 };
+	char msg = 0;
 
-	if (val != MSM_DRM_EVENT_BLANK) {
+	if (val != MSM_DRM_EARLY_EVENT_BLANK)
 		return 0;
-	}
 
 	pr_debug("[info] %s go to the goodix_fb_state_chg_callback value = %d\n",
 		 __func__, (int)val);
@@ -762,8 +745,8 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 					gf_dev->fb_black = 1;
 					gf_dev->wait_finger_down = true;
 #if defined(GF_NETLINK_ENABLE)
-					temp[0] = GF_NET_EVENT_FB_BLACK;
-					sendnlmsg(temp);
+					msg = GF_NET_EVENT_FB_BLACK;
+					sendnlmsg(&msg);
 #elif defined (GF_FASYNC)
 
 					if (gf_dev->async) {
@@ -779,8 +762,8 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 				if (gf_dev->device_available == 1) {
 					gf_dev->fb_black = 0;
 #if defined(GF_NETLINK_ENABLE)
-					temp[0] = GF_NET_EVENT_FB_UNBLACK;
-					sendnlmsg(temp);
+					msg = GF_NET_EVENT_FB_UNBLACK;
+					sendnlmsg(&msg);
 #elif defined (GF_FASYNC)
 
 					if (gf_dev->async) {
@@ -876,9 +859,8 @@ static int gf_probe(struct platform_device *pdev)
 			goto error_dev;
 		}
 
-		for (i = 0; i < ARRAY_SIZE(maps); i++) {
+		for (i = 0; i < ARRAY_SIZE(maps); i++)
 			input_set_capability(gf_dev->input, maps[i].type, maps[i].code);
-		}
 
 		gf_dev->input->name = GF_INPUT_NAME;
 		status = input_register_device(gf_dev->input);
@@ -893,13 +875,11 @@ static int gf_probe(struct platform_device *pdev)
 	pr_debug("Get the clk resource.\n");
 
 	/* Enable spi clock */
-	if (gfspi_ioctl_clk_init(gf_dev)) {
+	if (gfspi_ioctl_clk_init(gf_dev))
 		goto gfspi_probe_clk_init_failed;
-	}
 
-	if (gfspi_ioctl_clk_enable(gf_dev)) {
+	if (gfspi_ioctl_clk_enable(gf_dev))
 		goto gfspi_probe_clk_enable_failed;
-	}
 
 	spi_clock_set(gf_dev, 1000000);
 #endif
@@ -911,6 +891,7 @@ static int gf_probe(struct platform_device *pdev)
 	wakeup_source_init(&fp_wakelock, "fp_wakelock");
 	pr_debug("version V%d.%d.%02d\n", VER_MAJOR, VER_MINOR, PATCH_LEVEL);
 	return status;
+
 #ifdef AP_CONTROL_CLK
 gfspi_probe_clk_enable_failed:
 	gfspi_ioctl_clk_uninit(gf_dev);
@@ -919,9 +900,8 @@ gfspi_probe_clk_init_failed:
 	input_unregister_device(gf_dev->input);
 error_input:
 
-	if (gf_dev->input != NULL) {
+	if (gf_dev->input != NULL)
 		input_free_device(gf_dev->input);
-	}
 
 error_dev:
 
@@ -948,17 +928,19 @@ static int gf_remove(struct platform_device *pdev)
 {
 	struct gf_dev *gf_dev = &gf;
 	wakeup_source_trash(&fp_wakelock);
+#ifndef GOODIX_DRM_INTERFACE_WA
+	msm_drm_unregister_client(&gf_dev->notifier);
+#endif
 
 	/* make sure ops on existing fds can abort cleanly */
 	if (gf_dev->irq) {
 		free_irq(gf_dev->irq, gf_dev);
 	}
 
-	if (gf_dev->input != NULL) {
+	if (gf_dev->input)
 		input_unregister_device(gf_dev->input);
-	}
-
 	input_free_device(gf_dev->input);
+
 	/* prevent new opens */
 	mutex_lock(&device_list_lock);
 	list_del(&gf_dev->device_entry);
@@ -969,9 +951,6 @@ static int gf_remove(struct platform_device *pdev)
 		gf_cleanup(gf_dev);
 	}
 
-#ifndef GOODIX_DRM_INTERFACE_WA
-	msm_drm_unregister_client(&gf_dev->notifier);
-#endif
 	mutex_unlock(&device_list_lock);
 	return 0;
 }
