@@ -427,14 +427,14 @@
 		qcom,msm-auxpcm-interface = "quaternary";
 		qcom,msm-cpudai-afe-clk-ver = <2>;
 	};
-/*
+
 	qcom,msm-audio-ion {
 		compatible = "qcom,msm-audio-ion";
 		qcom,smmu-version = <2>;
 		qcom,smmu-enabled;
 		iommus = <&lpass_q6_smmu 1>;
 	};
-*/
+
 	qcom,msm-adsp-loader {
 		compatible = "qcom,adsp-loader";
 		qcom,adsp-state = <0>;
@@ -600,7 +600,7 @@
 		qcom,clk-div = <27>;
 	};
 
-	audio_apr: qcom,msm-audio-apr {
+	qcom,msm-audio-apr {
 		compatible = "qcom,msm-audio-apr";
 		msm_audio_apr_dummy {
 			compatible = "qcom,msm-audio-apr-dummy";
@@ -817,7 +817,7 @@
 		qcom,wsa-aux-dev-prefix = "SpkrLeft", "SpkrRight",
 					  "SpkrLeft", "SpkrRight";
 	};
-/*
+
 	int_codec: sound {
 		status = "disabled";
 		compatible = "qcom,sdm660-asoc-snd";
@@ -926,7 +926,7 @@
 		qcom,wsa-aux-dev-prefix = "SpkrLeft", "SpkrRight",
 					  "SpkrLeft", "SpkrRight";
 	};
-*/
+
 	us_euro_gpio: msm_cdc_pinctrl@75 {
 		compatible = "qcom,msm-cdc-pinctrl";
 		pinctrl-names = "aud_active", "aud_sleep";
