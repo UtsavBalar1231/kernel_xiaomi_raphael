@@ -212,12 +212,6 @@
 			virtual-addr-pool = <0x79000000 0x60000000>;
 		};
 
-		firmware_cb {
-			compatible = "qcom,msm-vidc,context-bank";
-			qcom,fw-context-bank;
-			iommus = <&mmss_bimc_smmu 0x580>,
-				<&mmss_bimc_smmu 0x586>;
-		};
 		secure_bitstream_cb {
 			compatible = "qcom,msm-vidc,context-bank";
 			label = "venus_sec_bitstream";
