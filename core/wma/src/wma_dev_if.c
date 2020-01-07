@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2723,6 +2723,28 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	return 0;
 }
 
+#define DOT11AX_HEMU_MODE 0x30
+#define HE_SUBFEE 0
+#define HE_SUBFER 1
+#define HE_MUBFEE 2
+#define HE_MUBFER 3
+
+#ifdef WLAN_FEATURE_11AX
+static inline uint32_t wma_get_txbf_cap(struct mac_context *mac)
+{
+	return
+	(mac->mlme_cfg->he_caps.dot11_he_cap.su_beamformer << HE_SUBFER) |
+	(mac->mlme_cfg->he_caps.dot11_he_cap.su_beamformee << HE_SUBFEE) |
+	(1 << HE_MUBFEE) |
+	(mac->mlme_cfg->he_caps.dot11_he_cap.mu_beamformer << HE_MUBFER);
+}
+#else
+static inline uint32_t wma_get_txbf_cap(struct mac_context *mac)
+{
+	return 0;
+}
+#endif
+
 /**
  * wma_vdev_attach() - create vdev in fw
  * @wma_handle: wma handle
@@ -2759,6 +2781,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	struct wlan_objmgr_vdev *vdev;
 	uint32_t retry;
 	uint8_t amsdu_val;
+	uint32_t hemu_mode;
 
 	qdf_mem_zero(&tx_rx_aggregation_size, sizeof(tx_rx_aggregation_size));
 	WMA_LOGD("mac %pM, vdev_id %hu, type %d, sub_type %d, nss 2g %d, 5g %d",
@@ -3050,6 +3073,8 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	wma_set_vdev_mgmt_rate(wma_handle, self_sta_req->session_id);
 
 	if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AX)) {
+		hemu_mode = DOT11AX_HEMU_MODE;
+		hemu_mode |= wma_get_txbf_cap(mac);
 		/*
 		 * Enable / disable trigger access for a AP vdev's peers.
 		 * For a STA mode vdev this will enable/disable triggered
@@ -3069,7 +3094,8 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 		ret = wma_vdev_set_param(wma_handle->wmi_handle,
 					 self_sta_req->session_id,
 					 WMI_VDEV_PARAM_SET_HEMU_MODE,
-					 0x37);
+					 hemu_mode);
+		WMA_LOGD("set HEMU_MODE (hemu_mode = 0x%x)", hemu_mode);
 		if (QDF_IS_STATUS_ERROR(ret))
 			WMA_LOGE("Failed to set WMI_VDEV_PARAM_SET_HEMU_MODE");
 	}
