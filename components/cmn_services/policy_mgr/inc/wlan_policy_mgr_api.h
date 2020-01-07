@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -698,22 +698,6 @@ bool policy_mgr_is_any_nondfs_chnl_present(struct wlan_objmgr_psoc *psoc,
  */
 uint32_t policy_mgr_get_dfs_beaconing_session_id(
 		struct wlan_objmgr_psoc *psoc);
-
-/**
- * policy_mgr_is_dfs_beaconing_present_except_vdev() - to find
- * if any DFS session except the given vdev id
- * @psoc: PSOC object information
- * @channel: pointer to channel that needs to filled
- * @vdev_id: vdev id
- *
- * If any beaconing session except given vdev id such as SAP or GO present and
- * it is on DFS channel then this function will return true
- *
- * Return: true if session is on DFS or false if session is on non-dfs channel
- */
-bool policy_mgr_is_dfs_beaconing_present_except_vdev(
-		struct wlan_objmgr_psoc *psoc, uint8_t *channel,
-		uint8_t vdev_id);
 
 /**
  * policy_mgr_is_any_dfs_beaconing_session_present() - to find
