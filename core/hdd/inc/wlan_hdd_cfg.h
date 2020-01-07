@@ -223,6 +223,18 @@ struct hdd_config {
 	uint8_t tsf_ptp_options;
 #endif /* WLAN_FEATURE_TSF_PLUS */
 	uint32_t dp_proto_event_bitmap;
+
+#ifdef SAR_SAFETY_FEATURE
+	uint32_t sar_safety_timeout;
+	uint32_t sar_safety_unsolicited_timeout;
+	uint32_t sar_safety_req_resp_timeout;
+	uint32_t sar_safety_req_resp_retry;
+	uint32_t sar_safety_index;
+	uint32_t sar_safety_sleep_index;
+	bool enable_sar_safety;
+	bool config_sar_safety_sleep_index;
+#endif
+
 };
 
 /**
