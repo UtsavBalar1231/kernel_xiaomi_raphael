@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -3904,6 +3904,9 @@ int hif_pm_runtime_get_sync(struct hif_opaque_softc *hif_ctx)
 	if (!sc)
 		return -EINVAL;
 
+	if (!pm_runtime_enabled(sc->dev))
+		return 0;
+
 	pm_state = qdf_atomic_read(&sc->pm_state);
 	if (pm_state == HIF_PM_RUNTIME_STATE_SUSPENDED ||
 	    pm_state == HIF_PM_RUNTIME_STATE_SUSPENDING)
@@ -3948,6 +3951,9 @@ int hif_pm_runtime_put_sync_suspend(struct hif_opaque_softc *hif_ctx)
 	if (!sc)
 		return -EINVAL;
 
+	if (!pm_runtime_enabled(sc->dev))
+		return 0;
+
 	usage_count = atomic_read(&sc->dev->power.usage_count);
 	if (usage_count == 1) {
 		pm_state = qdf_atomic_read(&sc->pm_state);
@@ -3973,6 +3979,9 @@ int hif_pm_runtime_request_resume(struct hif_opaque_softc *hif_ctx)
 
 	if (!sc)
 		return -EINVAL;
+
+	if (!pm_runtime_enabled(sc->dev))
+		return 0;
 
 	pm_state = qdf_atomic_read(&sc->pm_state);
 	if (pm_state == HIF_PM_RUNTIME_STATE_SUSPENDED ||
@@ -4006,6 +4015,9 @@ void hif_pm_runtime_get_noresume(struct hif_opaque_softc *hif_ctx)
 	if (!sc)
 		return;
 
+	if (!pm_runtime_enabled(sc->dev))
+		return;
+
 	sc->pm_stats.runtime_get++;
 	pm_runtime_get_noresume(sc->dev);
 }
@@ -4034,6 +4046,9 @@ int hif_pm_runtime_get(struct hif_opaque_softc *hif_ctx)
 		hif_err("Could not do runtime get, scn is null");
 		return -EFAULT;
 	}
+
+	if (!pm_runtime_enabled(sc->dev))
+		return 0;
 
 	pm_state = qdf_atomic_read(&sc->pm_state);
 
@@ -4099,6 +4114,10 @@ int hif_pm_runtime_put(struct hif_opaque_softc *hif_ctx)
 				__func__);
 		return -EFAULT;
 	}
+
+	if (!pm_runtime_enabled(sc->dev))
+		return 0;
+
 	usage_count = atomic_read(&sc->dev->power.usage_count);
 
 	if (usage_count == 1) {
