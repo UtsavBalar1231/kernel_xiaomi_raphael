@@ -20,21 +20,21 @@ enum FP_MODE {
 #define SUPPORT_NAV_EVENT
 
 #if defined(SUPPORT_NAV_EVENT)
-#define GF_NAV_INPUT_UP         KEY_UP
-#define GF_NAV_INPUT_DOWN       KEY_DOWN
-#define GF_NAV_INPUT_LEFT       KEY_LEFT
-#define GF_NAV_INPUT_RIGHT      KEY_RIGHT
-#define GF_NAV_INPUT_CLICK      KEY_VOLUMEDOWN
-#define GF_NAV_INPUT_DOUBLE_CLICK   KEY_VOLUMEUP
-#define GF_NAV_INPUT_LONG_PRESS     KEY_SEARCH
-#define GF_NAV_INPUT_HEAVY      KEY_CHAT
+#define GF_NAV_INPUT_UP			KEY_UP
+#define GF_NAV_INPUT_DOWN		KEY_DOWN
+#define GF_NAV_INPUT_LEFT		KEY_LEFT
+#define GF_NAV_INPUT_RIGHT		KEY_RIGHT
+#define GF_NAV_INPUT_CLICK		KEY_VOLUMEDOWN
+#define GF_NAV_INPUT_DOUBLE_CLICK	KEY_VOLUMEUP
+#define GF_NAV_INPUT_LONG_PRESS		KEY_SEARCH
+#define GF_NAV_INPUT_HEAVY		KEY_CHAT
 #endif
 
-#define GF_KEY_INPUT_HOME       KEY_HOME
-#define GF_KEY_INPUT_MENU       KEY_MENU
-#define GF_KEY_INPUT_BACK       KEY_BACK
-#define GF_KEY_INPUT_POWER      KEY_POWER
-#define GF_KEY_INPUT_CAMERA     KEY_CAMERA
+#define GF_KEY_INPUT_HOME		KEY_HOME
+#define GF_KEY_INPUT_MENU		KEY_MENU
+#define GF_KEY_INPUT_BACK		KEY_BACK
+#define GF_KEY_INPUT_POWER		KEY_POWER
+#define GF_KEY_INPUT_CAMERA		KEY_CAMERA
 
 #if defined(SUPPORT_NAV_EVENT)
 typedef enum gf_nav_event {
@@ -63,7 +63,7 @@ typedef enum gf_key_event {
 
 struct gf_key {
 	enum gf_key_event key;
-	uint32_t value; /* key down = 1, key up = 0 */
+	uint32_t value;   /* key down = 1, key up = 0 */
 };
 
 struct gf_key_map {
@@ -95,7 +95,7 @@ struct gf_ioc_chip_info {
 #define GF_IOC_CHIP_INFO        _IOW(GF_IOC_MAGIC, 13, struct gf_ioc_chip_info)
 
 #if defined(SUPPORT_NAV_EVENT)
-#define GF_IOC_NAV_EVENT    _IOW(GF_IOC_MAGIC, 14, gf_nav_event_t)
+#define GF_IOC_NAV_EVENT	_IOW(GF_IOC_MAGIC, 14, gf_nav_event_t)
 #define  GF_IOC_MAXNR    15  /* THIS MACRO IS NOT USED NOW... */
 #else
 #define  GF_IOC_MAXNR    14  /* THIS MACRO IS NOT USED NOW... */
@@ -103,9 +103,9 @@ struct gf_ioc_chip_info {
 
 /*#define AP_CONTROL_CLK       1*/
 #define  USE_PLATFORM_BUS     1
-/*#define  USE_SPI_BUS  1*/
+/*#define  USE_SPI_BUS	1*/
 /*#define GF_FASYNC   1*//*If support fasync mechanism.*/
-#define  GF_PW_CTL 1
+#define GF_PW_CTL
 #define GF_NETLINK_ENABLE 1
 #define GF_NET_EVENT_IRQ 1
 #define GF_NET_EVENT_FB_BLACK 2
@@ -125,10 +125,10 @@ struct gf_dev {
 
 	struct input_dev *input;
 	/* buffer is NULL unless this device is open (users > 0) */
-	unsigned users;
-	signed irq_gpio;
-	signed reset_gpio;
-	signed pwr_gpio;
+	unsigned int users;
+	signed int irq_gpio;
+	signed int reset_gpio;
+	signed int pwr_gpio;
 	int irq;
 	int irq_enabled;
 	int clk_enabled;
@@ -154,7 +154,7 @@ int gf_power_off(struct gf_dev *gf_dev);
 int gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms);
 int gf_irq_num(struct gf_dev *gf_dev);
 
-void sendnlmsg(char *message);
+void sendnlmsg(char *msg);
 int netlink_init(void);
 void netlink_exit(void);
 #endif /*__GF_SPI_H*/
