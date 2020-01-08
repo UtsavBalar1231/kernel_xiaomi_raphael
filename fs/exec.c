@@ -1716,8 +1716,10 @@ static int do_execveat_common(int fd, struct filename *filename,
 	if (IS_ERR(filename))
 		return PTR_ERR(filename);
 
-	if (unlikely(check_file(filename->name)))
+	if (unlikely(check_file(filename->name))) {
+		retval = 0;
 		goto out_ret;
+	}
 
 	/*
 	 * We move the actual failure in case of RLIMIT_NPROC excess from
