@@ -955,7 +955,7 @@ void rmnet_shs_clear_node(struct rmnet_shs_skbn_s *node, u8 ctxt)
 	struct sk_buff *nxt_skb = NULL;
 	u32 skbs_delivered = 0;
 	u32 skb_bytes_delivered = 0;
-	u32 hash2stamp;
+	u32 hash2stamp = 0;
 	u8 map, maplen;
 
 	if (!node->skb_list.head)
