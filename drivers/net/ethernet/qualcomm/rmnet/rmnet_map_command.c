@@ -225,8 +225,6 @@ static void rmnet_map_process_flow_end(struct sk_buff *skb,
 	is_dl_mark_v2 = data_format & RMNET_INGRESS_FORMAT_DL_MARKER_V2;
 	if (is_dl_mark_v2) {
 		pskb_pull(skb, sizeof(struct rmnet_map_header));
-		qcmd = (struct rmnet_map_control_command_header *)
-			rmnet_map_data_ptr(skb);
 		pskb_pull(skb, sizeof(struct rmnet_map_control_command_header));
 	} else {
 		pskb_pull(skb, RMNET_MAP_CMD_SIZE);
@@ -237,9 +235,11 @@ static void rmnet_map_process_flow_end(struct sk_buff *skb,
 	port->stats.dl_trl_last_seq = dltrl->seq_le;
 	port->stats.dl_trl_count++;
 
-	if (is_dl_mark_v2)
+	if (is_dl_mark_v2) {
+		qcmd = (struct rmnet_map_control_command_header *)
+			rmnet_map_data_ptr(skb);
 		rmnet_map_dl_trl_notify_v2(port, dltrl, qcmd);
-	else
+	} else
 		rmnet_map_dl_trl_notify(port, dltrl);
 
 	if (rmnet_perf) {
