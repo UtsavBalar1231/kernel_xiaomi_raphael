@@ -507,7 +507,7 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 	return rc;
 
 put_ctx_ref:
-	for (j; j >= 0; j--)
+	for (j = 0; j >= 0; j--)
 		cam_context_putref(ctx);
 put_ref:
 	for (--i; i >= 0; i--) {
