@@ -13,7 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#define DEBUG
 #define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt
 
 #define GOODIX_DRM_INTERFACE_WA
@@ -725,7 +724,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 					unsigned long val, void *data)
 {
 	struct gf_dev *gf_dev;
-	struct fb_event *evdata = data;
+	struct msm_drm_notifier *evdata = data;
 	unsigned int blank;
 	char msg = 0;
 
@@ -736,7 +735,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 		 __func__, (int)val);
 	gf_dev = container_of(nb, struct gf_dev, notifier);
 
-	if (evdata && evdata->data && val == MSM_DRM_EVENT_BLANK && gf_dev) {
+	if (evdata && evdata->data && val == MSM_DRM_EARLY_EVENT_BLANK && gf_dev) {
 		blank = *(int *)(evdata->data);
 
 		switch (blank) {
