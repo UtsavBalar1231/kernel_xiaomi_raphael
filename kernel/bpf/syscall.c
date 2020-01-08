@@ -536,7 +536,7 @@ static int map_lookup_elem(union bpf_attr *attr)
 
 	if (value_size < ARRAY_SIZE(value_onstack)) {
 		value = value_onstack;
-		memset(value, 0, sizeof(value));
+		memset(value, 0, value_size);
 	} else {
 		value = kmalloc(value_size, GFP_USER | __GFP_NOWARN);
 		if (!value)
@@ -775,7 +775,7 @@ static int map_get_next_key(union bpf_attr *attr)
 	err = -ENOMEM;
 	if (map->key_size < ARRAY_SIZE(next_key_onstack)) {
 		next_key = next_key_onstack;
-		memset(next_key, 0, sizeof(next_key));
+		memset(next_key, 0, map->key_size);
 	} else {
 		next_key = kmalloc(map->key_size, GFP_USER | __GFP_NOWARN);
 		if (!next_key)
