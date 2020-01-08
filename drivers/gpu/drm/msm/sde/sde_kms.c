@@ -2787,9 +2787,14 @@ retry:
 	}
 
 	crtc_state->active = true;
-	drm_atomic_set_crtc_for_connector(conn_state, enc->crtc);
+	ret = drm_atomic_set_crtc_for_connector(conn_state, enc->crtc);
+	if (ret)
+		goto end;
 
-	drm_atomic_commit(state);
+	ret = drm_atomic_commit(state);
+	if (ret != -EDEADLK)
+		goto end;
+
 end:
 	if (state)
 		drm_atomic_state_put(state);

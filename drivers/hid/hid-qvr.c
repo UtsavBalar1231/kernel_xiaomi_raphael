@@ -410,7 +410,8 @@ static ssize_t fd_show(struct kobject *kobj,
 	struct kobj_attribute *attr,
 	char *buf)
 {
-	return snprintf(buf, sizeof(buf), "%d\n", qvr_external_sensor.fd);
+	/* sizeof(buf) should be 16 bytes but who knows */
+	return snprintf(buf, 16, "%d\n", qvr_external_sensor.fd);
 }
 
 static ssize_t fd_store(struct kobject *kobj,
