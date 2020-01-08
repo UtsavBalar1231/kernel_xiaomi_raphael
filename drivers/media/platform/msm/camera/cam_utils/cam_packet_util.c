@@ -452,7 +452,7 @@ int32_t cam_packet_validate_plane_size(
 	case CAM_FORMAT_NV12:
 	if (plane_index < CAM_PACKET_MAX_PLANES)
 		kmd_plane_size = plane_stride * slice_height;
-		break;
+	break;
 	case CAM_FORMAT_PD10:
 	if (plane_index < CAM_PACKET_MAX_PLANES)
 		kmd_plane_size = plane_stride * slice_height;
