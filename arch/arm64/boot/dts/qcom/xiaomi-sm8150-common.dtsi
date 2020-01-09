@@ -384,3 +384,9 @@
 			reg = <0 0xaf000000 0 0x1000000>;
 		};
 };
+
+&soc {
+	restart@c264000 {
+		qcom,force-warm-reboot;
+	};
+};
