@@ -5454,6 +5454,11 @@ static int qsmmuv500_tbu_halt(struct qsmmuv500_tbu_device *tbu,
 					(status & DEBUG_SR_HALT_ACK_VAL),
 					0, TBU_DBG_TIMEOUT_US)) {
 		dev_err(tbu->dev, "Couldn't halt TBU!\n");
+
+		halt = readl_relaxed(tbu_base + DEBUG_SID_HALT_REG);
+		halt &= ~DEBUG_SID_HALT_VAL;
+		writel_relaxed(halt, tbu_base + DEBUG_SID_HALT_REG);
+
 		spin_unlock_irqrestore(&tbu->halt_lock, flags);
 		return -ETIMEDOUT;
 	}
@@ -5563,9 +5568,14 @@ static phys_addr_t qsmmuv500_iova_to_phys(
 	if (ret)
 		return 0;
 
-	ret = qsmmuv500_tbu_halt(tbu, smmu_domain);
+	/* Only one concurrent atos operation */
+	ret = qsmmuv500_ecats_lock(smmu_domain, tbu, &flags);
 	if (ret)
 		goto out_power_off;
+
+	ret = qsmmuv500_tbu_halt(tbu, smmu_domain);
+	if (ret)
+		goto out_ecats_unlock;
 
 	/*
 	 * ECATS can trigger the fault interrupt, so disable it temporarily
@@ -5593,11 +5603,6 @@ static phys_addr_t qsmmuv500_iova_to_phys(
 			writel_relaxed(RESUME_TERMINATE, cb_base +
 				       ARM_SMMU_CB_RESUME);
 	}
-
-	/* Only one concurrent atos operation */
-	ret = qsmmuv500_ecats_lock(smmu_domain, tbu, &flags);
-	if (ret)
-		goto out_resume;
 
 redo:
 	/* Set address and stream-id */
@@ -5678,10 +5683,10 @@ redo:
 		goto redo;
 
 	writel_relaxed(sctlr_orig, cb_base + ARM_SMMU_CB_SCTLR);
-	qsmmuv500_ecats_unlock(smmu_domain, tbu, &flags);
-
-out_resume:
 	qsmmuv500_tbu_resume(tbu);
+
+out_ecats_unlock:
+	qsmmuv500_ecats_unlock(smmu_domain, tbu, &flags);
 
 out_power_off:
 	/* Read to complete prior write transcations */
@@ -5971,6 +5976,9 @@ static ssize_t arm_smmu_debug_tcu_testbus_sel_write(struct file *file,
 	if (kstrtou64(buf, 0, &sel))
 		goto invalid_format;
 
+	if (sel != 1 && sel != 2)
+		goto invalid_format;
+
 	if (kstrtou64(comma + 1, 0, &val))
 		goto invalid_format;
 
@@ -5982,8 +5990,6 @@ static ssize_t arm_smmu_debug_tcu_testbus_sel_write(struct file *file,
 	else if (sel == 2)
 		arm_smmu_debug_tcu_testbus_select(base,
 				tcu_base, PTW_AND_CACHE_TESTBUS, WRITE, val);
-	else
-		goto invalid_format;
 
 	arm_smmu_power_off(smmu->pwr);
 

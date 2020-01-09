@@ -2330,6 +2330,11 @@ static int dwc3_gadget_vbus_session(struct usb_gadget *_gadget, int is_active)
 	is_active = !!is_active;
 
 	dbg_event(0xFF, "VbusSess", is_active);
+
+	disable_irq(dwc->irq);
+
+	flush_work(&dwc->bh_work);
+
 	spin_lock_irqsave(&dwc->lock, flags);
 
 	/* Mark that the vbus was powered */
@@ -2361,6 +2366,8 @@ static int dwc3_gadget_vbus_session(struct usb_gadget *_gadget, int is_active)
 	}
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
+
+	enable_irq(dwc->irq);
 	return 0;
 }
 
@@ -2610,10 +2617,12 @@ static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 total)
 
 		/* Reserve EPs at the end for GSI */
 		if (!direction && num > out_count - NUM_GSI_OUT_EPS - 1) {
-			snprintf(dep->name, sizeof(dep->name), "gsi-epout");
+			snprintf(dep->name, sizeof(dep->name), "gsi-epout%d",
+					num);
 			dep->endpoint.ep_type = EP_TYPE_GSI;
 		} else if (direction && num > in_count - NUM_GSI_IN_EPS - 1) {
-			snprintf(dep->name, sizeof(dep->name), "gsi-epin");
+			snprintf(dep->name, sizeof(dep->name), "gsi-epin%d",
+					num);
 			dep->endpoint.ep_type = EP_TYPE_GSI;
 		} else {
 			snprintf(dep->name, sizeof(dep->name), "ep%u%s", num,
@@ -2798,6 +2807,9 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		int chain;
 
 		req = next_request(&dep->started_list);
+		if (req->trb->ctrl & DWC3_TRB_CTRL_HWO)
+			return 0;
+
 		length = req->request.length;
 		chain = req->num_pending_sgs > 0;
 		if (chain) {

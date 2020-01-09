@@ -116,7 +116,7 @@
 #define UART_CONSOLE_CORE2X_VOTE (960)
 
 #define WAKEBYTE_TIMEOUT_MSEC	(2000)
-#define WAIT_XFER_MAX_ITER	(50)
+#define WAIT_XFER_MAX_ITER	(2)
 #define WAIT_XFER_MAX_TIMEOUT_US	(10000)
 #define WAIT_XFER_MIN_TIMEOUT_US	(9000)
 #define IPC_LOG_PWR_PAGES	(6)
@@ -172,12 +172,14 @@ struct msm_geni_serial_port {
 	void *ipc_log_rx;
 	void *ipc_log_pwr;
 	void *ipc_log_misc;
+	void *console_log;
 	unsigned int cur_baud;
 	int ioctl_count;
 	int edge_count;
 	bool manual_flow;
 	struct msm_geni_serial_ver_info ver_info;
 	u32 cur_tx_remaining;
+	bool startup_in_progress;
 };
 
 static const struct uart_ops msm_geni_serial_pops;
@@ -303,6 +305,12 @@ static void wait_for_transfers_inflight(struct uart_port *uport)
 {
 	int iter = 0;
 	struct msm_geni_serial_port *port = GET_DEV_PORT(uport);
+	unsigned int geni_status;
+
+	geni_status = geni_read_reg_nolog(uport->membase, SE_GENI_STATUS);
+	/* Possible stop rx is called before this. */
+	if (!(geni_status & S_GENI_CMD_ACTIVE))
+		return;
 
 	while (iter < WAIT_XFER_MAX_ITER) {
 		if (check_transfers_inflight(uport)) {
@@ -1087,6 +1095,9 @@ static void start_rx_sequencer(struct uart_port *uport)
 	int ret;
 	u32 geni_se_param = UART_PARAM_RFR_OPEN;
 
+	if (port->startup_in_progress)
+		return;
+
 	geni_status = geni_read_reg_nolog(uport->membase, SE_GENI_STATUS);
 	if (geni_status & S_GENI_CMD_ACTIVE) {
 		if (port->xfer_mode == SE_DMA && !port->rx_dma) {
@@ -1541,8 +1552,11 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 	bool drop_rx = false;
 
 	spin_lock_irqsave(&uport->lock, flags);
-	if (uart_console(uport) && uport->suspended)
+	if (uart_console(uport) && uport->suspended) {
+		IPC_LOG_MSG(msm_port->console_log,
+			"%s. Console in suspend state\n", __func__);
 		goto exit_geni_serial_isr;
+	}
 	if (!uart_console(uport) && pm_runtime_status_suspended(uport->dev)) {
 		dev_err(uport->dev, "%s.Device is suspended.\n", __func__);
 		IPC_LOG_MSG(msm_port->ipc_log_misc,
@@ -1553,6 +1567,10 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 						SE_GENI_M_IRQ_STATUS);
 	s_irq_status = geni_read_reg_nolog(uport->membase,
 						SE_GENI_S_IRQ_STATUS);
+	if (uart_console(uport))
+		IPC_LOG_MSG(msm_port->console_log,
+			"%s. sirq 0x%x mirq:0x%x\n", __func__, s_irq_status,
+								m_irq_status);
 	m_irq_en = geni_read_reg_nolog(uport->membase, SE_GENI_M_IRQ_EN);
 	dma = geni_read_reg_nolog(uport->membase, SE_GENI_DMA_MODE_EN);
 	dma_tx_status = geni_read_reg_nolog(uport->membase, SE_DMA_TX_IRQ_STAT);
@@ -1847,6 +1865,8 @@ static int msm_geni_serial_startup(struct uart_port *uport)
 	scnprintf(msm_port->name, sizeof(msm_port->name), "msm_serial_geni%d",
 				uport->line);
 
+	msm_port->startup_in_progress = true;
+
 	if (likely(!uart_console(uport))) {
 		ret = msm_geni_serial_power_on(&msm_port->uport);
 		if (ret) {
@@ -1896,6 +1916,8 @@ static int msm_geni_serial_startup(struct uart_port *uport)
 exit_startup:
 	if (likely(!uart_console(uport)))
 		msm_geni_serial_power_off(&msm_port->uport);
+	msm_port->startup_in_progress = false;
+
 	return ret;
 }
 
@@ -2400,14 +2422,13 @@ static void console_unregister(struct uart_driver *drv)
 static void msm_geni_serial_debug_init(struct uart_port *uport, bool console)
 {
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
+	char name[30];
 
 	msm_port->dbg = debugfs_create_dir(dev_name(uport->dev), NULL);
 	if (IS_ERR_OR_NULL(msm_port->dbg))
 		dev_err(uport->dev, "Failed to create dbg dir\n");
 
 	if (!console) {
-		char name[30];
-
 		memset(name, 0, sizeof(name));
 		if (!msm_port->ipc_log_rx) {
 			scnprintf(name, sizeof(name), "%s%s",
@@ -2442,6 +2463,16 @@ static void msm_geni_serial_debug_init(struct uart_port *uport, bool console)
 			msm_port->ipc_log_misc = ipc_log_context_create(
 					IPC_LOG_MISC_PAGES, name, 0);
 			if (!msm_port->ipc_log_misc)
+				dev_info(uport->dev, "Err in Misc IPC Log\n");
+		}
+	} else {
+		memset(name, 0, sizeof(name));
+		if (!msm_port->console_log) {
+			scnprintf(name, sizeof(name), "%s%s",
+					dev_name(uport->dev), "_console");
+			msm_port->console_log = ipc_log_context_create(
+					IPC_LOG_MISC_PAGES, name, 0);
+			if (!msm_port->console_log)
 				dev_info(uport->dev, "Err in Misc IPC Log\n");
 		}
 	}
