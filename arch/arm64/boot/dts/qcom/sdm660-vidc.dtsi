@@ -218,6 +218,22 @@
 			iommus = <&mmss_bimc_smmu 0x580>,
 				<&mmss_bimc_smmu 0x586>;
 		};
+		secure_bitstream_cb {
+			compatible = "qcom,msm-vidc,context-bank";
+			label = "venus_sec_bitstream";
+			iommus = <&mmss_bimc_smmu 0x500>,
+				<&mmss_bimc_smmu 0x502>,
+				<&mmss_bimc_smmu 0x509>,
+				<&mmss_bimc_smmu 0x50a>,
+				<&mmss_bimc_smmu 0x50b>,
+				<&mmss_bimc_smmu 0x50e>,
+				<&mmss_bimc_smmu 0x526>,
+				<&mmss_bimc_smmu 0x529>,
+				<&mmss_bimc_smmu 0x52b>;
+			buffer-types = <0x241>;
+			virtual-addr-pool = <0x51000000 0x28000000>;
+			qcom,secure-context-bank;
+		};
 
 		venus_secure_pixel_cb: secure_pixel_cb {
 			compatible = "qcom,msm-vidc,context-bank";
