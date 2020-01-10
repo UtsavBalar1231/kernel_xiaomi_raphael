@@ -50,8 +50,10 @@
 
 #define DWC3_DEFAULT_AUTOSUSPEND_DELAY	500 /* ms */
 
+#ifdef CONFIG_IPC_LOGGING
 static int count;
 static struct dwc3 *dwc3_instance[DWC_CTRL_COUNT];
+#endif
 
 static void dwc3_check_params(struct dwc3 *dwc);
 
@@ -1250,6 +1252,7 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	void __iomem		*regs;
 	int			irq;
+#ifdef CONFIG_IPC_LOGGING
 	char			dma_ipc_log_ctx_name[40];
 
 	if (count >= DWC_CTRL_COUNT) {
@@ -1258,6 +1261,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		return ret;
 	}
+#endif
 
 	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
 	if (!dwc)
@@ -1349,6 +1353,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_IPC_LOGGING
 	dwc->dwc_ipc_log_ctxt = ipc_log_context_create(NUM_LOG_PAGES,
 					dev_name(dwc->dev), 0);
 	if (!dwc->dwc_ipc_log_ctxt)
@@ -1364,6 +1369,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc3_instance[count] = dwc;
 	dwc->index = count;
 	count++;
+#endif
 
 	pm_runtime_allow(dev);
 	dwc3_debugfs_init(dwc);
@@ -1408,10 +1414,12 @@ static int dwc3_remove(struct platform_device *pdev)
 	dwc3_free_event_buffers(dwc);
 	dwc3_free_scratch_buffers(dwc);
 
+#ifdef CONFIG_IPC_LOGGING
 	ipc_log_context_destroy(dwc->dwc_ipc_log_ctxt);
 	dwc->dwc_ipc_log_ctxt = NULL;
 	count--;
 	dwc3_instance[dwc->index] = NULL;
+#endif
 
 	return 0;
 }
