@@ -3473,7 +3473,6 @@ static int __init clk_debug_init(void)
 	struct clk_core *core;
 	struct dentry *d;
 
-	return 0;
 	rootdir = debugfs_create_dir("clk", NULL);
 
 	if (!rootdir)
