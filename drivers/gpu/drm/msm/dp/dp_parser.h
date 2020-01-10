@@ -22,6 +22,7 @@
 #define DP_MAX_PIXEL_CLK_KHZ	675000
 #define DP_MAX_LINK_CLK_KHZ	810000
 #define MAX_DP_MST_STREAMS	2
+#define MAX_DP_BOND_NUM		3
 
 enum dp_pm_type {
 	DP_CORE_PM,
@@ -156,6 +157,17 @@ struct dp_hw_cfg {
 	enum dp_phy_version phy_version;
 };
 
+enum dp_bond_type {
+	DP_BOND_DUAL,
+	DP_BOND_TRIPLE,
+	DP_BOND_MAX,
+};
+
+struct dp_bond_cfg {
+	bool enable;
+	u32 ctrl[MAX_DP_BOND_NUM];
+};
+
 static inline char *dp_phy_aux_config_type_to_string(u32 cfg_type)
 {
 	switch (cfg_type) {
@@ -224,6 +236,7 @@ struct dp_parser {
 	struct dp_pinctrl pinctrl;
 	struct dp_io io;
 	struct dp_display_data disp_data;
+	struct dp_bond_cfg bond_cfg[DP_BOND_MAX];
 
 	u8 l_map[4];
 	u8 l_pnswap;

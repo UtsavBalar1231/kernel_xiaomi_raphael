@@ -2916,6 +2916,28 @@ int dp_display_get_num_of_streams(void *dp_display)
 			DP_STREAM_MAX : 0;
 }
 
+int dp_display_get_num_of_bonds(void *dp_display)
+{
+	struct dp_display_private *dp;
+	int i, cnt = 0;
+
+	if (!dp_display) {
+		pr_debug("dp display not initialized\n");
+		return 0;
+	}
+
+	dp = container_of(dp_display, struct dp_display_private, dp_display);
+	if (!dp->parser)
+		return dp->cell_idx ? 0 : DP_BOND_MAX;
+
+	for (i = 0; i < DP_BOND_MAX; i++) {
+		if (dp->parser->bond_cfg[i].enable)
+			cnt++;
+	}
+
+	return cnt;
+}
+
 int dp_display_get_info(void *dp_display, struct dp_display_info *dp_info)
 {
 	struct dp_display_private *dp;
@@ -2932,6 +2954,53 @@ int dp_display_get_info(void *dp_display, struct dp_display_info *dp_info)
 	for (i = 0; i < DP_STREAM_MAX; i++)
 		dp_info->intf_idx[i] = dp->intf_idx[i];
 	dp_info->phy_idx = dp->phy_idx;
+
+	return 0;
+}
+
+int dp_display_get_bond_displays(void *dp_display, enum dp_bond_type type,
+		struct dp_display_bond_displays *dp_bond_info)
+{
+	struct dp_display_private *dp;
+	int i, j;
+
+	if (!dp_display) {
+		pr_debug("dp display not initialized\n");
+		return -EINVAL;
+	}
+
+	if (type < 0 || type >= DP_BOND_MAX) {
+		pr_debug("invalid bond type\n");
+		return -EINVAL;
+	}
+
+	dp = container_of(dp_display, struct dp_display_private, dp_display);
+
+	memset(dp_bond_info, 0, sizeof(*dp_bond_info));
+
+	if (!dp->parser->bond_cfg[type].enable)
+		return 0;
+
+	dp_bond_info->dp_display_num = type + 2;
+
+	for (i = 0; i < MAX_DP_ACTIVE_DISPLAY; i++) {
+		struct dp_display *display = g_dp_display[i];
+		struct dp_display_private *dp_disp;
+
+		if (!display)
+			break;
+
+		dp_disp = container_of(display,
+				struct dp_display_private, dp_display);
+
+		for (j = 0; j < dp_bond_info->dp_display_num; j++) {
+			if (dp->parser->bond_cfg[type].ctrl[j] ==
+					dp_disp->cell_idx) {
+				dp_bond_info->dp_display[j] = display;
+				break;
+			}
+		}
+	}
 
 	return 0;
 }

@@ -205,7 +205,7 @@ enum msm_mdp_conn_property {
 	CONNECTOR_PROP_COUNT
 };
 
-#define MAX_H_TILES_PER_DISPLAY 2
+#define MAX_H_TILES_PER_DISPLAY 3
 
 /**
  * enum msm_display_compression_type - compression method used for pixel stream

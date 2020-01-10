@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -265,6 +265,9 @@ struct sde_kms {
 	int dp_display_count;
 	void **dp_displays;
 	int dp_stream_count;
+	int dp_bond_count;
+
+	void *dp_bond_mgr;
 
 	bool has_danger_ctrl;
 

@@ -125,10 +125,37 @@ void dp_connector_post_open(struct drm_connector *connector, void *display);
 int dp_connnector_set_info_blob(struct drm_connector *connector,
 		void *info, void *display, struct msm_mode_info *mode_info);
 
+/**
+ * dp_connector_atomic_best_encoder - callback to select best encoder
+ * @connector: Pointer to drm connector structure
+ * @display: Pointer to private display handle
+ * @state: Pointer to connector state
+ * Returns: Pointer of encoder, NULL if failed
+ */
+struct drm_encoder *dp_connector_atomic_best_encoder(
+		struct drm_connector *connector, void *display,
+		struct drm_connector_state *state);
+
+/**
+ * dp_connector_atomic_check - callback to do atomic check
+ * @connector: Pointer to drm connector structure
+ * @display: Pointer to private display handle
+ * @new_conn_state: Pointer to connector state
+ * Returns: Zero on success
+ */
+int dp_connector_atomic_check(
+		struct drm_connector *connector, void *display,
+		struct drm_connector_state *new_conn_state);
+
 int dp_drm_bridge_init(void *display,
 	struct drm_encoder *encoder);
 
 void dp_drm_bridge_deinit(void *display);
+
+int dp_drm_bond_bridge_init(void *display,
+	struct drm_encoder *encoder,
+	enum dp_bond_type type,
+	struct dp_display_bond_displays *bond_displays);
 
 /**
  * convert_to_drm_mode - convert dp mode to drm mode
