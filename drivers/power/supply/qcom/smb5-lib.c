@@ -570,7 +570,7 @@ static const struct apsd_result *smblib_get_apsd_result(struct smb_charger *chg)
 
 	rc = smblib_read(chg, APSD_STATUS_REG, &apsd_stat);
 	if (rc < 0) {
-		smblib_err(chg, "Couldn't read APSD_STATUS rc=%d\n", rc);
+		smblib_dbg(chg, PR_REGISTER, "Couldn't read APSD_STATUS rc=%d\n", rc);
 		return result;
 	}
 	smblib_dbg(chg, PR_REGISTER, "APSD_STATUS = 0x%02x\n", apsd_stat);
@@ -580,7 +580,7 @@ static const struct apsd_result *smblib_get_apsd_result(struct smb_charger *chg)
 
 	rc = smblib_read(chg, APSD_RESULT_STATUS_REG, &stat);
 	if (rc < 0) {
-		smblib_err(chg, "Couldn't read APSD_RESULT_STATUS rc=%d\n",
+		smblib_dbg(chg, PR_REGISTER,  "Couldn't read APSD_RESULT_STATUS rc=%d\n",
 			rc);
 		return result;
 	}
@@ -3023,9 +3023,9 @@ static int smblib_therm_charging(struct smb_charger *chg)
 			pr_err("Couldn't disable USB thermal ICL vote rc=%d\n",
 				rc);
 	} else {
-		pr_info("thermal_icl_ua is %d, chg->system_temp_level: %d\n",
+		pr_debug("thermal_icl_ua is %d, chg->system_temp_level: %d\n",
 				thermal_icl_ua, chg->system_temp_level);
-		pr_info("thermal_fcc_ua is %d\n", thermal_fcc_ua);
+		pr_debug("thermal_fcc_ua is %d\n", thermal_fcc_ua);
 
 		if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP_3
 			|| (chg->cp_reason == POWER_SUPPLY_CP_PPS
