@@ -36,7 +36,7 @@ enum {
 	RPM_VREG_DEBUG_DUPLICATE	= BIT(2),
 };
 
-static int rpm_vreg_debug_mask;
+static int rpm_vreg_debug_mask = 0;
 module_param_named(
 	debug_mask, rpm_vreg_debug_mask, int, S_IRUSR | S_IWUSR
 );
