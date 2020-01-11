@@ -547,7 +547,7 @@ static void msm_bus_fab_init_noc_ops(struct msm_bus_node_device_type *bus_dev)
 		msm_bus_qnoc_set_ops(bus_dev);
 		break;
 	default:
-		MSM_BUS_ERR("%s: Invalid Bus type", __func__);
+		MSM_BUS_DBG("%s: Invalid Bus type", __func__);
 	}
 }
 

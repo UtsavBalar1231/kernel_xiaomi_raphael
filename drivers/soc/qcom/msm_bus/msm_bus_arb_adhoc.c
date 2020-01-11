@@ -1020,7 +1020,7 @@ static uint32_t register_client_adhoc(struct msm_bus_scale_pdata *pdata)
 				(void *) &src,
 				msm_bus_device_match_adhoc);
 		if (IS_ERR_OR_NULL(dev)) {
-			MSM_BUS_ERR("%s:Failed to find path.src %d dest %d",
+			MSM_BUS_DBG("%s:Failed to find path.src %d dest %d",
 				__func__, src, dest);
 			goto exit_invalid_data;
 		}
@@ -1028,7 +1028,7 @@ static uint32_t register_client_adhoc(struct msm_bus_scale_pdata *pdata)
 
 		lnode[i] = getpath(dev, dest, client->pdata->name);
 		if (lnode[i] < 0) {
-			MSM_BUS_ERR("%s:Failed to find path.src %d dest %d",
+			MSM_BUS_DBG("%s:Failed to find path.src %d dest %d",
 				__func__, src, dest);
 			goto exit_invalid_data;
 		}
@@ -1407,7 +1407,7 @@ register_adhoc(uint32_t mas, uint32_t slv, char *name, bool active_only)
 					(void *) &mas,
 					msm_bus_device_match_adhoc);
 	if (IS_ERR_OR_NULL(client->mas_dev)) {
-		MSM_BUS_ERR("%s:Failed to find path.src %d dest %d",
+		MSM_BUS_DBG("%s:Failed to find path.src %d dest %d",
 			__func__, client->mas, client->slv);
 		free_cl_mem(client);
 		goto exit_register;
@@ -1415,7 +1415,7 @@ register_adhoc(uint32_t mas, uint32_t slv, char *name, bool active_only)
 
 	client->first_hop = getpath(client->mas_dev, client->slv, client->name);
 	if (client->first_hop < 0) {
-		MSM_BUS_ERR("%s:Failed to find path.src %d dest %d",
+		MSM_BUS_DBG("%s:Failed to find path.src %d dest %d",
 			__func__, client->mas, client->slv);
 		free_cl_mem(client);
 		goto exit_register;
