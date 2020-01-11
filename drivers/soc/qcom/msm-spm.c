@@ -27,7 +27,7 @@ enum {
 	MSM_SPM_DEBUG_VCTL = 1U << 1,
 };
 
-static int msm_spm_debug_mask;
+static int msm_spm_debug_mask = 0;
 module_param_named(
 	debug_mask, msm_spm_debug_mask, int, 0664
 );
