@@ -37,6 +37,7 @@ MODULE_PARM_DESC(gsi_host_addr, "QC Host Ethernet Address");
 
 static struct workqueue_struct *ipa_usb_wq;
 static struct f_gsi *__gsi[USB_PROT_MAX];
+#ifdef CONFIG_IPC_LOGGING
 static void *ipc_log_ctxt;
 
 #define NUM_LOG_PAGES 15
@@ -63,6 +64,24 @@ static void *ipc_log_ctxt;
 		pr_info("id%d:"x, gsi->prot_id, ##__VA_ARGS__); \
 	} \
 } while (0)
+#else
+#define NUM_LOG_PAGES 15
+#define log_event_err(x, ...) do { \
+        if (gsi) { \
+                pr_err("id%d:"x, gsi->prot_id, ##__VA_ARGS__); \
+        } \
+} while (0)
+#define log_event_dbg(x, ...) do { \
+        if (gsi) { \
+                pr_debug("id%d:"x, gsi->prot_id, ##__VA_ARGS__); \
+        } \
+} while (0)
+#define log_event_info(x, ...) do { \
+        if (gsi) { \
+                pr_info("id%d:"x, gsi->prot_id, ##__VA_ARGS__); \
+        } \
+} while (0)
+#endif
 
 #define MAX_CDEV_INSTANCES		6
 
@@ -3808,9 +3827,11 @@ static int fgsi_init(void)
 			return PTR_ERR(__gsi[i]);
 	}
 
+#ifdef CONFIG_IPC_LOGGING
 	ipc_log_ctxt = ipc_log_context_create(NUM_LOG_PAGES, "usb_gsi", 0);
 	if (!ipc_log_ctxt)
 		pr_err("%s: Err allocating ipc_log_ctxt\n", __func__);
+#endif
 
 	gsi_class = class_create(THIS_MODULE, "gsi_usb");
 	if (IS_ERR(gsi_class)) {
@@ -3842,8 +3863,10 @@ static void __exit fgsi_exit(void)
 
 	if (ipa_usb_wq)
 		destroy_workqueue(ipa_usb_wq);
+#ifdef CONFIG_IPC_LOGGING
 	if (ipc_log_ctxt)
 		ipc_log_context_destroy(ipc_log_ctxt);
+#endif
 
 	for (i = 0; i < USB_PROT_MAX; i++)
 		kfree(__gsi[i]);
