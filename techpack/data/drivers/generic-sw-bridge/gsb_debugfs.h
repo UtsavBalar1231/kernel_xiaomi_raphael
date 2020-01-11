@@ -28,7 +28,7 @@ static void *ipc_gsb_log_ctxt_low;
 /*
  * Debug output verbosity level.
  */
-#define DEBUG_LEVEL 3
+#define DEBUG_LEVEL 0
 
 #if (DEBUG_LEVEL < 1)
 #define DEBUG_ERROR(s, ...)

@@ -26,7 +26,7 @@
 
 MODULE_LICENSE("GPL v2");
 
-unsigned int temp_debug __read_mostly = 1;
+unsigned int temp_debug __read_mostly = 0;
 module_param(temp_debug, uint, 0644);
 MODULE_PARM_DESC(temp_debug, "temp_debug");
 
@@ -397,7 +397,7 @@ static int rmnet_perf_config_notify_cb(struct notifier_block *nb,
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
-		pr_info("%s(): rmnet_perf netdevice unregister, name = %s\n",
+		pr_debug("%s(): rmnet_perf netdevice unregister, name = %s\n",
 			__func__, dev->name);
 		if (perf && rmnet_is_real_dev_registered(dev) &&
 		    rmnet_perf_config_hook_registered() &&
@@ -419,7 +419,7 @@ static int rmnet_perf_config_notify_cb(struct notifier_block *nb,
 		}
 		break;
 	case NETDEV_REGISTER:
-		pr_info("%s(): rmnet_perf netdevice register, name = %s\n",
+		pr_debug("%s(): rmnet_perf netdevice register, name = %s\n",
 			__func__, dev->name);
 		/* Check prevents us from allocating resources for every
 		 * interface
