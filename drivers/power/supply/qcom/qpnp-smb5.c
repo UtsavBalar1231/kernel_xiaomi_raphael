@@ -3067,6 +3067,7 @@ static int smb5_init_hw(struct smb5 *chip)
 	/* Initialize DC peripheral configurations */
 	rc = smb5_init_dc_peripheral(chg);
 	if (rc < 0)
+		return rc;
 
 	/* set dc icl by default voter */
 	vote(chg->dc_icl_votable,
@@ -3958,6 +3959,8 @@ static int smb5_probe(struct platform_device *pdev)
 	/* set driver data before resources request it */
 	platform_set_drvdata(pdev, chip);
 
+	device_init_wakeup(chg->dev, true);
+
 	/* extcon registration */
 	chg->extcon = devm_extcon_dev_allocate(chg->dev, smblib_extcon_cable);
 	if (IS_ERR(chg->extcon)) {
@@ -4091,8 +4094,6 @@ static int smb5_probe(struct platform_device *pdev)
 		goto free_irq;
 	}
 	queue_delayed_work(system_power_efficient_wq, &chg->reg_work, 30 * HZ);
-
-	device_init_wakeup(chg->dev, true);
 
 	pr_info("QPNP SMB5 probed successfully\n");
 	smblib_support_liquid_feature(chg);
