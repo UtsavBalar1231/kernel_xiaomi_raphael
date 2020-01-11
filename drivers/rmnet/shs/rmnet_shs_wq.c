@@ -2012,6 +2012,7 @@ void rmnet_shs_wq_exit(void)
 		return;
 
 	rmnet_shs_wq_mem_deinit();
+	rmnet_shs_genl_send_int_to_userspace_no_info(RMNET_SHS_SYNC_WQ_EXIT);
 
 	trace_rmnet_shs_wq_high(RMNET_SHS_WQ_EXIT, RMNET_SHS_WQ_EXIT_START,
 				   0xDEF, 0xDEF, 0xDEF, 0xDEF, NULL, NULL);
