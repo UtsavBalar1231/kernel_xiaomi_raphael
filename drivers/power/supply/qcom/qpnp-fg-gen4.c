@@ -318,7 +318,7 @@ struct bias_config {
 	int	bias_kohms;
 };
 
-static int fg_gen4_debug_mask = FG_STATUS | FG_IRQ;
+static int fg_gen4_debug_mask = 0;
 module_param_named(
 	debug_mask, fg_gen4_debug_mask, int, 0600
 );

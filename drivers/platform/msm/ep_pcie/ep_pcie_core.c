@@ -49,7 +49,7 @@
 #define PCIE_L1SUB_AHB_TIMEOUT_MAX		120
 
 /* debug mask sys interface */
-static int ep_pcie_debug_mask;
+static int ep_pcie_debug_mask = 0;
 static int ep_pcie_debug_keep_resource;
 static u32 ep_pcie_bar0_address;
 static bool m2_enabled;

@@ -238,7 +238,7 @@ struct msm_hs_port {
 	atomic_t client_req_state;
 	void *ipc_msm_hs_log_ctxt;
 	void *ipc_msm_hs_pwr_ctxt;
-	int ipc_debug_mask;
+	int ipc_debug_mask = 0;
 };
 
 static const struct of_device_id msm_hs_match_table[] = {

@@ -735,7 +735,7 @@ struct msm_root_dev_t {
 };
 
 /* debug mask sys interface */
-static int msm_pcie_debug_mask;
+static int msm_pcie_debug_mask = 0;
 module_param_named(debug_mask, msm_pcie_debug_mask,
 			    int, 0644);
 
