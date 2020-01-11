@@ -560,7 +560,6 @@ enum Tfa98xx_Error tfa98xx_dsp_reset(struct tfa_device *tfa, int state)
 enum Tfa98xx_Error tfa98xx_dsp_system_stable(struct tfa_device *tfa, int *ready)
 {
 	enum Tfa98xx_Error error = (tfa->dev_ops.dsp_system_stable)(tfa, ready);
-	pr_debug("%s error=%d  ready=%d\n", __func__, error, *ready);
 	return error;
 }
 
@@ -3886,7 +3885,6 @@ enum tfa_error tfa_dev_set_state(struct tfa_device *tfa, enum tfa_state state, i
 								 /* Depending on our previous state we need to set 3 bits */
 		TFA_SET_BF(tfa, PWDN, 0);	/* Coming from state 0 */
 		TFA_SET_BF(tfa, MANSCONF, 1);	/* Coming from state 1 */
-		pr_debug("tfa->is_probus_device=%d    is_calibration=%d\n", tfa->is_probus_device, is_calibration);
 		/* we should set AMPE as 1 for NON-DSP device, otherwise will be setting SBSL as 1 */
 		if (tfa->is_probus_device) {
 			TFA_SET_BF(tfa, AMPE, 1);	/* Coming from state 6 */
