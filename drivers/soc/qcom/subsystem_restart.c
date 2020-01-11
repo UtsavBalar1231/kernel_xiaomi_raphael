@@ -281,8 +281,6 @@ static ssize_t restart_level_store(struct device *dev,
 
 	for (i = 0; i < ARRAY_SIZE(restart_levels); i++)
 		if (!strncasecmp(buf, restart_levels[i], count)) {
-			pil_ipc("[%s]: change restart level to %d\n",
-				subsys->desc->name, i);
 			subsys->restart_level = i;
 			return orig_count;
 		}
@@ -877,7 +875,7 @@ static int subsys_start(struct subsys_device *subsys)
 		subsys_set_state(subsys, SUBSYS_ONLINE);
 		return 0;
 	}
-	pil_ipc("[%s]: before wait_for_err_ready\n", subsys->desc->name);
+
 	ret = wait_for_err_ready(subsys);
 	if (ret) {
 		/* pil-boot succeeded but we need to shutdown
@@ -893,7 +891,6 @@ static int subsys_start(struct subsys_device *subsys)
 
 	notify_each_subsys_device(&subsys, 1, SUBSYS_AFTER_POWERUP,
 								NULL);
-	pil_ipc("[%s]: exit\n", subsys->desc->name);
 	return ret;
 }
 
@@ -901,7 +898,6 @@ static void subsys_stop(struct subsys_device *subsys)
 {
 	const char *name = subsys->desc->name;
 
-	pil_ipc("[%s]: entry\n", subsys->desc->name);
 	notify_each_subsys_device(&subsys, 1, SUBSYS_BEFORE_SHUTDOWN, NULL);
 	reinit_completion(&subsys->shutdown_ack);
 	if (!of_property_read_bool(subsys->desc->dev->of_node,
@@ -920,7 +916,6 @@ static void subsys_stop(struct subsys_device *subsys)
 	subsys_set_state(subsys, SUBSYS_OFFLINE);
 	disable_all_irqs(subsys);
 	notify_each_subsys_device(&subsys, 1, SUBSYS_AFTER_SHUTDOWN, NULL);
-	pil_ipc("[%s]: exit\n", subsys->desc->name);
 }
 
 int subsystem_set_fwname(const char *name, const char *fw_name)
