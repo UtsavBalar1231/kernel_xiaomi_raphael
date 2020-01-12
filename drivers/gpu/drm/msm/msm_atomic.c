@@ -274,11 +274,8 @@ msm_disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 			blank = MSM_DRM_BLANK_POWERDOWN;
 			notifier_data.data = &blank;
 			notifier_data.id = crtc_idx;
-            #if 0
 			msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
 						     &notifier_data);
-            #endif
-
 		}
 		/*
 		 * Each encoder has at most one connector (since we always steal
@@ -516,11 +513,8 @@ static void msm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 			notifier_data.id =
 				connector->state->crtc->index;
 			DRM_DEBUG_ATOMIC("Notify early unblank\n");
-            #if 0
 			msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK,
 					    &notifier_data);
-	    #endif
-
 		}
 		/*
 		 * Each encoder has at most one connector (since we always steal
