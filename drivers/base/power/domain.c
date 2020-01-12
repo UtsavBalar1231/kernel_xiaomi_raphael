@@ -1387,6 +1387,8 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 	return ret;
 }
 
+static struct kmem_cache *kmem_gpd_link_pool;
+
 /**
  * pm_genpd_remove_device - Remove a device from an I/O PM domain.
  * @genpd: PM domain to remove the device from.
@@ -1423,7 +1425,7 @@ static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 		return -EINVAL;
 	}
 
-	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	kmem_cache_zalloc(kmem_gpd_link_pool, GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
 
@@ -1453,7 +1455,7 @@ static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 	genpd_unlock(genpd);
 	genpd_unlock(subdomain);
 	if (ret)
-		kfree(link);
+		kmem_cache_free(kmem_gpd_link_pool, link);
 	return ret;
 }
 
@@ -1505,7 +1507,7 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 
 		list_del(&link->master_node);
 		list_del(&link->slave_node);
-		kfree(link);
+		kmem_cache_free(kmem_gpd_link_pool, link);
 		if (genpd_status_on(subdomain))
 			genpd_sd_counter_dec(genpd);
 
@@ -1609,6 +1611,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
 	mutex_unlock(&gpd_list_lock);
+	kmem_gpd_link_pool = KMEM_CACHE(gpd_link, SLAB_HWCACHE_ALIGN);
 
 	return 0;
 }
@@ -1638,7 +1641,7 @@ static int genpd_remove(struct generic_pm_domain *genpd)
 	list_for_each_entry_safe(link, l, &genpd->slave_links, slave_node) {
 		list_del(&link->master_node);
 		list_del(&link->slave_node);
-		kfree(link);
+		kmem_cache_free(kmem_gpd_link_pool, link);
 	}
 
 	list_del(&genpd->gpd_list_node);
