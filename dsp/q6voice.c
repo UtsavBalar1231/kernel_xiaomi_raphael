@@ -4349,7 +4349,7 @@ static int voice_setup_vocproc(struct voice_data *v)
 		pr_err("%s: CVP create failed err:%d\n", __func__, ret);
 		goto fail;
 	}
-
+#if 0
 	if (common.is_avcs_version_queried == false)
 		common.cvp_version = voice_get_avcs_version_per_service(
 				     APRV2_IDS_SERVICE_ID_ADSP_CVP_V);
@@ -4360,6 +4360,7 @@ static int voice_setup_vocproc(struct voice_data *v)
 		ret = -EINVAL;
 		goto fail;
 	}
+#endif
 	pr_debug("%s: CVP Version %d\n", __func__, common.cvp_version);
 
 	ret = voice_send_cvp_media_fmt_info_cmd(v);
