@@ -227,7 +227,43 @@ static void dp_catalog_ctrl_phy_lane_cfg_v420(struct dp_catalog_ctrl *ctrl,
 	io_data = catalog->io->dp_phy;
 
 	info |= (ln_cnt & 0x0F);
-	info |= ((orientation & 0x0F) << 4);
+	info |= ((orientation & 0x03) << 4);
+	pr_debug("Shared Info = 0x%x\n", info);
+
+	dp_write(catalog->exe_mode, io_data, DP_PHY_SPARE0_V420, info);
+}
+
+static void dp_catalog_ctrl_set_phy_bond_mode_v420(struct dp_catalog_ctrl *ctrl,
+		enum dp_phy_bond_mode phy_bond_mode)
+{
+	u32 info = 0x0;
+	struct dp_catalog_private_v420 *catalog;
+	struct dp_io_data *io_data;
+	u8 bond;
+
+	if (!ctrl) {
+		pr_err("invalid input\n");
+		return;
+	}
+
+	switch (phy_bond_mode) {
+	case DP_PHY_BOND_MODE_PLL_MASTER:
+		bond = 1;
+		break;
+	case DP_PHY_BOND_MODE_PLL_SLAVE:
+		bond = 2;
+		break;
+	default:
+		bond = 0;
+		break;
+	}
+
+	catalog = dp_catalog_get_priv_v420(ctrl);
+	io_data = catalog->io->dp_phy;
+
+	info = dp_read(catalog->exe_mode, io_data, DP_PHY_SPARE0_V420);
+	info &= 0x3F;
+	info |= ((bond & 0x03) << 6);
 	pr_debug("Shared Info = 0x%x\n", info);
 
 	dp_write(catalog->exe_mode, io_data, DP_PHY_SPARE0_V420, info);
@@ -361,6 +397,8 @@ int dp_catalog_get_v420(struct device *dev, struct dp_catalog *catalog,
 				dp_catalog_aux_clear_hw_interrupts_v420;
 	catalog->panel.config_msa  = dp_catalog_panel_config_msa_v420;
 	catalog->ctrl.phy_lane_cfg = dp_catalog_ctrl_phy_lane_cfg_v420;
+	catalog->ctrl.set_phy_bond_mode =
+				dp_catalog_ctrl_set_phy_bond_mode_v420;
 	catalog->ctrl.update_vx_px = dp_catalog_ctrl_update_vx_px_v420;
 	catalog->ctrl.lane_pnswap = dp_catalog_ctrl_lane_pnswap_v420;
 

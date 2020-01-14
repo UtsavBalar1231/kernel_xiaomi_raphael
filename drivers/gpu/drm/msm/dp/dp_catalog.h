@@ -112,6 +112,8 @@ struct dp_catalog_ctrl {
 	void (*phy_reset)(struct dp_catalog_ctrl *ctrl);
 	void (*phy_lane_cfg)(struct dp_catalog_ctrl *ctrl, bool flipped,
 				u8 lane_cnt);
+	void (*set_phy_bond_mode)(struct dp_catalog_ctrl *ctrl,
+				enum dp_phy_bond_mode phy_bond_mode);
 	void (*update_vx_px)(struct dp_catalog_ctrl *ctrl, u8 v_level,
 				u8 p_level, bool high);
 	void (*get_interrupt)(struct dp_catalog_ctrl *ctrl);

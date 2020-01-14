@@ -1476,7 +1476,44 @@ static void dp_catalog_ctrl_phy_lane_cfg(struct dp_catalog_ctrl *ctrl,
 	io_data = catalog->io.dp_phy;
 
 	info |= (ln_cnt & 0x0F);
-	info |= ((orientation & 0x0F) << 4);
+	info |= ((orientation & 0x03) << 4);
+	pr_debug("Shared Info = 0x%x\n", info);
+
+	dp_write(catalog->exe_mode, io_data, DP_PHY_SPARE0, info);
+}
+
+static void dp_catalog_ctrl_set_phy_bond_mode(struct dp_catalog_ctrl *ctrl,
+		enum dp_phy_bond_mode phy_bond_mode)
+{
+	u32 info = 0x0;
+	struct dp_catalog_private *catalog;
+	struct dp_io_data *io_data;
+	u8 bond;
+
+	if (!ctrl) {
+		pr_err("invalid input\n");
+		return;
+	}
+
+	switch (phy_bond_mode) {
+	case DP_PHY_BOND_MODE_PLL_MASTER:
+		bond = 1;
+		break;
+	case DP_PHY_BOND_MODE_PLL_SLAVE:
+		bond = 2;
+		break;
+	default:
+		bond = 0;
+		break;
+	}
+
+	catalog = dp_catalog_get_priv(ctrl);
+
+	io_data = catalog->io.dp_phy;
+
+	info = dp_read(catalog->exe_mode, io_data, DP_PHY_SPARE0);
+	info &= 0x3F;
+	info |= ((bond & 0x03) << 6);
 	pr_debug("Shared Info = 0x%x\n", info);
 
 	dp_write(catalog->exe_mode, io_data, DP_PHY_SPARE0, info);
@@ -2596,6 +2633,7 @@ struct dp_catalog *dp_catalog_get(struct device *dev, u32 cell_idx,
 		.enable_irq     = dp_catalog_ctrl_enable_irq,
 		.phy_reset      = dp_catalog_ctrl_phy_reset,
 		.phy_lane_cfg   = dp_catalog_ctrl_phy_lane_cfg,
+		.set_phy_bond_mode   = dp_catalog_ctrl_set_phy_bond_mode,
 		.update_vx_px   = dp_catalog_ctrl_update_vx_px,
 		.get_interrupt  = dp_catalog_ctrl_get_interrupt,
 		.read_hdcp_status     = dp_catalog_ctrl_read_hdcp_status,

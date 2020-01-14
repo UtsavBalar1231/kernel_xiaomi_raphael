@@ -125,6 +125,8 @@ struct dp_display_private {
 	u32 cell_idx;
 	u32 intf_idx[DP_STREAM_MAX];
 	u32 phy_idx;
+
+	enum dp_phy_bond_mode phy_bond_mode;
 };
 
 static const struct of_device_id dp_dt_match[] = {
@@ -751,6 +753,17 @@ static void dp_display_process_mst_hpd_high(struct dp_display_private *dp,
 	DP_MST_DEBUG("mst_hpd_high. mst_active:%d\n", dp->mst.mst_active);
 }
 
+static void dp_display_change_phy_bond_mode(struct dp_display_private *dp,
+		enum dp_phy_bond_mode mode)
+{
+	if (dp->phy_bond_mode != mode)
+		pr_info("DP%d  %d -> %d\n", dp->cell_idx,
+				dp->phy_bond_mode, mode);
+
+	dp->phy_bond_mode = mode;
+	dp->ctrl->set_phy_bond_mode(dp->ctrl, mode);
+}
+
 static void dp_display_host_init(struct dp_display_private *dp)
 {
 	bool flip = false;
@@ -906,7 +919,12 @@ static int dp_display_process_hpd_low(struct dp_display_private *dp)
 	rc = dp_display_send_hpd_notification(dp);
 
 	mutex_lock(&dp->session_lock);
-	if (!dp->active_stream_cnt)
+	/*
+	 * Can't disable the clock for the bond PLL here.
+	 * The clock tear down sequence need to be guaranteed.
+	 * Will be handled in dp_display_unprepare via bond bridge.
+	 */
+	if (!dp->active_stream_cnt && !IS_BOND_MODE(dp->phy_bond_mode))
 		dp->ctrl->off(dp->ctrl);
 	mutex_unlock(&dp->session_lock);
 
@@ -1029,7 +1047,6 @@ static void dp_display_clean(struct dp_display_private *dp)
 	}
 
 	dp->power_on = false;
-	dp->is_connected = false;
 	dp->ctrl->off(dp->ctrl);
 }
 
@@ -1044,14 +1061,25 @@ static int dp_display_handle_disconnect(struct dp_display_private *dp)
 		dp->aux->abort(dp->aux, false);
 	}
 
+	/*
+	 * For PLL master, defer the cleanup and deinit.
+	 * The clock tear down sequence need to be guaranteed.
+	 * Will be handled in dp_display_unprepare via bond bridge.
+	 */
+	if (IS_BOND_MODE(dp->phy_bond_mode))
+		goto done;
+
 	mutex_lock(&dp->session_lock);
 	if (dp->power_on)
 		dp_display_clean(dp);
+
+	dp->is_connected = false;
 
 	dp_display_host_deinit(dp);
 
 	mutex_unlock(&dp->session_lock);
 
+done:
 	return rc;
 }
 
@@ -1961,6 +1989,14 @@ static int dp_display_unprepare(struct dp_display *dp_display, void *panel)
 
 		dp->ctrl->off(dp->ctrl);
 		dp_display_host_deinit(dp);
+	} else if (IS_BOND_MODE(dp->phy_bond_mode)) {
+		/*
+		 * For bond mode, the is_connected will be cleared
+		 * when the cable is disconnected, but the power
+		 * off sequence is skipped. So force run it here.
+		 */
+		dp->ctrl->off(dp->ctrl);
+		dp_display_host_deinit(dp);
 	}
 
 	dp->power_on = false;
@@ -1969,8 +2005,10 @@ static int dp_display_unprepare(struct dp_display *dp_display, void *panel)
 	complete_all(&dp->notification_comp);
 
 	/* log this as it results from user action of cable dis-connection */
-	pr_info("[OK]\n");
+	pr_info("DP%d [OK]", dp->cell_idx);
 end:
+	dp_display_change_phy_bond_mode(dp, DP_PHY_BOND_MODE_NONE);
+
 	dp_panel->deinit(dp_panel, flags);
 	mutex_unlock(&dp->session_lock);
 
@@ -2766,6 +2804,34 @@ static int dp_display_mst_get_fixed_topology_display_type(
 	return 0;
 }
 
+
+static int dp_display_set_phy_bond_mode(struct dp_display *dp_display,
+		enum dp_phy_bond_mode mode)
+{
+	struct dp_display_private *dp;
+
+	if (!dp_display) {
+		pr_err("invalid input\n");
+		return -EINVAL;
+	}
+
+	dp = container_of(dp_display, struct dp_display_private, dp_display);
+
+	mutex_lock(&dp->session_lock);
+
+	if (dp->phy_bond_mode != mode) {
+		dp_display_clean(dp);
+
+		dp_display_host_deinit(dp);
+
+		dp_display_change_phy_bond_mode(dp, mode);
+	}
+
+	mutex_unlock(&dp->session_lock);
+
+	return 0;
+}
+
 static int dp_display_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -2862,6 +2928,7 @@ static int dp_display_probe(struct platform_device *pdev)
 	dp_display->get_display_type = dp_display_get_display_type;
 	dp_display->mst_get_fixed_topology_display_type =
 				dp_display_mst_get_fixed_topology_display_type;
+	dp_display->set_phy_bond_mode = dp_display_set_phy_bond_mode;
 
 	rc = component_add(&pdev->dev, &dp_display_comp_ops);
 	if (rc) {

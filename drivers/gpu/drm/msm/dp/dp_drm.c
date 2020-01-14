@@ -206,6 +206,13 @@ static void dp_bridge_pre_enable(struct drm_bridge *drm_bridge)
 		return;
 	}
 
+	/*
+	 * Non-bond mode, associated with the CRTC,
+	 * set non-bond mode to the display
+	 */
+	if (bridge->base.encoder->crtc != NULL)
+		dp->set_phy_bond_mode(dp, DP_PHY_BOND_MODE_NONE);
+
 	/* By this point mode should have been validated through mode_fixup */
 	rc = dp->set_mode(dp, bridge->dp_panel, &bridge->dp_mode);
 	if (rc) {
@@ -456,6 +463,27 @@ static void dp_bond_bridge_pre_enable(struct drm_bridge *drm_bridge)
 
 	bridge = to_dp_bond_bridge(drm_bridge);
 
+	/* Set the corresponding bond mode to bonded displays */
+	for (i = 0; i < bridge->bridge_num; i++) {
+		enum dp_phy_bond_mode mode;
+
+		if (i == 0) {
+			if (bridge->bridge_num == 2)
+				mode = DP_PHY_BOND_MODE_PLL_MASTER;
+			else
+				mode = DP_PHY_BOND_MODE_PCLK_MASTER;
+		} else {
+			if (bridge->bridge_num == 2)
+				mode = DP_PHY_BOND_MODE_PLL_SLAVE;
+			else
+				mode = DP_PHY_BOND_MODE_PCLK_SLAVE;
+		}
+		if (bridge->bridges[i]->display)
+			bridge->bridges[i]->display->set_phy_bond_mode(
+					bridge->bridges[i]->display, mode);
+	}
+
+	/* In the order of from master PHY to slave PHY */
 	for (i = 0; i < bridge->bridge_num; i++)
 		drm_bridge_pre_enable(&bridge->bridges[i]->base);
 }
@@ -472,6 +500,7 @@ static void dp_bond_bridge_enable(struct drm_bridge *drm_bridge)
 
 	bridge = to_dp_bond_bridge(drm_bridge);
 
+	/* In the order of from master PHY to slave PHY */
 	for (i = 0; i < bridge->bridge_num; i++)
 		drm_bridge_enable(&bridge->bridges[i]->base);
 }
@@ -488,7 +517,8 @@ static void dp_bond_bridge_disable(struct drm_bridge *drm_bridge)
 
 	bridge = to_dp_bond_bridge(drm_bridge);
 
-	for (i = 0; i < bridge->bridge_num; i++)
+	/* In the order of from slave PHY to master PHY */
+	for (i = bridge->bridge_num - 1; i >= 0; i--)
 		drm_bridge_disable(&bridge->bridges[i]->base);
 }
 
@@ -504,7 +534,8 @@ static void dp_bond_bridge_post_disable(struct drm_bridge *drm_bridge)
 
 	bridge = to_dp_bond_bridge(drm_bridge);
 
-	for (i = 0; i < bridge->bridge_num; i++)
+	/* In the order of from slave PHY to master PHY */
+	for (i = bridge->bridge_num - 1; i >= 0; i--)
 		drm_bridge_post_disable(&bridge->bridges[i]->base);
 }
 
