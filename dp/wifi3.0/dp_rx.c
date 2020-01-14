@@ -1145,9 +1145,11 @@ static inline int dp_rx_drop_nbuf_list(struct dp_pdev *pdev,
 		ring_id = QDF_NBUF_CB_RX_CTX_ID(buf);
 		next_buf = qdf_nbuf_queue_next(buf);
 		tid = qdf_nbuf_get_tid_val(buf);
-		stats = &pdev->stats.tid_stats.tid_rx_stats[ring_id][tid];
-		stats->fail_cnt[INVALID_PEER_VDEV]++;
-		stats->delivered_to_stack--;
+		if (qdf_likely(pdev)) {
+			stats = &pdev->stats.tid_stats.tid_rx_stats[ring_id][tid];
+			stats->fail_cnt[INVALID_PEER_VDEV]++;
+			stats->delivered_to_stack--;
+		}
 		qdf_nbuf_free(buf);
 		buf = next_buf;
 		num_dropped++;
@@ -1287,11 +1289,25 @@ dp_rx_enqueue_rx(struct dp_peer *peer, qdf_nbuf_t rx_buf_list)
 }
 #endif
 
-void dp_rx_deliver_to_stack(struct dp_vdev *vdev,
+void dp_rx_deliver_to_stack(struct dp_soc *soc,
+			    struct dp_vdev *vdev,
 			    struct dp_peer *peer,
 			    qdf_nbuf_t nbuf_head,
 			    qdf_nbuf_t nbuf_tail)
 {
+	int num_nbuf = 0;
+
+	if (qdf_unlikely(!vdev || vdev->delete.pending)) {
+		num_nbuf = dp_rx_drop_nbuf_list(NULL, nbuf_head);
+		/*
+		 * This is a special case where vdev is invalid,
+		 * so we cannot know the pdev to which this packet
+		 * belonged. Hence we update the soc rx error stats.
+		 */
+		DP_STATS_INC(soc, rx.err.invalid_vdev, num_nbuf);
+		return;
+	}
+
 	/*
 	 * highly unlikely to have a vdev without a registered rx
 	 * callback function. if so let us free the nbuf_list.
@@ -1601,7 +1617,7 @@ void dp_rx_deliver_to_stack_no_peer(struct dp_soc *soc, qdf_nbuf_t nbuf)
 
 	vdev_id = DP_PEER_METADATA_ID_GET(peer_mdata);
 	vdev = dp_get_vdev_from_soc_vdev_id_wifi3(soc, vdev_id);
-	if (!vdev || !vdev->osif_rx)
+	if (!vdev || vdev->delete.pending || !vdev->osif_rx)
 		goto deliver_fail;
 
 	rx_tlv_hdr = qdf_nbuf_data(nbuf);
@@ -2016,8 +2032,9 @@ done:
 		rx_bufs_used++;
 
 		if (deliver_list_head && peer && (vdev != peer->vdev)) {
-			dp_rx_deliver_to_stack(vdev, peer, deliver_list_head,
-					deliver_list_tail);
+			dp_rx_deliver_to_stack(soc, vdev, peer,
+					       deliver_list_head,
+					       deliver_list_tail);
 			deliver_list_head = NULL;
 			deliver_list_tail = NULL;
 		}
@@ -2208,7 +2225,8 @@ done:
 	}
 
 	if (deliver_list_head && peer)
-		dp_rx_deliver_to_stack(vdev, peer, deliver_list_head,
+		dp_rx_deliver_to_stack(soc, vdev, peer,
+				       deliver_list_head,
 				       deliver_list_tail);
 
 	if (dp_rx_enable_eol_data_check(soc) && rx_bufs_used) {
