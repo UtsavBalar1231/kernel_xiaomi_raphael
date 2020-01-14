@@ -166,6 +166,11 @@ static const struct ipa_ep_confing ep_mapping[3][IPA_CLIENT_MAX] = {
 
 
 	[IPA_2_6L][IPA_CLIENT_USB_PROD]          =  {true,  1},
+	[IPA_2_6L][IPA_CLIENT_WLAN1_PROD]         = {true, 18},
+	[IPA_2_6L][IPA_CLIENT_WLAN1_CONS]         = {true, 17},
+	[IPA_2_6L][IPA_CLIENT_WLAN2_CONS]         = {true, 16},
+	[IPA_2_6L][IPA_CLIENT_WLAN3_CONS]         = {true, 15},
+	[IPA_2_6L][IPA_CLIENT_WLAN4_CONS]         = {true, 19},
 	[IPA_2_6L][IPA_CLIENT_APPS_LAN_WAN_PROD]  = {true,  4},
 	[IPA_2_6L][IPA_CLIENT_APPS_CMD_PROD]      = {true,  3},
 	[IPA_2_6L][IPA_CLIENT_Q6_LAN_PROD]        = {true,  6},
@@ -822,7 +827,7 @@ int ipa_init_hw(void)
 	ipa_write_reg(ipa_ctx->mmio, IPA_COMP_SW_RESET_OFST, 0);
 
 	/* enable IPA */
-	ipa_write_reg(ipa_ctx->mmio, IPA_COMP_CFG_OFST, 1);
+	ipa_write_reg(ipa_ctx->mmio, IPA_COMP_CFG_OFST, 0x11);
 
 	/* Read IPA version and make sure we have access to the registers */
 	ipa_version = ipa_read_reg(ipa_ctx->mmio, IPA_VERSION_OFST);
@@ -3178,6 +3183,8 @@ const char *get_aggr_type_str(enum ipa_aggr_type aggr_type)
 			return "GENERIC";
 	case (IPA_QCMAP):
 			return "QCMAP";
+	case (IPA_COALESCE):
+			return "COALESCE";
 	}
 	return "undefined";
 }
@@ -5122,8 +5129,6 @@ int ipa2_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 			ipa2_mhi_reset_channel_internal;
 	api_ctrl->ipa_mhi_start_channel_internal =
 			ipa2_mhi_start_channel_internal;
-	api_ctrl->ipa_mhi_resume_channels_internal =
-			ipa2_mhi_resume_channels_internal;
 	api_ctrl->ipa_uc_mhi_send_dl_ul_sync_info =
 			ipa2_uc_mhi_send_dl_ul_sync_info;
 	api_ctrl->ipa_uc_mhi_init = ipa2_uc_mhi_init;

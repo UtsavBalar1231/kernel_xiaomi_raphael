@@ -214,6 +214,8 @@ static struct {
 
 static char *active_clients_table_buf;
 
+static u32 register_ipa_bus_hdl;
+
 int ipa2_active_clients_log_print_buffer(char *buf, int size)
 {
 	int i;
@@ -613,7 +615,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int retval = 0;
 	u32 pyld_sz;
-	u8 header[128] = { 0 };
+	u8 header[192] = { 0 };
 	u8 *param = NULL;
 	struct ipa_ioc_nat_alloc_mem nat_mem;
 	struct ipa_ioc_v4_nat_init nat_init;
@@ -4009,9 +4011,14 @@ static int ipa_init(const struct ipa_plat_drv_res *resource_p,
 
 	if (ipa_ctx->ipa_hw_mode != IPA_HW_MODE_VIRTUAL) {
 		/* get BUS handle */
-		ipa_ctx->ipa_bus_hdl =
-			msm_bus_scale_register_client(
-				ipa_ctx->ctrl->msm_bus_data_ptr);
+		/* Check if bus handle is already registered */
+		if (!register_ipa_bus_hdl)
+			ipa_ctx->ipa_bus_hdl =
+				msm_bus_scale_register_client(
+					ipa_ctx->ctrl->msm_bus_data_ptr);
+		else
+			ipa_ctx->ipa_bus_hdl = register_ipa_bus_hdl;
+
 		if (!ipa_ctx->ipa_bus_hdl) {
 			IPAERR("fail to register with bus mgr!\n");
 			result = -EPROBE_DEFER;
@@ -4479,6 +4486,7 @@ fail_init_active_client:
 	if (bus_scale_table) {
 		msm_bus_cl_clear_pdata(bus_scale_table);
 		bus_scale_table = NULL;
+		register_ipa_bus_hdl = 0;
 	}
 fail_bus_reg:
 fail_bind:
@@ -4987,6 +4995,36 @@ int ipa_plat_drv_probe(struct platform_device *pdev_p,
 	struct device *dev = &pdev_p->dev;
 
 	IPADBG("IPA driver probing started\n");
+
+	/*
+	 * Due to late initialization of msm_bus in kernel >= 4.14, add
+	 * mechanism to defer IPA probing until msm_bus is initialized
+	 * successfully.
+	 */
+	if (of_device_is_compatible(dev->of_node, "qcom,ipa")) {
+		if (!ipa_pdev)
+			ipa_pdev = pdev_p;
+		if (!bus_scale_table)
+			bus_scale_table = msm_bus_cl_get_pdata(ipa_pdev);
+	}
+	if (bus_scale_table != NULL) {
+		if (of_device_is_compatible(dev->of_node, "qcom,ipa")) {
+			/*
+			 * Register with bus client to check if msm_bus
+			 * is completely initialized.
+			 */
+			register_ipa_bus_hdl =
+				msm_bus_scale_register_client(
+						bus_scale_table);
+			if (!register_ipa_bus_hdl) {
+				IPAERR("fail to register with bus mgr!\n");
+				bus_scale_table = NULL;
+				return -EPROBE_DEFER;
+			}
+		}
+	} else {
+		return -EPROBE_DEFER;
+	}
 
 	if (of_device_is_compatible(dev->of_node, "qcom,ipa-smmu-ap-cb"))
 		return ipa_smmu_ap_cb_probe(dev);

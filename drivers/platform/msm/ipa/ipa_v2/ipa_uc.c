@@ -649,9 +649,9 @@ send_cmd:
 			timeout_jiffies) == 0) {
 			IPAERR("uC timed out\n");
 			if (ipa_ctx->uc_ctx.uc_failed) {
-				IPAERR("uC reported on Error,
-				errorType = %s\n", ipa_hw_error_str(
-				ipa_ctx->uc_ctx.uc_error_type));
+				IPAERR("uC reported on Error,errorType = %s\n",
+				ipa_hw_error_str(
+					ipa_ctx->uc_ctx.uc_error_type));
 			}
 			mutex_unlock(&ipa_ctx->uc_ctx.uc_lock);
 			ipa_assert();

@@ -955,7 +955,7 @@ void ipa_sps_irq_control_all(bool enable)
 
 		ipa_ep_idx = ipa_get_ep_mapping(client_num);
 		if (ipa_ep_idx == -1) {
-			IPAERR("Invalid client.\n");
+			IPADBG_LOW("Invalid client.\n");
 			continue;
 		}
 		ep = &ipa_ctx->ep[ipa_ep_idx];
