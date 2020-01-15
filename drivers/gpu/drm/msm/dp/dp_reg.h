@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -384,6 +384,8 @@
 #define MMSS_DP_PIXEL_N_V420			(0x01B8)
 #define MMSS_DP_PIXEL1_M_V420			(0x01CC)
 #define MMSS_DP_PIXEL1_N_V420			(0x01D0)
+#define MMSS_DP_PIXEL2_M_V420			(0x01FC)
+#define MMSS_DP_PIXEL2_N_V420			(0x0200)
 
 /* DP HDCP 1.3 registers */
 #define DP_HDCP_CTRL                                   (0x0A0)

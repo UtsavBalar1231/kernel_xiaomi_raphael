@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2520,7 +2520,8 @@ void dp_catalog_put(struct dp_catalog *dp_catalog)
 	devm_kfree(catalog->dev, catalog);
 }
 
-struct dp_catalog *dp_catalog_get(struct device *dev, struct dp_parser *parser)
+struct dp_catalog *dp_catalog_get(struct device *dev, u32 cell_idx,
+		struct dp_parser *parser)
 {
 	int rc = 0;
 	struct dp_catalog *dp_catalog;
@@ -2577,6 +2578,7 @@ struct dp_catalog *dp_catalog_get(struct device *dev, struct dp_parser *parser)
 		.get_header = dp_catalog_audio_get_header,
 	};
 	struct dp_catalog_panel panel = {
+		.cell_idx = cell_idx,
 		.timing_cfg = dp_catalog_panel_timing_cfg,
 		.config_hdr = dp_catalog_panel_config_hdr,
 		.tpg_config = dp_catalog_panel_tpg_cfg,

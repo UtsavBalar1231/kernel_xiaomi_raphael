@@ -1337,7 +1337,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 	dp->dp_display.is_mst_supported = dp->parser->has_mst;
 	dp->dp_display.no_mst_encoder = dp->parser->no_mst_encoder;
 
-	dp->catalog = dp_catalog_get(dev, dp->parser);
+	dp->catalog = dp_catalog_get(dev, dp->cell_idx, dp->parser);
 	if (IS_ERR(dp->catalog)) {
 		rc = PTR_ERR(dp->catalog);
 		pr_err("failed to initialize catalog, rc = %d\n", rc);

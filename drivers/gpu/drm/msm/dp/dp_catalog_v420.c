@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -154,8 +154,21 @@ static void dp_catalog_panel_config_msa_v420(struct dp_catalog_panel *panel,
 	catalog = dp_catalog_get_priv_v420(panel);
 	io_data = catalog->io->dp_mmss_cc;
 
-	if (panel->stream_id == DP_STREAM_1)
-		reg_off = MMSS_DP_PIXEL1_M_V420 - MMSS_DP_PIXEL_M_V420;
+	switch (panel->cell_idx) {
+	case 0:
+	default:
+		/* DP controller 0 */
+		if (panel->stream_id == DP_STREAM_1)
+			reg_off = MMSS_DP_PIXEL1_M_V420 - MMSS_DP_PIXEL_M_V420;
+		break;
+	case 1:
+		/* DP controller 1 */
+		if (panel->stream_id == DP_STREAM_0)
+			reg_off = MMSS_DP_PIXEL2_M_V420 - MMSS_DP_PIXEL_M_V420;
+		else
+			reg_off = MMSS_DP_PIXEL1_M_V420 - MMSS_DP_PIXEL_M_V420;
+		break;
+	}
 
 	pixel_m = dp_read(catalog->exe_mode, io_data,
 			MMSS_DP_PIXEL_M_V420 + reg_off);
