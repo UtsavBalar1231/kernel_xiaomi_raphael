@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.14.163 Kernel Configuration
+# Linux/arm64 4.14.165 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -2555,6 +2555,7 @@ CONFIG_QPNP_SMB5=y
 # CONFIG_QPNP_QNOVO is not set
 CONFIG_QPNP_QNOVO5=y
 CONFIG_SMB1390_CHARGE_PUMP=y
+# CONFIG_SMB1398_CHARGER is not set
 CONFIG_HWMON=y
 # CONFIG_HWMON_VID is not set
 # CONFIG_HWMON_DEBUG_CHIP is not set
