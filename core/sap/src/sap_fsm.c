@@ -2049,6 +2049,7 @@ static QDF_STATUS sap_cac_end_notify(mac_handle_t mac_handle,
 	uint8_t intf;
 	struct mac_context *mac = MAC_CONTEXT(mac_handle);
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
+	uint8_t chan;
 
 	/*
 	 * eSAP_DFS_CHANNEL_CAC_END:
@@ -2070,8 +2071,8 @@ static QDF_STATUS sap_cac_end_notify(mac_handle_t mac_handle,
 			sap_context = mac->sap.sapCtxList[intf].sap_context;
 			/* Don't check CAC for non-dfs channel */
 			profile = &sap_context->csr_roamProfile;
-			if (!wlan_reg_is_dfs_ch(mac->pdev,
-						profile->operationChannel))
+			chan = profile->operationChannel;
+			if (!wlan_reg_chan_has_dfs_attribute(mac->pdev, chan))
 				continue;
 
 			/* If this is an end notification of a pre cac, the
