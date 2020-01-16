@@ -1208,46 +1208,26 @@ static int _sde_crtc_set_roi_v1(struct drm_crtc_state *state,
 
 static bool _sde_crtc_setup_is_3dmux_dsc(struct drm_crtc_state *state)
 {
-	int i;
 	struct sde_crtc_state *cstate;
-	uint64_t topology = SDE_RM_TOPOLOGY_NONE;
 
 	cstate = to_sde_crtc_state(state);
 
-	for (i = 0; i < cstate->num_connectors; i++) {
-		struct drm_connector *conn = cstate->connectors[i];
-
-		topology = sde_connector_get_topology_name(conn);
-		if ((topology == SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC) ||
-				(topology ==
-				SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC))
-			return true;
-	}
-
-	return false;
+	return (cstate->topology_name == SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC ||
+			cstate->topology_name ==
+			SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC);
 }
 
 static bool _sde_crtc_setup_is_quad_pipe(struct drm_crtc_state *state)
 {
-	int i;
 	struct sde_crtc_state *cstate;
-	uint64_t topology = SDE_RM_TOPOLOGY_NONE;
 
 	cstate = to_sde_crtc_state(state);
 
-	for (i = 0; i < cstate->num_connectors; i++) {
-		struct drm_connector *conn = cstate->connectors[i];
-
-		topology = sde_connector_get_topology_name(conn);
-		if ((topology == SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE) ||
-				(topology ==
-				SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE) ||
-				(topology ==
-				SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC))
-			return true;
-	}
-
-	return false;
+	return (cstate->topology_name == SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE ||
+			cstate->topology_name ==
+			SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE ||
+			cstate->topology_name ==
+			SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC);
 }
 
 static int _sde_crtc_set_crtc_roi(struct drm_crtc *crtc,
@@ -3712,19 +3692,13 @@ static void _sde_crtc_setup_mixers(struct drm_crtc *crtc)
 
 static void _sde_crtc_setup_is_ppsplit(struct drm_crtc_state *state)
 {
-	int i;
 	struct sde_crtc_state *cstate;
 
 	cstate = to_sde_crtc_state(state);
 
-	cstate->is_ppsplit = false;
-	for (i = 0; i < cstate->num_connectors; i++) {
-		struct drm_connector *conn = cstate->connectors[i];
-
-		if (sde_connector_get_topology_name(conn) ==
-				SDE_RM_TOPOLOGY_PPSPLIT)
-			cstate->is_ppsplit = true;
-	}
+	cstate->is_ppsplit =
+			(cstate->topology_name ==
+			SDE_RM_TOPOLOGY_PPSPLIT);
 }
 
 static void _sde_crtc_setup_lm_bounds(struct drm_crtc *crtc,

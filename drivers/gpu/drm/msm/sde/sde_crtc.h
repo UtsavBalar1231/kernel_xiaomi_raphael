@@ -372,6 +372,7 @@ struct sde_crtc_respool {
  * @is_ppsplit    : Whether current topology requires PPSplit special handling
  * @bw_control    : true if bw/clk controlled by core bw/clk properties
  * @bw_split_vote : true if bw controlled by llcc/dram bw properties
+ * @topology_name : Current topology name
  * @crtc_roi      : Current CRTC ROI. Possibly sub-rectangle of mode.
  *                  Origin top left of CRTC.
  * @lm_bounds     : LM boundaries based on current mode full resolution, no ROI.
@@ -409,6 +410,7 @@ struct sde_crtc_state {
 	bool bw_control;
 	bool bw_split_vote;
 
+	enum sde_rm_topology_name topology_name;
 	bool is_ppsplit;
 	struct sde_rect crtc_roi;
 	struct sde_rect lm_bounds[MAX_MIXERS_PER_CRTC];
@@ -857,5 +859,21 @@ int sde_crtc_calc_vpadding_param(struct drm_crtc_state *state,
  */
 int sde_crtc_get_num_datapath(struct drm_crtc *crtc,
 		struct drm_connector *connector);
+
+/**
+ * sde_crtc_state_set_topology_name - set current topology name
+ * @state: Pointer to crtc_state
+ */
+static inline void sde_crtc_state_set_topology_name(
+		struct drm_crtc_state *state,
+		enum sde_rm_topology_name topology_name)
+{
+	struct sde_crtc_state *cstate = to_sde_crtc_state(state);
+
+	if (!state)
+		return;
+
+	cstate->topology_name = topology_name;
+}
 
 #endif /* _SDE_CRTC_H_ */

@@ -1157,6 +1157,10 @@ static int sde_encoder_virt_atomic_check(
 			return ret;
 		}
 
+		sde_crtc_state_set_topology_name(crtc_state,
+				sde_connector_get_property(conn_state,
+				CONNECTOR_PROP_TOPOLOGY_NAME));
+
 		ret = sde_connector_set_blob_data(conn_state->connector,
 				conn_state,
 				CONNECTOR_PROP_SDE_INFO);
