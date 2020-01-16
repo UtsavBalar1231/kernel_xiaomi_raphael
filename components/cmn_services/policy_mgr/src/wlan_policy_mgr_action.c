@@ -1327,6 +1327,7 @@ bool policy_mgr_is_sap_restart_required_after_sta_disconnect(
 								PM_SAP_MODE);
 	bool sta_sap_scc_on_dfs_chan =
 		policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(psoc);
+	uint8_t sta_sap_scc_on_dfs_chnl_config_value = 0;
 
 	*intf_ch = 0;
 
@@ -1336,10 +1337,15 @@ bool policy_mgr_is_sap_restart_required_after_sta_disconnect(
 		return false;
 	}
 
-	policy_mgr_debug("sta_sap_scc_on_dfs_chan %u, sap_chan %u",
-			 sta_sap_scc_on_dfs_chan, sap_chan);
+	policy_mgr_get_sta_sap_scc_on_dfs_chnl(psoc, &sta_sap_scc_on_dfs_chnl_config_value);
+
+	policy_mgr_debug("sta_sap_scc_on_dfs_chan %u, sta_sap_scc_on_dfs_chnl_config_value %u, sap_chan %u",
+			 sta_sap_scc_on_dfs_chan,
+			 sta_sap_scc_on_dfs_chnl_config_value,
+			 sap_chan);
 
 	if ((!sta_sap_scc_on_dfs_chan ||
+	     (sta_sap_scc_on_dfs_chnl_config_value == 2) ||
 	     !(sap_chan && WLAN_REG_IS_5GHZ_CH(sap_chan) &&
 	       (wlan_reg_get_channel_state(pm_ctx->pdev, sap_chan) ==
 			CHANNEL_STATE_DFS))) &&
