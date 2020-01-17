@@ -6038,18 +6038,20 @@ void wma_add_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 	/* IBSS should share the same code as AP mode */
 	case BSS_OPERATIONAL_MODE_IBSS:
 	case BSS_OPERATIONAL_MODE_AP:
-		if (qdf_is_drv_connected()) {
-			wma_debug("drv wow enabled prevent runtime pm");
-			wma_sap_prevent_runtime_pm(wma);
-		} else {
-			wma_debug("non-drv wow enabled vote for link up");
-			htc_vote_link_up(htc_handle);
-		}
 		wma_add_sta_req_ap_mode(wma, add_sta);
 		break;
 	case BSS_OPERATIONAL_MODE_NDI:
 		wma_add_sta_ndi_mode(wma, add_sta);
 		break;
+	}
+
+	/* handle wow for sap, ibss and nan with 1 or more peer in same way */
+	if (BSS_OPERATIONAL_MODE_IBSS == oper_mode ||
+	    BSS_OPERATIONAL_MODE_AP == oper_mode ||
+	    BSS_OPERATIONAL_MODE_NDI == oper_mode) {
+		wma_debug("disable runtime pm and vote for link up");
+		htc_vote_link_up(htc_handle);
+		wma_sap_prevent_runtime_pm(wma);
 	}
 
 #ifdef QCA_IBSS_SUPPORT
@@ -6139,6 +6141,15 @@ void wma_delete_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 	default:
 		WMA_LOGE(FL("Incorrect oper mode %d"), oper_mode);
 		qdf_mem_free(del_sta);
+	}
+
+	/* handle wow for sap, ibss and nan with 1 or more peer in same way */
+	if (BSS_OPERATIONAL_MODE_IBSS == oper_mode ||
+	    BSS_OPERATIONAL_MODE_AP == oper_mode ||
+	    BSS_OPERATIONAL_MODE_NDI == oper_mode) {
+		wma_debug("allow runtime pm and vote for link down");
+		htc_vote_link_down(htc_handle);
+		wma_sap_allow_runtime_pm(wma);
 	}
 
 #ifdef QCA_IBSS_SUPPORT
