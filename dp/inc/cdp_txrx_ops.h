@@ -1045,9 +1045,8 @@ struct cdp_misc_ops {
 					       uint32_t low_th);
 	QDF_STATUS (*txrx_ext_stats_request)(struct cdp_pdev *pdev,
 					     struct cdp_txrx_ext_stats *req);
-	void (*request_rx_hw_stats)(struct cdp_soc_t *soc_hdl,
-				    struct cdp_vdev *vdev);
-	QDF_STATUS (*wait_for_ext_rx_stats)(struct cdp_soc_t *soc_hdl);
+	QDF_STATUS (*request_rx_hw_stats)(struct cdp_soc_t *soc_hdl,
+					  uint8_t vdev_id);
 };
 
 /**
