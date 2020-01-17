@@ -1,4 +1,4 @@
-/* Copyright (c) 2007-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2007-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -120,7 +120,10 @@ static inline bool all_devices_probed(struct mdss_smmu_private *prv)
 		return 0;
 
 	for_each_child_of_node(prv->pdev, child) {
-		if (is_mdss_smmu_compatible_device(child->name))
+		char name[MDSS_SMMU_COMPAT_STR_LEN] = {};
+
+		strlcpy(name, child->name, sizeof(name));
+		if (is_mdss_smmu_compatible_device(name))
 			d_cnt++;
 	}
 

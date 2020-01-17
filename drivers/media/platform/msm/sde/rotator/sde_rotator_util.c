@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012, 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -928,7 +928,8 @@ static int sde_mdp_map_buffer(struct sde_mdp_img_data *data, bool rotator,
 		}
 
 		sgt = dma_buf_map_attachment(
-				data->srcp_attachment, dir);
+				data->srcp_attachment,
+				sde_smmu_set_dma_direction(dir));
 		if (IS_ERR_OR_NULL(sgt) ||
 				IS_ERR_OR_NULL(sgt->sgl)) {
 			SDEROT_ERR("Failed to map attachment\n");
