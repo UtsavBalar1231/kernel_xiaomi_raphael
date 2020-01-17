@@ -1951,6 +1951,9 @@ struct hdd_context {
 
 	struct sar_limit_cmd_params *sar_cmd_params;
 
+#ifdef SAR_SAFETY_FEATURE
+	qdf_mc_timer_t sar_safety_timer;
+#endif
 #ifdef CLD_PM_QOS
 	struct pm_qos_request pm_qos_req;
 #endif
