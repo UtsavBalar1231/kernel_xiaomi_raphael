@@ -46,9 +46,7 @@
 static unsigned long default_bus_bw_set[] = {0, 19200000, 50000000,
 				100000000, 150000000, 200000000, 236000000};
 /* SCM Call Id */
-#define TZ_SCM_CALL_FROM_HLOS	0x7E7E7E7E
-#define TZ_PIL_AUTH_GSI_QUP_PROC	0x13
-#define SSR_SCM_CMD	0x2
+#define SSR_SCM_CMD	0x1
 
 struct bus_vectors {
 	int src;
@@ -62,7 +60,6 @@ struct bus_vectors {
  * @iommu_lock:		Lock to protect IOMMU Mapping & attachment.
  * @iommu_map:		IOMMU map of the memory space supported by this core.
  * @iommu_s1_bypass:	Bypass IOMMU stage 1 translation.
- * @iommu_atomic_ctx:	Enable IOMMU in atomic context.
  * @base:		Base address of this instance of QUPv3 core.
  * @bus_bw:		Client handle to the bus bandwidth request.
  * @bus_bw_noc:		Client handle to the QUP clock and DDR path bus
@@ -102,7 +99,6 @@ struct geni_se_device {
 	struct mutex iommu_lock;
 	struct dma_iommu_mapping *iommu_map;
 	bool iommu_s1_bypass;
-	bool iommu_atomic_ctx;
 	void __iomem *base;
 	struct msm_bus_client_handle *bus_bw;
 	uint32_t bus_bw_noc;
@@ -387,11 +383,11 @@ static void geni_se_ssc_qup_up(struct geni_se_device *dev)
 	struct scm_desc desc;
 	struct se_geni_rsc *rsc = NULL;
 
-	desc.args[0] = TZ_PIL_AUTH_GSI_QUP_PROC;
-	desc.args[1] = TZ_SCM_CALL_FROM_HLOS;
-	desc.arginfo = SCM_ARGS(2, SCM_VAL);
+	/* Passing dummy argument as it is scm call requirement */
+	desc.args[0] = 0x0;
+	desc.arginfo = SCM_ARGS(1, SCM_VAL);
 
-	ret = scm_call2(SCM_SIP_FNID(SCM_SVC_MP, SSR_SCM_CMD), &desc);
+	ret = scm_call2(SCM_SIP_FNID(TZ_SVC_QUP_FW_LOAD, SSR_SCM_CMD), &desc);
 	if (ret) {
 		dev_err(dev->dev, "Unable to load firmware after SSR\n");
 		return;
@@ -1467,7 +1463,7 @@ static int geni_se_iommu_map_and_attach(struct geni_se_device *geni_se_dev)
 {
 	dma_addr_t va_start = GENI_SE_IOMMU_VA_START;
 	size_t va_size = GENI_SE_IOMMU_VA_SIZE;
-	int bypass = 1, atomic_ctx = 1;
+	int bypass = 1;
 	struct device *cb_dev = geni_se_dev->cb_dev;
 
 	/*Don't proceed if IOMMU node is disabled*/
@@ -1490,20 +1486,17 @@ static int geni_se_iommu_map_and_attach(struct geni_se_device *geni_se_dev)
 		return PTR_ERR(geni_se_dev->iommu_map);
 	}
 
-	/* Set either s1_bypass or atomic context as defined in DT */
-	if ((geni_se_dev->iommu_s1_bypass &&
-			iommu_domain_set_attr(geni_se_dev->iommu_map->domain,
-				DOMAIN_ATTR_S1_BYPASS, &bypass)) ||
-		(geni_se_dev->iommu_atomic_ctx &&
-			iommu_domain_set_attr(geni_se_dev->iommu_map->domain,
-				DOMAIN_ATTR_ATOMIC, &atomic_ctx))) {
-		GENI_SE_ERR(geni_se_dev->log_ctx, false, NULL,
-			"%s:%s Couldn't set iommu attribute\n",
-			__func__, dev_name(cb_dev));
-		arm_iommu_release_mapping(geni_se_dev->iommu_map);
-		geni_se_dev->iommu_map = NULL;
-		mutex_unlock(&geni_se_dev->iommu_lock);
-		return -EIO;
+	if (geni_se_dev->iommu_s1_bypass) {
+		if (iommu_domain_set_attr(geni_se_dev->iommu_map->domain,
+					  DOMAIN_ATTR_S1_BYPASS, &bypass)) {
+			GENI_SE_ERR(geni_se_dev->log_ctx, false, NULL,
+				"%s:%s Couldn't bypass s1 translation\n",
+				__func__, dev_name(cb_dev));
+			arm_iommu_release_mapping(geni_se_dev->iommu_map);
+			geni_se_dev->iommu_map = NULL;
+			mutex_unlock(&geni_se_dev->iommu_lock);
+			return -EIO;
+		}
 	}
 
 	if (arm_iommu_attach_device(cb_dev, geni_se_dev->iommu_map)) {
@@ -1920,8 +1913,6 @@ static int geni_se_probe(struct platform_device *pdev)
 							"qcom,vote-for-bw");
 	geni_se_dev->iommu_s1_bypass = of_property_read_bool(dev->of_node,
 							"qcom,iommu-s1-bypass");
-	geni_se_dev->iommu_atomic_ctx = of_property_read_bool(dev->of_node,
-							"qcom,iommu-atomic-ctx");
 	geni_se_dev->bus_bw_set = default_bus_bw_set;
 	geni_se_dev->bus_bw_set_size =
 				ARRAY_SIZE(default_bus_bw_set);
