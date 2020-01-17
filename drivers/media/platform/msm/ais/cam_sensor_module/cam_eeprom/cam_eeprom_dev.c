@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -590,7 +590,7 @@ static void __exit cam_eeprom_driver_exit(void)
 	i2c_del_driver(&cam_eeprom_i2c_driver);
 }
 
-module_init(cam_eeprom_driver_init);
+early_module_init(cam_eeprom_driver_init, EARLY_SUBSYS_3, EARLY_INIT_LEVEL2);
 module_exit(cam_eeprom_driver_exit);
 MODULE_DESCRIPTION("CAM EEPROM driver");
 MODULE_LICENSE("GPL v2");
