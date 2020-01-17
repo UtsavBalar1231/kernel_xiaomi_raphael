@@ -231,7 +231,10 @@ static void kgsl_iommu_add_global(struct kgsl_mmu *mmu,
 		return;
 
 	if (WARN_ON(global_pt_count >= GLOBAL_PT_ENTRIES))
- 		return;
+		return;
+
+	if (WARN_ON(size > KGSL_IOMMU_GLOBAL_MEM_SIZE))
+		return;
 
 	if (memdesc->priv & KGSL_MEMDESC_RANDOM) {
 		u32 range = GLOBAL_MAP_PAGES - (size >> PAGE_SHIFT);
@@ -248,9 +251,6 @@ static void kgsl_iommu_add_global(struct kgsl_mmu *mmu,
 
 		start--;
 	}
-
-	bit = bitmap_find_next_zero_area(global_map, GLOBAL_MAP_PAGES,
-		0, size >> PAGE_SHIFT, 0);
 
 	if (WARN_ON(start < 0))
 		return;
