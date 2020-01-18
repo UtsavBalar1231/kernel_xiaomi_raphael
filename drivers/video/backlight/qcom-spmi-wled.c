@@ -1605,7 +1605,7 @@ static int wled_get_max_avail_current(struct led_classdev *led_cdev,
 	/* Clamp the sink current to maximum FSC */
 	*max_current = min(i_sink_ma, max_fsc_ma);
 
-	pr_debug("i_sink_ma: %d\n", i_sink_ma);
+	pr_debug("i_sink_ma: %lld\n", i_sink_ma);
 	return 0;
 }
 
