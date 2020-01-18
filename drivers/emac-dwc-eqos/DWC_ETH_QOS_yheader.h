@@ -427,7 +427,9 @@ extern void *ipc_emac_log_ctxt;
 #define DWC_ETH_QOS_SYSCLOCK	250000000 /* System clock is 250MHz */
 #define DWC_ETH_QOS_SYSTIMEPERIOD	4 /* System time period is 4ns */
 
-#define DWC_ETH_QOS_DEFAULT_PTP_CLOCK    96000000
+#define DWC_ETH_QOS_PTP_CLOCK_57_6    57600000
+#define DWC_ETH_QOS_PTP_CLOCK_62_5    62500000
+#define DWC_ETH_QOS_PTP_CLOCK_96    96000000
 #define DWC_ETH_QOS_DEFAULT_LPASS_PPS_FREQUENCY 19200000
 
 #define DWC_ETH_QOS_TX_QUEUE_CNT (pdata->tx_queue_cnt)
@@ -1584,6 +1586,7 @@ struct DWC_ETH_QOS_res_data {
 	unsigned int emac_hw_version_type;
 	bool early_eth_en;
 	bool pps_lpass_conn_en;
+	int phy_addr;
 };
 
 struct DWC_ETH_QOS_prv_ipa_data {
@@ -1878,6 +1881,8 @@ struct DWC_ETH_QOS_prv_data {
 	struct class* avb_class_b_class;
 	struct delayed_work ipv6_addr_assign_wq;
 	bool print_kpi;
+	unsigned long default_ptp_clock;
+	bool wol_enabled;
 };
 
 struct ip_params {
