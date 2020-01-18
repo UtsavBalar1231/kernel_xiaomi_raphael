@@ -885,13 +885,14 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	index = 0;
 
 	list_for_each_entry(chain, &block->chain_list, list) {
-		if (tca[TCA_CHAIN] &&
-		    nla_get_u32(tca[TCA_CHAIN]) != chain->index)
-			continue;
+	if (tca[TCA_CHAIN] &&
+	    nla_get_u32(tca[TCA_CHAIN]) != chain->index) {
+		continue;
+	}
 		if (!tcf_chain_dump(chain, q, parent, skb, cb,
 				    index_start, &index))
 			err = -EMSGSIZE;
-			break;
+		break;
 	}
 
 	cb->args[0] = index;
