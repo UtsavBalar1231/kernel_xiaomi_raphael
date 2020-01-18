@@ -973,7 +973,7 @@ void mhi_control_error(struct mhi_controller *mhi_cntrl)
 	/* copy subsystem failure reason string if supported */
 	if (sfr_info && sfr_info->buf_addr) {
 		memcpy(sfr_info->str, sfr_info->buf_addr, sfr_info->len);
-		pr_err("mhi: %s sfr: %s\n", mhi_cntrl->name,
+		pr_err("mhi: %s sfr: %p\n", mhi_cntrl->name,
 		       sfr_info->buf_addr);
 	}
 
