@@ -242,7 +242,7 @@ static void __cam_isp_ctx_dump_state_monitor_array(
 
 		if (log_rate_limit) {
 			CAM_INFO_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 20,
-			"time[%lld] last reported req_id[%u] frame id[%lld] applied id[%lld] current state[%s] next state[%s] hw_event[%s]",
+			"time[%lld] last reported req_id[%llu] frame id[%lld] applied id[%lld] current state[%s] next state[%s] hw_event[%s]",
 			ctx_monitor[index].evt_time_stamp,
 			ctx_monitor[index].last_reported_id,
 			ctx_monitor[index].frame_id,
@@ -256,7 +256,7 @@ static void __cam_isp_ctx_dump_state_monitor_array(
 
 		} else {
 			CAM_INFO(CAM_ISP,
-			"time[%lld] last reported req_id[%u] frame id[%lld] applied id[%lld] current state[%s] next state[%s] hw_event[%s]",
+			"time[%lld] last reported req_id[%llu] frame id[%lld] applied id[%lld] current state[%s] next state[%s] hw_event[%s]",
 			ctx_monitor[index].evt_time_stamp,
 			ctx_monitor[index].last_reported_id,
 			ctx_monitor[index].frame_id,
@@ -987,7 +987,7 @@ static int __cam_isp_ctx_notify_sof_in_activated_state(
 			((request_id - ctx_isp->req_info.reported_req_id) >
 			1)){
 			CAM_INFO(CAM_ISP,
-				"ctx:%d curr req id: %u last reported id:%u",
+				"ctx:%d curr req id: %llu last reported id:%llu",
 				ctx->ctx_id, request_id,
 				ctx_isp->req_info.reported_req_id);
 
@@ -2192,7 +2192,7 @@ static int __cam_isp_ctx_dump_req_info(struct cam_context *ctx,
 	uint8_t *dst;
 
 	if (!req || !ctx || !offset || !cpu_addr || !buf_len) {
-		CAM_ERR(CAM_ISP, "Invalid parameters %pK %pK %u %pK %pK %pK ",
+		CAM_ERR(CAM_ISP, "Invalid parameters %pK %pK %n %ldK %ldK %pK ",
 			req, ctx, offset, cpu_addr, buf_len);
 		return -EINVAL;
 	}
@@ -2276,7 +2276,7 @@ hw_dump:
 		/* we take for isp sw information to be max as 2048*/
 		if ((buf_len - dump_info->offset) <
 			CAM_ISP_CTX_DUMP_MIN_LENGTH) {
-			CAM_ERR(CAM_ISP, "Dump buffer exhaust %u %u",
+			CAM_ERR(CAM_ISP, "Dump buffer exhaust %lu %u",
 				buf_len, dump_info->offset);
 			goto end;
 		}
@@ -2426,7 +2426,7 @@ static int __cam_isp_ctx_flush_req_in_top_state(
 			ctx_isp->req_info.reported_req_id,
 			ctx_isp->req_info.last_bufdone_req_id);
 		CAM_INFO_RATE_LIMIT_CUSTOM(CAM_ISP, 5, 20,
-			"current time:%lld last apply time:%lld, reported req time:%lld, buf done time:%lld",
+			"current time:%d last apply time:%lld, reported req time:%lld, buf done time:%lld",
 			jiffies_to_msecs(jiffies),
 			ctx_isp->req_info.last_applied_time_stamp,
 			ctx_isp->req_info.last_reported_id_time_stamp,
@@ -3365,7 +3365,7 @@ static int __cam_isp_ctx_config_dev_in_top_state(
 		goto put_ref;
 
 	if (cam_mem_put_cpu_buf((int32_t) cmd->packet_handle))
-		CAM_WARN(CAM_ISP, "Can not put packet address : 0x%x",
+		CAM_WARN(CAM_ISP, "Can not put packet address : 0x%llx",
 			cmd->packet_handle);
 
 	CAM_DBG(CAM_REQ,
@@ -3382,7 +3382,7 @@ put_ref:
 	}
 free_cpu_buf:
 	if (cam_mem_put_cpu_buf((int32_t) cmd->packet_handle))
-		CAM_WARN(CAM_ISP, "Can not put packet address: 0x%x",
+		CAM_WARN(CAM_ISP, "Can not put packet address: 0x%llx",
 			cmd->packet_handle);
 free_req:
 	spin_lock_bh(&ctx->lock);
