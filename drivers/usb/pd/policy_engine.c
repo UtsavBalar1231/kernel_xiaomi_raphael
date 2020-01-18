@@ -199,6 +199,7 @@ enum vdm_state {
 	MODE_EXITED,
 };
 
+#ifdef CONFIG_IPC_LOGGING
 static void *usbpd_ipc_log;
 #define usbpd_dbg(dev, fmt, ...) do { \
 	ipc_log_string(usbpd_ipc_log, "%s: %s: " fmt, dev_name(dev), __func__, \
@@ -225,6 +226,23 @@ static void *usbpd_ipc_log;
 	} while (0)
 
 #define NUM_LOG_PAGES		10
+#else
+#define usbpd_dbg(dev, fmt, ...) do { \
+        dev_dbg(dev, fmt, ##__VA_ARGS__); \
+        } while (0)
+
+#define usbpd_info(dev, fmt, ...) do { \
+        dev_info(dev, fmt, ##__VA_ARGS__); \
+       } while (0)
+
+#define usbpd_warn(dev, fmt, ...) do { \
+        dev_warn(dev, fmt, ##__VA_ARGS__); \
+        } while (0)
+
+#define usbpd_err(dev, fmt, ...) do { \
+        dev_err(dev, fmt, ##__VA_ARGS__); \
+        } while (0)
+#endif
 
 /* Timeouts (in ms) */
 #define ERROR_RECOVERY_TIME	25
@@ -5113,7 +5131,9 @@ EXPORT_SYMBOL(usbpd_destroy);
 
 static int __init usbpd_init(void)
 {
+#ifdef CONFIG_IPC_LOGGING
 	usbpd_ipc_log = ipc_log_context_create(NUM_LOG_PAGES, "usb_pd", 0);
+#endif
 	return class_register(&usbpd_class);
 }
 module_init(usbpd_init);
