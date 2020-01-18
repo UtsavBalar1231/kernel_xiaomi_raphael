@@ -285,7 +285,7 @@ int cam_packet_util_process_patches(struct cam_packet *packet,
 
 		if (pf_dump_flag) {
 			CAM_INFO(CAM_UTIL,
-				"patch[%d]: patched addr 0x%x sz 0x%x offset:0x%x",
+				"patch[%d]: patched addr 0x%llx sz 0x%x offset:0x%x",
 				i, *((uint64_t *)dst_cpu_addr),
 				(uint32_t)src_buf_size,
 				patch_desc[i].src_offset);
@@ -494,7 +494,7 @@ int32_t cam_packet_validate_plane_size(
 	if (!kmd_plane_size ||
 		kmd_plane_size > (size - io_cfg->offsets[plane_index])) {
 		CAM_ERR(CAM_ISP,
-			"kmd size: %d umd size: %d width: %d height: %d stride: %d sliceheight: %d ",
+			"kmd size: %d umd size: %ld width: %d height: %d stride: %d sliceheight: %d ",
 			kmd_plane_size,
 			size,
 			io_cfg->planes[plane_index].width,

@@ -3994,7 +3994,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 
 		if (blob_size < (sizeof(uint32_t) * 2 + hfr_config->num_ports *
 			sizeof(struct cam_isp_port_hfr_config))) {
-			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu",
 				blob_size, sizeof(uint32_t) * 2 +
 				sizeof(struct cam_isp_port_hfr_config) *
 				hfr_config->num_ports);
@@ -4025,7 +4025,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 
 		if (blob_size < (sizeof(uint32_t) * 2 + sizeof(uint64_t) *
 			(clock_config->num_rdi + 2))) {
-			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu",
 				blob_size,
 				sizeof(uint32_t) * 2 + sizeof(uint64_t) *
 				(clock_config->num_rdi + 2));
@@ -4057,7 +4057,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 
 		if (blob_size < (sizeof(uint32_t) * 2 + (bw_config->num_rdi + 2)
 			* sizeof(struct cam_isp_bw_vote))) {
-			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu",
 				blob_size,
 				sizeof(uint32_t) * 2 + (bw_config->num_rdi + 2)
 				* sizeof(struct cam_isp_bw_vote));
@@ -4102,7 +4102,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 		if (blob_size < (sizeof(uint32_t) * 2
 			+ (bw_config_ab->num_rdi + 2)
 			* sizeof(struct cam_isp_bw_vote))) {
-			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu",
 				blob_size,
 				sizeof(uint32_t) * 2
 				+ (bw_config_ab->num_rdi + 2)
@@ -4145,7 +4145,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 
 		if (blob_size < (sizeof(uint32_t) * 2 + ubwc_config->num_ports *
 			sizeof(struct cam_ubwc_plane_cfg_v1) * 2)) {
-			CAM_ERR(CAM_ISP, "Invalid blob_size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid blob_size %u expected %lu",
 				blob_size,
 				sizeof(uint32_t) * 2 + ubwc_config->num_ports *
 				sizeof(struct cam_ubwc_plane_cfg_v1) * 2);
@@ -4162,7 +4162,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 		struct cam_isp_csid_clock_config    *clock_config;
 
 		if (blob_size < sizeof(struct cam_isp_csid_clock_config)) {
-			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu",
 				blob_size,
 				sizeof(struct cam_isp_csid_clock_config));
 			return -EINVAL;
@@ -4180,7 +4180,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 		struct cam_fe_config *fe_config;
 
 		if (blob_size < sizeof(struct cam_fe_config)) {
-			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu",
 				blob_size, sizeof(struct cam_fe_config));
 			return -EINVAL;
 		}
@@ -4198,7 +4198,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 			(struct cam_isp_init_frame_drop_config *)blob_data;
 
 		if (blob_size < sizeof(struct cam_isp_init_frame_drop_config)) {
-			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu",
 				blob_size,
 				sizeof(struct cam_isp_init_frame_drop_config));
 			return -EINVAL;
@@ -4213,7 +4213,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 		struct cam_isp_sensor_config *csid_dim_config;
 
 		if (blob_size < sizeof(struct cam_isp_sensor_config)) {
-			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid blob size %u expected %lu",
 				blob_size,
 				sizeof(struct cam_isp_sensor_config));
 			return -EINVAL;
@@ -4234,7 +4234,7 @@ static int cam_isp_packet_generic_blob_handler(void *user_data,
 		struct cam_isp_prepare_hw_update_data   *prepare_hw_data;
 
 		if (blob_size < sizeof(struct cam_fps_config)) {
-			CAM_ERR(CAM_ISP, "Invalid fps blob size %u expected %u",
+			CAM_ERR(CAM_ISP, "Invalid fps blob size %u expected %lu",
 				blob_size, sizeof(struct cam_fps_config));
 			return -EINVAL;
 		}
