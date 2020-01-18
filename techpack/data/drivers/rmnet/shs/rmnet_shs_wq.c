@@ -1196,6 +1196,7 @@ int rmnet_shs_wq_check_cpu_move_for_ep(u16 current_cpu, u16 dest_cpu,
 				       struct rmnet_shs_wq_ep_s *ep)
 {
 	u16 cpu_in_rps_mask = 0;
+	u16 __cpu_isolated_mask = 0;
 
 	if (!ep) {
 		rmnet_shs_crit_err[RMNET_SHS_WQ_EP_ACCESS_ERR]++;
@@ -1210,7 +1211,7 @@ int rmnet_shs_wq_check_cpu_move_for_ep(u16 current_cpu, u16 dest_cpu,
 	cpu_in_rps_mask = (1 << dest_cpu) & ep->rps_config_msk;
 
 	rm_err("SHS_MASK:  cur cpu [%d] | dest_cpu [%d] | "
-	       "cpu isolation_mask = 0x%x | ep_rps_mask = 0x%x | "
+	       "cpu isolation_mask = 0x%d | ep_rps_mask = 0x%d | "
 	       "cpu_online(dest) = %d cpu_in_rps_mask = %d | "
 	       "cpu isolated(dest) = %d",
 	       current_cpu, dest_cpu, __cpu_isolated_mask, ep->rps_config_msk,
