@@ -1451,7 +1451,7 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 	unsigned int dma_rx_status;
 	struct uart_port *uport = dev;
 	unsigned long flags;
-	unsigned int m_irq_en;
+	unsigned int m_irq_en = 0;
 	unsigned int geni_status;
 	struct tty_port *tport = &uport->state->port;
 	bool drop_rx = false;
