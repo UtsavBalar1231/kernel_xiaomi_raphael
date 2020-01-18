@@ -282,6 +282,8 @@ enum ds_mode {
 #define WMA_DEAUTH_RECV_WAKE_LOCK_DURATION      WAKELOCK_DURATION_RECOMMENDED
 #define WMA_DISASSOC_RECV_WAKE_LOCK_DURATION    WAKELOCK_DURATION_RECOMMENDED
 #define WMA_ROAM_HO_WAKE_LOCK_DURATION          (500)          /* in msec */
+#define WMA_ROAM_PREAUTH_WAKE_LOCK_DURATION     (2 * 1000)
+
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 #define WMA_AUTO_SHUTDOWN_WAKE_LOCK_DURATION    WAKELOCK_DURATION_RECOMMENDED
 #endif
@@ -1053,6 +1055,7 @@ struct wma_valid_channels {
  * @wow_ap_assoc_lost_wl: wow wake lock for assoc lost req
  * @wow_auto_shutdown_wl: wow wake lock for shutdown req
  * @roam_ho_wl: wake lock for roam handoff req
+ * @roam_preauth_wl: wake lock for roam preauth status
  * @wow_nack: wow negative ack flag
  * @is_wow_bus_suspended: is wow bus suspended flag
  * @wma_scan_comp_timer: scan completion timer
@@ -1097,6 +1100,8 @@ struct wma_valid_channels {
  *   event in the serialized MC thread context with a timer.
  * @csr_roam_synch_cb: CSR callback for firmware Roam Sync events
  * @pe_roam_synch_cb: pe callback for firmware Roam Sync events
+ * @csr_roam_auth_event_handle_cb: CSR callback for target authentication
+ * offload event.
  * @wmi_cmd_rsp_wake_lock: wmi command response wake lock
  * @wmi_cmd_rsp_runtime_lock: wmi command response bus lock
  * @apf_enabled: Is APF enabled in firmware?
@@ -1203,6 +1208,7 @@ typedef struct {
 	qdf_wake_lock_t wow_ap_assoc_lost_wl;
 	qdf_wake_lock_t wow_auto_shutdown_wl;
 	qdf_wake_lock_t roam_ho_wl;
+	qdf_wake_lock_t roam_preauth_wl;
 	int wow_nack;
 	qdf_atomic_t is_wow_bus_suspended;
 	qdf_mc_timer_t wma_scan_comp_timer;
@@ -1244,6 +1250,9 @@ typedef struct {
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr,
 		enum sir_roam_op_code reason);
+	QDF_STATUS (*csr_roam_auth_event_handle_cb)(tpAniSirGlobal mac,
+						    uint8_t vdev_id,
+						    struct qdf_mac_addr bssid);
 	QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr,
@@ -2361,6 +2370,24 @@ void wma_vdev_clear_pause_bit(uint8_t vdev_id, wmi_tx_pause_type bit_pos)
  */
 QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 				     tSirRoamOffloadScanReq *roam_req);
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+/**
+ * wma_send_roam_preauth_status() - Send the preauth status to wmi
+ * @handle: WMA handle
+ * @roam_req: Pointer to wmi_roam_auth_status_params from sae
+ *
+ * Return: None
+ */
+void
+wma_send_roam_preauth_status(tp_wma_handle wma_handle,
+			     struct wmi_roam_auth_status_params *params);
+#else
+static inline void
+wma_send_roam_preauth_status(tp_wma_handle wma_handle,
+			     struct wmi_roam_auth_status_params *params)
+{}
+#endif
 
 #ifdef WMI_INTERFACE_EVENT_LOGGING
 static inline void wma_print_wmi_cmd_log(uint32_t count,

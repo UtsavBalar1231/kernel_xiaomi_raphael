@@ -778,6 +778,10 @@ A_UINT32 e_csr_auth_type_to_rsn_authmode(eCsrAuthType authtype,
 		return WMI_AUTH_RSNA_SUITE_B_8021X_SHA256;
 	case eCSR_AUTH_TYPE_SUITEB_EAP_SHA384:
 		return WMI_AUTH_RSNA_SUITE_B_8021X_SHA384;
+	case eCSR_AUTH_TYPE_OWE:
+		return WMI_AUTH_WPA3_OWE;
+	case eCSR_AUTH_TYPE_SAE:
+		return WMI_AUTH_WPA3_SAE;
 	case eCSR_AUTH_TYPE_FT_SAE:
 		return WMI_AUTH_FT_RSNA_SAE;
 	case eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384:
@@ -819,6 +823,36 @@ A_UINT32 e_csr_encryption_type_to_rsn_cipherset(eCsrEncryptionType encr)
 	case eCSR_ENCRYPT_TYPE_ANY:
 		return WMI_CIPHER_ANY;
 	case eCSR_ENCRYPT_TYPE_NONE:
+	default:
+		return WMI_CIPHER_NONE;
+	}
+}
+
+/**
+ * wma_convert_gp_mgmt_cipher_to_target_cipher_type() - map csr ani group mgmt
+ * enc type to RSN cipher
+ * @encr: CSR Encryption
+ *
+ * Map CSR's group management cipher type into RSN cipher types used by firmware
+ *
+ * Return: WMI RSN cipher
+ */
+static uint32_t
+wma_convert_gp_mgmt_cipher_to_target_cipher_type(tAniEdType cipher_type)
+{
+	switch (cipher_type) {
+	/* BIP-CMAC-128 (00:0f:ac: 0x06) */
+	case eSIR_ED_AES_128_CMAC:
+		return WMI_CIPHER_AES_CMAC;
+
+	/* BIP-GMAC-128 (00:0f:ac: 0x0b) */
+	case eSIR_ED_AES_GMAC_128:
+		return WMI_CIPHER_AES_GMAC;
+
+	/* BIP-GMAC-256(00:0f:ac: 0x0c)*/
+	case eSIR_ED_AES_GMAC_256:
+		return WMI_CIPHER_BIP_GMAC_256;
+	case eSIR_ED_NONE:
 	default:
 		return WMI_CIPHER_NONE;
 	}
@@ -868,41 +902,47 @@ static void wma_roam_scan_fill_ap_profile(tSirRoamOffloadScanReq *roam_req,
 		profile->rsn_mcastcipherset = WMI_CIPHER_NONE;
 		profile->rsn_mcastmgmtcipherset = WMI_CIPHER_NONE;
 		profile->rssi_threshold = WMA_ROAM_RSSI_DIFF_DEFAULT;
-	} else {
-		profile->ssid.length =
-			roam_req->ConnectedNetwork.ssId.length;
-		qdf_mem_copy(profile->ssid.mac_ssid,
-			     roam_req->ConnectedNetwork.ssId.ssId,
-			     profile->ssid.length);
-		profile->rsn_authmode =
-			e_csr_auth_type_to_rsn_authmode(
-				roam_req->ConnectedNetwork.authentication,
-				roam_req->ConnectedNetwork.encryption);
-		rsn_authmode = profile->rsn_authmode;
 
-		if ((rsn_authmode == WMI_AUTH_CCKM_WPA) ||
-			(rsn_authmode == WMI_AUTH_CCKM_RSNA))
-			profile->rsn_authmode =
-				wma_roam_scan_get_cckm_mode(
-						roam_req, rsn_authmode);
-		profile->rsn_ucastcipherset =
-			e_csr_encryption_type_to_rsn_cipherset(
-					roam_req->ConnectedNetwork.encryption);
-		profile->rsn_mcastcipherset =
-			e_csr_encryption_type_to_rsn_cipherset(
-				roam_req->ConnectedNetwork.mcencryption);
-		profile->rsn_mcastmgmtcipherset =
-			profile->rsn_mcastcipherset;
-		profile->rssi_threshold = roam_req->RoamRssiDiff;
-		if (roam_req->rssi_abs_thresh)
-			profile->rssi_abs_thresh =
-				roam_req->rssi_abs_thresh -
-						WMA_NOISE_FLOOR_DBM_DEFAULT;
-#ifdef WLAN_FEATURE_11W
-		if (roam_req->ConnectedNetwork.mfp_enabled)
-			profile->flags |= WMI_AP_PROFILE_FLAG_PMF;
-#endif
+		return;
 	}
+
+	profile->ssid.length = roam_req->ConnectedNetwork.ssId.length;
+	qdf_mem_copy(profile->ssid.mac_ssid,
+		     roam_req->ConnectedNetwork.ssId.ssId,
+		     profile->ssid.length);
+	profile->rsn_authmode =
+		e_csr_auth_type_to_rsn_authmode(
+			roam_req->ConnectedNetwork.authentication,
+			roam_req->ConnectedNetwork.encryption);
+	rsn_authmode = profile->rsn_authmode;
+
+	if (rsn_authmode == WMI_AUTH_CCKM_WPA ||
+	    rsn_authmode == WMI_AUTH_CCKM_RSNA)
+		profile->rsn_authmode =
+			wma_roam_scan_get_cckm_mode(roam_req, rsn_authmode);
+
+	/* Pairwise cipher suite */
+	profile->rsn_ucastcipherset =
+		e_csr_encryption_type_to_rsn_cipherset(
+				roam_req->ConnectedNetwork.encryption);
+
+	/* Group cipher suite */
+	profile->rsn_mcastcipherset =
+		e_csr_encryption_type_to_rsn_cipherset(
+			roam_req->ConnectedNetwork.mcencryption);
+
+	/* Group management cipher suite */
+	profile->rsn_mcastmgmtcipherset =
+		wma_convert_gp_mgmt_cipher_to_target_cipher_type(
+			roam_req->ConnectedNetwork.gp_mgmt_cipher_suite);
+
+	profile->rssi_threshold = roam_req->RoamRssiDiff;
+	if (roam_req->rssi_abs_thresh)
+		profile->rssi_abs_thresh = roam_req->rssi_abs_thresh;
+#ifdef WLAN_FEATURE_11W
+	if (roam_req->ConnectedNetwork.mfp_enabled)
+		profile->flags |= WMI_AP_PROFILE_FLAG_PMF;
+#endif
 }
 
 /**
@@ -1626,6 +1666,24 @@ wma_send_idle_roam_params(tp_wma_handle wma_handle,
 	if (QDF_IS_STATUS_ERROR(status))
 		WMA_LOGE("failed to send idle roam parameters");
 }
+
+void
+wma_send_roam_preauth_status(tp_wma_handle wma_handle,
+			     struct wmi_roam_auth_status_params *params)
+{
+	QDF_STATUS status;
+
+	if (!wma_handle || !wma_handle->wmi_handle) {
+		WMA_LOGE("WMA is closed, cannot send roam prauth status");
+		return;
+	}
+
+	status = wmi_unified_send_roam_preauth_status(wma_handle->wmi_handle,
+						      params);
+	if (QDF_IS_STATUS_ERROR(status))
+		WMA_LOGE("failed to send disconnect roam preauth status");
+}
+
 #else
 static inline void
 wma_send_disconnect_roam_params(tp_wma_handle wma_handle,
@@ -3012,6 +3070,75 @@ int wma_roam_synch_frame_event_handler(void *handle, uint8_t *event,
 			     param_buf->reassoc_rsp_frame,
 			     iface->roam_synch_frame_ind.reassoc_rsp_len);
 	}
+	return 0;
+}
+
+int wma_roam_auth_offload_event_handler(WMA_HANDLE handle, uint8_t *event,
+					uint32_t len)
+{
+	QDF_STATUS status;
+	tp_wma_handle wma = (tp_wma_handle) handle;
+	tpAniSirGlobal mac_ctx;
+	wmi_roam_preauth_start_event_fixed_param *rso_auth_start_ev;
+	WMI_ROAM_PREAUTH_START_EVENTID_param_tlvs *param_buf;
+	struct qdf_mac_addr ap_bssid;
+	uint8_t vdev_id;
+
+	if (!event) {
+		wma_err_rl("received null event from target");
+		return -EINVAL;
+	}
+
+	param_buf = (WMI_ROAM_PREAUTH_START_EVENTID_param_tlvs *) event;
+	if (!param_buf) {
+		wma_err_rl("received null buf from target");
+		return -EINVAL;
+	}
+
+	rso_auth_start_ev = param_buf->fixed_param;
+	if (!rso_auth_start_ev) {
+		wma_err_rl("received null event data from target");
+		return -EINVAL;
+	}
+
+	if (rso_auth_start_ev->vdev_id > wma->max_bssid) {
+		wma_err_rl("received invalid vdev_id %d",
+			   rso_auth_start_ev->vdev_id);
+		return -EINVAL;
+	}
+
+	mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
+	if (!mac_ctx) {
+		wma_err("NULL mac ptr");
+		QDF_ASSERT(0);
+		return -EINVAL;
+	}
+
+	cds_host_diag_log_work(&wma->roam_preauth_wl,
+			       WMA_ROAM_PREAUTH_WAKE_LOCK_DURATION,
+			       WIFI_POWER_EVENT_WAKELOCK_WOW);
+	qdf_wake_lock_timeout_acquire(&wma->roam_ho_wl,
+				      WMA_ROAM_HO_WAKE_LOCK_DURATION);
+
+	WMI_MAC_ADDR_TO_CHAR_ARRAY(&rso_auth_start_ev->candidate_ap_bssid,
+				   ap_bssid.bytes);
+	if (qdf_is_macaddr_zero(&ap_bssid) ||
+	    qdf_is_macaddr_broadcast(&ap_bssid) ||
+	    qdf_is_macaddr_group(&ap_bssid)) {
+		wma_err_rl("Invalid bssid");
+		return -EINVAL;
+	}
+
+	vdev_id = rso_auth_start_ev->vdev_id;
+	wma_debug("Received Roam auth offload event for bss:%pM vdev_id:%d",
+		  ap_bssid.bytes, vdev_id);
+
+	status = wma->csr_roam_auth_event_handle_cb(mac_ctx, vdev_id, ap_bssid);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		wma_err_rl("Trigger pre-auth failed");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

@@ -33,6 +33,9 @@
 #define CSR_INVALID_SCANRESULT_HANDLE       (NULL)
 #define CSR_NUM_WLM_LATENCY_LEVEL   4
 
+#define CFG_PMKID_MODES_OKC                        (0x1)
+#define CFG_PMKID_MODES_PMKSA_CACHING              (0x2)
+
 typedef enum {
 	/* never used */
 	eCSR_AUTH_TYPE_NONE,
@@ -917,6 +920,7 @@ typedef struct tagCsrRoamHTProfile {
 	uint8_t apChanWidth;
 } tCsrRoamHTProfile;
 #endif
+
 typedef struct tagCsrRoamConnectedProfile {
 	tSirMacSSid SSID;
 	bool handoffPermitted;
@@ -931,6 +935,8 @@ typedef struct tagCsrRoamConnectedProfile {
 	tCsrEncryptionList EncryptionInfo;
 	eCsrEncryptionType mcEncryptionType;
 	tCsrEncryptionList mcEncryptionInfo;
+	/* group management cipher suite used for 11w */
+	tAniEdType mgmt_encryption_type;
 	uint8_t country_code[WNI_CFG_COUNTRY_CODE_LEN];
 	uint32_t vht_channel_width;
 	tCsrKeys Keys;
@@ -1310,6 +1316,7 @@ typedef struct tagCsrConfigParam {
 	uint8_t oce_feature_bitmap;
 	struct csr_mbo_thresholds mbo_thresholds;
 	uint32_t btm_offload_config;
+	uint32_t pmkid_modes;
 	uint32_t btm_solicited_timeout;
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
@@ -1740,13 +1747,20 @@ typedef QDF_STATUS (*csr_session_close_cb)(uint8_t session_id);
 #define CSR_IS_FW_FT_SAE_SUPPORTED(fw_akm_bitmap) \
 	(((fw_akm_bitmap) & (1 << AKM_FT_SAE)) ? true : false)
 
+#define CSR_IS_FW_SAE_ROAM_SUPPORTED(fw_akm_bitmap) \
+	(((fw_akm_bitmap) & (1 << AKM_SAE)) ? true : false)
+
 #else
 #define CSR_IS_AUTH_TYPE_SAE(auth_type) (false)
 
 #define CSR_IS_AKM_FT_SAE(auth_type) (false)
 
 #define CSR_IS_FW_FT_SAE_SUPPORTED(fw_akm_bitmap) (false)
+#define CSR_IS_FW_SAE_ROAM_SUPPORTED(fw_akm_bitmap) (false)
 #endif
+
+#define CSR_IS_FW_OWE_ROAM_SUPPORTED(fw_akm_bitmap) \
+	(((fw_akm_bitmap) & (1 << AKM_OWE)) ? true : false)
 
 #define CSR_IS_AKM_FT_SUITEB_SHA384(auth_type) \
 	(eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384 == (auth_type))

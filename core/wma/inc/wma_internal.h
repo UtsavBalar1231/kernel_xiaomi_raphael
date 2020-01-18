@@ -205,6 +205,19 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 					uint32_t len);
 
 /**
+ * wma_roam_auth_offload_event_handler() - Handle LFR-3.0 Roam authentication
+ * offload event.
+ * @handle: wma_handle
+ * @event:  rso auth offload event data pointer
+ * @len: length of the data
+ *
+ * Handles roam authentication offload event from firmware which is triggered
+ * after roam candidate selection.
+ */
+int wma_roam_auth_offload_event_handler(WMA_HANDLE handle, uint8_t *event,
+					uint32_t len);
+
+/**
  * wma_roam_synch_frame_event_handler() - roam synch frame event handler
  * @handle: wma handle
  * @event: event data
@@ -1462,6 +1475,18 @@ int wma_roam_scan_stats_event_handler(void *handle, uint8_t *event,
  */
 int wma_cold_boot_cal_event_handler(void *wma_ctx, uint8_t *event_buff,
 				    uint32_t len);
+
+#ifdef FEATURE_OEM_DATA
+/**
+ * wma_oem_event_handler() - oem data event handler
+ * @wma_ctx: wma handle
+ * @event_buff: event data
+ * @len: length of event buffer
+ *
+ * Return: Success or Failure status
+ */
+int wma_oem_event_handler(void *wma_ctx, uint8_t *event_buff, uint32_t len);
+#endif
 
 /**
  * wma_set_roam_triggers() - Send roam trigger bitmap to WMI
