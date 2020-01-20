@@ -1519,8 +1519,8 @@ bool policy_mgr_current_concurrency_is_mcc(struct wlan_objmgr_psoc *psoc)
 		}
 		break;
 	default:
-		policy_mgr_err("unexpected num_connections value %d",
-			num_connections);
+		policy_mgr_debug("unexpected num_connections value %d",
+				 num_connections);
 		break;
 	}
 
@@ -1561,8 +1561,8 @@ void policy_mgr_set_concurrency_mode(struct wlan_objmgr_psoc *psoc,
 		break;
 	}
 
-	policy_mgr_info("concurrency_mode = 0x%x Number of open sessions for mode %d = %d",
-		pm_ctx->concurrency_mode, mode,
+	policy_mgr_debug("concurrency_mode = 0x%x Number of open sessions for mode %d = %d",
+			 pm_ctx->concurrency_mode, mode,
 		pm_ctx->no_of_open_sessions[mode]);
 }
 
@@ -1600,9 +1600,9 @@ void policy_mgr_clear_concurrency_mode(struct wlan_objmgr_psoc *psoc,
 		break;
 	}
 
-	policy_mgr_info("concurrency_mode = 0x%x Number of open sessions for mode %d = %d",
-		pm_ctx->concurrency_mode, mode,
-		pm_ctx->no_of_open_sessions[mode]);
+	policy_mgr_debug("concurrency_mode = 0x%x Number of open sessions for mode %d = %d",
+			 pm_ctx->concurrency_mode, mode,
+			 pm_ctx->no_of_open_sessions[mode]);
 }
 
 void policy_mgr_incr_active_session(struct wlan_objmgr_psoc *psoc,
@@ -2394,8 +2394,8 @@ uint32_t policy_mgr_get_concurrency_mode(struct wlan_objmgr_psoc *psoc)
 		return QDF_STA_MASK;
 	}
 
-	policy_mgr_info("concurrency_mode: 0x%x",
-			pm_ctx->concurrency_mode);
+	policy_mgr_debug("concurrency_mode: 0x%x",
+			 pm_ctx->concurrency_mode);
 
 	return pm_ctx->concurrency_mode;
 }
@@ -2653,7 +2653,7 @@ QDF_STATUS policy_mgr_change_mcc_go_beacon_interval(
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	policy_mgr_info("UPDATE Beacon Params");
+	policy_mgr_debug("UPDATE Beacon Params");
 
 	if (QDF_SAP_MODE == dev_mode) {
 		if (pm_ctx->sme_cbacks.sme_change_mcc_beacon_interval
