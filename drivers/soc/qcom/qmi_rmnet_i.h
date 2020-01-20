@@ -71,6 +71,7 @@ struct mq_map {
 };
 
 struct qos_info {
+	struct list_head list;
 	u8 mux_id;
 	struct net_device *real_dev;
 	struct list_head flow_head;
@@ -86,6 +87,7 @@ struct qmi_info {
 	void *wda_pending;
 	void *dfc_clients[MAX_CLIENT_NUM];
 	void *dfc_pending[MAX_CLIENT_NUM];
+	bool dfc_client_exiting[MAX_CLIENT_NUM];
 	unsigned long ps_work_active;
 	bool ps_enabled;
 	bool dl_msg_active;
@@ -144,6 +146,9 @@ int dfc_qmap_client_init(void *port, int index, struct svc_info *psvc,
 void dfc_qmap_client_exit(void *dfc_data);
 
 void dfc_qmap_send_ack(struct qos_info *qos, u8 bearer_id, u16 seq, u8 type);
+
+struct rmnet_bearer_map *qmi_rmnet_get_bearer_noref(struct qos_info *qos_info,
+						    u8 bearer_id);
 #else
 static inline struct rmnet_flow_map *
 qmi_rmnet_get_flow_map(struct qos_info *qos_info,
