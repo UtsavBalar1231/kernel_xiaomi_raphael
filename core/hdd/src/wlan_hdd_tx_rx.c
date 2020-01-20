@@ -63,6 +63,7 @@
 #include "cfg_ucfg_api.h"
 #include "target_type.h"
 #include "wlan_hdd_object_manager.h"
+#include <wlan_hdd_sar_limits.h>
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 /*
@@ -1131,6 +1132,8 @@ static void __hdd_hard_start_xmit(struct sk_buff *skb,
 	}
 
 	netif_trans_update(dev);
+
+	wlan_hdd_sar_unsolicited_timer_start(hdd_ctx);
 
 	return;
 
