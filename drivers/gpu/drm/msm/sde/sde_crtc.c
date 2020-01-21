@@ -1842,12 +1842,18 @@ static int pstate_cmp(const void *a, const void *b)
 	struct plane_state *pb = (struct plane_state *)b;
 	int rc = 0;
 	int pa_zpos, pb_zpos;
+	enum sde_layout pa_layout, pb_layout;
 
 	pa_zpos = sde_plane_get_property(pa->sde_pstate, PLANE_PROP_ZPOS);
 	pb_zpos = sde_plane_get_property(pb->sde_pstate, PLANE_PROP_ZPOS);
 
+	pa_layout = sde_plane_get_property(pa->sde_pstate, PLANE_PROP_LAYOUT);
+	pb_layout = sde_plane_get_property(pb->sde_pstate, PLANE_PROP_LAYOUT);
+
 	if (pa_zpos != pb_zpos)
 		rc = pa_zpos - pb_zpos;
+	else if (pa_layout != pb_layout)
+		rc = pa_layout - pb_layout;
 	else
 		rc = pa->drm_pstate->crtc_x - pb->drm_pstate->crtc_x;
 
