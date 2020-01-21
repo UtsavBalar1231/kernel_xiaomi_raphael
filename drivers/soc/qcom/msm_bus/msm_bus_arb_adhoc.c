@@ -82,7 +82,7 @@ uint64_t msm_bus_div64(uint64_t num, unsigned int base)
 
 	switch (base) {
 	case 0:
-		WARN(1, "AXI: Divide by 0 attempted\n");
+		//WARN(1, "AXI: Divide by 0 attempted\n");
 	case 1: return num;
 	case 2: return (num >> 1);
 	case 4: return (num >> 2);
