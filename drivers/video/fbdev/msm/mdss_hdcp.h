@@ -24,7 +24,7 @@
 
 enum hdcp_client_id {
 	HDCP_CLIENT_HDMI,
-	HDCP_CLIENT_MAX,
+	HDCP_CLIENT_DP,
 };
 
 enum hdcp_states {
@@ -78,8 +78,12 @@ void hdcp_1x_deinit(void *input);
 void *hdmi_hdcp2p2_init(struct hdcp_init_data *init_data);
 void hdmi_hdcp2p2_deinit(void *input);
 
+void *dp_hdcp2p2_init(struct hdcp_init_data *init_data);
+void dp_hdcp2p2_deinit(void *input);
+
 struct hdcp_ops *hdcp_1x_start(void *input);
 struct hdcp_ops *hdmi_hdcp2p2_start(void *input);
+struct hdcp_ops *dp_hdcp2p2_start(void *input);
 
 const char *hdcp_state_name(enum hdcp_states hdcp_state);
 void hdcp_1x_set_enc(void *input, bool enc);
