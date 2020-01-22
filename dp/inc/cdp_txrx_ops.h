@@ -1245,10 +1245,13 @@ struct cdp_ipa_ops {
  * struct cdp_bus_ops - mcl bus suspend/resume ops
  * @bus_suspend:
  * @bus_resume:
+ * @process_wow_ack_rsp: handler for wow ack response
  */
 struct cdp_bus_ops {
 	QDF_STATUS (*bus_suspend)(struct cdp_pdev *opaque_pdev);
 	QDF_STATUS (*bus_resume)(struct cdp_pdev *opaque_pdev);
+	void (*process_wow_ack_rsp)(struct cdp_soc_t *soc_hdl,
+				    struct cdp_pdev *opaque_pdev);
 };
 
 /**

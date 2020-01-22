@@ -170,6 +170,9 @@ static uint8_t dp_soc_ring_if_nss_offloaded(struct dp_soc *soc,
 /* Threshold for peer's cached buf queue beyond which frames are dropped */
 #define DP_RX_CACHED_BUFQ_THRESH 64
 
+/* Budget to reap monitor status ring */
+#define DP_MON_REAP_BUDGET 1024
+
 /**
  * default_dscp_tid_map - Default DSCP-TID mapping
  *
@@ -327,20 +330,19 @@ uint32_t dp_soc_get_mon_mask_for_interrupt_mode(struct dp_soc *soc, int intr_ctx
 }
 
 /*
- * dp_service_mon_rings()- timer to reap monitor rings
- * reqd as we are not getting ppdu end interrupts
- * @arg: SoC Handle
+ * dp_service_mon_rings()- service monitor rings
+ * @soc: soc dp handle
+ * @quota: number of ring entry that can be serviced
  *
- * Return:
+ * Return: None
  *
  */
-static void dp_service_mon_rings(void *arg)
+static void dp_service_mon_rings(struct  dp_soc *soc, uint32_t quota)
 {
-	struct dp_soc *soc = (struct dp_soc *)arg;
 	int ring = 0, work_done, mac_id;
 	struct dp_pdev *pdev = NULL;
 
-	for  (ring = 0 ; ring < MAX_PDEV_CNT; ring++) {
+	for (ring = 0 ; ring < MAX_PDEV_CNT; ring++) {
 		pdev = soc->pdev_list[ring];
 		if (!pdev)
 			continue;
@@ -355,6 +357,21 @@ static void dp_service_mon_rings(void *arg)
 				  work_done);
 		}
 	}
+}
+
+/*
+ * dp_mon_reap_timer_handler()- timer to reap monitor rings
+ * reqd as we are not getting ppdu end interrupts
+ * @arg: SoC Handle
+ *
+ * Return:
+ *
+ */
+static void dp_mon_reap_timer_handler(void *arg)
+{
+	struct dp_soc *soc = (struct dp_soc *)arg;
+
+	dp_service_mon_rings(soc, QCA_NAPI_BUDGET);
 
 	qdf_timer_mod(&soc->mon_reap_timer, DP_INTR_POLL_TIMER_MS);
 }
@@ -4440,8 +4457,8 @@ static QDF_STATUS dp_rxdma_ring_config(struct dp_soc *soc)
 	 * Needed until we enable ppdu end interrupts
 	 */
 	qdf_timer_init(soc->osdev, &soc->mon_reap_timer,
-			dp_service_mon_rings, (void *)soc,
-			QDF_TIMER_TYPE_WAKE_APPS);
+		       dp_mon_reap_timer_handler, (void *)soc,
+		       QDF_TIMER_TYPE_WAKE_APPS);
 	soc->reap_timer_init = 1;
 	return status;
 }
@@ -9648,6 +9665,13 @@ static QDF_STATUS dp_bus_suspend(struct cdp_pdev *opaque_pdev)
 	if (soc->intr_mode == DP_INTR_POLL)
 		qdf_timer_stop(&soc->int_timer);
 
+	/* Stop monitor reap timer and reap any pending frames in ring */
+	if (pdev->rx_pktlog_mode != DP_RX_PKTLOG_DISABLED &&
+	    soc->reap_timer_init) {
+		qdf_timer_sync_cancel(&soc->mon_reap_timer);
+		dp_service_mon_rings(soc, DP_MON_REAP_BUDGET);
+	}
+
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -9659,12 +9683,43 @@ static QDF_STATUS dp_bus_resume(struct cdp_pdev *opaque_pdev)
 	if (soc->intr_mode == DP_INTR_POLL)
 		qdf_timer_mod(&soc->int_timer, DP_INTR_POLL_TIMER_MS);
 
+	/* Start monitor reap timer */
+	if (pdev->rx_pktlog_mode != DP_RX_PKTLOG_DISABLED &&
+	    soc->reap_timer_init)
+		qdf_timer_mod(&soc->mon_reap_timer,
+			      DP_INTR_POLL_TIMER_MS);
+
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * dp_process_wow_ack_rsp() - process wow ack response
+ * @soc_hdl: datapath soc handle
+ * @opaque_pdev: data path pdev handle
+ *
+ * Return: none
+ */
+static void dp_process_wow_ack_rsp(struct cdp_soc_t *soc_hdl,
+				   struct cdp_pdev *opaque_pdev)
+{
+	struct dp_soc *soc = (struct dp_soc *)soc_hdl;
+	struct dp_pdev *pdev = (struct dp_pdev *)opaque_pdev;
+
+	/*
+	 * As part of wow enable FW disables the mon status ring and in wow ack
+	 * response from FW reap mon status ring to make sure no packets pending
+	 * in the ring.
+	 */
+	if (pdev->rx_pktlog_mode != DP_RX_PKTLOG_DISABLED &&
+	    soc->reap_timer_init) {
+		dp_service_mon_rings(soc, DP_MON_REAP_BUDGET);
+	}
 }
 
 static struct cdp_bus_ops dp_ops_bus = {
 	.bus_suspend = dp_bus_suspend,
-	.bus_resume = dp_bus_resume
+	.bus_resume = dp_bus_resume,
+	.process_wow_ack_rsp = dp_process_wow_ack_rsp,
 };
 
 static struct cdp_ocb_ops dp_ops_ocb = {
