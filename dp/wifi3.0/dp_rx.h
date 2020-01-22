@@ -1247,4 +1247,21 @@ static inline void dp_rx_flush_rx_cached(struct dp_peer *peer, bool drop)
 {
 }
 #endif
+
+/**
+ * dp_rx_deliver_to_stack() - deliver pkts to network stack
+ * Caller to hold peer refcount and check for valid peer
+ * @soc: soc
+ * @vdev: vdev
+ * @peer: peer
+ * @nbuf_head: skb list head
+ * @nbuf_tail: skb list tail
+ *
+ * Return: None
+ */
+void dp_rx_deliver_to_stack(struct dp_vdev *vdev,
+			    struct dp_peer *peer,
+			    qdf_nbuf_t nbuf_head,
+			    qdf_nbuf_t nbuf_tail);
+
 #endif /* _DP_RX_H */
