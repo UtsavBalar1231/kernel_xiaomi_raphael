@@ -3576,3 +3576,13 @@ wlan_mlme_get_status_ring_buffer(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
+bool wlan_mlme_get_peer_unmap_conf(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_mlme_psoc_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_obj(psoc);
+	if (!mlme_obj)
+		return false;
+
+	return mlme_obj->cfg.gen.enable_peer_unmap_conf_support;
+}
