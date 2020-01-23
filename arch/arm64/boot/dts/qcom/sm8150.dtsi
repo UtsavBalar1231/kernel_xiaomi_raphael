@@ -565,7 +565,7 @@
 	};
 
 	chosen {
-		bootargs = "noirqdebug rcupdate.rcu_expedited=1 rcu_nocbs=0-7 cgroup.memory=nokmem,nosocket";
+		bootargs = "no_console_suspend noirqdebug rcupdate.rcu_expedited=1 rcu_nocbs=0-7 cgroup.memory=nokmem,nosocket";
 	};
 
 	soc: soc { };
