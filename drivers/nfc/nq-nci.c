@@ -123,7 +123,7 @@ static void print_send_buffer(struct nqx_dev *nqx_dev, unsigned char* buf, int l
 	for (i = 0; i < len; i++) {
 		snprintf(output + i * 2, 3, "%02x ", buf[i]);
 	}
-	dev_warn(&nqx_dev->client->dev, "%3d > %s\n", len, output);
+	dev_dbg(&nqx_dev->client->dev, "%3d > %s\n", len, output);
 }
 
 static void print_recv_buffer(struct nqx_dev *nqx_dev, unsigned char* buf, int len)
@@ -137,7 +137,7 @@ static void print_recv_buffer(struct nqx_dev *nqx_dev, unsigned char* buf, int l
 	for (i = 0; i < len; i++) {
 		snprintf(output + i * 2, 3, "%02x ", buf[i]);
 	}
-	dev_warn(&nqx_dev->client->dev, "%3d < %s\n", len, output);
+	dev_dbg(&nqx_dev->client->dev, "%3d < %s\n", len, output);
 }
 
 static void nqx_init_stat(struct nqx_dev *nqx_dev)
@@ -239,7 +239,7 @@ static ssize_t nfc_read(struct file *filp, char __user *buf,
 
 			if (gpio_get_value(nqx_dev->irq_gpio))
 				break;
-			dev_err_ratelimited(&nqx_dev->client->dev,
+			dev_dbg(&nqx_dev->client->dev,
 			"gpio is low, no need to read data\n");
 		}
 	}
@@ -315,7 +315,7 @@ static ssize_t nfc_write(struct file *filp, const char __user *buf,
 
 	ret = i2c_master_send(nqx_dev->client, tmp, count);
 	if (ret != count) {
-		dev_err(&nqx_dev->client->dev,
+		dev_dbg(&nqx_dev->client->dev,
 		"%s: failed to write %d\n", __func__, ret);
 		ret = -EIO;
 		goto out_free;
@@ -422,7 +422,7 @@ static int nqx_ese_pwr(struct nqx_dev *nqx_dev, unsigned long int arg)
 	const unsigned char svdd_off_cmd_done[] =  {0x2F, 0x31, 0x01, 0x00};
 
 	if (!gpio_is_valid(nqx_dev->ese_gpio)) {
-		dev_err(&nqx_dev->client->dev,
+		dev_dbg(&nqx_dev->client->dev,
 			"%s: ese_gpio is not valid\n", __func__);
 		return -EINVAL;
 	}
