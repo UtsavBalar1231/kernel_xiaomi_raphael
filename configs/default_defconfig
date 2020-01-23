@@ -377,6 +377,7 @@ CONFIG_RX_OL := y
 CONFIG_TX_TID_OVERRIDE := y
 CONFIG_WLAN_CLD_PM_QOS := y
 CONFIG_REO_DESC_DEFER_FREE := y
+CONFIG_RXDMA_ERR_PKT_DROP := y
 endif
 
 # As per target team, build is done as follows:
