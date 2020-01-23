@@ -5930,8 +5930,6 @@ int fg_get_batt_isense(struct fg_dev *fg, int *val)
 	/* Sign bit is bit 15 */
 	temp = sign_extend32(temp, 15);
 	*val = div_s64((s64)temp * BATT_CURRENT_NUMR, BATT_CURRENT_DENR);
-	pr_info("read batt isense: %d[%d]%d\n",
-			(*val)/10, *val, (*val)/1000);
 
 	return 0;
 }
