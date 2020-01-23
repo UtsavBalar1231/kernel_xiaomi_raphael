@@ -1847,6 +1847,8 @@ static int DWC_ETH_QOS_configure_netdevice(struct platform_device *pdev)
 		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_96;
 	else if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_2 )
 		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_62_5;
+	else
+		pdata->default_ptp_clock = DWC_ETH_QOS_DEFAULT_PTP_CLOCK;
 
 #ifdef DWC_ETH_QOS_CONFIG_PTP
 	DWC_ETH_QOS_ptp_init(pdata);
