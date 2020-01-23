@@ -3119,7 +3119,9 @@ static QDF_STATUS lim_deauth_tx_complete_cnf_handler(void *context,
 	QDF_STATUS status_code;
 	struct scheduler_msg msg = {0};
 
-	pe_debug("tx_success: %d", tx_success);
+	pe_debug("tx_complete = %s tx_success = %d",
+		(tx_success == WMI_MGMT_TX_COMP_TYPE_COMPLETE_OK) ?
+		 "success" : "fail", tx_success);
 
 	if (buf)
 		qdf_nbuf_free(buf);
@@ -3461,12 +3463,11 @@ lim_send_deauth_mgmt_frame(struct mac_context *mac,
 				&nPayload, discon_ie);
 	mlme_free_self_disconnect_ies(pe_session->vdev);
 
-	pe_debug("***Sessionid %d Sending Deauth frame with "
-		       "reason %u and waitForAck %d to " QDF_MAC_ADDR_STR
-		       " ,From " QDF_MAC_ADDR_STR,
-		pe_session->peSessionId, nReason, waitForAck,
-		QDF_MAC_ADDR_ARRAY(pMacHdr->da),
-		QDF_MAC_ADDR_ARRAY(pe_session->self_mac_addr));
+	pe_nofl_info("vdev %d Deauth TX seq_num %d reason %u to " QDF_MAC_ADDR_STR
+		     " from " QDF_MAC_ADDR_STR,
+		     pe_session->vdev_id, mac->mgmtSeqNum, nReason,
+		     QDF_MAC_ADDR_ARRAY(pMacHdr->da),
+		     QDF_MAC_ADDR_ARRAY(pe_session->self_mac_addr));
 
 	if ((BAND_5G == lim_get_rf_band(pe_session->currentOperChannel)) ||
 	    (pe_session->opmode == QDF_P2P_CLIENT_MODE) ||
