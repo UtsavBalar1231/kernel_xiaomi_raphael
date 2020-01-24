@@ -5360,6 +5360,7 @@ typedef enum {
 	wmi_service_nan_vdev,
 	wmi_roam_scan_chan_list_to_host_support,
 	wmi_service_packet_capture_support,
+	wmi_service_peer_delete_no_peer_flush_tids_cmd,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF

@@ -13070,6 +13070,8 @@ static void populate_tlv_service(uint32_t *wmi_service)
 		WMI_SERVICE_ROAM_SCAN_CHANNEL_LIST_TO_HOST_SUPPORT;
 	wmi_service[wmi_service_packet_capture_support] =
 			WMI_SERVICE_PACKET_CAPTURE_SUPPORT;
+	wmi_service[wmi_service_peer_delete_no_peer_flush_tids_cmd] =
+		WMI_SERVICE_PEER_DELETE_NO_PEER_FLUSH_TIDS_CMD;
 }
 
 /**
