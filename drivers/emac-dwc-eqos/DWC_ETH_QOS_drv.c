@@ -4961,11 +4961,11 @@ static VOID DWC_ETH_QOS_config_timer_registers(
 
 		DBGPR("-->DWC_ETH_QOS_config_timer_registers\n");
 
-	pdata->ptpclk_freq = DWC_ETH_QOS_DEFAULT_PTP_CLOCK;
+	pdata->ptpclk_freq = pdata->default_ptp_clock;
 	/* program default addend */
-	hw_if->config_default_addend(pdata, DWC_ETH_QOS_DEFAULT_PTP_CLOCK);
+	hw_if->config_default_addend(pdata, pdata->default_ptp_clock);
 		/* program Sub Second Increment Reg */
-		hw_if->config_sub_second_increment(DWC_ETH_QOS_DEFAULT_PTP_CLOCK);
+		hw_if->config_sub_second_increment(pdata->default_ptp_clock);
 		/* initialize system time */
 		getnstimeofday(&now);
 		hw_if->init_systime(now.tv_sec, now.tv_nsec);
@@ -5269,7 +5269,7 @@ int ETH_PPSOUT_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_struct
 	   will change & We will not see 19.2Mhz for PPS0.
 	*/
 	if (pdata->res_data->pps_lpass_conn_en ) {
-		eth_pps_cfg->ptpclk_freq = DWC_ETH_QOS_DEFAULT_PTP_CLOCK;
+		eth_pps_cfg->ptpclk_freq = pdata->default_ptp_clock;
 		EMACDBG("using default ptp clock \n");
 	}
 
@@ -6040,10 +6040,10 @@ static int DWC_ETH_QOS_handle_hwtstamp_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		hw_if->config_hw_time_stamping(VARMAC_TCR);
 
 		/* program default addend */
-		hw_if->config_default_addend(pdata, DWC_ETH_QOS_DEFAULT_PTP_CLOCK);
+		hw_if->config_default_addend(pdata, pdata->default_ptp_clock);
 
 		/* program Sub Second Increment Reg */
-		hw_if->config_sub_second_increment(DWC_ETH_QOS_DEFAULT_PTP_CLOCK);
+		hw_if->config_sub_second_increment(pdata->default_ptp_clock);
 
 		/* initialize system time */
 		getnstimeofday(&now);
