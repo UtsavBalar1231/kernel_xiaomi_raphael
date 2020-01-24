@@ -1887,7 +1887,10 @@ QDF_STATUS wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 	peer_tid_bitmap &= ~(0x1 << WMI_MGMT_TID);
 	param.peer_tid_bitmap = peer_tid_bitmap;
 	param.vdev_id = vdev_id;
-	wmi_unified_peer_flush_tids_send(wma->wmi_handle, bssid,
+
+	if (!wmi_service_enabled(wma->wmi_handle,
+				 wmi_service_peer_delete_no_peer_flush_tids_cmd))
+		wmi_unified_peer_flush_tids_send(wma->wmi_handle, bssid,
 			&param);
 
 	if (wma_is_vdev_in_ibss_mode(wma, vdev_id)) {
