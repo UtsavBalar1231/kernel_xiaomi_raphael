@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -123,6 +123,7 @@ struct txrx_pdev_cfg_t {
 	uint32_t uc_tx_partition_base;
 	/* Flag to indicate whether new htt format is supported */
 	bool new_htt_format_enabled;
+	uint8_t pktlog_buffer_size;
 };
 
 /**
