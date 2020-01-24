@@ -162,6 +162,7 @@ struct wlan_srng_cfg {
  *                            dp_rx_process loop
  * tx_comp_enable_eol_data_check: flag to enable/disable checking for more data
  *                                at end of tx_comp_handler loop.
+ * @pktlog_buffer_size: packet log buffer size
  */
 struct wlan_cfg_dp_soc_ctxt {
 	int num_int_ctxts;
@@ -243,6 +244,7 @@ struct wlan_cfg_dp_soc_ctxt {
 	bool rx_enable_eol_data_check;
 	bool tx_comp_enable_eol_data_check;
 #endif /* WLAN_FEATURE_RX_SOFTIRQ_TIME_LIMIT */
+	uint8_t pktlog_buffer_size;
 };
 
 /**
