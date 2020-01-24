@@ -1670,6 +1670,7 @@ enum cdp_dp_cfg {
 	cfg_dp_reorder_offload_supported,
 	cfg_dp_ce_classify_enable,
 	cfg_dp_disable_intra_bss_fwd,
+	cfg_dp_pktlog_buffer_size,
 };
 
 /**

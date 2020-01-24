@@ -309,6 +309,7 @@ struct txrx_pdev_cfg_param_t {
 	bool enable_data_stall_detection;
 	bool enable_flow_steering;
 	bool disable_intra_bss_fwd;
+	uint8_t pktlog_buffer_size;
 };
 
 #ifdef IPA_OFFLOAD
