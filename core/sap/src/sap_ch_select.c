@@ -2389,22 +2389,6 @@ uint8_t sap_select_channel(mac_handle_t mac_handle,
 
 	mac_ctx = MAC_CONTEXT(mac_handle);
 
-	/*
-	 * If ACS weight is not enabled on noise_floor/channel_free/tx_power,
-	 * then skip acs process if no bss found.
-	 */
-	if ((!scan_list || !qdf_list_size(scan_list)) &&
-	    !(sap_ctx->auto_channel_select_weight & 0xffff00)) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("No external AP present"));
-
-#ifndef SOFTAP_CHANNEL_RANGE
-		return SAP_CHANNEL_NOT_SELECTED;
-#else
-		return sap_select_default_oper_chan(sap_ctx->acs_cfg);
-#endif
-	}
-
 	/* Initialize the structure pointed by spect_info */
 	if (sap_chan_sel_init(mac_handle, spect_info, sap_ctx) != true) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
