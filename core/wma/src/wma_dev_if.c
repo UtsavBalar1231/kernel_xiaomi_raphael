@@ -1291,6 +1291,75 @@ static void wma_handle_hidden_ssid_restart(tp_wma_handle wma,
 				      hidden_ssid_restart);
 }
 
+static void wma_sap_peer_send_phymode(struct wlan_objmgr_vdev *vdev,
+				      void *object, void *arg)
+{
+	struct wlan_objmgr_peer *peer = object;
+	enum wlan_phymode old_peer_phymode;
+	enum wlan_phymode new_phymode;
+	tSirNwType nw_type;
+	uint32_t fw_phymode;
+	uint32_t max_ch_width_supported;
+	tp_wma_handle wma;
+	uint8_t *peer_mac_addr;
+	uint8_t vdev_id;
+	struct wma_txrx_node *intr;
+
+	if (wlan_peer_get_peer_type(peer) == WLAN_PEER_SELF)
+		return;
+
+	wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if(!wma) {
+		wma_err("wma handle NULL");
+		return;
+	}
+
+	intr = wma->interfaces;
+	old_peer_phymode = wlan_peer_get_phymode(peer);
+	vdev_id = wlan_vdev_get_id(vdev);
+
+	peer_mac_addr = wlan_peer_get_macaddr(peer);
+
+	if (WLAN_REG_IS_24GHZ_CH_FREQ(intr[vdev_id].mhz)) {
+		if (intr[vdev_id].chanmode == WMI_HOST_MODE_11B)
+			nw_type = eSIR_11B_NW_TYPE;
+		else
+			nw_type = eSIR_11G_NW_TYPE;
+	} else {
+		nw_type = eSIR_11A_NW_TYPE;
+	}
+	fw_phymode = wma_peer_phymode(nw_type, STA_ENTRY_PEER,
+				      IS_WLAN_PHYMODE_HT(old_peer_phymode),
+				      intr[vdev_id].chan_width,
+				      IS_WLAN_PHYMODE_VHT(old_peer_phymode),
+				      IS_WLAN_PHYMODE_HE(old_peer_phymode));
+
+	new_phymode = wma_fw_to_host_phymode(fw_phymode);
+	wlan_peer_set_phymode(peer, new_phymode);
+
+	wma_set_peer_param(wma, peer_mac_addr, WMI_PEER_PHYMODE,
+			   fw_phymode, vdev_id);
+
+	max_ch_width_supported =
+		wmi_get_ch_width_from_phy_mode(wma->wmi_handle, fw_phymode);
+	wma_set_peer_param(wma, peer_mac_addr, WMI_PEER_CHWIDTH,
+			   max_ch_width_supported, vdev_id);
+
+	wma_debug("nw_type %d old phymode %d new phymode %d bw %d macaddr "QDF_MAC_ADDR_STR,
+		  nw_type, old_peer_phymode, new_phymode,
+		  max_ch_width_supported, QDF_MAC_ADDR_ARRAY(peer_mac_addr));
+}
+
+static void
+wma_update_peer_phymode_sap(struct wlan_objmgr_vdev *vdev)
+{
+	wlan_objmgr_iterate_peerobj_list(vdev,
+					 wma_sap_peer_send_phymode,
+					 NULL,
+					 WLAN_LEGACY_WMA_ID);
+}
+
 /**
  * wma_handle_channel_switch_resp() - handle channel switch resp
  * @wma: wma handle
@@ -1337,6 +1406,11 @@ wma_handle_channel_switch_resp(tp_wma_handle wma,
 					   (void *)params, 0);
 		return QDF_STATUS_SUCCESS;
 	}
+
+	if (QDF_IS_STATUS_SUCCESS(resp_event->status) &&
+	    iface->type == WMI_VDEV_TYPE_AP &&
+	    resp_event->resp_type == WMI_VDEV_RESTART_RESP_EVENT)
+		wma_update_peer_phymode_sap(iface->vdev);
 
 	if ((QDF_IS_STATUS_SUCCESS(resp_event->status) &&
 	     (resp_event->resp_type == WMI_VDEV_RESTART_RESP_EVENT) &&

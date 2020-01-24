@@ -1128,14 +1128,7 @@ wma_fw_to_host_phymode_160(WMI_HOST_WLAN_PHY_MODE phymode)
 }
 #endif
 
-/**
- * wma_fw_to_host_phymode() - convert fw to host phymode
- * @phymode: phymode to convert
- *
- * Return: one of the values defined in enum wlan_phymode;
- *         or WLAN_PHYMODE_AUTO if the conversion fails
- */
-static enum wlan_phymode wma_fw_to_host_phymode(WMI_HOST_WLAN_PHY_MODE phymode)
+enum wlan_phymode wma_fw_to_host_phymode(WMI_HOST_WLAN_PHY_MODE phymode)
 {
 	enum wlan_phymode host_phymode;
 	switch (phymode) {
@@ -1245,15 +1238,7 @@ wma_host_to_fw_phymode_11ax(enum wlan_phymode host_phymode)
 }
 #endif
 
-/**
- * wma_host_to_fw_phymode() - convert host to fw phymode
- * @host_phymode: phymode to convert
- *
- * Return: one of the values defined in enum WMI_HOST_WLAN_PHY_MODE;
- *         or WMI_HOST_MODE_UNKNOWN if the conversion fails
- */
-static WMI_HOST_WLAN_PHY_MODE
-wma_host_to_fw_phymode(enum wlan_phymode host_phymode)
+WMI_HOST_WLAN_PHY_MODE wma_host_to_fw_phymode(enum wlan_phymode host_phymode)
 {
 	WMI_HOST_WLAN_PHY_MODE fw_phymode;
 
