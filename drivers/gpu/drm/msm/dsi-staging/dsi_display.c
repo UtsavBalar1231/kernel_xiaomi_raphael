@@ -235,7 +235,6 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 		if (rc)
 			pr_err("unable to enable doze backlight\n");
 	} else {
-		drm_dev->doze_brightness = DOZE_BRIGHTNESS_INVALID;
 		rc = dsi_panel_set_backlight(panel, (u32)bl_temp);
 		if (rc)
 			pr_err("unable to set backlight\n");

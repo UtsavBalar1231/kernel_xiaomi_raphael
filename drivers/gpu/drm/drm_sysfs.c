@@ -260,17 +260,6 @@ static ssize_t panel_info_show(struct device *device,
 	return written;
 }
 
-static ssize_t doze_brightness_show(struct device *device,
-			    struct device_attribute *attr,
-			   char *buf)
-{
-	struct drm_connector *connector = to_drm_connector(device);
-	struct drm_device *dev = connector->dev;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			dev->doze_brightness);
-}
-
 void drm_bridge_disp_param_set(struct drm_bridge *bridge, int cmd);
 static ssize_t disp_param_store(struct device *device,
 			   struct device_attribute *attr,
@@ -381,7 +370,6 @@ static DEVICE_ATTR_RO(dpms);
 static DEVICE_ATTR_RO(modes);
 static DEVICE_ATTR_RO(panel_info);
 static DEVICE_ATTR_WO(disp_param);
-static DEVICE_ATTR_RO(doze_brightness);
 static DEVICE_ATTR_RW(mipi_reg);
 static DEVICE_ATTR_RW(disp_count);
 
@@ -392,7 +380,6 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_modes.attr,
 	&dev_attr_panel_info.attr,
 	&dev_attr_disp_param.attr,
-	&dev_attr_doze_brightness.attr,
 	&dev_attr_mipi_reg.attr,
 	&dev_attr_disp_count.attr,
 	NULL
