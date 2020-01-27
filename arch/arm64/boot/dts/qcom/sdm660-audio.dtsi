@@ -233,7 +233,7 @@
 };
 
 &pm660l_3 {
-	pmic_analog_codec: analog-codec@f000 {
+	pmic_analog_codec: anlg-cdc@f000 {
 		status = "disabled";
 		compatible = "qcom,pmic-analog-codec";
 		reg = <0xf000 0x200>;
