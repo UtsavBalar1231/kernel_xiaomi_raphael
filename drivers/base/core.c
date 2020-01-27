@@ -148,8 +148,6 @@ static int device_reorder_to_tail(struct device *dev, void *not_used)
 	return 0;
 }
 
-static struct kmem_cache *kmem_device_link_pool;
-
 /**
  * device_link_add - Create a link between two devices.
  * @consumer: Consumer end of the link.
@@ -205,7 +203,7 @@ struct device_link *device_link_add(struct device *consumer,
 		if (link->consumer == consumer)
 			goto out;
 
-	kmem_cache_zalloc(kmem_device_link_pool, GFP_KERNEL);
+	link = kzalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
 		goto out;
 
@@ -213,7 +211,7 @@ struct device_link *device_link_add(struct device *consumer,
 		if (flags & DL_FLAG_RPM_ACTIVE) {
 			if (pm_runtime_get_sync(supplier) < 0) {
 				pm_runtime_put_noidle(supplier);
-				kmem_cache_free(kmem_device_link_pool, link);
+				kfree(link);
 				link = NULL;
 				goto out;
 			}
@@ -296,7 +294,7 @@ static void device_link_free(struct device_link *link)
 {
 	put_device(link->consumer);
 	put_device(link->supplier);
-	kmem_cache_free(kmem_device_link_pool, link);
+	kfree(link);
 }
 
 #ifdef CONFIG_SRCU
@@ -2286,8 +2284,6 @@ int __init devices_init(void)
 		goto char_kobj_err;
 
 	return 0;
-
-	kmem_device_link_pool = KMEM_CACHE(device_link, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
 
  char_kobj_err:
 	kobject_put(sysfs_dev_block_kobj);
