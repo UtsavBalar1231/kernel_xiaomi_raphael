@@ -9485,13 +9485,14 @@ dp_txrx_ext_stats_request(struct cdp_pdev *ppdev,
 			  struct cdp_txrx_ext_stats *req)
 {
 	struct dp_pdev *pdev = (struct dp_pdev *)ppdev;
-	struct dp_soc *soc = pdev->soc;
+	struct dp_soc *soc = NULL;
 
 	if (!pdev) {
 		dp_err("pdev is null");
 		return QDF_STATUS_E_INVAL;
 	}
 
+	soc = pdev->soc;
 	dp_aggregate_pdev_stats(pdev);
 
 	req->tx_msdu_enqueue = pdev->stats.tx_i.processed.num;
