@@ -1,4 +1,4 @@
-/* Copyright (c) 2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,6 +15,7 @@
 
 #include "rmnet_shs_wq_mem.h"
 #include <linux/proc_fs.h>
+#include <linux/refcount.h>
 
 MODULE_LICENSE("GPL v2");
 
@@ -44,32 +45,122 @@ static void rmnet_shs_vm_close(struct vm_area_struct *vma)
 	return;
 }
 
-static int rmnet_shs_vm_fault(struct vm_fault *vmf)
+static int rmnet_shs_vm_fault_caps(struct vm_fault *vmf)
 {
 	struct page *page = NULL;
 	struct rmnet_shs_mmap_info *info;
 
 	rmnet_shs_wq_ep_lock_bh();
-	info = (struct rmnet_shs_mmap_info *) vmf->vma->vm_private_data;
-	if (info->data) {
-		page = virt_to_page(info->data);
-		get_page(page);
-		vmf->page = page;
+	if (cap_shared) {
+		info = (struct rmnet_shs_mmap_info *) vmf->vma->vm_private_data;
+		if (info->data) {
+			page = virt_to_page(info->data);
+			get_page(page);
+			vmf->page = page;
+		} else {
+			rmnet_shs_wq_ep_unlock_bh();
+			return VM_FAULT_SIGSEGV;
+		}
+	} else {
+		rmnet_shs_wq_ep_unlock_bh();
+		return VM_FAULT_SIGSEGV;
 	}
 	rmnet_shs_wq_ep_unlock_bh();
 
 	return 0;
 }
 
-static const struct vm_operations_struct rmnet_shs_vm_ops = {
+
+static int rmnet_shs_vm_fault_g_flows(struct vm_fault *vmf)
+{
+	struct page *page = NULL;
+	struct rmnet_shs_mmap_info *info;
+
+	rmnet_shs_wq_ep_lock_bh();
+	if (gflow_shared) {
+		info = (struct rmnet_shs_mmap_info *) vmf->vma->vm_private_data;
+		if (info->data) {
+			page = virt_to_page(info->data);
+			get_page(page);
+			vmf->page = page;
+		} else {
+			rmnet_shs_wq_ep_unlock_bh();
+			return VM_FAULT_SIGSEGV;
+		}
+	} else {
+		rmnet_shs_wq_ep_unlock_bh();
+		return VM_FAULT_SIGSEGV;
+
+	}
+	rmnet_shs_wq_ep_unlock_bh();
+
+	return 0;
+}
+
+static int rmnet_shs_vm_fault_ss_flows(struct vm_fault *vmf)
+{
+	struct page *page = NULL;
+	struct rmnet_shs_mmap_info *info;
+
+	rmnet_shs_wq_ep_lock_bh();
+	if (ssflow_shared) {
+		info = (struct rmnet_shs_mmap_info *) vmf->vma->vm_private_data;
+		if (info->data) {
+			page = virt_to_page(info->data);
+			get_page(page);
+			vmf->page = page;
+		} else {
+			rmnet_shs_wq_ep_unlock_bh();
+			return VM_FAULT_SIGSEGV;
+		}
+	} else {
+		rmnet_shs_wq_ep_unlock_bh();
+		return VM_FAULT_SIGSEGV;
+	}
+	rmnet_shs_wq_ep_unlock_bh();
+
+	return 0;
+}
+
+static const struct vm_operations_struct rmnet_shs_vm_ops_caps = {
 	.close = rmnet_shs_vm_close,
 	.open = rmnet_shs_vm_open,
-	.fault = rmnet_shs_vm_fault,
+	.fault = rmnet_shs_vm_fault_caps,
 };
 
-static int rmnet_shs_mmap(struct file *filp, struct vm_area_struct *vma)
+static const struct vm_operations_struct rmnet_shs_vm_ops_g_flows = {
+	.close = rmnet_shs_vm_close,
+	.open = rmnet_shs_vm_open,
+	.fault = rmnet_shs_vm_fault_g_flows,
+};
+
+static const struct vm_operations_struct rmnet_shs_vm_ops_ss_flows = {
+	.close = rmnet_shs_vm_close,
+	.open = rmnet_shs_vm_open,
+	.fault = rmnet_shs_vm_fault_ss_flows,
+};
+
+static int rmnet_shs_mmap_caps(struct file *filp, struct vm_area_struct *vma)
 {
-	vma->vm_ops = &rmnet_shs_vm_ops;
+	vma->vm_ops = &rmnet_shs_vm_ops_caps;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_private_data = filp->private_data;
+
+	return 0;
+}
+
+static int rmnet_shs_mmap_g_flows(struct file *filp, struct vm_area_struct *vma)
+{
+	vma->vm_ops = &rmnet_shs_vm_ops_g_flows;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_private_data = filp->private_data;
+
+	return 0;
+}
+
+static int rmnet_shs_mmap_ss_flows(struct file *filp, struct vm_area_struct *vma)
+{
+	vma->vm_ops = &rmnet_shs_vm_ops_ss_flows;
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_private_data = filp->private_data;
 
@@ -95,9 +186,12 @@ static int rmnet_shs_open_caps(struct inode *inode, struct file *filp)
 		}
 
 		cap_shared = info;
+		refcount_set(&cap_shared->refcnt, 1);
 		rm_err("SHS_MEM: virt_to_phys = 0x%llx cap_shared = 0x%llx\n",
 		       (unsigned long long)virt_to_phys((void *)info),
 		       (unsigned long long)virt_to_phys((void *)cap_shared));
+	} else {
+		refcount_inc(&cap_shared->refcnt);
 	}
 
 	filp->private_data = cap_shared;
@@ -132,10 +226,14 @@ static int rmnet_shs_open_g_flows(struct inode *inode, struct file *filp)
 		}
 
 		gflow_shared = info;
+		refcount_set(&gflow_shared->refcnt, 1);
 		rm_err("SHS_MEM: virt_to_phys = 0x%llx gflow_shared = 0x%llx\n",
 		       (unsigned long long)virt_to_phys((void *)info),
 		       (unsigned long long)virt_to_phys((void *)gflow_shared));
+	} else {
+		refcount_inc(&gflow_shared->refcnt);
 	}
+
 	filp->private_data = gflow_shared;
 	rmnet_shs_wq_ep_unlock_bh();
 
@@ -166,10 +264,14 @@ static int rmnet_shs_open_ss_flows(struct inode *inode, struct file *filp)
 		}
 
 		ssflow_shared = info;
+		refcount_set(&ssflow_shared->refcnt, 1);
 		rm_err("SHS_MEM: virt_to_phys = 0x%llx ssflow_shared = 0x%llx\n",
 		       (unsigned long long)virt_to_phys((void *)info),
 		       (unsigned long long)virt_to_phys((void *)ssflow_shared));
+	} else {
+		refcount_inc(&ssflow_shared->refcnt);
 	}
+
 	filp->private_data = ssflow_shared;
 	rmnet_shs_wq_ep_unlock_bh();
 
@@ -183,38 +285,20 @@ fail:
 
 static ssize_t rmnet_shs_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
-	struct rmnet_shs_mmap_info *info;
-	int ret = 0;
-
-	rm_err("%s", "SHS_MEM: rmnet_shs_read - entry\n");
-
-	rmnet_shs_wq_ep_lock_bh();
-	info = filp->private_data;
-	ret = min_t(size_t, len, RMNET_SHS_BUFFER_SIZE);
-	if (copy_to_user(buf, info->data, ret))
-		ret = -EFAULT;
-	rmnet_shs_wq_ep_unlock_bh();
-
-	return ret;
+	/*
+	 * Decline to expose file value and simply return benign value
+	 */
+	return RMNET_SHS_READ_VAL;
 }
 
 static ssize_t rmnet_shs_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
 {
-	struct rmnet_shs_mmap_info *info;
-	int ret;
-
-	rm_err("%s", "SHS_MEM: rmnet_shs_write - entry\n");
-
-	rmnet_shs_wq_ep_lock_bh();
-	info = filp->private_data;
-	ret = min_t(size_t, len, RMNET_SHS_BUFFER_SIZE);
-	if (copy_from_user(info->data, buf, ret))
-		ret = -EFAULT;
-	else
-		ret = len;
-	rmnet_shs_wq_ep_unlock_bh();
-
-	return ret;
+	/*
+	 * Returning zero here would result in echo commands hanging
+	 * Instead return len and simply decline to allow echo'd values to 
+	 * take effect
+	 */
+	return len;
 }
 
 static int rmnet_shs_release_caps(struct inode *inode, struct file *filp)
@@ -226,10 +310,14 @@ static int rmnet_shs_release_caps(struct inode *inode, struct file *filp)
 	rmnet_shs_wq_ep_lock_bh();
 	if (cap_shared) {
 		info = filp->private_data;
-		cap_shared = NULL;
-		free_page((unsigned long)info->data);
-		kfree(info);
-		filp->private_data = NULL;
+		if (refcount_read(&info->refcnt) <= 1) {
+			free_page((unsigned long)info->data);
+			kfree(info);
+			cap_shared = NULL;
+			filp->private_data = NULL;
+		} else {
+			refcount_dec(&info->refcnt);
+		}
 	}
 	rmnet_shs_wq_ep_unlock_bh();
 
@@ -245,10 +333,14 @@ static int rmnet_shs_release_g_flows(struct inode *inode, struct file *filp)
 	rmnet_shs_wq_ep_lock_bh();
 	if (gflow_shared) {
 		info = filp->private_data;
-		gflow_shared = NULL;
-		free_page((unsigned long)info->data);
-		kfree(info);
-		filp->private_data = NULL;
+		if (refcount_read(&info->refcnt) <= 1) {
+			free_page((unsigned long)info->data);
+			kfree(info);
+			gflow_shared = NULL;
+			filp->private_data = NULL;
+		} else {
+			refcount_dec(&info->refcnt);
+		}
 	}
 	rmnet_shs_wq_ep_unlock_bh();
 
@@ -264,10 +356,14 @@ static int rmnet_shs_release_ss_flows(struct inode *inode, struct file *filp)
 	rmnet_shs_wq_ep_lock_bh();
 	if (ssflow_shared) {
 		info = filp->private_data;
-		ssflow_shared = NULL;
-		free_page((unsigned long)info->data);
-		kfree(info);
-		filp->private_data = NULL;
+		if (refcount_read(&info->refcnt) <= 1) {
+			free_page((unsigned long)info->data);
+			kfree(info);
+			ssflow_shared = NULL;
+			filp->private_data = NULL;
+		} else {
+			refcount_dec(&info->refcnt);
+		}
 	}
 	rmnet_shs_wq_ep_unlock_bh();
 
@@ -276,7 +372,7 @@ static int rmnet_shs_release_ss_flows(struct inode *inode, struct file *filp)
 
 static const struct file_operations rmnet_shs_caps_fops = {
 	.owner   = THIS_MODULE,
-	.mmap    = rmnet_shs_mmap,
+	.mmap    = rmnet_shs_mmap_caps,
 	.open    = rmnet_shs_open_caps,
 	.release = rmnet_shs_release_caps,
 	.read    = rmnet_shs_read,
@@ -285,7 +381,7 @@ static const struct file_operations rmnet_shs_caps_fops = {
 
 static const struct file_operations rmnet_shs_g_flows_fops = {
 	.owner   = THIS_MODULE,
-	.mmap    = rmnet_shs_mmap,
+	.mmap    = rmnet_shs_mmap_g_flows,
 	.open    = rmnet_shs_open_g_flows,
 	.release = rmnet_shs_release_g_flows,
 	.read    = rmnet_shs_read,
@@ -294,7 +390,7 @@ static const struct file_operations rmnet_shs_g_flows_fops = {
 
 static const struct file_operations rmnet_shs_ss_flows_fops = {
 	.owner   = THIS_MODULE,
-	.mmap    = rmnet_shs_mmap,
+	.mmap    = rmnet_shs_mmap_ss_flows,
 	.open    = rmnet_shs_open_ss_flows,
 	.release = rmnet_shs_release_ss_flows,
 	.read    = rmnet_shs_read,

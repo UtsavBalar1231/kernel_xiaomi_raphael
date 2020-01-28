@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -318,7 +318,7 @@ int DWC_ETH_QOS_ptp_init(struct DWC_ETH_QOS_prv_data *pdata)
 	if (pdata->res_data->pps_lpass_conn_en) {
 		/*Configuring PPS0 PPS output frequency to defualt 19.2 Mhz*/
 		eth_pps_cfg.ppsout_ch = 0;
-		eth_pps_cfg.ptpclk_freq = DWC_ETH_QOS_DEFAULT_PTP_CLOCK;
+		eth_pps_cfg.ptpclk_freq = pdata->default_ptp_clock;
 		eth_pps_cfg.ppsout_freq = DWC_ETH_QOS_DEFAULT_LPASS_PPS_FREQUENCY;
 		eth_pps_cfg.ppsout_start = 1;
 		eth_pps_cfg.ppsout_duty = 50;
