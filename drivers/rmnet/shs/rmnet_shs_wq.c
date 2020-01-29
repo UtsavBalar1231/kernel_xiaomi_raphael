@@ -30,23 +30,19 @@ MODULE_LICENSE("GPL v2");
 #define RMNET_SHS_MIN_HSTAT_NODES_REQD 16
 
 #define PERIODIC_CLEAN 0
-/* FORCE_CLEAN should only used during module de-ini.*/
+/* FORCE_CLEAN should only used during module de-init.*/
 #define FORCE_CLEAN 1
-/* Time to wait (in time ticks) before re-triggering the workqueue
- *	1   tick  = 10 ms (Maximum possible resolution)
- *	100 ticks = 1 second
- */
 
 /* Local Definitions and Declarations */
 unsigned int rmnet_shs_cpu_prio_dur __read_mostly = 3;
 module_param(rmnet_shs_cpu_prio_dur, uint, 0644);
-MODULE_PARM_DESC(rmnet_shs_cpu_prio_dur, "Priority ignore duration(ticks)");
+MODULE_PARM_DESC(rmnet_shs_cpu_prio_dur, "Priority ignore duration (wq intervals)");
 
 #define PRIO_BACKOFF ((!rmnet_shs_cpu_prio_dur) ? 2 : rmnet_shs_cpu_prio_dur)
 
-unsigned int rmnet_shs_wq_frequency __read_mostly = RMNET_SHS_WQ_DELAY_TICKS;
-module_param(rmnet_shs_wq_frequency, uint, 0644);
-MODULE_PARM_DESC(rmnet_shs_wq_frequency, "Priodicity of Wq trigger(in ticks)");
+unsigned int rmnet_shs_wq_interval_ms __read_mostly = RMNET_SHS_WQ_INTERVAL_MS;
+module_param(rmnet_shs_wq_interval_ms, uint, 0644);
+MODULE_PARM_DESC(rmnet_shs_wq_interval_ms, "Interval between wq runs (ms)");
 
 unsigned long rmnet_shs_max_flow_inactivity_sec __read_mostly =
 						RMNET_SHS_MAX_SKB_INACTIVE_TSEC;
@@ -1980,6 +1976,7 @@ void rmnet_shs_wq_update_stats(void)
 void rmnet_shs_wq_process_wq(struct work_struct *work)
 {
 	unsigned long flags;
+	unsigned long jiffies;
 
 	trace_rmnet_shs_wq_high(RMNET_SHS_WQ_PROCESS_WQ,
 				RMNET_SHS_WQ_PROCESS_WQ_START,
@@ -1993,8 +1990,10 @@ void rmnet_shs_wq_process_wq(struct work_struct *work)
         rmnet_shs_wq_cleanup_hash_tbl(PERIODIC_CLEAN);
         rmnet_shs_wq_debug_print_flows();
 
+	jiffies = msecs_to_jiffies(rmnet_shs_wq_interval_ms);
+
 	queue_delayed_work(rmnet_shs_wq, &rmnet_shs_delayed_wq->wq,
-					rmnet_shs_wq_frequency);
+			   jiffies);
 
 	trace_rmnet_shs_wq_high(RMNET_SHS_WQ_PROCESS_WQ,
 				RMNET_SHS_WQ_PROCESS_WQ_END,
