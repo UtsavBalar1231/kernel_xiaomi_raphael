@@ -540,6 +540,27 @@ CFG_INI_UINT("g_mark_sap_indoor_as_disable", 0, 1, 0, CFG_VALUE_OR_DEFAULT, \
 
 /*
  * <ini>
+ * g_enable_go_force_scc - Enable/Disable force SCC on P2P GO
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini and along with "gWlanMccToSccSwitchMode" is used to enable
+ * force SCC on P2P GO interface.
+ *
+ * Supported Feature: P2P GO
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_P2P_GO_ENABLE_FORCE_SCC \
+CFG_INI_UINT("g_enable_go_force_scc", 0, 1, 0, CFG_VALUE_OR_DEFAULT, \
+	     "Enable/Disable P2P GO force SCC")
+
+/*
+ * <ini>
  * g_prefer_5g_scc_to_dbs - prefer 5g scc to dbs
  * @Min: 0
  * @Max: 0xFFFFFFFF
@@ -580,5 +601,6 @@ CFG_INI_UINT("g_prefer_5g_scc_to_dbs", 0, 0xFFFFFFFF, 0, CFG_VALUE_OR_DEFAULT, \
 		CFG(CFG_NAN_SAP_SCC_ON_LTE_COEX_CHAN) \
 		CFG(CFG_MARK_INDOOR_AS_DISABLE_FEATURE)\
 		CFG(CFG_ALLOW_MCC_GO_DIFF_BI) \
-		CFG(CFG_PREFER_5G_SCC_TO_DBS)
+		CFG(CFG_PREFER_5G_SCC_TO_DBS) \
+		CFG(CFG_P2P_GO_ENABLE_FORCE_SCC)
 #endif

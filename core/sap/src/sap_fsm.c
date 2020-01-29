@@ -740,6 +740,10 @@ sap_validate_chan(struct sap_context *sap_context,
 	mac_handle_t mac_handle;
 	uint8_t con_ch;
 	bool sta_sap_scc_on_dfs_chan;
+	uint32_t sta_go_bit_mask = QDF_STA_MASK | QDF_P2P_GO_MASK;
+	uint32_t sta_sap_bit_mask = QDF_STA_MASK | QDF_SAP_MASK;
+	uint32_t concurrent_state;
+	bool go_force_scc;
 
 	mac_handle = cds_get_context(QDF_MODULE_ID_SME);
 	mac_ctx = MAC_CONTEXT(mac_handle);
@@ -756,13 +760,15 @@ sap_validate_chan(struct sap_context *sap_context,
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	go_force_scc = policy_mgr_go_scc_enforced(mac_ctx->psoc);
+	if (sap_context->vdev && !go_force_scc &&
+	    (wlan_vdev_mlme_get_opmode(sap_context->vdev) == QDF_P2P_GO_MODE))
+		goto validation_done;
+
+	concurrent_state = policy_mgr_get_concurrency_mode(mac_ctx->psoc);
 	if (policy_mgr_concurrent_beaconing_sessions_running(mac_ctx->psoc) ||
-	   ((sap_context->cc_switch_mode ==
-		QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION) &&
-	   (policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
-		PM_SAP_MODE, NULL) ||
-	     policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
-		PM_P2P_GO_MODE, NULL)))) {
+	    ((concurrent_state & sta_sap_bit_mask) == sta_sap_bit_mask) ||
+	    ((concurrent_state & sta_go_bit_mask) == sta_go_bit_mask)) {
 		con_ch =
 			sme_get_beaconing_concurrent_operation_channel(
 				mac_handle, sap_context->sessionId);
@@ -895,6 +901,7 @@ sap_validate_chan(struct sap_context *sap_context,
 #endif
 	}
 
+validation_done:
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		  FL("for configured channel, Ch= %d"),
 		  sap_context->channel);
