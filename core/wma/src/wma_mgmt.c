@@ -78,6 +78,7 @@
 #include "wmi_unified_bcn_api.h"
 #include <wlan_crypto_global_api.h>
 #include <wlan_mlme_main.h>
+#include "wlan_pkt_capture_ucfg_api.h"
 
 #if !defined(REMOVE_PKT_LOG)
 #include <wlan_logging_sock_svc.h>
@@ -3416,6 +3417,25 @@ static int wma_process_mgmt_tx_completion(tp_wma_handle wma_handle,
 }
 
 /**
+ * wma_extract_mgmt_offload_event_params() - Extract mgmt event params
+ * @params: Management offload event params
+ * @hdr: Management header to extract
+ *
+ * Return: None
+ */
+static void wma_extract_mgmt_offload_event_params(
+				struct mgmt_offload_event_params *params,
+				wmi_mgmt_hdr *hdr)
+{
+	params->tsf_l32 = hdr->tsf_l32;
+	params->chan_freq = hdr->chan_freq;
+	params->rate_kbps = hdr->rate_kbps;
+	params->rssi = hdr->rssi;
+	params->buf_len = hdr->buf_len;
+	params->tx_status = hdr->tx_status;
+}
+
+/**
  * wma_mgmt_tx_completion_handler() - wma mgmt Tx completion event handler
  * @handle: wma handle
  * @cmpl_event_params: completion event handler data
@@ -3429,7 +3449,7 @@ int wma_mgmt_tx_completion_handler(void *handle, uint8_t *cmpl_event_params,
 {
 	tp_wma_handle wma_handle = (tp_wma_handle)handle;
 	WMI_MGMT_TX_COMPLETION_EVENTID_param_tlvs *param_buf;
-	wmi_mgmt_tx_compl_event_fixed_param	*cmpl_params;
+	wmi_mgmt_tx_compl_event_fixed_param *cmpl_params;
 
 	param_buf = (WMI_MGMT_TX_COMPLETION_EVENTID_param_tlvs *)
 		cmpl_event_params;
@@ -3439,8 +3459,21 @@ int wma_mgmt_tx_completion_handler(void *handle, uint8_t *cmpl_event_params,
 	}
 	cmpl_params = param_buf->fixed_param;
 
-	wma_process_mgmt_tx_completion(wma_handle,
-		cmpl_params->desc_id, cmpl_params->status);
+	if (ucfg_pkt_capture_get_pktcap_mode(wma_handle->psoc) &
+	    PKT_CAPTURE_MODE_MGMT_ONLY) {
+		struct mgmt_offload_event_params params = {0};
+
+		wma_extract_mgmt_offload_event_params(
+					&params,
+					(wmi_mgmt_hdr *)param_buf->mgmt_hdr);
+		ucfg_pkt_capture_mgmt_tx_completion(wma_handle->pdev,
+						    cmpl_params->desc_id,
+						    cmpl_params->status,
+						    &params);
+	}
+
+	wma_process_mgmt_tx_completion(wma_handle, cmpl_params->desc_id,
+				       cmpl_params->status);
 
 	return 0;
 }
@@ -3500,9 +3533,22 @@ int wma_mgmt_tx_bundle_completion_handler(void *handle, uint8_t *buf,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < num_reports; i++)
+	for (i = 0; i < num_reports; i++) {
+		if (ucfg_pkt_capture_get_pktcap_mode(wma_handle->psoc) &
+		    PKT_CAPTURE_MODE_MGMT_ONLY) {
+			struct mgmt_offload_event_params params = {0};
+
+			wma_extract_mgmt_offload_event_params(
+				&params,
+				&((wmi_mgmt_hdr *)param_buf->mgmt_hdr)[i]);
+			ucfg_pkt_capture_mgmt_tx_completion(
+				wma_handle->pdev, desc_ids[i],
+				status[i], &params);
+		}
+
 		wma_process_mgmt_tx_completion(wma_handle,
-			desc_ids[i], status[i]);
+					       desc_ids[i], status[i]);
+	}
 	return 0;
 }
 
