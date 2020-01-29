@@ -4553,6 +4553,7 @@ QDF_STATUS hdd_init_station_mode(struct hdd_adapter *adapter)
 	hdd_register_wext(adapter->dev);
 
 	hdd_conn_set_connection_state(adapter, eConnectionState_NotConnected);
+	sme_roam_reset_configs(mac_handle, adapter->vdev_id);
 
 	qdf_mem_set(sta_ctx->conn_info.sta_id,
 		    sizeof(sta_ctx->conn_info.sta_id),
