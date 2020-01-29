@@ -1,4 +1,4 @@
-/* Copyright (c) 2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,6 +25,7 @@
 #define RMNET_SHS_PROC_SS_FLOWS "rmnet_shs_ss_flows"
 
 #define RMNET_SHS_MAX_USRFLOWS (128)
+#define RMNET_SHS_READ_VAL (0)
 
 struct __attribute__((__packed__)) rmnet_shs_wq_cpu_cap_usr_s {
 	u64 pps_capacity;
@@ -58,6 +59,7 @@ enum {RMNET_SHS_BUFFER_SIZE = 4096};
 
 struct rmnet_shs_mmap_info {
 	char *data;
+	refcount_t refcnt;
 };
 
 /* Function Definitions */
