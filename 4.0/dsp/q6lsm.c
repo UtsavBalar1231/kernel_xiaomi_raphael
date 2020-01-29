@@ -104,8 +104,7 @@ static int q6lsm_get_session_id_from_lsm_client(struct lsm_client *client)
 		if (lsm_session[n] == client)
 			return n;
 	}
-	pr_err("%s: cannot find matching lsm client. client = %pa\n",
-		__func__, client);
+	pr_err("%s: cannot find matching lsm client.\n", __func__);
 	return LSM_INVALID_SESSION_ID;
 }
 
@@ -1974,7 +1973,7 @@ int q6lsm_snd_model_buf_alloc(struct lsm_client *client, size_t len,
 	size_t total_mem = 0;
 	struct lsm_sound_model *sm = NULL;
 
-	if (!client || len <= LSM_ALIGN_BOUNDARY)
+	if (!client)
 		return rc;
 
 	pr_debug("%s:Snd Model len = %zd, stage idx %d\n",

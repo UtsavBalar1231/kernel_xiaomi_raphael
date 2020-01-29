@@ -118,6 +118,7 @@ struct va_macro_swr_ctrl_platform_data {
 	int (*read)(void *handle, int reg);
 	int (*write)(void *handle, int reg, int val);
 	int (*bulk_write)(void *handle, u32 *reg, u32 *val, size_t len);
+	int (*core_vote)(void *handle, bool enable);
 	int (*clk)(void *handle, bool enable);
 	int (*handle_irq)(void *handle,
 			  irqreturn_t (*swrm_irq_handler)(int irq,
@@ -601,6 +602,26 @@ done:
 	return ret;
 }
 
+static int va_macro_core_vote(void *handle, bool enable)
+{
+	struct va_macro_priv *va_priv = (struct va_macro_priv *) handle;
+
+	if (va_priv == NULL) {
+		pr_err("%s: va priv data is NULL\n", __func__);
+		return -EINVAL;
+	}
+	if (enable) {
+		pm_runtime_get_sync(va_priv->dev);
+		pm_runtime_put_autosuspend(va_priv->dev);
+		pm_runtime_mark_last_busy(va_priv->dev);
+	}
+
+	if (bolero_check_core_votes(va_priv->dev))
+		return 0;
+	else
+		return -EINVAL;
+}
+
 static int va_macro_swrm_clock(void *handle, bool enable)
 {
 	struct va_macro_priv *va_priv = (struct va_macro_priv *) handle;
@@ -1002,6 +1023,10 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		/* Enable TX CLK */
 		snd_soc_update_bits(codec, tx_vol_ctl_reg, 0x20, 0x20);
 		snd_soc_update_bits(codec, hpf_gate_reg, 0x01, 0x00);
+		/*
+		 * Minimum 1 clk cycle delay is required as per HW spec
+		 */
+		usleep_range(1000, 1010);
 
 		hpf_cut_off_freq = (snd_soc_read(codec, dec_cfg_reg) &
 				   TX_HPF_CUT_OFF_FREQ_MASK) >> 5;
@@ -1012,7 +1037,7 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 			snd_soc_update_bits(codec, dec_cfg_reg,
 					    TX_HPF_CUT_OFF_FREQ_MASK,
 					    CF_MIN_3DB_150HZ << 5);
-			snd_soc_update_bits(codec, hpf_gate_reg, 0x02, 0x02);
+			snd_soc_update_bits(codec, hpf_gate_reg, 0x03, 0x03);
 			/*
 			 * Minimum 1 clk cycle delay is required as per HW spec
 			 */
@@ -1641,6 +1666,172 @@ static const struct snd_soc_dapm_widget va_macro_dapm_widgets_common[] = {
 			      va_macro_mclk_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
+
+static const struct snd_soc_dapm_widget va_macro_dapm_widgets_v2[] = {
+	SND_SOC_DAPM_MIXER("VA_AIF1_CAP Mixer", SND_SOC_NOPM,
+		VA_MACRO_AIF1_CAP, 0,
+		va_aif1_cap_mixer_v2, ARRAY_SIZE(va_aif1_cap_mixer_v2)),
+
+	SND_SOC_DAPM_MIXER("VA_AIF2_CAP Mixer", SND_SOC_NOPM,
+		VA_MACRO_AIF2_CAP, 0,
+		va_aif2_cap_mixer_v2, ARRAY_SIZE(va_aif2_cap_mixer_v2)),
+
+	SND_SOC_DAPM_MIXER("VA_AIF3_CAP Mixer", SND_SOC_NOPM,
+		VA_MACRO_AIF3_CAP, 0,
+		va_aif3_cap_mixer_v2, ARRAY_SIZE(va_aif3_cap_mixer_v2)),
+
+	SND_SOC_DAPM_SUPPLY_S("VA_SWR_PWR", -1, SND_SOC_NOPM, 0, 0,
+			      va_macro_swr_pwr_event_v2,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_SUPPLY_S("VA_TX_SWR_CLK", 0, SND_SOC_NOPM, 0, 0,
+			      va_macro_tx_swr_clk_event_v2,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+};
+
+static const struct snd_soc_dapm_widget va_macro_dapm_widgets_v3[] = {
+	SND_SOC_DAPM_MIXER("VA_AIF1_CAP Mixer", SND_SOC_NOPM,
+		VA_MACRO_AIF1_CAP, 0,
+		va_aif1_cap_mixer_v3, ARRAY_SIZE(va_aif1_cap_mixer_v3)),
+
+	SND_SOC_DAPM_MIXER("VA_AIF2_CAP Mixer", SND_SOC_NOPM,
+		VA_MACRO_AIF2_CAP, 0,
+		va_aif2_cap_mixer_v3, ARRAY_SIZE(va_aif2_cap_mixer_v3)),
+
+	SND_SOC_DAPM_MIXER("VA_AIF3_CAP Mixer", SND_SOC_NOPM,
+		VA_MACRO_AIF3_CAP, 0,
+		va_aif3_cap_mixer_v3, ARRAY_SIZE(va_aif3_cap_mixer_v3)),
+
+	VA_MACRO_DAPM_MUX("VA DMIC MUX2", 0, va_dmic2),
+	VA_MACRO_DAPM_MUX("VA DMIC MUX3", 0, va_dmic3),
+
+	VA_MACRO_DAPM_MUX("VA SMIC MUX2", 0, va_smic2_v3),
+	VA_MACRO_DAPM_MUX("VA SMIC MUX3", 0, va_smic3_v3),
+
+	SND_SOC_DAPM_MUX_E("VA DEC2 MUX", SND_SOC_NOPM, VA_MACRO_DEC2, 0,
+			   &va_dec2_mux, va_macro_enable_dec,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_MUX_E("VA DEC3 MUX", SND_SOC_NOPM, VA_MACRO_DEC3, 0,
+			   &va_dec3_mux, va_macro_enable_dec,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_SUPPLY_S("VA_SWR_PWR", -1, SND_SOC_NOPM, 0, 0,
+			      va_macro_swr_pwr_event,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+};
+
+static const struct snd_soc_dapm_widget va_macro_dapm_widgets[] = {
+	SND_SOC_DAPM_AIF_OUT_E("VA_AIF1 CAP", "VA_AIF1 Capture", 0,
+		SND_SOC_NOPM, VA_MACRO_AIF1_CAP, 0,
+		va_macro_enable_tx, SND_SOC_DAPM_POST_PMU |
+		SND_SOC_DAPM_PRE_PMD),
+
+	SND_SOC_DAPM_AIF_OUT_E("VA_AIF2 CAP", "VA_AIF2 Capture", 0,
+		SND_SOC_NOPM, VA_MACRO_AIF2_CAP, 0,
+		va_macro_enable_tx, SND_SOC_DAPM_POST_PMU |
+		SND_SOC_DAPM_PRE_PMD),
+
+	SND_SOC_DAPM_AIF_OUT_E("VA_AIF3 CAP", "VA_AIF3 Capture", 0,
+		SND_SOC_NOPM, VA_MACRO_AIF3_CAP, 0,
+		va_macro_enable_tx, SND_SOC_DAPM_POST_PMU |
+		SND_SOC_DAPM_PRE_PMD),
+
+	SND_SOC_DAPM_MIXER("VA_AIF1_CAP Mixer", SND_SOC_NOPM,
+		VA_MACRO_AIF1_CAP, 0,
+		va_aif1_cap_mixer, ARRAY_SIZE(va_aif1_cap_mixer)),
+
+	SND_SOC_DAPM_MIXER("VA_AIF2_CAP Mixer", SND_SOC_NOPM,
+		VA_MACRO_AIF2_CAP, 0,
+		va_aif2_cap_mixer, ARRAY_SIZE(va_aif2_cap_mixer)),
+
+	SND_SOC_DAPM_MIXER("VA_AIF3_CAP Mixer", SND_SOC_NOPM,
+		VA_MACRO_AIF3_CAP, 0,
+		va_aif3_cap_mixer, ARRAY_SIZE(va_aif3_cap_mixer)),
+
+	VA_MACRO_DAPM_MUX("VA DMIC MUX0", 0, va_dmic0),
+	VA_MACRO_DAPM_MUX("VA DMIC MUX1", 0, va_dmic1),
+	VA_MACRO_DAPM_MUX("VA DMIC MUX2", 0, va_dmic2),
+	VA_MACRO_DAPM_MUX("VA DMIC MUX3", 0, va_dmic3),
+	VA_MACRO_DAPM_MUX("VA DMIC MUX4", 0, va_dmic4),
+	VA_MACRO_DAPM_MUX("VA DMIC MUX5", 0, va_dmic5),
+	VA_MACRO_DAPM_MUX("VA DMIC MUX6", 0, va_dmic6),
+	VA_MACRO_DAPM_MUX("VA DMIC MUX7", 0, va_dmic7),
+
+	VA_MACRO_DAPM_MUX("VA SMIC MUX0", 0, va_smic0),
+	VA_MACRO_DAPM_MUX("VA SMIC MUX1", 0, va_smic1),
+	VA_MACRO_DAPM_MUX("VA SMIC MUX2", 0, va_smic2),
+	VA_MACRO_DAPM_MUX("VA SMIC MUX3", 0, va_smic3),
+	VA_MACRO_DAPM_MUX("VA SMIC MUX4", 0, va_smic4),
+	VA_MACRO_DAPM_MUX("VA SMIC MUX5", 0, va_smic5),
+	VA_MACRO_DAPM_MUX("VA SMIC MUX6", 0, va_smic6),
+	VA_MACRO_DAPM_MUX("VA SMIC MUX7", 0, va_smic7),
+
+	SND_SOC_DAPM_MICBIAS_E("VA MIC BIAS1", SND_SOC_NOPM, 0, 0,
+			       va_macro_enable_micbias,
+			       SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_ADC_E("VA DMIC0", NULL, SND_SOC_NOPM, 0, 0,
+		va_macro_enable_dmic, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_ADC_E("VA DMIC1", NULL, SND_SOC_NOPM, 0, 0,
+		va_macro_enable_dmic, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_ADC_E("VA DMIC2", NULL, SND_SOC_NOPM, 0, 0,
+		va_macro_enable_dmic, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_ADC_E("VA DMIC3", NULL, SND_SOC_NOPM, 0, 0,
+		va_macro_enable_dmic, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_ADC_E("VA DMIC4", NULL, SND_SOC_NOPM, 0, 0,
+		va_macro_enable_dmic, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_ADC_E("VA DMIC5", NULL, SND_SOC_NOPM, 0, 0,
+		va_macro_enable_dmic, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_ADC_E("VA DMIC6", NULL, SND_SOC_NOPM, 0, 0,
+		va_macro_enable_dmic, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_ADC_E("VA DMIC7", NULL, SND_SOC_NOPM, 0, 0,
+		va_macro_enable_dmic, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_INPUT("VA SWR_ADC0"),
+	SND_SOC_DAPM_INPUT("VA SWR_ADC1"),
+	SND_SOC_DAPM_INPUT("VA SWR_ADC2"),
+	SND_SOC_DAPM_INPUT("VA SWR_ADC3"),
+	SND_SOC_DAPM_INPUT("VA SWR_MIC0"),
+	SND_SOC_DAPM_INPUT("VA SWR_MIC1"),
+	SND_SOC_DAPM_INPUT("VA SWR_MIC2"),
+	SND_SOC_DAPM_INPUT("VA SWR_MIC3"),
+	SND_SOC_DAPM_INPUT("VA SWR_MIC4"),
+	SND_SOC_DAPM_INPUT("VA SWR_MIC5"),
+	SND_SOC_DAPM_INPUT("VA SWR_MIC6"),
+	SND_SOC_DAPM_INPUT("VA SWR_MIC7"),
+
+	SND_SOC_DAPM_MUX_E("VA DEC0 MUX", SND_SOC_NOPM, VA_MACRO_DEC0, 0,
+			   &va_dec0_mux, va_macro_enable_dec,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_MUX_E("VA DEC1 MUX", SND_SOC_NOPM, VA_MACRO_DEC1, 0,
+			   &va_dec1_mux, va_macro_enable_dec,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_MUX_E("VA DEC2 MUX", SND_SOC_NOPM, VA_MACRO_DEC2, 0,
+			   &va_dec2_mux, va_macro_enable_dec,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
 static const struct snd_soc_dapm_widget va_macro_dapm_widgets_v2[] = {
 	SND_SOC_DAPM_MIXER("VA_AIF1_CAP Mixer", SND_SOC_NOPM,
@@ -2817,6 +3008,7 @@ static int va_macro_probe(struct platform_device *pdev)
 		va_priv->swr_plat_data.write = NULL;
 		va_priv->swr_plat_data.bulk_write = NULL;
 		va_priv->swr_plat_data.clk = va_macro_swrm_clock;
+		va_priv->swr_plat_data.core_vote = va_macro_core_vote;
 		va_priv->swr_plat_data.handle_irq = NULL;
 		mutex_init(&va_priv->swr_clk_lock);
 	}

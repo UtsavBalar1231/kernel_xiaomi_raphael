@@ -690,7 +690,11 @@ static int bolero_ssr_enable(struct device *dev, void *data)
 	priv->dev_up = true;
 	mutex_unlock(&priv->clk_lock);
 	regcache_mark_dirty(priv->regmap);
+	bolero_clk_rsc_enable_all_clocks(priv->clk_dev, true);
 	regcache_sync(priv->regmap);
+	/* Add a 100usec sleep to ensure last register write is done */
+	usleep_range(100,110);
+	bolero_clk_rsc_enable_all_clocks(priv->clk_dev, false);
 	/* call ssr event for supported macros */
 	for (macro_idx = START_MACRO; macro_idx < MAX_MACRO; macro_idx++) {
 		if (!priv->macro_params[macro_idx].event_handler)
@@ -706,6 +710,12 @@ static void bolero_ssr_disable(struct device *dev, void *data)
 {
 	struct bolero_priv *priv = data;
 	int macro_idx;
+
+	if (!priv->dev_up) {
+		dev_err_ratelimited(priv->dev,
+				    "%s: already disabled\n", __func__);
+		return;
+	}
 
 	bolero_cdc_notifier_call(priv, BOLERO_WCD_EVT_PA_OFF_PRE_SSR);
 	regcache_cache_only(priv->regmap, true);
@@ -1028,10 +1038,9 @@ static void bolero_add_child_devices(struct work_struct *work)
 		pdev->dev.parent = priv->dev;
 		pdev->dev.of_node = node;
 
-		if (split_codec) {
-			priv->dev->platform_data = platdata;
+		priv->dev->platform_data = platdata;
+		if (split_codec)
 			priv->wcd_dev = &pdev->dev;
-		}
 
 		ret = platform_device_add(pdev);
 		if (ret) {
@@ -1165,12 +1174,12 @@ int bolero_runtime_resume(struct device *dev)
 	struct bolero_priv *priv = dev_get_drvdata(dev->parent);
 	int ret = 0;
 
+	mutex_lock(&priv->vote_lock);
 	if (priv->lpass_core_hw_vote == NULL) {
 		dev_dbg(dev, "%s: Invalid lpass core hw node\n", __func__);
-		return 0;
+		goto audio_vote;
 	}
 
-	mutex_lock(&priv->vote_lock);
 	if (priv->core_hw_vote_count == 0) {
 		ret = clk_prepare_enable(priv->lpass_core_hw_vote);
 		if (ret < 0) {
@@ -1233,6 +1242,21 @@ int bolero_runtime_suspend(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(bolero_runtime_suspend);
+
+bool bolero_check_core_votes(struct device *dev)
+{
+	struct bolero_priv *priv = dev_get_drvdata(dev->parent);
+	bool ret = true;
+
+	mutex_lock(&priv->vote_lock);
+	if ((priv->lpass_core_hw_vote && !priv->core_hw_vote_count) ||
+		(priv->lpass_audio_hw_vote && !priv->core_audio_vote_count))
+		ret = false;
+	mutex_unlock(&priv->vote_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(bolero_check_core_votes);
 
 static const struct of_device_id bolero_dt_match[] = {
 	{.compatible = "qcom,bolero-codec"},
