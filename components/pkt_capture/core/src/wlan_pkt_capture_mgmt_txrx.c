@@ -44,9 +44,9 @@
  * Return: none
  */
 static void
-pkt_capture_mgmtpkt_cb(void *context, void *nbuf_list,
+pkt_capture_mgmtpkt_cb(void *context, void *ppdev, void *nbuf_list,
 		       uint8_t vdev_id, uint8_t tid, uint8_t status,
-		       bool pkt_format)
+		       bool pkt_format, uint8_t *bssid)
 {
 	struct pkt_capture_vdev_priv *vdev_priv;
 	struct wlan_objmgr_psoc *psoc = context;
