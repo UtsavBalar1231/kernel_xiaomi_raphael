@@ -4217,6 +4217,7 @@ retry:
 
 	/* Boost when memory is low so allocation latency doesn't get too bad */
 	cpu_input_boost_kick_max(100);
+	devfreq_boost_kick_max(DEVFREQ_MSM_LLCCBW, 100);
 	devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 100);
 
 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
