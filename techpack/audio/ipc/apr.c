@@ -41,7 +41,7 @@
 
 static struct apr_q6 q6;
 static struct apr_client client[APR_DEST_MAX][APR_CLIENT_MAX];
-static void *apr_pkt_ctx;
+static void __maybe_unused *apr_pkt_ctx;
 static wait_queue_head_t modem_wait;
 static bool is_modem_up;
 static char *subsys_name = NULL;
@@ -728,7 +728,7 @@ void apr_cb_func(void *buf, int len, void *priv)
 
 	if (unlikely(apr_cf_debug)) {
 		if (hdr->opcode == APR_BASIC_RSP_RESULT && data.payload) {
-			uint32_t *ptr = data.payload;
+			uint32_t __maybe_unused *ptr = data.payload;
 
 			APR_PKT_INFO(
 			"Rx: src_addr[0x%X] dest_addr[0x%X] opcode[0x%X] token[0x%X] rc[0x%X]",
