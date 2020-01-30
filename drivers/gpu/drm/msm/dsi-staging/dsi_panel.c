@@ -989,6 +989,8 @@ static int dsi_panel_parse_timing(struct dsi_mode_info *mode,
 	mode->clk_rate_hz = !rc ? tmp64 : 0;
 	display_mode->priv_info->clk_rate_hz = mode->clk_rate_hz;
 
+	mode->clk_rate_hz = 1100000000;
+
 	rc = utils->read_u32(utils->data, "qcom,mdss-mdp-transfer-time-us",
 			&mode->mdp_transfer_time_us);
 	if (rc) {
@@ -1010,6 +1012,8 @@ static int dsi_panel_parse_timing(struct dsi_mode_info *mode,
 		       rc);
 		goto error;
 	}
+
+	mode->refresh_rate = 60;
 
 	rc = utils->read_u32(utils->data, "qcom,mdss-dsi-panel-width",
 				  &mode->h_active);
