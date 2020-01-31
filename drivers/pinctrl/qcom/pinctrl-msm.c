@@ -44,6 +44,8 @@
 #ifdef CONFIG_HIBERNATION
 #include <linux/notifier.h>
 #endif
+#include <linux/wakeup_reason.h>
+#include <soc/qcom/socinfo.h>
 
 #define MAX_NR_GPIO 300
 #define PS_HOLD_OFFSET 0x820
@@ -1810,6 +1812,8 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 }
 
 #ifdef CONFIG_PM
+extern int msm_show_resume_irq_mask;
+
 #ifdef CONFIG_HIBERNATION
 static bool hibernation;
 
@@ -1976,6 +1980,7 @@ static void msm_pinctrl_resume(void)
 		val = readl_relaxed(pctrl->regs + g->intr_status_reg);
 		if (val & BIT(g->intr_status_bit)) {
 			irq = irq_find_mapping(pctrl->chip.irqdomain, i);
+			log_wakeup_reason(irq);
 			desc = irq_to_desc(irq);
 			if (desc == NULL)
 				name = "stray irq";

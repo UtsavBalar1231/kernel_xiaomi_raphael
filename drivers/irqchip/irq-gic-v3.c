@@ -33,6 +33,7 @@
 #include <linux/irqchip/arm-gic-common.h>
 #include <linux/irqchip/arm-gic-v3.h>
 #include <linux/irqchip/irq-partition-percpu.h>
+#include <linux/wakeup_reason.h>
 
 #include <asm/cputype.h>
 #include <asm/exception.h>
@@ -462,6 +463,7 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 			name = desc->action->name;
 
 		pr_warn("%s: %d triggered %s\n", __func__, irq, name);
+		log_wakeup_reason(irq);
 	}
 }
 

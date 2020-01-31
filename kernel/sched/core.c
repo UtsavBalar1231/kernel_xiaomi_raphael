@@ -5515,7 +5515,7 @@ void show_state_filter(unsigned long state_filter)
 			sched_show_task(p);
 	}
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SYSRQ_SCHED_DEBUG
 	if (!state_filter)
 		sysrq_sched_debug_show();
 #endif
