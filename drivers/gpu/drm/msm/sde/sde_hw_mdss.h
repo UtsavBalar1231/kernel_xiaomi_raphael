@@ -38,7 +38,7 @@
 #define SDE_MAX_PLANES			4
 #endif
 
-#define PIPES_PER_STAGE			2
+#define PIPES_PER_STAGE			4
 #ifndef SDE_MAX_DE_CURVES
 #define SDE_MAX_DE_CURVES		3
 #endif
