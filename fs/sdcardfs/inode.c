@@ -22,6 +22,7 @@
 #include <linux/fs_struct.h>
 #include <linux/ratelimit.h>
 #include <linux/sched/task.h>
+#include <linux/xattr.h>
 
 const struct cred *override_fsids(struct sdcardfs_sb_info *sbi,
 		struct sdcardfs_inode_data *data)
@@ -63,7 +64,7 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 			 umode_t mode, bool want_excl)
 {
 	int err;
-	struct dentry *lower_dentry;
+	struct dentry *lower_dentry, *parent_dentry;
 	struct vfsmount *lower_dentry_mnt;
 	struct dentry *lower_parent_dentry = NULL;
 	struct path lower_path;
@@ -75,6 +76,15 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 		err = -EACCES;
 		goto out_eacces;
 	}
+
+	parent_dentry = dget_parent(dentry);
+	if (!check_min_free_space(parent_dentry, 0, 1)) {
+		pr_err("sdcardfs: No minimum free space.\n");
+		err = -ENOSPC;
+		dput(parent_dentry);
+		goto out_eacces;
+	}
+	dput(parent_dentry);
 
 	/* save current_cred and override it */
 	saved_cred = override_fsids(SDCARDFS_SB(dir->i_sb),
@@ -216,6 +226,9 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	struct fs_struct *copied_fs;
 	struct qstr q_obb = QSTR_LITERAL("obb");
 	struct qstr q_data = QSTR_LITERAL("data");
+#ifdef CONFIG_SDCARD_FS_DIR_WRITER
+	uid_t writer_uid = current_fsuid().val;
+#endif
 
 	if (!check_caller_access_to_name(dir, &dentry->d_name)) {
 		err = -EACCES;
@@ -326,6 +339,10 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 			goto out;
 		}
 	}
+#ifdef CONFIG_SDCARD_FS_DIR_WRITER
+	if (pd->perm < PERM_ANDROID)
+		sdcardfs_update_xattr_dirwriter(lower_dentry, writer_uid);
+#endif
 out:
 	task_lock(current);
 	current->fs = saved_fs;
@@ -780,11 +797,81 @@ static int sdcardfs_getattr(const struct path *path, struct kstat *stat,
 		goto out;
 	sdcardfs_copy_and_fix_attrs(d_inode(dentry),
 			      d_inode(lower_path.dentry));
+	fsstack_copy_inode_size(d_inode(dentry), d_inode(lower_path.dentry));
 	err = sdcardfs_fillattr(mnt, d_inode(dentry), &lower_stat, stat);
 out:
 	sdcardfs_put_lower_path(dentry, &lower_path);
 	return err;
 }
+
+#ifdef CONFIG_SDCARD_FS_PARTIAL_RELATIME
+void sdcardfs_update_relatime_flag(struct file *lower_file,
+	struct inode *lower_inode, uid_t writer_uid)
+{
+	char xattr_val[64];
+	const char *dir_name[2];
+	char *xexcept = NULL, *xpath;
+	int xlen, i, depth = 0;
+	struct dentry *dentry, *parent, *child = NULL;
+	const char *xattr_name = SDCARDFS_XATTR_PARTIAL_RELATIME_NAME;
+	__u32 flags = 0;
+	appid_t app_id = uid_is_app(writer_uid) ?
+		writer_uid % AID_USER_OFFSET : 0;
+
+	dentry = lower_file->f_path.dentry;
+	if (IS_ERR_OR_NULL(dentry) || S_ISDIR(d_inode(dentry)->i_mode))
+		return;
+
+	while (app_id) {
+		parent = dget_parent(dentry);
+		xlen = vfs_getxattr(parent, xattr_name, (void *)xattr_val,
+			sizeof(xattr_val));
+		if (xlen > 0 && xattr_val[0] != '0') {
+			dput(parent);
+			xattr_val[xlen] = 0;
+			for (i = 0; i < xlen; i++) {
+				if (xattr_val[i] != ':')
+					continue;
+				xattr_val[i] = 0;
+				xexcept = &xattr_val[i + 1];
+				break;
+			}
+			xpath = i ? &xattr_val[0] : NULL;
+			if (!xexcept || !xpath) {
+				depth = -1;
+				break;
+			}
+
+			if (app_id == get_appid(xexcept))
+				break;
+
+			dir_name[0] = dentry->d_name.name;
+			if (child)
+				dir_name[1] = child->d_name.name;
+			depth = wildcard_path_match(xpath, dir_name,
+				child ? 2 : 1);
+			if (depth > 0)
+				flags = S_RELATIME;
+			break;
+		} else if (IS_ROOT(parent)) {
+			dput(parent);
+			break;
+		}
+		child = dentry;
+		dentry = parent;
+		dput(parent);
+	}
+
+	if (depth > 2 || depth < 0)
+		pr_warn("sdcardfs: %lu %s: invalid format\n",
+			d_inode(parent)->i_ino, xattr_name);
+
+	spin_lock(&lower_inode->i_lock);
+	lower_inode->i_flags &= ~S_RELATIME;
+	lower_inode->i_flags |= flags;
+	spin_unlock(&lower_inode->i_lock);
+}
+#endif
 
 const struct inode_operations sdcardfs_symlink_iops = {
 	.permission2	= sdcardfs_permission,

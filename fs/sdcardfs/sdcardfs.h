@@ -73,6 +73,8 @@
 
 #define AID_PACKAGE_INFO  1027
 
+#define SDCARDFS_XATTR_DWRITER_NAME "user.dwriter"
+#define SDCARDFS_XATTR_PARTIAL_RELATIME_NAME "user.relatime"
 
 /*
  * Permissions are handled by our permission function.
@@ -150,6 +152,14 @@ extern struct inode *sdcardfs_iget(struct super_block *sb,
 				 struct inode *lower_inode, userid_t id);
 extern int sdcardfs_interpose(struct dentry *dentry, struct super_block *sb,
 			    struct path *lower_path, userid_t id);
+#ifdef CONFIG_SDCARD_FS_PARTIAL_RELATIME
+extern void sdcardfs_update_relatime_flag(struct file *lower_file,
+	struct inode *lower_inode, uid_t writer_uid);
+#endif
+#ifdef CONFIG_SDCARD_FS_DIR_WRITER
+extern void sdcardfs_update_xattr_dirwriter(struct dentry *lower_dentry,
+	uid_t writer_uid);
+#endif
 
 /* file private data */
 struct sdcardfs_file_info {
@@ -483,6 +493,37 @@ static inline void sdcardfs_put_real_lower(const struct dentry *dent,
 		sdcardfs_put_lower_path(dent, real_lower);
 }
 
+#if defined(CONFIG_SDCARD_FS_DIR_WRITER) || defined(CONFIG_SDCARD_FS_PARTIAL_RELATIME)
+static inline int wildcard_path_match(char *wildcard_name,
+	const char **dir_name, int name_count) {
+	int i, len = strlen(wildcard_name), depth = 0;
+	const char *dname;
+	char *wname;
+
+	for (i = 0; i < len; i++) {
+		if (wildcard_name[i] == '/')
+			continue;
+		depth++;
+		if (i == 0)
+			return -EINVAL;
+		if (name_count < depth)
+			return 0;
+
+		dname = dir_name[depth - 1];
+		wname = &wildcard_name[i];
+		while (wildcard_name[i] != '/' && i < len)
+			i++;
+		wildcard_name[i] = 0;
+		if (!strncmp(wname, "%s", 2) ||
+			(strlen(wname) == strlen(dname) &&
+			 !strncmp(wname, dname, strlen(dname))))
+			continue;
+		return 0;
+	}
+	return depth;
+}
+#endif
+
 extern struct mutex sdcardfs_super_list_lock;
 extern struct list_head sdcardfs_super_list;
 
@@ -491,6 +532,9 @@ extern appid_t get_appid(const char *app_name);
 extern appid_t get_ext_gid(const char *app_name);
 extern appid_t is_excluded(const char *app_name, userid_t userid);
 extern int check_caller_access_to_name(struct inode *parent_node, const struct qstr *name);
+#ifdef CONFIG_SDCARD_FS_DIR_WRITER
+extern int add_app_name_to_list(appid_t appid, char *list, int len);
+#endif
 extern int packagelist_init(void);
 extern void packagelist_exit(void);
 
@@ -582,37 +626,34 @@ static inline int check_min_free_space(struct dentry *dentry, size_t size, int d
 	u64 avail;
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 
-	if (sbi->options.reserved_mb) {
-		/* Get fs stat of lower filesystem. */
-		sdcardfs_get_lower_path(dentry, &lower_path);
-		err = vfs_statfs(&lower_path, &statfs);
-		sdcardfs_put_lower_path(dentry, &lower_path);
+	/* Get fs stat of lower filesystem. */
+	sdcardfs_get_lower_path(dentry, &lower_path);
+	err = vfs_statfs(&lower_path, &statfs);
+	sdcardfs_put_lower_path(dentry, &lower_path);
 
-		if (unlikely(err))
-			return 0;
-
-		/* Invalid statfs informations. */
-		if (unlikely(statfs.f_bsize == 0))
-			return 0;
-
-		/* if you are checking directory, set size to f_bsize. */
-		if (unlikely(dir))
-			size = statfs.f_bsize;
-
-		/* available size */
-		avail = statfs.f_bavail * statfs.f_bsize;
-
-		/* not enough space */
-		if ((u64)size > avail)
-			return 0;
-
-		/* enough space */
-		if ((avail - size) > (sbi->options.reserved_mb * 1024 * 1024))
-			return 1;
-
+	if (unlikely(err))
 		return 0;
-	} else
+
+	/* Invalid statfs informations. */
+	if (unlikely(statfs.f_bsize == 0))
+		return 0;
+
+	/* if you are checking directory, set size to f_bsize. */
+	if (unlikely(dir))
+		size = statfs.f_bsize;
+
+	/* available size */
+	avail = statfs.f_bavail * statfs.f_bsize;
+
+	/* not enough space */
+	if ((u64)size > avail)
+		return 0;
+
+	/* enough space */
+	if ((avail - size) > (sbi->options.reserved_mb * 1024 * 1024))
 		return 1;
+
+	return 0;
 }
 
 /*

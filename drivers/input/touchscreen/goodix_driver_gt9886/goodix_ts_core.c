@@ -450,7 +450,7 @@ static ssize_t goodix_ts_read_cfg_show(struct device *dev,
 	int ret, i, offset;
 	char *cfg_buf;
 
-	cfg_buf = kzalloc(4096, GFP_KERNEL);
+	cfg_buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	disable_irq(core_data->irq);
 	if (ts_dev->hw_ops->read_config)
 		ret = ts_dev->hw_ops->read_config(ts_dev, cfg_buf, 0);
@@ -463,7 +463,7 @@ static ssize_t goodix_ts_read_cfg_show(struct device *dev,
 		for (i = 0; i < ret; i++) {
 			if (i != 0 && i % 20 == 0)
 				buf[offset++] = '\n';
-			offset += snprintf(&buf[offset], 4096 - offset, "%02x ", cfg_buf[i]);
+			offset += snprintf(&buf[offset], PAGE_SIZE - offset, "%02x ", cfg_buf[i]);
 		}
 	}
 	kfree(cfg_buf);
