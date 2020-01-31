@@ -342,7 +342,7 @@ static struct clk_regmap_mux dsi1pll_pixel_clk_mux = {
 
 	.clkr = {
 		.hw.init = &(struct clk_init_data){
-			.name = "dsi1pll_pixel_clk_mux",
+			.name = "dsi1_phy_pll_out_dsiclk",
 			.parent_names =
 				(const char *[]){ "dsi1pll_pixel_clk_src",
 					"dsi1pll_shadow_pixel_clk_src"},
@@ -434,7 +434,7 @@ static struct clk_regmap_mux dsi1pll_byte_clk_mux = {
 
 	.clkr = {
 		.hw.init = &(struct clk_init_data){
-			.name = "dsi1pll_byte_clk_mux",
+			.name = "dsi1_phy_pll_out_byteclk",
 			.parent_names =
 				(const char *[]){"dsi1pll_byte_clk_src",
 					"dsi1pll_shadow_byte_clk_src"},
