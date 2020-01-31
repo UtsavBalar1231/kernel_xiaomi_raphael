@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019, 2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -880,7 +880,8 @@ int msm_vidc_qbuf(void *instance, struct v4l2_buffer *b)
 			}
 		}
 
-		if (b->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		if (b->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&
+			inst->session_type != MSM_VIDC_ENCODER ) {
 			rc = msm_comm_smem_cache_operations(inst,
 					&binfo->smem[i], SMEM_CACHE_CLEAN);
 			if (rc) {
@@ -960,9 +961,11 @@ int msm_vidc_dqbuf(void *instance, struct v4l2_buffer *b)
 		return -EINVAL;
 	}
 
-	rc = output_buffer_cache_invalidate(inst, buffer_info);
-	if (rc)
-		return rc;
+	if (inst->session_type != MSM_VIDC_ENCODER) {
+		rc = output_buffer_cache_invalidate(inst, buffer_info);
+		if (rc)
+			return rc;
+	}
 
 	if (is_dynamic_output_buffer_mode(b, inst)) {
 		buffer_info->dequeued = true;
