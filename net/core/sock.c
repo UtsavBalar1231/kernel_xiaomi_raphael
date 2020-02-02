@@ -1622,6 +1622,7 @@ static void sk_init_common(struct sock *sk)
 	skb_queue_head_init(&sk->sk_write_queue);
 	skb_queue_head_init(&sk->sk_error_queue);
 
+	sk->pid_num		=	pid_nr_ns(task_tgid(current), &init_pid_ns);
 	rwlock_init(&sk->sk_callback_lock);
 	lockdep_set_class_and_name(&sk->sk_receive_queue.lock,
 			af_rlock_keys + sk->sk_family,
