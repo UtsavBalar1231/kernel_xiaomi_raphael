@@ -1912,7 +1912,6 @@ int wlan_hdd_cfg80211_start_acs(struct hdd_adapter *adapter)
 
 	qdf_mem_copy(sap_config->self_macaddr.bytes,
 		adapter->mac_addr.bytes, sizeof(struct qdf_mac_addr));
-	hdd_debug("ACS Started for %s", adapter->dev->name);
 
 	qdf_status = wlansap_acs_chselect(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
 				      acs_event_callback,
@@ -2571,8 +2570,6 @@ static void hdd_avoid_acs_channels(struct hdd_context *hdd_ctx,
 	uint16_t avoid_acs_freq_list[CFG_VALID_CHANNEL_LIST_LEN];
 	uint8_t avoid_acs_freq_list_num;
 
-	hdd_enter();
-
 	ucfg_mlme_get_acs_avoid_freq_list(hdd_ctx->psoc,
 					  avoid_acs_freq_list,
 					  &avoid_acs_freq_list_num);
@@ -2646,8 +2643,6 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	 * config shall be set only from start_acs.
 	 */
 
-	hdd_enter_dev(ndev);
-
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
 		return -EPERM;
@@ -2661,8 +2656,6 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 					     &sap_force_11n_for_11ac);
 	ucfg_mlme_get_go_force_11n_for_11ac(hdd_ctx->psoc,
 					    &go_force_11n_for_11ac);
-
-	hdd_debug("current country is %s", hdd_ctx->reg.alpha2);
 
 	if (!((adapter->device_mode == QDF_SAP_MODE) ||
 	      (adapter->device_mode == QDF_P2P_GO_MODE))) {
@@ -2713,7 +2706,6 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	else
 		ht40_enabled = 0;
 
-	hdd_debug("ht40_enabled %d", ht40_enabled);
 	if (tb[QCA_WLAN_VENDOR_ATTR_ACS_VHT_ENABLED])
 		vht_enabled =
 			nla_get_flag(tb[QCA_WLAN_VENDOR_ATTR_ACS_VHT_ENABLED]);
@@ -2754,7 +2746,6 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 	qdf_mem_zero(&sap_config->acs_cfg, sizeof(struct sap_acs_cfg));
 
-	hdd_debug("channel width =%d", ch_width);
 	if (ch_width == 160)
 		sap_config->acs_cfg.ch_width = CH_WIDTH_160MHZ;
 	else if (ch_width == 80)
@@ -2853,8 +2844,6 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 	hdd_avoid_acs_channels(hdd_ctx, sap_config);
 
-	hdd_debug("get pcl for DO_ACS vendor command");
-
 	pm_mode =
 	      policy_mgr_convert_device_mode_to_qdf_type(adapter->device_mode);
 	/* consult policy manager to get PCL */
@@ -2867,16 +2856,6 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	if (qdf_status != QDF_STATUS_SUCCESS)
 		hdd_err("Get PCL failed");
 
-	if (sap_config->acs_cfg.pcl_ch_count) {
-		hdd_debug("ACS config PCL: len: %d",
-			  sap_config->acs_cfg.pcl_ch_count);
-		for (i = 0; i < sap_config->acs_cfg.pcl_ch_count; i++)
-			hdd_debug("channel:%d, weight:%d ",
-				  sap_config->acs_cfg.
-				  pcl_channels[i],
-				  sap_config->acs_cfg.
-				  pcl_channels_weight_list[i]);
-	}
 	sap_config->acs_cfg.band = hw_mode;
 
 	qdf_status = ucfg_mlme_get_external_acs_policy(hdd_ctx->psoc,
@@ -2952,11 +2931,12 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 		hdd_debug("resetting to 40Mhz in 2.4Ghz");
 	}
 
-	hdd_debug("ACS Config for %s: HW_MODE: %d ACS_BW: %d HT: %d VHT: %d START_CH: %d END_CH: %d band %d",
-		adapter->dev->name, sap_config->acs_cfg.hw_mode,
-		sap_config->acs_cfg.ch_width, ht_enabled, vht_enabled,
-		sap_config->acs_cfg.start_ch, sap_config->acs_cfg.end_ch,
-		sap_config->acs_cfg.band);
+	hdd_nofl_debug("ACS Config country %s ch_width %d hw_mode %d ACS_BW: %d HT: %d VHT: %d START_CH: %d END_CH: %d band %d",
+		       hdd_ctx->reg.alpha2, ch_width,
+		       sap_config->acs_cfg.hw_mode, sap_config->acs_cfg.ch_width,
+		       ht_enabled, vht_enabled, sap_config->acs_cfg.start_ch,
+		       sap_config->acs_cfg.end_ch,
+		       sap_config->acs_cfg.band);
 	host_log_acs_req_event(adapter->dev->name,
 			  csr_phy_mode_str(sap_config->acs_cfg.hw_mode),
 			  ch_width, ht_enabled, vht_enabled,
@@ -2967,10 +2947,10 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	sap_config->acs_cfg.is_vht_enabled = vht_enabled;
 
 	if (sap_config->acs_cfg.ch_list_count) {
-		hdd_debug("ACS channel list: len: %d",
+		hdd_nofl_debug("ACS channel list: len: %d",
 					sap_config->acs_cfg.ch_list_count);
 		for (i = 0; i < sap_config->acs_cfg.ch_list_count; i++)
-			hdd_debug("%d ", sap_config->acs_cfg.ch_list[i]);
+			hdd_nofl_debug("%d ", sap_config->acs_cfg.ch_list[i]);
 	}
 
 	qdf_status = ucfg_mlme_get_vendor_acs_support(hdd_ctx->psoc,
