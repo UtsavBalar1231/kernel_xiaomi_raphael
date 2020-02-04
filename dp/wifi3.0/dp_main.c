@@ -6046,6 +6046,11 @@ static void dp_peer_delete_wifi3(void *peer_handle, uint32_t bitmap)
 	      !peer->bss_peer))
 		peer->ctrl_peer = NULL;
 
+	if (!peer->valid) {
+		dp_err("Invalid peer: %pM", peer->mac_addr.raw);
+		return;
+	}
+
 	peer->valid = 0;
 
 	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_INFO_HIGH,
