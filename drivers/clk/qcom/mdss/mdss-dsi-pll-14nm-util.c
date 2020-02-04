@@ -499,7 +499,7 @@ static void pll_14nm_dec_frac_calc(struct mdss_pll_resources *pll,
 
 	pr_debug("vco_clk_rate=%lld ref_clk_rate=%lld\n",
 				vco_clk_rate, fref);
-
+	pll->revision = MSM8996_DSI_PLL_REVISION_2;
 	dec_start_multiple = div_s64(vco_clk_rate * multiplier, fref);
 	div_s64_rem(dec_start_multiple, multiplier, &div_frac_start);
 

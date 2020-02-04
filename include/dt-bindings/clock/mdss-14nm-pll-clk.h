@@ -41,7 +41,7 @@
 
 /* DP PLL clocks */
 #define DP_VCO_CLK			0
-#define DP_PHY_PLL_LINK_CLK		1
+#define DP_LINK_2X_CLK_DIVSEL_FIVE	1
 #define DP_VCO_DIVSEL_FOUR_CLK_SRC	2
 #define DP_VCO_DIVSEL_TWO_CLK_SRC	3
 #define DP_PHY_PLL_VCO_DIV_CLK		4
