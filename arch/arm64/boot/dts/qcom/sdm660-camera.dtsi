@@ -33,7 +33,7 @@
 		gdscr-supply = <&gdsc_camss_top>;
 		bimc_smmu-supply = <&gdsc_bimc_smmu>;
 		qcom,cam-vreg-name = "gdscr", "bimc_smmu";
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -71,7 +71,7 @@
 		gdscr-supply = <&gdsc_camss_top>;
 		bimc_smmu-supply = <&gdsc_bimc_smmu>;
 		qcom,cam-vreg-name = "gdscr", "bimc_smmu";
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -109,7 +109,7 @@
 		gdscr-supply = <&gdsc_camss_top>;
 		bimc_smmu-supply = <&gdsc_bimc_smmu>;
 		qcom,cam-vreg-name = "gdscr", "bimc_smmu";
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -152,7 +152,7 @@
 		qcom,cam-vreg-min-voltage = <925000 0 0>;
 		qcom,cam-vreg-max-voltage = <925000 0 0>;
 		qcom,cam-vreg-op-mode = <0 0 0>;
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -193,7 +193,7 @@
 		qcom,cam-vreg-min-voltage = <925000 0 0>;
 		qcom,cam-vreg-max-voltage = <925000 0 0>;
 		qcom,cam-vreg-op-mode = <0 0 0>;
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -234,7 +234,7 @@
 		qcom,cam-vreg-min-voltage = <925000 0 0>;
 		qcom,cam-vreg-max-voltage = <925000 0 0>;
 		qcom,cam-vreg-op-mode = <0 0 0>;
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -275,7 +275,7 @@
 		qcom,cam-vreg-min-voltage = <925000 0 0>;
 		qcom,cam-vreg-max-voltage = <925000 0 0>;
 		qcom,cam-vreg-op-mode = <0 0 0>;
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -347,7 +347,7 @@
 		camss-vdd-supply = <&gdsc_camss_top>;
 		vdd-supply = <&gdsc_cpp>;
 		qcom,vdd-names = "smmu-vdd", "camss-vdd", "vdd";
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_CAMSS_AHB_CLK>,
 			<&clock_mmss MMSS_CAMSS_TOP_AHB_CLK>,
@@ -433,7 +433,7 @@
 		qcom,vdd-names = "camss-vdd", "vfe0-vdd",
 				"vfe1-vdd";
 		qcom,clock-cntl-support;
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_CAMSS_AHB_CLK>,
 			<&clock_mmss MMSS_CAMSS_TOP_AHB_CLK>,
@@ -515,7 +515,7 @@
 		smmu-vdd-supply = <&gdsc_bimc_smmu>;
 		qcom,vdd-names = "vdd", "camss-vdd", "smmu-vdd";
 		clocks = <&clock_mmss MMSS_THROTTLE_CAMSS_AXI_CLK>,
-			<&clock_rpmcc MMSSNOC_AXI_CLK>,
+			<&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -598,7 +598,7 @@
 		smmu-vdd-supply = <&gdsc_bimc_smmu>;
 		qcom,vdd-names = "vdd", "camss-vdd", "smmu-vdd";
 		clocks = <&clock_mmss MMSS_THROTTLE_CAMSS_AXI_CLK>,
-			<&clock_rpmcc MMSSNOC_AXI_CLK>,
+			<&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -686,7 +686,7 @@
 		mmagic-supply = <&gdsc_bimc_smmu>;
 		gdscr-supply = <&gdsc_camss_top>;
 		qcom,cam-vreg-name = "mmagic", "gdscr";
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -747,7 +747,7 @@
 			"core_clk",
 			"mmss_camss_jpeg_ahb_clk",
 			"mmss_camss_jpeg_axi_clk";
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,
@@ -791,7 +791,7 @@
 			"core_clk",
 			"mmss_camss_jpeg_ahb_clk",
 			"mmss_camss_jpeg_axi_clk";
-		clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
+		clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 			<&clock_mmss MMSS_MNOC_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 			<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>,

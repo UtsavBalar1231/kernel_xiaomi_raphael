@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  */
 
-#include <dt-bindings/clock/mdss-pll-clk.h>
+#include <dt-bindings/clock/mdss-14nm-pll-clk.h>
 
 &soc {
 	mdss_mdp: qcom,mdss_mdp@c900000 {
@@ -79,8 +79,9 @@
 		qcom,mdss-pipe-dma-xin-id = <1 5 9>;
 		qcom,mdss-pipe-cursor-xin-id = <2>;
 
-		/* These Offsets are relative to
-		 * "mdp_phys + mdp-reg-offset" address */
+		/* These Offsets are relative to */
+		/* "mdp_phys + mdp-reg-offset" address */
+
 		qcom,mdss-pipe-vig-clk-ctrl-offsets = <0x2ac 0 0>,
 						      <0x2b4 0 0>;
 		qcom,mdss-pipe-dma-clk-ctrl-offsets = <0x2ac  8 12>,
@@ -233,7 +234,7 @@
 			compatible = "qcom,smmu_mdp_unsec";
 			iommus = <&mmss_bimc_smmu 0>;
 			gdsc-mmagic-mdss-supply = <&gdsc_bimc_smmu>;
-			clocks = <&clock_rpmcc  MMSSNOC_AXI_CLK>,
+			clocks = <&clock_rpmcc  RPM_SMD_MMSSNOC_AXI_CLK>,
 				<&clock_mmss MMSS_MNOC_AHB_CLK>,
 				<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 				<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>;
@@ -247,7 +248,7 @@
 			compatible = "qcom,smmu_mdp_sec";
 			iommus = <&mmss_bimc_smmu 1>;
 			gdsc-mmagic-mdss-supply = <&gdsc_bimc_smmu>;
-			clocks = <&clock_rpmcc  MMSSNOC_AXI_CLK>,
+			clocks = <&clock_rpmcc  RPM_SMD_MMSSNOC_AXI_CLK>,
 				<&clock_mmss MMSS_MNOC_AHB_CLK>,
 				<&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>,
 				<&clock_mmss MMSS_BIMC_SMMU_AXI_CLK>;
@@ -503,7 +504,7 @@
 			 <&clock_mmss MMSS_MDSS_MDP_CLK>,
 			 <&clock_mmss MMSS_MDSS_HDMI_DP_AHB_CLK>,
 			 <&clock_mmss MMSS_MDSS_DP_AUX_CLK>,
-			 <&clock_rpmcc RPM_LN_BB_CLK1>,
+			 <&clock_rpmcc RPM_SMD_LN_BB_CLK1>,
 			 <&clock_gcc GCC_USB3_CLKREF_CLK>,
 			 <&clock_gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>,
 			 <&clock_mmss MMSS_MDSS_DP_LINK_CLK>,
@@ -511,7 +512,7 @@
 			 <&clock_mmss MMSS_MDSS_DP_CRYPTO_CLK>,
 			 <&clock_mmss MMSS_MDSS_DP_PIXEL_CLK>,
 			 <&clock_mmss DP_PIXEL_CLK_SRC>,
-			 <&mdss_dp_pll DP_VCO_DIVIDED_CLK_SRC_MUX>;
+			 <&mdss_dp_pll DP_PHY_PLL_VCO_DIV_CLK>;
 		clock-names = "core_mnoc_clk", "core_iface_clk", "core_bus_clk",
 			"core_mdp_core_clk", "core_alt_iface_clk",
 			"core_aux_clk", "core_ref_clk_src", "core_ref_clk",
