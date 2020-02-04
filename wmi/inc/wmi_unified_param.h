@@ -5472,6 +5472,7 @@ struct wmi_host_fw_abi_ver {
  * @twt_ap_sta_count: Max no of STA with which TWT sessions can be formed
  *                    by the AP
  * @max_bssid_indicator: max number of MBSS VAPs
+ * @nan_separate_iface_support: Separate iface creation for NAN
  */
 typedef struct {
 	uint32_t num_vdevs;
@@ -5554,6 +5555,7 @@ typedef struct {
 	uint32_t eapol_minrate_set:1,
 		 eapol_minrate_ac_set:2;
 	bool tstamp64_en;
+	bool nan_separate_iface_support;
 } target_resource_config;
 
 /**
