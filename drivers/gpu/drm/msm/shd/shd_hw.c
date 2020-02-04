@@ -261,6 +261,8 @@ static void _sde_shd_flush_hw_ctl(struct sde_hw_ctl *ctx)
 
 	hw_ctl = container_of(ctx, struct sde_shd_hw_ctl, base);
 
+	hw_ctl->old_mask = hw_ctl->flush_mask;
+
 	hw_ctl->flush_mask = ctx->flush.pending_flush_mask;
 
 	hw_ctl->flush_mask &= CTL_SSPP_FLUSH_MASK;
