@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -134,7 +135,6 @@ static int sde_hw_intf_avr_setup(struct sde_hw_intf *ctx,
 	u32 vsync_period_slow;
 	u32 avr_vtotal;
 	u32 add_porches = 0;
-
 	if (!ctx || !params || !avr_params) {
 		SDE_ERROR("invalid input parameter(s)\n");
 		return -EINVAL;
@@ -156,7 +156,6 @@ static int sde_hw_intf_avr_setup(struct sde_hw_intf *ctx,
 
 	vsync_period_slow = vsync_period + add_porches;
 	avr_vtotal = vsync_period_slow * hsync_period;
-
 	SDE_REG_WRITE(c, INTF_AVR_VTOTAL, avr_vtotal);
 
 	return 0;
@@ -179,7 +178,6 @@ static void sde_hw_intf_avr_ctrl(struct sde_hw_intf *ctx,
 			(avr_params->avr_mode == SDE_RM_QSYNC_ONE_SHOT_MODE) ?
 			(BIT(0) | BIT(8)) : 0x0;
 	}
-
 	SDE_REG_WRITE(c, INTF_AVR_CONTROL, avr_ctrl);
 	SDE_REG_WRITE(c, INTF_AVR_MODE, avr_mode);
 }

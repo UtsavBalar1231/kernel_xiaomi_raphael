@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -265,6 +265,7 @@ enum dsi_dfps_type {
  * @DSI_CMD_SET_QSYNC_OFF                  Disable qsync mode
  * @DSI_CMD_SET_MAX
  */
+
 enum dsi_cmd_set_type {
 	DSI_CMD_SET_PRE_ON = 0,
 	DSI_CMD_SET_ON,
@@ -321,6 +322,9 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_DISP_ACL_L1,
 	DSI_CMD_SET_DISP_ACL_L2,
 	DSI_CMD_SET_DISP_ACL_L3,
+	DSI_CMD_SET_DISP_LCD_HBM_L1_ON,
+	DSI_CMD_SET_DISP_LCD_HBM_L2_ON,
+	DSI_CMD_SET_DISP_LCD_HBM_OFF,
 	DSI_CMD_SET_DISP_HBM_ON,
 	DSI_CMD_SET_DISP_HBM_OFF,
 	DSI_CMD_SET_DISP_HBM_FOD_ON,
@@ -337,8 +341,14 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_DISP_CRC_DCIP3,
 	DSI_CMD_SET_DISP_CRC_OFF,
 	DSI_CMD_SET_DISP_ELVSS_DIMMING_OFF,
+	DSI_CMD_SET_READ_LOCKDOWN_INFO,
+	DSI_CMD_SET_DISP_ONE_PLUSE,
+	DSI_CMD_SET_DISP_FOUR_PLUSE,
+	DSI_CMD_SET_DISP_DC_ON,
+	DSI_CMD_SET_DISP_DC_OFF,
 	DSI_CMD_SET_MAX
 };
+
 
 /**
  * enum dsi_cmd_set_state - command set state

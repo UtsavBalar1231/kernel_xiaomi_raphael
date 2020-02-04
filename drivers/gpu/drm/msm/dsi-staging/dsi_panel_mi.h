@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,6 +17,8 @@
 #define _DSI_PANEL_MI_H_
 
 #define DEFAULT_FOD_OFF_DIMMING_DELAY	170
+
+#define BACKLIGHT_PLUSE_THRESHOLD	0
 
 enum bkl_dimming_state {
 	STATE_NONE,
@@ -57,8 +59,13 @@ enum DISPPARAM_MODE {
 	DISPPARAM_HBM_ON = 0x10000,
 	DISPPARAM_HBM_FOD_ON = 0x20000,
 	DISPPARAM_HBM_FOD2NORM = 0x30000,
+	DISPPARAM_DC_ON = 0x40000,
+	DISPPARAM_DC_OFF = 0x50000,
 	DISPPARAM_HBM_FOD_OFF = 0xE0000,
 	DISPPARAM_HBM_OFF = 0xF0000,
+	DISPPARAM_LCD_HBM_L1_ON = 0xB0000,
+	DISPPARAM_LCD_HBM_L2_ON = 0xC0000,
+	DISPPARAM_LCD_HBM_OFF = 0xA0000,
 	DISPPARAM_NORMALMODE1 = 0x100000,
 	DISPPARAM_P3 = 0x200000,
 	DISPPARAM_SRGB = 0x300000,
@@ -74,6 +81,10 @@ enum DISPPARAM_MODE {
 	DISPPARAM_FOD_BACKLIGHT_OFF = 0x2000000,
 	DISPPARAM_ELVSS_DIMMING_ON = 0x3000000,
 	DISPPARAM_ELVSS_DIMMING_OFF = 0x4000000,
+	DISPPARAM_ONE_PLUSE = 0x5000000,
+	DISPPARAM_FOUR_PLUSE = 0x6000000,
+	DISPPARAM_IDLE_ON = 0xA000000,
+	DISPPARAM_IDLE_OFF = 0xB000000,
 };
 
 static int panel_disp_param_send_lock(struct dsi_panel *panel, int param);

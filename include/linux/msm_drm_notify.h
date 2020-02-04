@@ -22,7 +22,7 @@
 
 enum {
 	/* panel: power on */
-	MSM_DRM_BLANK_UNBLANK = 0,
+	MSM_DRM_BLANK_UNBLANK,
 	MSM_DRM_BLANK_LP1,
 	MSM_DRM_BLANK_LP2,
 	MSM_DRM_BLANK_STANDBY,
@@ -42,7 +42,6 @@ enum msm_drm_display_id {
 struct msm_drm_notifier {
 	enum msm_drm_display_id id;
 	void *data;
-	bool is_primary;
 };
 
 int msm_drm_register_client(struct notifier_block *nb);
