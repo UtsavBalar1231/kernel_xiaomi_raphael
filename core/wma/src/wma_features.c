@@ -5403,8 +5403,6 @@ int wma_chan_info_event_handler(void *handle, uint8_t *event_buf,
 	struct lim_channel_status *channel_status;
 	bool snr_monitor_enabled;
 
-	WMA_LOGD("%s: Enter", __func__);
-
 	if (wma && wma->cds_context)
 		mac = (struct mac_context *)cds_get_context(QDF_MODULE_ID_PE);
 
@@ -5414,7 +5412,6 @@ int wma_chan_info_event_handler(void *handle, uint8_t *event_buf,
 	}
 
 	snr_monitor_enabled = wlan_scan_is_snr_monitor_enabled(mac->psoc);
-	WMA_LOGD("%s: monitor:%d", __func__, snr_monitor_enabled);
 	if (snr_monitor_enabled && mac->chan_info_cb) {
 		param_buf =
 			(WMI_CHAN_INFO_EVENTID_param_tlvs *)event_buf;
@@ -5449,14 +5446,10 @@ int wma_chan_info_event_handler(void *handle, uint8_t *event_buf,
 		channel_status = qdf_mem_malloc(sizeof(*channel_status));
 		if (!channel_status)
 			return -ENOMEM;
-
-		WMA_LOGD(FL("freq=%d nf=%d rxcnt=%u cyccnt=%u tx_r=%d tx_t=%d"),
-			 event->freq,
-			 event->noise_floor,
-			 event->rx_clear_count,
-			 event->cycle_count,
-			 event->chan_tx_pwr_range,
-			 event->chan_tx_pwr_tp);
+		wma_debug("freq %d nf %d rxcnt %u cyccnt %u tx_r %d tx_t %d",
+			  event->freq, event->noise_floor,
+			  event->rx_clear_count, event->cycle_count,
+			  event->chan_tx_pwr_range, event->chan_tx_pwr_tp);
 
 		channel_status->channelfreq = event->freq;
 		channel_status->noise_floor = event->noise_floor;
