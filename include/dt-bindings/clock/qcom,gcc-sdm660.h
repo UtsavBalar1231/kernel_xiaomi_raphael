@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -194,14 +194,14 @@
 #define HLOS2_VOTE_TURING_ADSP_SMMU_CLK		184
 
 /* Block resets */
-#define GCC_QUSB2PHY_PRIM_BCR                    0
-#define GCC_QUSB2PHY_SEC_BCR                     1
-#define GCC_UFS_BCR                              2
-#define GCC_USB3_DP_PHY_BCR                      3
-#define GCC_USB3_PHY_BCR                         4
-#define GCC_USB3PHY_PHY_BCR                      5
-#define GCC_USB_20_BCR                           6
-#define GCC_USB_30_BCR                           7
-#define GCC_USB_PHY_CFG_AHB2PHY_BCR              8
+#define GCC_QUSB2PHY_PRIM_BCR			0
+#define GCC_QUSB2PHY_SEC_BCR			1
+#define GCC_UFS_BCR				2
+#define GCC_USB3_DP_PHY_BCR			3
+#define GCC_USB3_PHY_BCR			4
+#define GCC_USB3PHY_PHY_BCR			5
+#define GCC_USB_20_BCR				6
+#define GCC_USB_30_BCR				7
+#define GCC_USB_PHY_CFG_AHB2PHY_BCR		8
 
 #endif

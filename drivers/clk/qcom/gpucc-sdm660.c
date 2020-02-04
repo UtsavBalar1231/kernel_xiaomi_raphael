@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -40,12 +40,12 @@ static DEFINE_VDD_REGULATORS(vdd_mx, VDD_DIG_NUM, 1, vdd_corner);
 static DEFINE_VDD_REGS_INIT(vdd_gfx, 1);
 
 enum {
+	P_XO,
 	P_CORE_BI_PLL_TEST_SE,
 	P_GPLL0_OUT_MAIN,
 	P_GPLL0_OUT_MAIN_DIV,
 	P_GPU_PLL0_PLL_OUT_MAIN,
 	P_GPU_PLL1_PLL_OUT_MAIN,
-	P_XO,
 };
 
 static const struct parent_map gpucc_parent_map_0[] = {
@@ -565,4 +565,3 @@ static void __exit gpu_660_exit(void)
 	platform_driver_unregister(&gpu_660_driver);
 }
 module_exit(gpu_660_exit);
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -35,13 +35,14 @@
 #include "reset.h"
 #include "vdd-level-660.h"
 
-#define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
-#define BM(msb, lsb) (((((uint32_t)-1) << (31-msb)) >> (31-msb+lsb)) << lsb)
+#define F(f, s, h, m, n)	{ (f), (s), (2 * (h) - 1), (m), (n) }
+#define BM(msb, lsb)	(((((uint32_t)-1) << (31-msb)) >> (31-msb+lsb)) << lsb)
 
 static DEFINE_VDD_REGULATORS(vdd_dig, VDD_DIG_NUM, 1, vdd_corner);
 static DEFINE_VDD_REGULATORS(vdd_dig_ao, VDD_DIG_NUM, 1, vdd_corner);
 
 enum {
+	P_XO,
 	P_CORE_BI_PLL_TEST_SE,
 	P_GPLL0_OUT_MAIN,
 	P_GPLL1_OUT_MAIN,
@@ -49,7 +50,6 @@ enum {
 	P_PLL0_EARLY_DIV_CLK_SRC,
 	P_PLL1_EARLY_DIV_CLK_SRC,
 	P_SLEEP_CLK,
-	P_XO,
 };
 
 static const struct parent_map gcc_parent_map_0[] = {
@@ -2973,7 +2973,14 @@ static const char *const debug_mux_parent_names[] = {
 static struct clk_debug_mux gcc_debug_mux = {
 	.priv = &debug_mux_priv,
 	.en_mask = BIT(16),
-	.mask = 0x3FF,
+	.debug_offset = 0x62000,
+	.post_div_offset = 0x62004,
+	.cbcr_offset = 0x62008,
+	.src_sel_mask = 0x3FF,
+	.src_sel_shift = 0,
+	.post_div_mask = 0xF,
+	.post_div_shift = 0,
+	.period_offset = 0x50,
 	MUX_SRC_LIST(
 		{ "snoc_clk",				0x000 },
 		{ "cnoc_clk",				0x00E },
@@ -3290,8 +3297,6 @@ static int clk_debug_660_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Count of CC cannot be zero\n");
 		return -EINVAL;
 	}
-
-	gcc_debug_mux.num_parent_regmap =  count;
 
 	gcc_debug_mux.regmap = devm_kzalloc(&pdev->dev,
 				sizeof(struct regmap *) * count, GFP_KERNEL);

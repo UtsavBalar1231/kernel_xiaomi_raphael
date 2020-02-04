@@ -140,32 +140,6 @@ static int update_config(struct clk_rcg2 *rcg, u32 cfg)
 	return -EBUSY;
 }
 
-/*
- * Calculate m/n:d rate
- *
- *          parent_rate     m
- *   rate = ----------- x  ---
- *            hid_div       n
- */
-static unsigned long
-calc_rate(unsigned long rate, u32 m, u32 n, u32 mode, u32 hid_div)
-{
-	if (hid_div) {
-		rate *= 2;
-		rate /= hid_div + 1;
-	}
-
-	if (mode) {
-		u64 tmp = rate;
-
-		tmp *= m;
-		do_div(tmp, n);
-		rate = tmp;
-	}
-
-	return rate;
-}
-
 static int clk_rcg2_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
@@ -1535,7 +1509,7 @@ const struct clk_ops clk_gfx3d_src_ops = {
 	.list_rate = clk_rcg2_list_rate,
 	.list_registers = clk_rcg2_list_registers,
 };
-EXPORT_SYMBOL_GPL(clk_gfx3d_src_ops);
+EXPORT_SYMBOL(clk_gfx3d_src_ops);
 
 /* Common APIs to be used for DFS based RCGR */
 static u8 clk_parent_index_pre_div_and_mode(struct clk_hw *hw, u32 offset,
@@ -1723,7 +1697,7 @@ static int clk_esc_determine_rate(struct clk_hw *hw,
 	div = ((2 * parent_rate) / rate) - 1;
 	div = min_t(u32, div, mask);
 
-	req->rate = calc_rate(parent_rate, 0, 0, 0, div);
+	req->rate = clk_rcg2_calc_rate(parent_rate, 0, 0, 0, div);
 
 	return 0;
 }
@@ -1756,7 +1730,6 @@ static int clk_esc_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	return -EINVAL;
 }
-
 
 static int clk_esc_set_rate_and_parent(struct clk_hw *hw,
 		unsigned long rate, unsigned long parent_rate, u8 index)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -263,9 +263,9 @@ enum clk_osm_trace_packet_id {
 #define ACD_REG_RELATIVE_ADDR_BITMASK(addr) \
 					(1 << (ACD_REG_RELATIVE_ADDR(addr)))
 
-#define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
-#define BM(msb, lsb) (((((uint32_t)-1) << (31-msb)) >> (31-msb+lsb)) << lsb)
-#define BVAL(msb, lsb, val)     (((val) << lsb) & BM(msb, lsb))
+#define F(f, s, h, m, n)	{ (f), (s), (2 * (h) - 1), (m), (n) }
+#define BM(msb, lsb)	(((((uint32_t)-1) << (31-msb)) >> (31-msb+lsb)) << lsb)
+#define BVAL(msb, lsb, val)	(((val) << lsb) & BM(msb, lsb))
 
 static u32 seq_instr[] = {
 	0xc2005000, 0x2c9e3b21, 0xc0ab2cdc, 0xc2882525, 0x359dc491,
