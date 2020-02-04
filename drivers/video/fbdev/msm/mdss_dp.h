@@ -681,7 +681,8 @@ struct mdss_dp_drv_pdata {
 	u16 dpcd_version;
 	int fb_node;
 	int hdcp_status;
-
+	void *audio_data;
+	bool hpd_notify_state;
 	struct dpcd_test_request test_data;
 	struct dpcd_sink_count sink_count;
 	struct dpcd_sink_count prev_sink_count;
