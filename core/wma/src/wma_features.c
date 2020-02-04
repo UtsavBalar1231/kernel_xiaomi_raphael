@@ -5722,7 +5722,7 @@ static void wma_send_set_key_rsp(uint8_t session_id, bool pairwise,
 
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_WMA_ID);
 	if (!crypto_key) {
-		wma_err("crypto_key not found");
+		wma_debug("crypto_key not found");
 		return;
 	}
 
