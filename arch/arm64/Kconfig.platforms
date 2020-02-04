@@ -30,8 +30,6 @@ config ARCH_SDM660
 	select QCOM_GDSC
 	help
 	  This enables support for the SDM660 chipset.
-	  If you do not wish to build a kernel that runs
-	  on this chipset,say 'N' here.
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
