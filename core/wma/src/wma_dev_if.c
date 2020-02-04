@@ -6116,13 +6116,6 @@ void wma_delete_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 
 	case BSS_OPERATIONAL_MODE_IBSS: /* IBSS shares AP code */
 	case BSS_OPERATIONAL_MODE_AP:
-		if (qdf_is_drv_connected()) {
-			wma_debug("drv wow enabled allow runtime pm");
-			wma_sap_allow_runtime_pm(wma);
-		} else {
-			wma_debug("drv wow disabled vote for link down");
-			htc_vote_link_down(htc_handle);
-		}
 		wma_delete_sta_req_ap_mode(wma, del_sta);
 		/* free the memory here only if sync feature is not enabled */
 		if (!rsp_requested &&
