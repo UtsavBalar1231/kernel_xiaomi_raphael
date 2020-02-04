@@ -177,8 +177,7 @@ static struct rmnet_shs_wq_rx_flow_s rmnet_shs_rx_flow_tbl;
 static struct list_head rmnet_shs_wq_hstat_tbl =
 				LIST_HEAD_INIT(rmnet_shs_wq_hstat_tbl);
 static int rmnet_shs_flow_dbg_stats_idx_cnt;
-static struct list_head rmnet_shs_wq_ep_tbl =
-				LIST_HEAD_INIT(rmnet_shs_wq_ep_tbl);
+struct list_head rmnet_shs_wq_ep_tbl = LIST_HEAD_INIT(rmnet_shs_wq_ep_tbl);
 
 /* Helper functions to add and remove entries to the table
  * that maintains a list of all endpoints (vnd's) available on this device.
@@ -538,6 +537,17 @@ void rmnet_shs_wq_update_hstat_rps_msk(struct rmnet_shs_wq_hstat_s *hstat_p)
 			hstat_p->rps_config_msk = ep->rps_config_msk;
 			hstat_p->def_core_msk = ep->default_core_msk;
 			hstat_p->pri_core_msk = ep->pri_core_msk;
+
+			/* Update ep tput stats while we're here */
+			if (hstat_p->skb_tport_proto == IPPROTO_TCP) {
+				rm_err("SHS_UDP: adding TCP bps %lu to ep_total %lu ep name %s",
+				       hstat_p->rx_bps, ep->tcp_rx_bps, node_p->dev->name);
+				ep->tcp_rx_bps += hstat_p->rx_bps;
+			} else if (hstat_p->skb_tport_proto == IPPROTO_UDP) {
+				rm_err("SHS_UDP: adding UDP rx_bps %lu to ep_total %lu ep name %s",
+				       hstat_p->rx_bps, ep->udp_rx_bps, node_p->dev->name);
+				ep->udp_rx_bps += hstat_p->rx_bps;
+			}
 			break;
 		}
 	}
@@ -1456,6 +1466,7 @@ void rmnet_shs_wq_eval_cpus_caps_and_flows(struct list_head *cpu_caps,
 	rmnet_shs_wq_mem_update_cached_cpu_caps(cpu_caps);
 	rmnet_shs_wq_mem_update_cached_sorted_gold_flows(gold_flows);
 	rmnet_shs_wq_mem_update_cached_sorted_ss_flows(ss_flows);
+	rmnet_shs_wq_mem_update_cached_netdevs();
 
 	rmnet_shs_genl_send_int_to_userspace_no_info(RMNET_SHS_SYNC_RESP_INT);
 
@@ -1886,6 +1897,11 @@ void rmnet_shs_wq_refresh_ep_masks(void)
 		if (!ep->is_ep_active)
 			continue;
 		rmnet_shs_wq_update_ep_rps_msk(ep);
+
+		/* These tput totals get re-added as we go through each flow */
+		ep->udp_rx_bps = 0;
+		ep->tcp_rx_bps = 0;
+
 	}
 }
 
