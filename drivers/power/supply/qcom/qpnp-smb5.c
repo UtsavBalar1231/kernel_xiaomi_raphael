@@ -234,6 +234,9 @@ struct smb_dt_props {
 	int			term_current_thresh_hi_ma;
 	int			term_current_thresh_lo_ma;
 	int			disable_suspend_on_collapse;
+	int			wdog_snarl_disable;
+	const char		*batt_psy_name;
+
 };
 
 struct smb5 {
@@ -971,6 +974,10 @@ static int smb5_parse_dt(struct smb5 *chip)
 		return rc;
 
 	rc = smblib_get_iio_channel(chg, "project_gpio6", &chg->iio.project_gpio6);
+
+	chip->dt.wdog_snarl_disable = of_property_read_bool(node,
+					"google,wdog_snarl_disable");
+
 	if (rc < 0)
 		return rc;
 
@@ -4017,6 +4024,12 @@ static int smb5_request_interrupts(struct smb5 *chip)
 		enable_irq_wake(chg->irq_info[BAT_TEMP_IRQ].irq);
 		chg->batt_temp_irq_enabled = true;
 	}
+
+	if (chg->irq_info[WDOG_SNARL_IRQ].irq && chip->dt.wdog_snarl_disable) {
+		disable_irq_wake(chg->irq_info[WDOG_SNARL_IRQ].irq);
+		disable_irq_nosync(chg->irq_info[WDOG_SNARL_IRQ].irq);
+	}
+
 	vote(chg->limited_irq_disable_votable, CHARGER_TYPE_VOTER, true, 0);
 	vote(chg->hdc_irq_disable_votable, CHARGER_TYPE_VOTER, true, 0);
 
