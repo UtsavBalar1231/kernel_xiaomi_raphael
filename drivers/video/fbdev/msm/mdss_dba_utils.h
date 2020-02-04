@@ -46,5 +46,4 @@ void mdss_dba_utils_hdcp_enable(void *data, bool enable);
 
 void *mdss_dba_utils_init(struct mdss_dba_utils_init_data *init_data);
 void mdss_dba_utils_deinit(void *data);
-void mdss_dba_update_lane_cfg(struct mdss_panel_info *pinfo);
 #endif /* __MDSS_DBA_UTILS__ */

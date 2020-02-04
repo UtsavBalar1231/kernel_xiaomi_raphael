@@ -164,7 +164,6 @@ static int mdss_mdp_cdm_cdwn_setup(struct mdss_mdp_cdm *cdm,
 	int rc = 0;
 	u32 opmode = 0;
 	u32 out_size = 0;
-
 	if (data->mdp_csc_bit_depth == MDP_CDM_CSC_10BIT)
 		opmode &= ~BIT(7);
 	else

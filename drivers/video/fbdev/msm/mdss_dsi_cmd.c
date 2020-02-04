@@ -735,8 +735,7 @@ struct dcs_cmd_req *mdss_dsi_cmdlist_get(struct mdss_dsi_ctrl_pdata *ctrl,
 	if (clist->get != clist->put) {
 		req = &clist->list[clist->get];
 		/*dont let commit thread steal ESD thread's
-		 * command
-		 */
+		command*/
 		if (from_mdp && (req->flags & CMD_REQ_COMMIT)) {
 			mutex_unlock(&ctrl->cmdlist_mutex);
 			return NULL;

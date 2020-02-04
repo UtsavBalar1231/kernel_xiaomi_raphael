@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016, 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,12 +18,10 @@
 /*
  * To allow proper structure padding for 64bit/32bit target
  */
-#ifndef MDP_LAYER_COMMIT_V1_PAD
 #ifdef __LP64
 #define MDP_LAYER_COMMIT_V1_PAD 2
 #else
 #define MDP_LAYER_COMMIT_V1_PAD 3
-#endif
 #endif
 
 struct mdp_buf_sync32 {

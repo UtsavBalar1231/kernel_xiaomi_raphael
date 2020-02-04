@@ -22,7 +22,6 @@
 #include <linux/msm_mdp.h>
 #include <linux/memblock.h>
 #include <linux/file.h>
-
 #include <soc/qcom/event_timer.h>
 #include "mdss.h"
 #include "mdss_debug.h"
@@ -40,6 +39,7 @@
 enum {
 	MDSS_MDP_RELEASE_FENCE = 0,
 	MDSS_MDP_RETIRE_FENCE,
+	MDSS_MDP_CWB_RETIRE_FENCE,
 };
 
 enum layer_pipe_q {
@@ -59,6 +59,645 @@ struct mdss_mdp_validate_info_t {
 	struct mdp_input_layer *layer;
 	struct mdss_mdp_pipe_multirect_params multirect;
 };
+
+static inline void *u64_to_ptr(uint64_t address)
+{
+	return (void *)(uintptr_t)address;
+}
+
+static inline struct mdp_destination_scaler_data *__dest_scaler_next(
+		struct mdp_destination_scaler_data *ds_data, int ds_count)
+{
+	struct mdp_destination_scaler_data *ds_data_r = ds_data;
+	size_t offset;
+
+	/*
+	 * Advanced to next ds_data structure from commit if
+	 * there is more than 1 for source split usecase.
+	 */
+	if (ds_count > 1) {
+		ds_data_r = ds_data + 1;
+
+		/*
+		 * To check for binary compatibility with old user mode
+		 * driver which does not have ROI support in destination
+		 * scalar.
+		 */
+		if ((ds_data_r->dest_scaler_ndx != 1) &&
+				(ds_data_r->lm_height != ds_data->lm_height)) {
+			offset = offsetof(struct mdp_destination_scaler_data,
+					panel_roi);
+			ds_data_r = (struct mdp_destination_scaler_data *)(
+					(void *)ds_data + offset);
+		}
+	}
+
+	return ds_data_r;
+}
+
+static void mdss_mdp_disable_destination_scaler_setup(struct mdss_mdp_ctl *ctl)
+{
+	struct mdss_data_type *mdata = ctl->mdata;
+	struct mdss_panel_info *pinfo = &ctl->panel_data->panel_info;
+	struct mdss_mdp_ctl *split_ctl;
+
+	if (test_bit(MDSS_CAPS_DEST_SCALER, mdata->mdss_caps_map)) {
+		if (ctl->mixer_left && ctl->mixer_right &&
+				ctl->mixer_left->ds && ctl->mixer_right->ds &&
+				ctl->mixer_left->ds->scaler.enable &&
+				ctl->mixer_right->ds->scaler.enable) {
+			/*
+			 * DUAL mode disable
+			 */
+			split_ctl = mdss_mdp_get_split_ctl(ctl);
+			ctl->mixer_left->width = get_panel_width(ctl);
+			ctl->mixer_left->height = get_panel_yres(pinfo);
+			if (!split_ctl)
+				ctl->mixer_left->width /= 2;
+			ctl->mixer_right->width = ctl->mixer_left->width;
+			ctl->mixer_right->height = ctl->mixer_left->height;
+			ctl->mixer_left->roi = (struct mdss_rect) { 0, 0,
+				ctl->mixer_left->width,
+				ctl->mixer_left->height };
+			ctl->mixer_right->roi = (struct mdss_rect) { 0, 0,
+				ctl->mixer_right->width,
+				ctl->mixer_right->height };
+			if (split_ctl)
+				split_ctl->mixer_left->roi =
+					ctl->mixer_right->roi;
+
+			/*
+			 * Disable destination scaler by resetting the control
+			 * flags and also need to disable in the QSEED3
+			 * settings.
+			 */
+			ctl->mixer_left->ds->flags = DS_SCALE_UPDATE |
+				DS_VALIDATE;
+			ctl->mixer_right->ds->flags = DS_SCALE_UPDATE |
+				DS_VALIDATE;
+			ctl->mixer_left->ds->scaler.enable = 0;
+			ctl->mixer_left->ds->scaler.detail_enhance.enable = 0;
+			ctl->mixer_right->ds->scaler.enable = 0;
+			ctl->mixer_right->ds->scaler.detail_enhance.enable = 0;
+
+			pr_debug("DS-Left+Right disable: left:%dx%d, right:%dx%d\n",
+					ctl->mixer_left->width,
+					ctl->mixer_left->height,
+					ctl->mixer_right->width,
+					ctl->mixer_right->height);
+			MDSS_XLOG(ctl->mixer_left->width,
+					ctl->mixer_left->height,
+					ctl->mixer_right->width,
+					ctl->mixer_right->height);
+		} else if (ctl->mixer_left && ctl->mixer_left->ds &&
+				ctl->mixer_left->ds->scaler.enable) {
+			/*
+			 * Single DS disable
+			 */
+			ctl->mixer_left->width = get_panel_width(ctl);
+			ctl->mixer_left->height = get_panel_yres(pinfo);
+			ctl->mixer_left->roi = (struct mdss_rect) { 0, 0,
+				ctl->mixer_left->width,
+				ctl->mixer_left->height };
+
+			ctl->mixer_left->ds->flags = DS_SCALE_UPDATE |
+				DS_VALIDATE;
+			ctl->mixer_left->ds->scaler.enable = 0;
+			ctl->mixer_left->ds->scaler.detail_enhance.enable = 0;
+
+			pr_debug("DS-left disable: wxh=%dx%d\n",
+					ctl->mixer_left->width,
+					ctl->mixer_left->height);
+			MDSS_XLOG(ctl->mixer_left->width,
+					ctl->mixer_left->height);
+		}
+	}
+}
+
+static int __dest_scaler_panel_roi_update(
+		struct mdp_destination_scaler_data *ds_data,
+		struct mdss_mdp_destination_scaler *ds)
+{
+	if (ds_data->flags & MDP_DESTSCALER_ROI_ENABLE) {
+		/*
+		 * Updating PANEL ROI info, used in partial update
+		 */
+		if ((ds_data->panel_roi.w > ds->scaler.dst_width) ||
+				(ds_data->panel_roi.h >
+				 ds->scaler.dst_height) ||
+				(ds_data->panel_roi.w == 0) ||
+				(ds_data->panel_roi.h == 0)) {
+			pr_err("Invalid panel ROI parameter for dest-scaler-%d: [%d %d %d %d]\n",
+					ds_data->dest_scaler_ndx,
+					ds_data->panel_roi.x,
+					ds_data->panel_roi.y,
+					ds_data->panel_roi.w,
+					ds_data->panel_roi.h);
+			ds->flags &= ~DS_PU_ENABLE;
+			return -EINVAL;
+		}
+		ds->panel_roi.x = ds_data->panel_roi.x;
+		ds->panel_roi.y = ds_data->panel_roi.y;
+		ds->panel_roi.w = ds_data->panel_roi.w;
+		ds->panel_roi.h = ds_data->panel_roi.h;
+		ds->flags |= DS_PU_ENABLE;
+		pr_debug("dest-scaler[%d] panel_roi update: [%d,%d,%d,%d]\n",
+				ds->num,
+				ds_data->panel_roi.x, ds_data->panel_roi.y,
+				ds_data->panel_roi.w, ds_data->panel_roi.h);
+		MDSS_XLOG(ds->num, ds_data->panel_roi.x, ds_data->panel_roi.y,
+				ds_data->panel_roi.w, ds_data->panel_roi.h);
+	} else {
+		ds->flags &= ~DS_PU_ENABLE;
+	}
+
+	return 0;
+}
+
+static int __dest_scaler_data_setup(struct mdp_destination_scaler_data *ds_data,
+		struct mdss_mdp_destination_scaler *ds,
+		u32 max_input_width, u32 max_output_width)
+{
+	struct mdp_scale_data_v2 *scale;
+
+	if (ds_data->flags & MDP_DESTSCALER_ENABLE)
+		ds->flags |= DS_ENABLE;
+	else
+		ds->flags &= ~DS_ENABLE;
+
+	if (ds_data->flags & (MDP_DESTSCALER_SCALE_UPDATE |
+				MDP_DESTSCALER_ENHANCER_UPDATE)) {
+		if (!ds_data->scale) {
+			pr_err("NULL scale data\n");
+			return -EFAULT;
+		}
+		scale = u64_to_ptr(ds_data->scale);
+
+		if (scale->src_width[0] > max_input_width) {
+			pr_err("Exceed max input width for dest scaler-%d: %d\n",
+					ds_data->dest_scaler_ndx,
+					scale->src_width[0]);
+			return -EINVAL;
+		}
+		if (scale->dst_width > max_output_width) {
+			pr_err("Exceed max output width for dest scaler-%d: %d\n",
+					ds_data->dest_scaler_ndx,
+					scale->dst_width);
+			return -EINVAL;
+		}
+
+		memcpy(&ds->scaler, scale, sizeof(*scale));
+		if (ds_data->flags & MDP_DESTSCALER_SCALE_UPDATE)
+			ds->flags |= DS_SCALE_UPDATE;
+		if (ds_data->flags & MDP_DESTSCALER_ENHANCER_UPDATE)
+			ds->flags |= DS_ENHANCER_UPDATE;
+
+		/*
+		 * Update with LM resolution
+		 */
+		ds->src_width = ds_data->lm_width;
+		ds->src_height = ds_data->lm_height;
+	}
+
+	if (__dest_scaler_panel_roi_update(ds_data, ds))
+		return -EINVAL;
+
+	if (ds_data->flags == 0) {
+		pr_debug("Disabling destination scaler-%d\n",
+				ds_data->dest_scaler_ndx);
+	}
+
+	/*
+	 * Confirm all check pass validation, and to be cleared in CTL after
+	 * flush is issued.
+	 */
+	ds->flags |= DS_VALIDATE;
+	return 0;
+}
+
+static int mdss_mdp_destination_scaler_pre_validate(struct mdss_mdp_ctl *ctl,
+		struct mdp_destination_scaler_data *ds_data, int ds_count)
+{
+	struct mdss_data_type *mdata;
+	struct mdss_panel_info *pinfo;
+	u16 mxleft_w = 0, mxleft_h = 0, mxright_w = 0, mxright_h = 0;
+	mdata = ctl->mdata;
+
+	/*
+	 * we need to quickly check for any scale update, and adjust the mixer
+	 * width and height accordingly. Otherwise, layer validate will fail
+	 * when we switch between scaling factor or disabling scaling.
+	 */
+	if (test_bit(MDSS_CAPS_DEST_SCALER, mdata->mdss_caps_map)) {
+		if (ctl->mixer_left && ctl->mixer_left->ds) {
+			/*
+			 * Any scale update from usermode, we will update the
+			 * mixer width and height with the given LM width and
+			 * height.
+			 */
+			pinfo = &ctl->panel_data->panel_info;
+			if ((ds_data->lm_width > get_panel_width(ctl)) ||
+				(ds_data->lm_height >  get_panel_yres(pinfo)) ||
+				(ds_data->lm_width == 0) ||
+				(ds_data->lm_height == 0)) {
+				pr_err("Invalid left LM {%d,%d} setting\n",
+					ds_data->lm_width, ds_data->lm_height);
+				return -EINVAL;
+			}
+			mxleft_w = ds_data->lm_width;
+			mxleft_h = ds_data->lm_height;
+		}
+
+		if (ctl->mixer_right && ctl->mixer_right->ds) {
+			ds_data = __dest_scaler_next(ds_data, ds_count);
+			pinfo = &ctl->panel_data->panel_info;
+			if ((ds_data->lm_width > get_panel_xres(pinfo)) ||
+				(ds_data->lm_height >  get_panel_yres(pinfo)) ||
+				(ds_data->lm_width == 0) ||
+				(ds_data->lm_height == 0)) {
+				pr_err("Invalid right LM {%d,%d} setting\n",
+					ds_data->lm_width, ds_data->lm_height);
+				return -EINVAL;
+			}
+
+			/*
+			 * Split display both left and right should have the
+			 * same width and height
+			 */
+			mxright_w = ds_data->lm_width;
+			mxright_h = ds_data->lm_height;
+
+			if (ctl->mixer_left &&
+					((mxright_w != mxleft_w) ||
+					 (mxright_h != mxleft_h))) {
+				pr_err("Mismatch width/heigth in LM for split display\n");
+				return -EINVAL;
+			}
+		}
+
+		/*
+		 * Update mixer and control dimension after successful
+		 * pre-validation
+		 */
+		if (mxleft_w && mxleft_h) {
+			ctl->mixer_left->ds->last_mixer_width =
+				ctl->mixer_left->width;
+			ctl->mixer_left->ds->last_mixer_height =
+				ctl->mixer_left->height;
+
+			ctl->width = mxleft_w;
+			ctl->height = mxleft_h;
+			ctl->mixer_left->width = mxleft_w;
+			ctl->mixer_left->height = mxleft_h;
+			pr_debug("Update mixer-left width/height: %dx%d\n",
+					mxleft_w, mxleft_h);
+		}
+
+		if (mxright_w && mxright_h) {
+			ctl->mixer_right->ds->last_mixer_width =
+				ctl->mixer_right->width;
+			ctl->mixer_right->ds->last_mixer_height =
+				ctl->mixer_right->height;
+
+			ctl->mixer_right->width = mxright_w;
+			ctl->mixer_right->height = mxright_h;
+			pr_debug("Update mixer-right width/height: %dx%d\n",
+					mxright_w, mxright_h);
+
+			/*
+			 * For split display, CTL width should be equal to
+			 * whole panel size
+			 */
+			ctl->width += mxright_w;
+		}
+
+		pr_debug("Updated CTL width:%d, height:%d\n",
+				ctl->width, ctl->height);
+	}
+
+	return 0;
+}
+
+static int mdss_mdp_validate_destination_scaler(struct msm_fb_data_type *mfd,
+		struct mdp_destination_scaler_data *ds_data,
+		u32 ds_mode)
+{
+	int ret = 0;
+	struct mdss_data_type *mdata;
+	struct mdss_mdp_ctl *ctl;
+	struct mdss_mdp_ctl *sctl;
+	struct mdss_mdp_destination_scaler *ds_left  = NULL;
+	struct mdss_mdp_destination_scaler *ds_right = NULL;
+	struct mdss_panel_info *pinfo;
+	u32 scaler_width, scaler_height;
+	struct mdp_destination_scaler_data *ds_data_r = NULL;
+
+	if (ds_data) {
+		mdata = mfd_to_mdata(mfd);
+		ctl   = mfd_to_ctl(mfd);
+		sctl  = mdss_mdp_get_split_ctl(ctl);
+
+		mutex_lock(&ctl->ds_lock);
+		if (ctl->mixer_left)
+			ds_left = ctl->mixer_left->ds;
+
+		if (ctl->mixer_right)
+			ds_right = ctl->mixer_right->ds;
+
+		if (sctl && sctl->mixer_left && ds_right)
+			sctl->mixer_left->ds = ds_right;
+
+		switch (ds_mode) {
+		case DS_DUAL_MODE:
+			if (!ds_left || !ds_right) {
+				pr_err("Cannot support DUAL mode dest scaling\n");
+				mutex_unlock(&ctl->ds_lock);
+				return -EINVAL;
+			}
+
+			ret = __dest_scaler_data_setup(&ds_data[0], ds_left,
+					mdata->max_dest_scaler_input_width -
+					MDSS_MDP_DS_OVERFETCH_SIZE,
+					mdata->max_dest_scaler_output_width);
+			if (ret)
+				goto reset_mixer;
+
+			ds_data_r = __dest_scaler_next(ds_data, 2);
+			ret = __dest_scaler_data_setup(ds_data_r, ds_right,
+					mdata->max_dest_scaler_input_width -
+					MDSS_MDP_DS_OVERFETCH_SIZE,
+					mdata->max_dest_scaler_output_width);
+			if (ret)
+				goto reset_mixer;
+
+			if ((ds_right->flags & DS_PU_ENABLE) && sctl) {
+				pinfo = &ctl->panel_data->panel_info;
+				if (ds_right->panel_roi.x >=
+						get_panel_xres(pinfo)) {
+					ds_right->panel_roi.x -=
+						get_panel_xres(pinfo);
+				} else {
+					pr_err("SCTL DS right roi.x:%d < left panel width:%d\n",
+							ds_right->panel_roi.x,
+							get_panel_xres(pinfo));
+					goto reset_mixer;
+				}
+			}
+
+			ds_left->flags  &= ~(DS_LEFT|DS_RIGHT);
+			ds_left->flags  |= DS_DUAL_MODE;
+			ds_right->flags &= ~(DS_LEFT|DS_RIGHT);
+			ds_right->flags |= DS_DUAL_MODE;
+			MDSS_XLOG(ds_left->num, ds_left->src_width,
+					ds_left->src_height, ds_left->flags,
+					ds_right->num, ds_right->src_width,
+					ds_right->src_height, ds_right->flags);
+			break;
+
+		case DS_LEFT:
+			if (!ds_left) {
+				pr_err("LM in ctl does not support Destination Scaler\n");
+				mutex_unlock(&ctl->ds_lock);
+				return -EINVAL;
+			}
+			ds_left->flags &= ~(DS_DUAL_MODE|DS_RIGHT);
+			ds_left->flags |= DS_LEFT;
+
+			ret = __dest_scaler_data_setup(&ds_data[0], ds_left,
+					mdata->max_dest_scaler_input_width,
+					mdata->max_dest_scaler_output_width);
+			if (ret)
+				goto reset_mixer;
+
+			/*
+			 * For Partial update usecase, it is possible switching
+			 * from Left+Right mode to Left only mode. So make sure
+			 * cleanup the DS_RIGHT flags.
+			 */
+			if (ds_right) {
+				ds_right->flags &=
+					~(DS_DUAL_MODE|DS_ENABLE|DS_PU_ENABLE);
+				ds_right->flags |= DS_VALIDATE;
+			}
+
+			MDSS_XLOG(ds_left->num, ds_left->src_width,
+					ds_left->src_height, ds_left->flags);
+			break;
+
+		case DS_RIGHT:
+			if (!ds_right) {
+				pr_err("Cannot setup DS_RIGHT because only single DS assigned to ctl\n");
+				mutex_unlock(&ctl->ds_lock);
+				return -EINVAL;
+			}
+
+			ds_right->flags &= ~(DS_DUAL_MODE|DS_LEFT);
+			ds_right->flags |= DS_RIGHT;
+
+			ret = __dest_scaler_data_setup(&ds_data[0], ds_right,
+					mdata->max_dest_scaler_input_width,
+					mdata->max_dest_scaler_output_width);
+			if (ret)
+				goto reset_mixer;
+
+			if (ds_left) {
+				ds_left->flags &=
+					~(DS_DUAL_MODE|DS_ENABLE|DS_PU_ENABLE);
+				ds_left->flags |= DS_VALIDATE;
+			}
+
+			if ((ds_right->flags & DS_PU_ENABLE) && sctl) {
+				pinfo = &ctl->panel_data->panel_info;
+				if (ds_right->panel_roi.x >=
+						get_panel_xres(pinfo)) {
+					ds_right->panel_roi.x -=
+						get_panel_xres(pinfo);
+				} else {
+					pr_err("SCTL DS-right-only roi.x:%d < Left panel width:%d\n",
+							ds_right->panel_roi.x,
+							get_panel_xres(pinfo));
+					goto reset_mixer;
+				}
+			}
+
+			MDSS_XLOG(ds_right->num, ds_right->src_width,
+					ds_right->src_height, ds_right->flags);
+			break;
+		}
+	} else {
+		pr_err("NULL destionation scaler data\n");
+		return -EFAULT;
+	}
+
+	if (ds_left)
+		pr_debug("DS_LEFT: flags=0x%X\n", ds_left->flags);
+	if (ds_right)
+		pr_debug("DS_RIGHT: flags=0x%X\n", ds_right->flags);
+
+	/*
+	 * When DSC is enabled, make sure the scaler output dimension is
+	 * correctly setup.
+	 */
+	pinfo = &ctl->panel_data->panel_info;
+	scaler_width = 0;
+	scaler_height = 0;
+	if (ds_left && (ds_left->flags & DS_ENABLE)) {
+		scaler_width += ds_left->scaler.dst_width;
+		scaler_height = ds_left->scaler.dst_height;
+	}
+	if (ds_right && (ds_right->flags & DS_ENABLE)) {
+		scaler_width += ds_right->scaler.dst_width;
+		scaler_height = ds_right->scaler.dst_height;
+	}
+	pr_debug("DS output dimension: %dx%d\n", scaler_width, scaler_height);
+
+	if (ds_data[0].flags && (is_dsc_compression(pinfo) &&
+				!is_lm_configs_dsc_compatible(pinfo,
+					scaler_width, scaler_height))) {
+		pr_err("Invalid Dest-scaler output width/height: %d/%d\n",
+			scaler_width, scaler_height);
+		ret = -EINVAL;
+		goto reset_mixer;
+	}
+
+	mutex_unlock(&ctl->ds_lock);
+	return ret;
+
+reset_mixer:
+	/* reverting mixer and control dimension */
+	if (ctl->mixer_left && ctl->mixer_left->ds &&
+			ctl->mixer_left->ds->last_mixer_width) {
+		ctl->width = ctl->mixer_left->ds->last_mixer_width;
+		ctl->height = ctl->mixer_left->ds->last_mixer_height;
+		ctl->mixer_left->width =
+			ctl->mixer_left->ds->last_mixer_width;
+		ctl->mixer_left->height =
+			ctl->mixer_left->ds->last_mixer_height;
+		if (ds_left)
+			ds_left->flags &= ~DS_ENABLE;
+		MDSS_XLOG(ctl->width, ctl->height,
+				ctl->mixer_left->width,
+				ctl->mixer_left->height);
+	}
+
+	if (ctl->mixer_right && ctl->mixer_right->ds &&
+			ctl->mixer_right->ds->last_mixer_width) {
+		ctl->width += ctl->mixer_right->ds->last_mixer_width;
+		ctl->mixer_right->width =
+			ctl->mixer_right->ds->last_mixer_width;
+		ctl->mixer_right->height =
+			ctl->mixer_right->ds->last_mixer_height;
+		if (ds_right)
+			ds_right->flags &= ~DS_ENABLE;
+		MDSS_XLOG(ctl->width, ctl->height,
+				ctl->mixer_right->width,
+				ctl->mixer_right->height);
+	}
+
+	mutex_unlock(&ctl->ds_lock);
+	return ret;
+}
+
+static int mdss_mdp_avr_validate(struct msm_fb_data_type *mfd,
+				struct mdp_layer_commit_v1 *commit)
+{
+	struct mdss_data_type *mdata = mfd_to_mdata(mfd);
+	struct mdss_mdp_ctl *ctl = mfd_to_ctl(mfd);
+	int req = 0;
+	struct mdss_panel_info *pinfo = NULL;
+
+	if (!ctl || !mdata || !commit) {
+		pr_err("Invalid input parameters\n");
+		return -EINVAL;
+	}
+
+	if (!(commit->flags & MDP_COMMIT_AVR_EN))
+		return 0;
+
+	pinfo = &ctl->panel_data->panel_info;
+
+	if (!test_bit(MDSS_CAPS_AVR_SUPPORTED, mdata->mdss_caps_map) ||
+		(pinfo->max_fps == pinfo->min_fps)) {
+		pr_err("AVR not supported\n");
+		return -ENODEV;
+	}
+
+	if (pinfo->dynamic_fps &&
+		!(pinfo->dfps_update == DFPS_IMMEDIATE_PORCH_UPDATE_MODE_HFP ||
+		pinfo->dfps_update == DFPS_IMMEDIATE_PORCH_UPDATE_MODE_VFP)) {
+		pr_err("Dynamic fps and AVR cannot coexists\n");
+		return -EINVAL;
+	}
+
+	if (!ctl->is_video_mode) {
+		pr_err("AVR not supported in command mode\n");
+		return -EINVAL;
+	}
+
+	return req;
+}
+
+static void __update_avr_info(struct mdss_mdp_ctl *ctl,
+			struct mdp_layer_commit_v1 *commit)
+{
+	if (commit->flags & MDP_COMMIT_AVR_EN)
+		ctl->avr_info.avr_enabled = true;
+
+	ctl->avr_info.avr_mode = MDSS_MDP_AVR_CONTINUOUS;
+
+	if (commit->flags & MDP_COMMIT_AVR_ONE_SHOT_MODE)
+		ctl->avr_info.avr_mode = MDSS_MDP_AVR_ONE_SHOT;
+}
+
+/*
+ * __validate_dual_partial_update() - validation function for
+ * dual partial update ROIs
+ *
+ * - This function uses the commit structs "left_roi" and "right_roi"
+ *   to pass the first and second ROI information for the multiple
+ *   partial update feature.
+ * - Supports only SINGLE DSI with a max of 2 PU ROIs.
+ * - Not supported along with destination scalar.
+ * - Not supported when source-split is disabled.
+ * - Not supported with ping-pong split enabled.
+ */
+static int __validate_dual_partial_update(
+		struct mdss_mdp_ctl *ctl, struct mdp_layer_commit_v1 *commit)
+{
+	struct mdss_panel_info *pinfo = &ctl->panel_data->panel_info;
+	struct mdss_data_type *mdata = ctl->mdata;
+	struct mdss_rect first_roi, second_roi;
+	int ret = 0;
+	struct mdp_destination_scaler_data *ds_data = commit->dest_scaler;
+
+	if (!mdata->has_src_split
+			|| (is_panel_split(ctl->mfd))
+			|| (is_pingpong_split(ctl->mfd))
+			|| (ds_data && commit->dest_scaler_cnt &&
+			    ds_data->flags & MDP_DESTSCALER_ENABLE)) {
+		pr_err("Invalid mode multi pu src_split:%d, split_mode:%d, ds_cnt:%d\n",
+				mdata->has_src_split, ctl->mfd->split_mode,
+				commit->dest_scaler_cnt);
+		ret = -EINVAL;
+		goto end;
+	}
+
+	rect_copy_mdp_to_mdss(&commit->left_roi, &first_roi);
+	rect_copy_mdp_to_mdss(&commit->right_roi, &second_roi);
+
+	if (!is_valid_pu_dual_roi(pinfo, &first_roi, &second_roi))
+		ret = -EINVAL;
+
+	MDSS_XLOG(ctl->num, first_roi.x, first_roi.y, first_roi.w, first_roi.h,
+			second_roi.x, second_roi.y, second_roi.w, second_roi.h,
+			ret);
+	pr_debug("Multiple PU ROIs - roi0:{%d,%d,%d,%d}, roi1{%d,%d,%d,%d}, ret:%d\n",
+			first_roi.x, first_roi.y, first_roi.w, first_roi.h,
+			second_roi.x, second_roi.y, second_roi.w,
+			second_roi.h, ret);
+end:
+	return ret;
+}
 
 /*
  * __layer_needs_src_split() - check needs source split configuration
@@ -334,26 +973,30 @@ static int __validate_layer_reconfig(struct mdp_input_layer *layer,
 	struct mdss_mdp_pipe *pipe)
 {
 	int status = 0;
-	struct mdss_mdp_format_params *src_fmt;
+	struct mdss_mdp_format_params *layer_src_fmt;
+	struct mdss_data_type *mdata = mfd_to_mdata(pipe->mfd);
+	bool is_csc_db = (mdata->mdp_rev < MDSS_MDP_HW_REV_300) ? false : true;
+
+	layer_src_fmt = mdss_mdp_get_format_params(layer->buffer.format);
+	if (!layer_src_fmt) {
+		pr_err("Invalid layer format %d\n", layer->buffer.format);
+		status = -EINVAL;
+		goto err_exit;
+	}
 
 	/*
-	 * csc registers are not double buffered. It is not permitted
-	 * to change them on staged pipe with YUV layer.
+	 * HW earlier to sdm 3.x.x does not support double buffer CSC.
+	 * Invalidate any reconfig of CSC block on staged pipe.
 	 */
-	if (pipe->csc_coeff_set != layer->color_space) {
-		src_fmt = mdss_mdp_get_format_params(layer->buffer.format);
-		if (!src_fmt) {
-			pr_err("Invalid layer format %d\n",
-						layer->buffer.format);
-			status = -EINVAL;
-		} else {
-			if (pipe->src_fmt->is_yuv && src_fmt &&
-							src_fmt->is_yuv) {
-				status = -EPERM;
-				pr_err("csc change is not permitted on used pipe\n");
-			}
-		}
+	if (!is_csc_db &&
+		(pipe->src_fmt->is_yuv && layer_src_fmt->is_yuv &&
+		pipe->csc_coeff_set != layer->color_space)) {
+		pr_err("CSC reconfig not allowed on staged pipe\n");
+		status = -EINVAL;
+		goto err_exit;
 	}
+
+err_exit:
 	return status;
 }
 
@@ -472,10 +1115,6 @@ static int __validate_pipe_priorities(struct mdss_mdp_pipe *left,
 			(left->priority >= right->priority))
 		return -EINVAL;
 
-	if ((left->multirect.num < right->multirect.num) &&
-			(left->priority > right->priority))
-		return -EINVAL;
-
 	return 0;
 }
 
@@ -549,6 +1188,7 @@ static int __configure_pipe_params(struct msm_fb_data_type *mfd,
 	pipe->is_handed_off = false;
 	pipe->async_update = (layer->flags & MDP_LAYER_ASYNC) ? true : false;
 	pipe->csc_coeff_set = layer->color_space;
+	pipe->restore_roi = false;
 
 	if (mixer->ctl) {
 		pipe->dst.x += mixer->ctl->border_x_off;
@@ -556,15 +1196,19 @@ static int __configure_pipe_params(struct msm_fb_data_type *mfd,
 		pr_debug("border{%d,%d}\n", mixer->ctl->border_x_off,
 				mixer->ctl->border_y_off);
 	}
-	pr_debug("src{%d,%d,%d,%d}, dst{%d,%d,%d,%d}\n",
+	pr_debug("pipe:%d src{%d,%d,%d,%d}, dst{%d,%d,%d,%d}\n", pipe->num,
 		pipe->src.x, pipe->src.y, pipe->src.w, pipe->src.h,
 		pipe->dst.x, pipe->dst.y, pipe->dst.w, pipe->dst.h);
 
-	if (layer->flags & SCALER_ENABLED)
+	if (layer->flags & SCALER_ENABLED) {
 		memcpy(&pipe->scaler, layer->scale,
-			sizeof(struct mdp_scale_data_v2));
-
-	pipe->scaler.enable = (layer->flags & SCALER_ENABLED);
+				sizeof(struct mdp_scale_data_v2));
+		/* Sanitize enable flag */
+		pipe->scaler.enable &= (ENABLE_SCALE | ENABLE_DETAIL_ENHANCE |
+				ENABLE_DIRECTION_DETECTION);
+	} else {
+		pipe->scaler.enable = 0;
+	}
 
 	flags = pipe->flags;
 	if (is_single_layer)
@@ -632,9 +1276,9 @@ static int __configure_pipe_params(struct msm_fb_data_type *mfd,
 		} else if ((mixer_mux == MDSS_MDP_MIXER_MUX_LEFT) &&
 		    ((layer->dst_rect.x + layer->dst_rect.w) > mixer->width)) {
 			if (layer->dst_rect.x >= mixer->width) {
-				pr_err("err dst_x can't lie in right half\n");
-				pr_err("%pS flags:0x%x dst x:%d w:%d lm_w:%d\n",
-					__builtin_return_address(0),
+				pr_err("%pS: err dst_x can't lie in right half",
+					__builtin_return_address(0));
+				pr_cont(" flags:0x%x dst x:%d w:%d lm_w:%d\n",
 					layer->flags, layer->dst_rect.x,
 					layer->dst_rect.w, mixer->width);
 				ret = -EINVAL;
@@ -752,9 +1396,13 @@ static struct mdss_fence *__create_fence(struct msm_fb_data_type *mfd,
 	if (fence_type == MDSS_MDP_RETIRE_FENCE)
 		snprintf(fence_name, sizeof(fence_name), "fb%d_retire",
 			mfd->index);
-	else
+	else if (fence_type == MDSS_MDP_RELEASE_FENCE)
 		snprintf(fence_name, sizeof(fence_name), "fb%d_release",
 			mfd->index);
+	else if (fence_type == MDSS_MDP_CWB_RETIRE_FENCE)
+		snprintf(fence_name, sizeof(fence_name), "cwb%d_retire",
+			mfd->index);
+
 
 	if ((fence_type == MDSS_MDP_RETIRE_FENCE) &&
 		(mfd->panel.type == MIPI_CMD_PANEL)) {
@@ -767,6 +1415,9 @@ static struct mdss_fence *__create_fence(struct msm_fb_data_type *mfd,
 		} else {
 			return ERR_PTR(-EPERM);
 		}
+	} else if (fence_type == MDSS_MDP_CWB_RETIRE_FENCE) {
+		sync_fence = mdss_fb_sync_get_fence(sync_pt_data->timeline,
+				fence_name, sync_pt_data->timeline_value + 1);
 	} else {
 		if (fence_type == MDSS_MDP_RETIRE_FENCE)
 			sync_fence = mdss_fb_sync_get_fence(
@@ -841,8 +1492,9 @@ static int __handle_buffer_fences(struct msm_fb_data_type *mfd,
 				sync_pt_data->fence_name, layer->buffer.fence);
 			ret = -EINVAL;
 			break;
+		} else {
+			sync_pt_data->acq_fen[acq_fen_count++] = fence;
 		}
-		sync_pt_data->acq_fen[acq_fen_count++] = fence;
 	}
 	sync_pt_data->acq_fen_cnt = acq_fen_count;
 	if (ret)
@@ -1048,11 +1700,24 @@ static struct mdss_mdp_pipe *__find_and_move_cleanup_pipe(
 	enum mdss_mdp_pipe_rect rect_num)
 {
 	struct mdss_mdp_pipe *pipe = NULL;
+	struct mdss_mdp_data *buf, *tmpbuf;
 
 	if (__find_pipe_in_list(&mdp5_data->pipes_destroy,
 				pipe_ndx, &pipe, rect_num)) {
 		pr_debug("reuse destroy pipe id:%d ndx:%d rect:%d\n",
 				pipe->num, pipe_ndx, rect_num);
+		/*
+		 * Pipe is being moved from destroy list to used list.
+		 * It is possible that the buffer which was attached to a pipe
+		 * in destroy list hasn't been cleaned up yet. Mark the buffers
+		 * as cleanup to make sure that they will be freed before the
+		 * pipe is reused.
+		 */
+		list_for_each_entry_safe(buf, tmpbuf, &pipe->buf_queue,
+						pipe_list) {
+			buf->state = MDP_BUF_STATE_CLEANUP;
+			list_del_init(&buf->pipe_list);
+		}
 		list_move(&pipe->list, &mdp5_data->pipes_used);
 	} else if (__find_pipe_in_list(&mdp5_data->pipes_cleanup,
 				pipe_ndx, &pipe, rect_num)) {
@@ -1140,40 +1805,6 @@ end:
 }
 
 /*
- * __is_sd_state_valid() - validate secure display state
- *
- * This function checks if the current state of secrure display is valid,
- * based on the new settings.
- * For command mode panels, the sd state would be invalid if a non secure pipe
- * comes and one of the below condition is met:
- *	1) Secure Display is enabled for current client, and there is other
-	secure client.
- *	2) Secure Display is disabled for current client, and there is other
-	secure client.
- *	3) Secure pipes are already staged for the current client.
- * For other panels, the sd state would be invalid if a non secure pipe comes
- * and one of the below condition is met:
- *	1) Secure Display is enabled for current or other client.
- *	2) Secure pipes are already staged for the current client.
- *
- */
-static inline bool __is_sd_state_valid(uint32_t sd_pipes, uint32_t nonsd_pipes,
-	int panel_type, u32 sd_enabled)
-{
-	if (panel_type == MIPI_CMD_PANEL) {
-		if ((((mdss_get_sd_client_cnt() > 1) && sd_enabled) ||
-			(mdss_get_sd_client_cnt() && !sd_enabled) ||
-			sd_pipes)
-			&& nonsd_pipes)
-			return false;
-	} else {
-		if ((sd_pipes || mdss_get_sd_client_cnt()) && nonsd_pipes)
-			return false;
-	}
-	return true;
-}
-
-/*
  * __validate_secure_session() - validate various secure sessions
  *
  * This function travers through used pipe list and checks if any pipe
@@ -1186,7 +1817,6 @@ static int __validate_secure_session(struct mdss_overlay_private *mdp5_data)
 {
 	struct mdss_mdp_pipe *pipe, *tmp;
 	uint32_t sd_pipes = 0, nonsd_pipes = 0;
-	int panel_type = mdp5_data->ctl->panel_data->panel_info.type;
 	uint32_t secure_vid_pipes = 0, secure_cam_pipes = 0;
 
 	mutex_lock(&mdp5_data->list_lock);
@@ -1204,13 +1834,16 @@ static int __validate_secure_session(struct mdss_overlay_private *mdp5_data)
 
 	pr_debug("pipe count:: secure display:%d non-secure:%d secure-vid:%d,secure-cam:%d\n",
 		sd_pipes, nonsd_pipes, secure_vid_pipes, secure_cam_pipes);
+	MDSS_XLOG(mdss_get_sd_client_cnt(), sd_pipes, nonsd_pipes,
+			secure_vid_pipes, secure_cam_pipes);
 
 	if (mdss_get_sd_client_cnt() && !mdp5_data->sd_enabled) {
 		pr_err("Secure session already enabled for other client\n");
 		return -EINVAL;
 	}
 
-	if ((sd_pipes || mdss_get_sd_client_cnt()) &&
+	if (((sd_pipes) || (mdp5_data->ctl->is_video_mode &&
+		mdss_get_sd_client_cnt())) &&
 		(nonsd_pipes || secure_vid_pipes ||
 		secure_cam_pipes)) {
 		pr_err("non-secure layer validation request during secure display session\n");
@@ -1223,9 +1856,15 @@ static int __validate_secure_session(struct mdss_overlay_private *mdp5_data)
 		pr_err("secure-camera cnt:%d secure video:%d secure display:%d\n",
 				secure_cam_pipes, secure_vid_pipes, sd_pipes);
 		return -EINVAL;
-	} else {
-		return 0;
+	} else if (mdp5_data->ctl->is_video_mode &&
+		((sd_pipes && !mdp5_data->sd_enabled) ||
+		(!sd_pipes && mdp5_data->sd_enabled)) &&
+		!mdp5_data->cache_null_commit) {
+		pr_err("NULL commit missing before display secure session entry/exit\n");
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 /*
@@ -1472,10 +2111,10 @@ static int __multirect_validate_mode(struct msm_fb_data_type *mfd,
 			yoffset = 0;
 
 		/*
-		 * time multiplexed is possible only if the y position of layers
-		 * is not overlapping and there is sufficient time to buffer
-		 * 2 lines/tiles.  Otherwise use parallel fetch mode
-		 */
+		* time multiplexed is possible only if the y position of layers
+		* is not overlapping and there is sufficient time to buffer
+		* 2 lines/tiles.  Otherwise use parallel fetch mode
+		*/
 		threshold = 2;
 		if (is_ubwc) {
 			struct mdss_mdp_format_params_ubwc *uf;
@@ -1707,6 +2346,78 @@ static int __validate_multirect(struct msm_fb_data_type *mfd,
 	return 0;
 }
 
+static int __check_source_split(struct mdp_input_layer *layer_list,
+	struct mdss_mdp_pipe **pipe_list, u32 index,
+	u32 left_lm_w, struct mdss_mdp_pipe **left_blend_pipe)
+{
+	int i = index - 1;
+	struct mdp_input_layer *curr, *prev;
+	struct mdp_rect *left, *right;
+	bool match = false;
+	struct mdss_mdp_pipe *left_pipe = NULL;
+
+	/*
+	 * check if current layer is at same z_order as any of the
+	 * previous layers, and fail if any or both are async layers,
+	 * as async layers should have unique z_order.
+	 *
+	 * If it has same z_order and qualifies as a right blend,
+	 * pass a pointer to the pipe representing previous overlay or
+	 * in other terms left blend layer.
+	 *
+	 * Following logic of selecting left_blend has an inherent
+	 * assumption that layer list is sorted on dst_x within a
+	 * same z_order. Otherwise it will fail based on z_order checks.
+	 */
+	curr = &layer_list[index];
+
+	while (i >= 0) {
+		if (layer_list[i].z_order == curr->z_order) {
+			pr_debug("z=%d found match @ %d of %d\n",
+				curr->z_order, i, index);
+			match = true;
+			break;
+		}
+		i--;
+	}
+
+	if (match) {
+		left_pipe = pipe_list[i];
+		prev = &layer_list[i];
+		left = &prev->dst_rect;
+		right = &curr->dst_rect;
+
+		if ((curr->flags & MDP_LAYER_ASYNC)
+			|| (prev->flags & MDP_LAYER_ASYNC)) {
+			curr->error_code = -EINVAL;
+			pr_err("async curr should have unique z_order\n");
+			return curr->error_code;
+		}
+
+		/*
+		 * check if curr is right blend by checking it's
+		 * directly to the right.
+		 */
+		if (((left->x + left->w) == right->x) &&
+		    (left->y == right->y) && (left->h == right->h)) {
+			*left_blend_pipe = left_pipe;
+			MDSS_XLOG(curr->z_order, i, index);
+		}
+
+		/*
+		 * if the curr is right at the left lm boundary and
+		 * src split is not required then right blend is not
+		 * required as it will lie only on the left mixer
+		 */
+		if (!__layer_needs_src_split(prev) &&
+		    ((left->x + left->w) == left_lm_w))
+			*left_blend_pipe = NULL;
+	}
+
+	return 0;
+}
+
+
 /*
  * __validate_layers() - validate input layers
  * @mfd:	Framebuffer data structure for display
@@ -1728,19 +2439,23 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 	u32 left_lm_w = left_lm_w_from_mfd(mfd);
 	u32 mixer_mux, dst_x;
 	int layer_count = commit->input_layer_cnt;
+	u32 ds_mode = 0;
 
 	struct mdss_mdp_pipe *pipe = NULL, *tmp, *left_blend_pipe;
 	struct mdss_mdp_pipe *right_plist[MAX_PIPES_PER_LM] = {0};
 	struct mdss_mdp_pipe *left_plist[MAX_PIPES_PER_LM] = {0};
 	struct mdss_overlay_private *mdp5_data = mfd_to_mdp5_data(mfd);
+	struct mdss_data_type *mdata = mfd_to_mdata(mfd);
 
 	struct mdss_mdp_mixer *mixer = NULL;
-	struct mdp_input_layer *layer, *prev_layer, *layer_list;
+	struct mdp_input_layer *layer = NULL, *layer_list;
 	struct mdss_mdp_validate_info_t *validate_info_list = NULL;
 	bool is_single_layer = false, force_validate;
 	enum layer_pipe_q pipe_q_type;
 	enum layer_zorder_used zorder_used[MDSS_MDP_MAX_STAGE] = {0};
 	enum mdss_mdp_pipe_rect rect_num;
+	struct mdp_destination_scaler_data *ds_data;
+	struct mdss_mdp_pipe *pipe_list[MAX_LAYER_COUNT] = {0};
 
 	ret = mutex_lock_interruptible(&mdp5_data->ov_lock);
 	if (ret)
@@ -1783,7 +2498,7 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 			}
 		}
 		rect_num = validate_info_list[i].multirect.num;
-		WARN_ON(rect_num >= MDSS_MDP_PIPE_MAX_RECTS);
+		BUG_ON(rect_num >= MDSS_MDP_PIPE_MAX_RECTS);
 
 		if (rec_ndx[rect_num] & layer_list[i].pipe_ndx) {
 			pr_err("duplicate layer found pipe_ndx=%d rect=%d (0x%x)\n",
@@ -1812,49 +2527,10 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 		dst_x = layer->dst_rect.x;
 		left_blend_pipe = NULL;
 
-		prev_layer = (i > 0) ? &layer_list[i - 1] : NULL;
-		/*
-		 * check if current layer is at same z_order as
-		 * previous one, and fail if any or both are async layers,
-		 * as async layers should have unique z_order.
-		 *
-		 * If it has same z_order and qualifies as a right blend,
-		 * pass a pointer to the pipe representing previous overlay or
-		 * in other terms left blend layer.
-		 *
-		 * Following logic of selecting left_blend has an inherent
-		 * assumption that layer list is sorted on dst_x within a
-		 * same z_order. Otherwise it will fail based on z_order checks.
-		 */
-		if (prev_layer && (prev_layer->z_order == layer->z_order)) {
-			struct mdp_rect *left = &prev_layer->dst_rect;
-			struct mdp_rect *right = &layer->dst_rect;
-
-			if ((layer->flags & MDP_LAYER_ASYNC)
-				|| (prev_layer->flags & MDP_LAYER_ASYNC)) {
-				ret = -EINVAL;
-				layer->error_code = ret;
-				pr_err("async layer should have unique z_order\n");
-				goto validate_exit;
-			}
-
-			/*
-			 * check if layer is right blend by checking it's
-			 * directly to the right.
-			 */
-			if (((left->x + left->w) == right->x) &&
-			    (left->y == right->y) && (left->h == right->h))
-				left_blend_pipe = pipe;
-
-			/*
-			 * if the layer is right at the left lm boundary and
-			 * src split is not required then right blend is not
-			 * required as it will lie only on the left mixer
-			 */
-			if (!__layer_needs_src_split(prev_layer) &&
-			    ((left->x + left->w) == left_lm_w))
-				left_blend_pipe = NULL;
-		}
+		if ((i > 0) &&
+		    __check_source_split(layer_list, pipe_list, i, left_lm_w,
+		    &left_blend_pipe))
+			goto validate_exit;
 
 		if (!is_split_lm(mfd) || __layer_needs_src_split(layer))
 			z = LAYER_ZORDER_BOTH;
@@ -1898,6 +2574,8 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 				right_plist[right_cnt++] = pipe;
 			else
 				left_plist[left_cnt++] = pipe;
+
+			pipe_list[i] = pipe;
 
 			if (layer->flags & MDP_LAYER_PP) {
 				memcpy(&pipe->pp_cfg, layer->pp_info,
@@ -1949,7 +2627,7 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 			rec_destroy_ndx[rect_num] |= pipe->ndx;
 
 		ret = mdss_mdp_pipe_map(pipe);
-		if (IS_ERR_VALUE((unsigned long)ret)) {
+		if (IS_ERR_VALUE((unsigned long) ret)) {
 			pr_err("Unable to map used pipe%d ndx=%x\n",
 				pipe->num, pipe->ndx);
 			layer->error_code = ret;
@@ -1991,7 +2669,42 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 		else
 			left_plist[left_cnt++] = pipe;
 
+		pipe_list[i] = pipe;
+
+		pr_debug("id:0x%x flags:0x%x dst_x:%d\n",
+			layer->pipe_ndx, layer->flags, layer->dst_rect.x);
 		layer->z_order -= MDSS_MDP_STAGE_0;
+	}
+
+	ds_data = commit->dest_scaler;
+
+	if (test_bit(MDSS_CAPS_DEST_SCALER, mdata->mdss_caps_map)
+		&& ds_data && commit->dest_scaler_cnt
+		&& (ds_data->flags & MDP_DESTSCALER_ENABLE)) {
+
+		/*
+		 * Find out which DS block to use based on DS commit info
+		 */
+		if (commit->dest_scaler_cnt == 2)
+			ds_mode = DS_DUAL_MODE;
+		else if (ds_data->dest_scaler_ndx == 0)
+			ds_mode = DS_LEFT;
+		else if (ds_data->dest_scaler_ndx == 1)
+			ds_mode = DS_RIGHT;
+		else {
+			pr_err("Commit destination scaler count not matching with LM assignment, DS-cnt:%d\n",
+					commit->dest_scaler_cnt);
+			ret = -EINVAL;
+			goto validate_exit;
+		}
+
+		ret = mdss_mdp_validate_destination_scaler(mfd,
+				ds_data, ds_mode);
+		if (ret) {
+			pr_err("fail to validate destination scaler\n");
+			layer->error_code = ret;
+			goto validate_exit;
+		}
 	}
 
 	ret = mdss_mdp_perf_bw_check(mdp5_data->ctl, left_plist, left_cnt,
@@ -2017,11 +2730,11 @@ validate_exit:
 			rec_destroy_ndx[0], rec_destroy_ndx[1], ret);
 	mutex_lock(&mdp5_data->list_lock);
 	list_for_each_entry_safe(pipe, tmp, &mdp5_data->pipes_used, list) {
-		if (IS_ERR_VALUE((unsigned long)ret)) {
+		if (IS_ERR_VALUE((unsigned long) ret)) {
 			if (((pipe->ndx & rec_release_ndx[0]) &&
-						(pipe->multirect.num == 0)) ||
-					((pipe->ndx & rec_release_ndx[1]) &&
-					 (pipe->multirect.num == 1))) {
+					(pipe->multirect.num == 0)) ||
+				((pipe->ndx & rec_release_ndx[1]) &&
+					(pipe->multirect.num == 1))) {
 				mdss_mdp_smp_unreserve(pipe);
 				pipe->params_changed = 0;
 				pipe->dirty = true;
@@ -2031,7 +2744,7 @@ validate_exit:
 			} else if (((pipe->ndx & rec_destroy_ndx[0]) &&
 						(pipe->multirect.num == 0)) ||
 					((pipe->ndx & rec_destroy_ndx[1]) &&
-					 (pipe->multirect.num == 1))) {
+						(pipe->multirect.num == 1))) {
 				/*
 				 * cleanup/destroy list pipes should move back
 				 * to destroy list. Next/current kickoff cycle
@@ -2057,41 +2770,17 @@ end:
 	return ret;
 }
 
-/*
- * __parse_frc_info() - parse frc info from userspace
- * @mdp5_data: mdss data per FB device
- * @input_frc: frc info from user space
- *
- * This function fills the FRC info of current device which will be used
- * during following kickoff.
- */
-static void __parse_frc_info(struct mdss_overlay_private *mdp5_data,
-	struct mdp_frc_info *input_frc)
+int __is_cwb_requested(uint32_t commit_flags)
 {
-	struct mdss_mdp_ctl *ctl = mdp5_data->ctl;
-	struct mdss_mdp_frc_fsm *frc_fsm = mdp5_data->frc_fsm;
+	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
+	int req = 0;
 
-	if (input_frc->flags & MDP_VIDEO_FRC_ENABLE) {
-		struct mdss_mdp_frc_info *frc_info = &frc_fsm->frc_info;
-
-		if (!frc_fsm->enable) {
-			/* init frc_fsm when first entry */
-			mdss_mdp_frc_fsm_init_state(frc_fsm);
-			/* keep vsync on when FRC is enabled */
-			ctl->ops.add_vsync_handler(ctl,
-					&ctl->frc_vsync_handler);
-		}
-
-		frc_info->cur_frc.frame_cnt = input_frc->frame_cnt;
-		frc_info->cur_frc.timestamp = input_frc->timestamp;
-	} else if (frc_fsm->enable) {
-		/* remove vsync handler when FRC is disabled */
-		ctl->ops.remove_vsync_handler(ctl, &ctl->frc_vsync_handler);
+	req = commit_flags & MDP_COMMIT_CWB_EN;
+	if (req && !test_bit(MDSS_CAPS_CWB_SUPPORTED, mdata->mdss_caps_map)) {
+		pr_err("CWB not supported");
+		return -ENODEV;
 	}
-
-	frc_fsm->enable = input_frc->flags & MDP_VIDEO_FRC_ENABLE;
-
-	pr_debug("frc_enable=%d\n", frc_fsm->enable);
+	return req;
 }
 
 /*
@@ -2118,19 +2807,44 @@ int mdss_mdp_layer_pre_commit(struct msm_fb_data_type *mfd,
 	struct mdss_overlay_private *mdp5_data;
 	struct mdss_mdp_data *src_data[MDSS_MDP_MAX_SSPP];
 	struct mdss_mdp_validate_info_t *validate_info_list;
+	struct mdss_mdp_ctl *sctl = NULL;
 
 	mdp5_data = mfd_to_mdp5_data(mfd);
 
 	if (!mdp5_data || !mdp5_data->ctl)
 		return -EINVAL;
 
+	if (commit->output_layer) {
+		ret = __is_cwb_requested(commit->flags);
+		if (IS_ERR_VALUE((unsigned long) ret)) {
+			return ret;
+		} else if (ret) {
+			ret = mdss_mdp_layer_pre_commit_cwb(mfd, commit);
+			if (ret) {
+				pr_err("pre commit failed for CWB\n");
+				return ret;
+			}
+		}
+	}
+
+	ret = mdss_mdp_avr_validate(mfd, commit);
+	if (IS_ERR_VALUE((unsigned long) ret)) {
+		pr_err("AVR validate failed\n");
+		return -EINVAL;
+	}
+
+	__update_avr_info(mdp5_data->ctl, commit);
+
+	sctl = mdss_mdp_get_split_ctl(mdp5_data->ctl);
+	if (sctl)
+		__update_avr_info(sctl, commit);
+
 	layer_list = commit->input_layers;
 
 	/* handle null commit */
 	if (!layer_count) {
 		__handle_free_list(mdp5_data, NULL, layer_count);
-		/* Check for secure state transition. */
-		return __validate_secure_session(mdp5_data);
+		return 0;
 	}
 
 	validate_info_list = kcalloc(layer_count, sizeof(*validate_info_list),
@@ -2199,11 +2913,11 @@ int mdss_mdp_layer_pre_commit(struct msm_fb_data_type *mfd,
 	}
 	mutex_unlock(&mdp5_data->list_lock);
 
-	if (commit->frc_info)
-		__parse_frc_info(mdp5_data, commit->frc_info);
-
 	ret = __handle_buffer_fences(mfd, commit, layer_list);
-
+	if (ret) {
+		pr_err("failed to handle fences for fb: %d", mfd->index);
+		goto map_err;
+	}
 map_err:
 	if (ret) {
 		mutex_lock(&mdp5_data->list_lock);
@@ -2231,6 +2945,9 @@ int mdss_mdp_layer_atomic_validate(struct msm_fb_data_type *mfd,
 	struct file *file, struct mdp_layer_commit_v1 *commit)
 {
 	struct mdss_overlay_private *mdp5_data;
+	struct mdp_destination_scaler_data *ds_data;
+	struct mdss_panel_info *pinfo;
+	int rc = 0;
 
 	if (!mfd || !commit) {
 		pr_err("invalid input params\n");
@@ -2244,13 +2961,105 @@ int mdss_mdp_layer_atomic_validate(struct msm_fb_data_type *mfd,
 		return -ENODEV;
 	}
 
-	if (mdss_fb_is_power_off(mfd)) {
+	if (mdss_fb_is_power_off(mfd) ||
+		mdss_fb_is_power_on_ulp(mfd)) {
 		pr_err("display interface is in off state fb:%d\n",
 			mfd->index);
 		return -EPERM;
 	}
 
+	if (commit->output_layer) {
+		rc = __is_cwb_requested(commit->flags);
+		if (IS_ERR_VALUE((unsigned long) rc)) {
+			return rc;
+		} else if (rc) {
+			rc = mdss_mdp_cwb_validate(mfd, commit->output_layer);
+			if (rc) {
+				pr_err("failed to validate CWB config!!!\n");
+				return rc;
+			}
+		}
+	}
+
+	pinfo = mfd->panel_info;
+	if (pinfo->partial_update_enabled == PU_DUAL_ROI) {
+		if (commit->flags & MDP_COMMIT_PARTIAL_UPDATE_DUAL_ROI) {
+			rc = __validate_dual_partial_update(mdp5_data->ctl,
+					commit);
+			if (IS_ERR_VALUE((unsigned long) rc)) {
+				pr_err("Multiple pu pre-validate fail\n");
+				return rc;
+			}
+		}
+	} else {
+		if (commit->flags & MDP_COMMIT_PARTIAL_UPDATE_DUAL_ROI) {
+			pr_err("Multiple partial update not supported!\n");
+			return -EINVAL;
+		}
+	}
+
+	ds_data = commit->dest_scaler;
+	if (ds_data && commit->dest_scaler_cnt &&
+			(ds_data->flags & MDP_DESTSCALER_ENABLE)) {
+		rc = mdss_mdp_destination_scaler_pre_validate(mdp5_data->ctl,
+				ds_data, commit->dest_scaler_cnt);
+		if (IS_ERR_VALUE((unsigned long) rc)) {
+			pr_err("Destination scaler pre-validate failed\n");
+			return -EINVAL;
+		}
+	} else
+		mdss_mdp_disable_destination_scaler_setup(mdp5_data->ctl);
+
+	rc = mdss_mdp_avr_validate(mfd, commit);
+	if (IS_ERR_VALUE((unsigned long) rc)) {
+		pr_err("AVR validate failed\n");
+		return -EINVAL;
+	}
+
 	return __validate_layers(mfd, file, commit);
+}
+
+int mdss_mdp_layer_pre_commit_cwb(struct msm_fb_data_type *mfd,
+		struct mdp_layer_commit_v1 *commit)
+{
+	struct mdss_overlay_private *mdp5_data;
+	struct mdss_mdp_wb_data *cwb_data = NULL;
+	int rc = 0;
+
+	mdp5_data = mfd_to_mdp5_data(mfd);
+
+	rc = mdss_mdp_cwb_check_resource(mfd_to_ctl(mfd),
+			commit->output_layer->writeback_ndx);
+	if (rc) {
+		pr_err("CWB resource not available\n");
+		return rc;
+	}
+
+	/* Add data to the cwb queue */
+	cwb_data = kzalloc(sizeof(struct mdss_mdp_wb_data), GFP_KERNEL);
+	if (!cwb_data)
+		return -ENOMEM;
+
+	cwb_data->layer = *commit->output_layer;
+	rc = mdss_mdp_wb_import_data(&mfd->pdev->dev, cwb_data);
+	if (rc) {
+		pr_err("failed to import data for cwb\n");
+		kfree(cwb_data);
+		return rc;
+	}
+
+	mdp5_data->cwb.layer = *commit->output_layer;
+	mdp5_data->cwb.layer.flags |=  (commit->flags & MDP_COMMIT_CWB_DSPP) ?
+			MDP_COMMIT_CWB_DSPP : 0;
+	mdp5_data->cwb.wb_idx = commit->output_layer->writeback_ndx;
+
+	mutex_lock(&mdp5_data->cwb.queue_lock);
+	list_add_tail(&cwb_data->next, &mdp5_data->cwb.data_queue);
+	mutex_unlock(&mdp5_data->cwb.queue_lock);
+
+	mdp5_data->cwb.valid = 1;
+
+	return 0;
 }
 
 int mdss_mdp_layer_pre_commit_wfd(struct msm_fb_data_type *mfd,
@@ -2260,7 +3069,7 @@ int mdss_mdp_layer_pre_commit_wfd(struct msm_fb_data_type *mfd,
 	struct mdss_overlay_private *mdp5_data;
 	struct mdss_mdp_wfd *wfd = NULL;
 	struct mdp_output_layer *output_layer = NULL;
-	struct mdss_mdp_wfd_data *data = NULL;
+	struct mdss_mdp_wb_data *data = NULL;
 	struct mdss_fence *fence = NULL;
 	struct msm_sync_pt_data *sync_pt_data = NULL;
 
