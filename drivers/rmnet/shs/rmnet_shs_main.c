@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -42,6 +42,8 @@
 #define GET_CTIMER(CPU) rmnet_shs_cfg.core_flush[CPU].core_timer
 
 #define SKB_FLUSH 0
+#define INCREMENT 1
+#define DECREMENT 0
 /* Local Definitions and Declarations */
 DEFINE_SPINLOCK(rmnet_shs_ht_splock);
 DEFINE_HASHTABLE(RMNET_SHS_HT, RMNET_SHS_HT_SIZE);
@@ -114,13 +116,21 @@ unsigned int rmnet_shs_cpu_max_coresum[MAX_CPUS];
 module_param_array(rmnet_shs_cpu_max_coresum, uint, 0, 0644);
 MODULE_PARM_DESC(rmnet_shs_cpu_max_coresum, "Max coresum seen of each core");
 
+static void rmnet_shs_change_cpu_num_flows(u16 map_cpu, bool inc)
+{
+	if (map_cpu < MAX_CPUS)
+		(inc) ? cpu_num_flows[map_cpu]++: cpu_num_flows[map_cpu]--;
+	else
+		rmnet_shs_crit_err[RMNET_SHS_CPU_FLOWS_BNDS_ERR]++;
+}
+
 void rmnet_shs_cpu_node_remove(struct rmnet_shs_skbn_s *node)
 {
 	SHS_TRACE_LOW(RMNET_SHS_CPU_NODE, RMNET_SHS_CPU_NODE_FUNC_REMOVE,
 			    0xDEF, 0xDEF, 0xDEF, 0xDEF, NULL, NULL);
 
 	list_del_init(&node->node_id);
-	cpu_num_flows[node->map_cpu]--;
+	rmnet_shs_change_cpu_num_flows(node->map_cpu, DECREMENT);
 
 }
 
@@ -131,7 +141,7 @@ void rmnet_shs_cpu_node_add(struct rmnet_shs_skbn_s *node,
 			    0xDEF, 0xDEF, 0xDEF, 0xDEF, NULL, NULL);
 
 	list_add(&node->node_id, hd);
-	cpu_num_flows[node->map_cpu]++;
+	rmnet_shs_change_cpu_num_flows(node->map_cpu, INCREMENT);
 }
 
 void rmnet_shs_cpu_node_move(struct rmnet_shs_skbn_s *node,
@@ -141,8 +151,8 @@ void rmnet_shs_cpu_node_move(struct rmnet_shs_skbn_s *node,
 			    0xDEF, 0xDEF, 0xDEF, 0xDEF, NULL, NULL);
 
 	list_move(&node->node_id, hd);
-	cpu_num_flows[node->map_cpu]++;
-	cpu_num_flows[oldcpu]--;
+	rmnet_shs_change_cpu_num_flows(node->map_cpu, INCREMENT);
+	rmnet_shs_change_cpu_num_flows((u16) oldcpu, DECREMENT);
 }
 
 /* Evaluates the incoming transport protocol of the incoming skb. Determines
@@ -1359,14 +1369,25 @@ void rmnet_shs_rx_wq_init(void)
 	INIT_WORK(&shs_rx_work.work, rmnet_flush_buffered);
 }
 
-void rmnet_shs_rx_wq_exit(void)
+unsigned int rmnet_shs_rx_wq_exit(void)
 {
+	unsigned int cpu_switch = rmnet_shs_inst_rate_switch;
 	int i;
 
-	for (i = 0; i < MAX_CPUS; i++)
+	/* Disable any further core_flush timer starts untill cleanup
+	 * is complete.
+	 */
+	rmnet_shs_inst_rate_switch = 0;
+
+	for (i = 0; i < MAX_CPUS; i++) {
+		hrtimer_cancel(&GET_CTIMER(i));
+
 		cancel_work_sync(&rmnet_shs_cfg.core_flush[i].work);
+	}
 
 	cancel_work_sync(&shs_rx_work.work);
+
+	return cpu_switch;
 }
 
 void rmnet_shs_ps_on_hdlr(void *port)
@@ -1724,7 +1745,7 @@ void rmnet_shs_assign(struct sk_buff *skb, struct rmnet_port *port)
 /* Cancels the flushing timer if it has been armed
  * Deregisters DL marker indications
  */
-void rmnet_shs_exit(void)
+void rmnet_shs_exit(unsigned int cpu_switch)
 {
 	rmnet_shs_freq_exit();
 	rmnet_shs_cfg.dl_mrk_ind_cb.dl_hdr_handler = NULL;
@@ -1738,5 +1759,5 @@ void rmnet_shs_exit(void)
 	memset(&rmnet_shs_cfg, 0, sizeof(rmnet_shs_cfg));
 	rmnet_shs_cfg.port = NULL;
 	rmnet_shs_cfg.rmnet_shs_init_complete = 0;
-
+	rmnet_shs_inst_rate_switch = cpu_switch;
 }

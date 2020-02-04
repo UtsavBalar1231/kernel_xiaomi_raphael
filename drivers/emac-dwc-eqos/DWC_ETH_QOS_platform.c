@@ -899,6 +899,16 @@ static int DWC_ETH_QOS_get_dts_config(struct platform_device *pdev)
 		dwc_eth_qos_res_data.is_pinctrl_names = true;
 		EMACDBG("qcom,pinctrl-names present\n");
 	}
+	dwc_eth_qos_res_data.phy_addr = -1;
+	if (of_property_read_bool(pdev->dev.of_node, "emac-phy-addr")) {
+		ret = of_property_read_u32(pdev->dev.of_node, "emac-phy-addr",
+			&dwc_eth_qos_res_data.phy_addr);
+		if (ret) {
+			EMACINFO("Pphy_addr not specified, using dynamic phy detection\n");
+			dwc_eth_qos_res_data.phy_addr = -1;
+		}
+		EMACINFO("phy_addr = %d\n", dwc_eth_qos_res_data.phy_addr);
+	}
 
 	return ret;
 
@@ -1470,6 +1480,8 @@ static int DWC_ETH_QOS_init_gpios(struct device *dev)
 
 		gpio_set_value(dwc_eth_qos_res_data.gpio_phy_reset, PHY_RESET_GPIO_HIGH);
 		EMACDBG("PHY is out of reset successfully\n");
+		/* Add delay of 50ms so that phy should get sufficient time*/
+		mdelay(50);
 	}
 
 	return ret;
@@ -1829,10 +1841,17 @@ static int DWC_ETH_QOS_configure_netdevice(struct platform_device *pdev)
 
 	DWC_ETH_QOS_init_rx_coalesce(pdata);
 
+	if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_2_0 )
+		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_57_6;
+	else if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_1_2 || dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_1)
+		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_96;
+	else if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_2 )
+		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_62_5;
+
 #ifdef DWC_ETH_QOS_CONFIG_PTP
 	DWC_ETH_QOS_ptp_init(pdata);
 	/*default ptp clock frequency set to 50Mhz*/
-	pdata->ptpclk_freq = DWC_ETH_QOS_DEFAULT_PTP_CLOCK;
+	pdata->ptpclk_freq = pdata->default_ptp_clock;
 #endif /* end of DWC_ETH_QOS_CONFIG_PTP */
 
 #endif /* end of DWC_ETH_QOS_CONFIG_PGTEST */
