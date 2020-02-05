@@ -70,7 +70,7 @@ void lim_ft_cleanup_all_ft_sessions(struct mac_context *mac)
 void lim_ft_cleanup(struct mac_context *mac, struct pe_session *pe_session)
 {
 	if (!pe_session) {
-		pe_err("pe_session is NULL");
+		pe_debug("pe_session is NULL");
 		return;
 	}
 
