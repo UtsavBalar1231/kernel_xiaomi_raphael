@@ -48,7 +48,7 @@
 				"clk-aggre2-usb3-axi-cfg-no-rate",
 				"clk-cfg-noc-usb2-axi-no-rate";
 				clocks =
-				<&clock_rpmcc RPM_IPA_CLK>,
+				<&clock_rpmcc RPM_SMD_IPA_CLK>,
 				<&clock_gcc GCC_UFS_AXI_CLK>,
 				<&clock_gcc GCC_AGGRE2_UFS_AXI_CLK>,
 				<&clock_gcc GCC_AGGRE2_USB3_AXI_CLK>,
@@ -96,14 +96,14 @@
 			qcom,base-offset = <20480>;
 			qcom,util-fact = <153>;
 			clock-names = "bus_clk", "bus_a_clk";
-			clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>,
-				<&clock_rpmcc MMSSNOC_AXI_A_CLK>;
+			clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
+				<&clock_rpmcc RPM_SMD_MMSSNOC_AXI_A_CLK>;
 			qcom,node-qos-clks {
 				clock-names =
 				"clk-mmssnoc-axi-no-rate",
 				"clk-mmss-noc-cfg-ahb-no-rate";
 				clocks =
-				<&clock_rpmcc MMSSNOC_AXI_CLK>,
+				<&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>,
 				<&clock_gcc GCC_MMSS_NOC_CFG_AHB_CLK>;
 			};
 		};
@@ -1130,7 +1130,7 @@
 			qcom,slv-rpm-id = <ICBID_SLAVE_MNOC_BIMC>;
 			qcom,enable-only-clk;
 			clock-names = "node_clk";
-			clocks = <&clock_rpmcc MMSSNOC_AXI_CLK>;
+			clocks = <&clock_rpmcc RPM_SMD_MMSSNOC_AXI_CLK>;
 		};
 
 		slv_srvc_mnoc:slv-srvc-mnoc {
