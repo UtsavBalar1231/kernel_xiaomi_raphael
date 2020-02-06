@@ -4014,7 +4014,6 @@ wma_handle_channel_switch_req_timeout(tp_wma_handle wma,
 
 	iface = &wma->interfaces[req->vdev_id];
 	mlme_set_chan_switch_in_progress(iface->vdev, false);
-
 	wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
 				   (void *)params, 0);
 }
@@ -5628,7 +5627,6 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 
 		if (wmi_service_enabled(wma->wmi_handle,
 					    wmi_service_peer_assoc_conf)) {
-			WMA_LOGD(FL("WMI_SERVICE_PEER_ASSOC_CONF is enabled"));
 			peer_assoc_cnf = true;
 			msg = wma_fill_hold_req(wma, params->smesessionId,
 				WMA_ADD_STA_REQ, WMA_PEER_ASSOC_CNF_START,
