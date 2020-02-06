@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -937,7 +937,7 @@ static __iw_softap_setparam(struct net_device *dev,
 		if (wlan_reg_is_dfs_ch(pdev, ch))
 			tgt_dfs_process_radar_ind(pdev, &radar);
 		else
-			hdd_err("Ignore set radar, op ch(%d) is not dfs", ch);
+			hdd_debug("Ignore set radar, op ch(%d) is not dfs", ch);
 
 		break;
 	}

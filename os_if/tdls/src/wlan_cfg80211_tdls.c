@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -33,6 +33,7 @@
 #include <qdf_mem.h>
 #include <wlan_utility.h>
 #include <wlan_reg_services_api.h>
+#include <wlan_hdd_main.h>
 #ifdef QCA_SUPPORT_CP_STATS
 #include "wlan_cfg80211_mc_cp_stats.h"
 #endif
@@ -111,7 +112,7 @@ void hdd_notify_teardown_tdls_links(struct wlan_objmgr_psoc *psoc)
 
 	vdev = ucfg_get_tdls_vdev(psoc, WLAN_OSIF_ID);
 	if (!vdev) {
-		cfg80211_err("Unable to get the vdev");
+		hdd_debug("Unable to get the vdev");
 		return;
 	}
 	osif_priv = wlan_vdev_get_ospriv(vdev);

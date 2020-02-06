@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -446,7 +446,7 @@ QDF_STATUS hdd_set_idle_ps_config(struct hdd_context *hdd_ctx, bool val)
 	}
 
 	if (hdd_ctx->imps_enabled == val) {
-		hdd_info("Already in the requested power state:%d", val);
+		hdd_nofl_debug("Already in the requested power state:%d", val);
 		return QDF_STATUS_SUCCESS;
 	}
 
