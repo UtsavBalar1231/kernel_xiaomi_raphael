@@ -1623,9 +1623,6 @@ bool wma_is_vdev_valid(uint32_t vdev_id)
 		return false;
 	}
 
-	WMA_LOGD("%s: vdev_id: %d, vdev_active: %d", __func__, vdev_id,
-		 wma_handle->interfaces[vdev_id].vdev_active);
-
 	return wma_handle->interfaces[vdev_id].vdev_active;
 }
 
@@ -3541,7 +3538,6 @@ int wma_peer_assoc_conf_handler(void *handle, uint8_t *cmd_param_info,
 	uint8_t macaddr[QDF_MAC_ADDR_SIZE];
 	int status = 0;
 
-	WMA_LOGD(FL("Enter"));
 	param_buf = (WMI_PEER_ASSOC_CONF_EVENTID_param_tlvs *) cmd_param_info;
 	if (!param_buf) {
 		WMA_LOGE("Invalid peer assoc conf event buffer");
@@ -5704,8 +5700,6 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 		}
 	}
 	qdf_atomic_set(&iface->bss_status, WMA_BSS_STATUS_STARTED);
-	WMA_LOGD("%s: STA mode (type %d subtype %d) BSS is started",
-		 __func__, iface->type, iface->sub_type);
 	/* Sta is now associated, configure various params */
 
 	/* Send SMPS force command to FW to send the required
@@ -5739,8 +5733,7 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 				  WMA_VHT_PPS_DELIM_CRC_FAIL, 1);
 	if (wmi_service_enabled(wma->wmi_handle,
 				wmi_service_listen_interval_offload_support)) {
-		WMA_LOGD("%s: listen interval offload enabled, setting params",
-			 __func__);
+		wma_debug("listen interval offload enabled, setting params");
 		status = wma_vdev_set_param(wma->wmi_handle,
 					    params->smesessionId,
 					    WMI_VDEV_PARAM_MAX_LI_OF_MODDTIM,
@@ -5779,10 +5772,9 @@ out:
 		return;
 
 	params->status = status;
-	WMA_LOGD(FL("statype %d vdev_id %d aid %d bssid %pM staIdx %d status %d"),
-		 params->staType, params->smesessionId,
-		 params->assocId, params->bssId, params->staIdx,
-		 params->status);
+	wma_debug("vdev_id %d aid %d staIdx %d sta mac " QDF_MAC_ADDR_STR " status %d",
+		  params->smesessionId, params->assocId, params->staIdx,
+		  QDF_MAC_ADDR_ARRAY(params->bssId), params->status);
 	/* Don't send a response during roam sync operation */
 	if (!wma_is_roam_synch_in_progress(wma, params->smesessionId))
 		wma_send_msg_high_priority(wma, WMA_ADD_STA_RSP,
@@ -6004,11 +5996,7 @@ void wma_add_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 		return;
 	}
 
-	WMA_LOGD("%s: add_sta->sessionId = %d.", __func__,
-		 add_sta->smesessionId);
-	WMA_LOGD("%s: add_sta->bssId = %x:%x:%x:%x:%x:%x", __func__,
-		 add_sta->bssId[0], add_sta->bssId[1], add_sta->bssId[2],
-		 add_sta->bssId[3], add_sta->bssId[4], add_sta->bssId[5]);
+	wma_debug("Vdev %d BSSID %pM", add_sta->smesessionId, add_sta->bssId);
 
 	if (wma_is_vdev_in_ap_mode(wma, add_sta->smesessionId))
 		oper_mode = BSS_OPERATIONAL_MODE_AP;

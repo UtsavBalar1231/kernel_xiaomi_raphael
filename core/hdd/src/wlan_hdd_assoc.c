@@ -2868,8 +2868,6 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 			adapter->wapi_info.is_wapi_sta = false;
 		}
 #endif /* FEATURE_WLAN_WAPI */
-		hdd_debug("bss_descr[%d] devicemode[%d]", !!roam_info->bss_desc,
-			  adapter->device_mode);
 		if ((QDF_STA_MODE == adapter->device_mode) &&
 						roam_info->bss_desc) {
 			ie_len = GET_IE_LEN_IN_BSS(roam_info->bss_desc->length);
@@ -2951,7 +2949,6 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		wlan_hdd_auto_shutdown_enable(hdd_ctx, false);
 #endif
 
-		hdd_debug("check if STA chan ok for DNBS");
 		if (policy_mgr_is_chan_ok_for_dnbs(hdd_ctx->psoc,
 					sta_ctx->conn_info.channel,
 					&ok)) {
@@ -3053,7 +3050,6 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 					FT_ASSOC_RSP_IES_OFFSET;
 
 				hdd_debug("assoc_rsp_len %d", assoc_rsp_len);
-				hdd_debug("Assoc Rsp IE dump");
 				QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_HDD,
 						   QDF_TRACE_LEVEL_DEBUG,
 						   assoc_rsp,
@@ -3092,7 +3088,6 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 				}
 
 				hdd_debug("assoc_req_len %d", assoc_req_len);
-				hdd_debug("Assoc/Reassoc Req IE dump");
 				QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_HDD,
 						   QDF_TRACE_LEVEL_DEBUG,
 						   assoc_req,

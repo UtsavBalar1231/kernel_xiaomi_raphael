@@ -199,8 +199,6 @@ static void lim_handle_join_rsp_status(struct mac_context *mac_ctx,
 		qdf_mem_free(session_entry->beacon);
 		session_entry->beacon = NULL;
 		session_entry->bcnLen = 0;
-		pe_debug("Beacon: %d",
-			sme_join_rsp->beaconLength);
 	}
 
 	if (session_entry->assocReq) {
@@ -213,8 +211,6 @@ static void lim_handle_join_rsp_status(struct mac_context *mac_ctx,
 		qdf_mem_free(session_entry->assocReq);
 		session_entry->assocReq = NULL;
 		session_entry->assocReqLen = 0;
-		pe_debug("AssocReq: %d",
-			sme_join_rsp->assocReqLength);
 	}
 	if (session_entry->assocRsp) {
 		sme_join_rsp->assocRspLength =
@@ -227,9 +223,11 @@ static void lim_handle_join_rsp_status(struct mac_context *mac_ctx,
 		qdf_mem_free(session_entry->assocRsp);
 		session_entry->assocRsp = NULL;
 		session_entry->assocRspLen = 0;
-		pe_debug("AssocRsp: %d",
-			sme_join_rsp->assocRspLength);
 	}
+
+	pe_debug("Beacon len %d Assoc Req len %d Assoc Rsp len %d",
+		 sme_join_rsp->beaconLength, sme_join_rsp->assocReqLength,
+		 sme_join_rsp->assocRspLength);
 
 	if (result_code == eSIR_SME_SUCCESS) {
 		if (session_entry->ricData) {
