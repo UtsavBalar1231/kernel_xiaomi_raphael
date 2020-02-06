@@ -2614,6 +2614,7 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 	pr_debug("%s+: ctrl=%d event=%d\n", __func__, ctrl_pdata->ndx, event);
 
 	MDSS_XLOG(event, arg, ctrl_pdata->ndx, 0x3333);
+	return rc;
 
 	switch (event) {
 	case MDSS_EVENT_UPDATE_PARAMS:
