@@ -2283,7 +2283,6 @@ int mdss_mdp_layer_atomic_validate(struct msm_fb_data_type *mfd,
 {
 	struct mdss_overlay_private *mdp5_data;
 	struct mdss_panel_info *pinfo;
-	int rc = 0;
 
 	if (!mfd || !commit) {
 		pr_err("invalid input params\n");
@@ -2308,7 +2307,7 @@ int mdss_mdp_layer_atomic_validate(struct msm_fb_data_type *mfd,
 		if (commit->flags & MDP_COMMIT_PARTIAL_UPDATE_DUAL_ROI) {
 			rc = __validate_dual_partial_update(mdp5_data->ctl,
 					commit);
-			if (IS_ERR_VALUE((unsigned long)rc)) {
+			if (IS_ERR_VALUE(rc)) {
 				pr_err("Multiple pu pre-validate fail\n");
 				return rc;
 			}
