@@ -458,7 +458,6 @@ struct mdss_dsi_ctrl_pdata {
 	bool cmd_sync_wait_trigger;
 
 	struct mdss_rect roi;
-	struct mdss_dsi_dual_pu_roi dual_roi;
 	struct pwm_device *pwm_bl;
 #ifdef CONFIG_BACKLIGHT_QCOM_SPMI_WLED
 	struct backlight_device *raw_bd;
