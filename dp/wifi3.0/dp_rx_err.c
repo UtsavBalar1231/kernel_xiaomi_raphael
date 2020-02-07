@@ -894,24 +894,6 @@ drop_nbuf:
 	return QDF_STATUS_E_FAILURE;
 }
 
-#ifdef RXDMA_ERR_PKT_DROP
-/**
- * dp_rxdma_err_nbuf_drop(): Function to drop rxdma err frame
- * @nbuf: buffer pointer
- *
- * return: bool: true if RXDMA_ERR_PKT_DROP is enabled
- */
-static inline bool dp_rxdma_err_nbuf_drop(void)
-{
-	return true;
-}
-#else
-static inline bool dp_rxdma_err_nbuf_drop(void)
-{
-	return false;
-}
-#endif
-
 /**
  * dp_rx_process_rxdma_err() - Function to deliver rxdma unencrypted_err
  *			       frames to OS or wifi parse errors.
@@ -947,10 +929,6 @@ dp_rx_process_rxdma_err(struct dp_soc *soc, qdf_nbuf_t nbuf,
 
 		hal_rx_dump_pkt_tlvs(soc->hal_soc, rx_tlv_hdr,
 				     QDF_TRACE_LEVEL_INFO);
-		if (dp_rxdma_err_nbuf_drop()) {
-			qdf_nbuf_free(nbuf);
-			return;
-		}
 		qdf_assert(0);
 	}
 
@@ -1336,6 +1314,23 @@ done:
 	return rx_bufs_used; /* Assume no scale factor for now */
 }
 
+#ifdef DROP_RXDMA_DECRYPT_ERR
+/**
+ * dp_handle_rxdma_decrypt_err() - Check if decrypt err frames can be handled
+ *
+ * Return: true if rxdma decrypt err frames are handled and false otheriwse
+ */
+static inline bool dp_handle_rxdma_decrypt_err(void)
+{
+	return false;
+}
+#else
+static inline bool dp_handle_rxdma_decrypt_err(void)
+{
+	return true;
+}
+#endif
+
 uint32_t
 dp_rx_wbm_err_process(struct dp_intr *int_ctx, struct dp_soc *soc,
 		      void *hal_ring, uint32_t quota)
@@ -1590,6 +1585,13 @@ done:
 					continue;
 
 				case HAL_RXDMA_ERR_DECRYPT:
+					if (!dp_handle_rxdma_decrypt_err()) {
+						if (peer)
+							DP_STATS_INC(peer,
+							rx.err.decrypt_err, 1);
+						break;
+					}
+
 					pool_id = wbm_err_info.pool_id;
 					err_code = wbm_err_info.rxdma_err_code;
 					tlv_hdr = rx_tlv_hdr;
