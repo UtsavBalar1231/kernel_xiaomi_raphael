@@ -153,9 +153,6 @@
 /* Flag to update brightness when commit */
 #define MDP_COMMIT_UPDATE_BRIGHTNESS		0x40
 
-/* Flag to indicate dual partial ROI update */
-#define MDP_COMMIT_PARTIAL_UPDATE_DUAL_ROI	0x20
-
 /* Flag to enable concurrent writeback for the frame */
 #define MDP_COMMIT_CWB_EN 0x800
 

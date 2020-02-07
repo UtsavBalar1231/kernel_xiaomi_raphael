@@ -2010,7 +2010,7 @@ static int mdss_mdp_image_setup(struct mdss_mdp_pipe *pipe,
 			dst.x -= left_lm_w_from_mfd(pipe->mfd);
 		}
 
-		mdss_mdp_crop_rect(&src, &dst, &roi, true);
+		mdss_mdp_crop_rect(&src, &dst, &roi);
 
 		if (mdata->has_src_split && is_right_mixer) {
 			/*
