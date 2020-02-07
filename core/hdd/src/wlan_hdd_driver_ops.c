@@ -74,6 +74,19 @@ static inline void hdd_remove_pm_qos(struct device *dev)
 }
 
 /**
+ * hdd_get_bandwidth_level() - get current bandwidth level
+ * @data: Context
+ *
+ * Return: current bandwidth level
+ */
+static int hdd_get_bandwidth_level(void *data)
+{
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	return hdd_get_current_throughput_level(hdd_ctx);
+}
+
+/**
  * hdd_set_recovery_in_progress() - API to set recovery in progress
  * @data: Context
  * @val: Value to set
@@ -149,9 +162,11 @@ static void hdd_hif_init_driver_state_callbacks(void *data,
 	cbk->is_load_unload_in_progress = hdd_is_load_or_unload_in_progress;
 	cbk->is_driver_unloading = hdd_is_driver_unloading;
 	cbk->is_target_ready = hdd_is_target_ready;
+	cbk->get_bandwidth_level = hdd_get_bandwidth_level;
 }
 
 /**
+
  * hdd_hif_set_attribute() - API to set CE attribute if memory is limited
  * @hif_ctx: hif context
  *
