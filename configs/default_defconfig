@@ -352,6 +352,9 @@ ifeq ($(CONFIG_LITHIUM), y)
 # Enable VERBOSE debug INI mechanism
 #
 CONFIG_VERBOSE_DEBUG := y
+ifeq ($(CONFIG_PCI_MSM), y)
+	CONFIG_FEATURE_HAL_DELAYED_REG_WRITE := y
+endif
 endif
 
 CONFIG_QCA_WIFI_QCA8074 := y
