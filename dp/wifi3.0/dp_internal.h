@@ -862,6 +862,11 @@ void dp_set_pn_check_wifi3(struct cdp_vdev *vdev_handle,
 	struct cdp_peer *peer_handle, enum cdp_sec_type sec_type,
 	 uint32_t *rx_pn);
 
+void dp_set_key_sec_type_wifi3(struct cdp_vdev *vdev_handle,
+			       struct cdp_peer *peer_handle,
+			       enum cdp_sec_type sec_type,
+			       bool is_unicast);
+
 void *dp_get_pdev_for_mac_id(struct dp_soc *soc, uint32_t mac_id);
 void dp_set_michael_key(struct cdp_peer *peer_handle,
 			bool is_unicast, uint32_t *key);

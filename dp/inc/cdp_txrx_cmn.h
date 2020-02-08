@@ -1759,6 +1759,34 @@ static inline int cdp_set_pn_check(ol_txrx_soc_handle soc,
 	return 0;
 }
 
+/**
+ * cdp_set_key_sec_type(): function to set pn check
+ * @soc: soc handle
+ * @sec_type: security type
+ * #is_unicast: ucast or mcast
+ */
+static inline int cdp_set_key_sec_type(ol_txrx_soc_handle soc,
+				       struct cdp_vdev *vdev,
+				       struct cdp_peer *peer_handle,
+				       enum cdp_sec_type sec_type,
+				       bool is_unicast)
+{
+	if (!soc || !soc->ops) {
+		QDF_TRACE(QDF_MODULE_ID_CDP, QDF_TRACE_LEVEL_DEBUG,
+				"%s: Invalid Instance:", __func__);
+		QDF_BUG(0);
+		return 0;
+	}
+
+	if (!soc->ops->cmn_drv_ops ||
+	    !soc->ops->cmn_drv_ops->set_key_sec_type)
+		return 0;
+
+	soc->ops->cmn_drv_ops->set_key_sec_type(vdev, peer_handle,
+			sec_type, is_unicast);
+	return 0;
+}
+
 static inline int cdp_set_key(ol_txrx_soc_handle soc,
 			      struct cdp_peer *peer_handle,
 			      bool is_unicast, uint32_t *key)

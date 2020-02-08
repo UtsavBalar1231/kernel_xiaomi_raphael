@@ -2805,8 +2805,6 @@ dp_set_pn_check_wifi3(struct cdp_vdev *vdev_handle, struct cdp_peer *peer_handle
 	params.u.upd_queue_params.update_svld = 1;
 	params.u.upd_queue_params.svld = 0;
 
-	peer->security[dp_sec_ucast].sec_type = sec_type;
-
 	switch (sec_type) {
 	case cdp_sec_type_tkip_nomic:
 	case cdp_sec_type_aes_ccmp:
@@ -2872,6 +2870,39 @@ dp_set_pn_check_wifi3(struct cdp_vdev *vdev_handle, struct cdp_peer *peer_handle
 		}
 		qdf_spin_unlock_bh(&rx_tid->tid_lock);
 	}
+}
+
+
+/**
+ * dp_set_key_sec_type_wifi3()
+ * @peer: Datapath peer handle
+ * @vdev: Datapath vdev
+ * @pdev - data path device instance
+ * @sec_type - security type
+ * @rx_pn - Receive pn starting number
+ * #is_unicast ucast/mcast key type
+ */
+
+void
+dp_set_key_sec_type_wifi3(struct cdp_vdev *vdev_handle,
+			  struct cdp_peer *peer_handle,
+			  enum cdp_sec_type sec_type,
+			  bool is_unicast)
+{
+	struct dp_peer *peer = (struct dp_peer *)peer_handle;
+	int sec_index;
+
+	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_INFO_HIGH,
+		  "sec type for peer %pK (%02x:%02x:%02x:%02x:%02x:%02x): %s key of type %d",
+		  peer,
+		  peer->mac_addr.raw[0], peer->mac_addr.raw[1],
+		  peer->mac_addr.raw[2], peer->mac_addr.raw[3],
+		  peer->mac_addr.raw[4], peer->mac_addr.raw[5],
+		  is_unicast ? "ucast" : "mcast",
+		  sec_type);
+
+	sec_index = is_unicast ? dp_sec_ucast : dp_sec_mcast;
+	peer->security[sec_index].sec_type = sec_type;
 }
 
 
