@@ -23,6 +23,7 @@
 #include <wlan_hdd_stats.h>
 #include "wlan_hdd_trace.h"
 #include "wlan_hdd_ioctl.h"
+#include "wlan_hdd_main.h"
 #include "wlan_hdd_power.h"
 #include "wlan_hdd_regulatory.h"
 #include "wlan_osif_request_manager.h"
@@ -3177,6 +3178,48 @@ static inline int drv_cmd_country(struct hdd_adapter *adapter,
 }
 
 /**
+ * drv_cmd_set_suspendmode() - Handler for set suspendmode
+ * @adapter: pointer to adapter on which request is received
+ * @hdd_ctx: pointer to hdd context
+ * @command: command name
+ * @command_len: command buffer length
+ * @priv_data: output pointer to hold current country code
+ *
+ * Return: On success 0, negative value on error.
+ */
+static int drv_cmd_set_suspendmode(struct hdd_adapter *adapter,
+                              struct hdd_context *hdd_ctx,
+                              uint8_t *command, uint8_t command_len,
+                              struct hdd_priv_data *priv_data)
+{
+       char *suspendmode;
+       bool apf_enable = false;
+       QDF_STATUS status;
+
+       hdd_enter();
+       hdd_prevent_suspend(WIFI_POWER_EVENT_WAKELOCK_WOW);
+       suspendmode = command + 15;
+       if ('1' == *suspendmode) {
+               apf_enable = true;
+       } else if ('0' == *suspendmode) {
+               apf_enable = false;
+       }
+
+       status = sme_set_apf_enable_disable(hdd_adapter_get_mac_handle(adapter),
+                                           adapter->session_id, apf_enable);
+       if (!QDF_IS_STATUS_SUCCESS(status)) {
+               hdd_err("Unable to post sme apf enable/disable message (status-%d)",
+                               status);
+               return -EINVAL;
+       }
+       adapter->apf_context.apf_enabled = apf_enable;
+
+       hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_WOW);
+       hdd_exit();
+       return 0;
+}
+
+/**
  * drv_cmd_get_country() - Helper function to get current county code
  * @adapter: pointer to adapter on which request is received
  * @hdd_ctx: pointer to hdd context
@@ -3564,7 +3607,7 @@ exit:
 	return ret;
 }
 
-static int drv_cmd_set_suspend_mode(struct hdd_adapter *adapter,
+static int __maybe_unused drv_cmd_set_suspend_mode(struct hdd_adapter *adapter,
 				    struct hdd_context *hdd_ctx,
 				    uint8_t *command,
 				    uint8_t command_len,
@@ -7940,7 +7983,7 @@ static const struct hdd_drv_cmd hdd_drv_cmds[] = {
 	{"COUNTRY",                   drv_cmd_country, true},
 	{"SETCOUNTRYREV",             drv_cmd_country, true},
 	{"GETCOUNTRYREV",             drv_cmd_get_country, false},
-	{"SETSUSPENDMODE",            drv_cmd_set_suspend_mode, true},
+	{"SETSUSPENDMODE",            drv_cmd_set_suspendmode, true},
 	{"SET_AP_WPS_P2P_IE",         drv_cmd_dummy, false},
 	{"SETROAMTRIGGER",            drv_cmd_set_roam_trigger, true},
 	{"GETROAMTRIGGER",            drv_cmd_get_roam_trigger, false},
