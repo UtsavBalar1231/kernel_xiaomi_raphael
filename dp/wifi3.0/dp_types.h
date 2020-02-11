@@ -1157,6 +1157,8 @@ struct dp_soc {
 		uint32_t rx_mpdu_missed;
 	} ext_stats;
 	qdf_event_t rx_hw_stats_event;
+	qdf_spinlock_t rx_hw_stats_lock;
+	bool is_last_stats_ctx_init;
 #endif /* WLAN_FEATURE_STATS_EXT */
 
 	/* Smart monitor capability for HKv2 */
@@ -2038,5 +2040,17 @@ struct dp_tx_me_buf_t {
 	struct dp_tx_me_buf_t *next;
 	uint8_t data[QDF_MAC_ADDR_SIZE];
 };
+
+#ifdef WLAN_FEATURE_STATS_EXT
+/*
+ * dp_req_rx_hw_stats_t: RX peer HW stats query structure
+ * @pending_tid_query_cnt: pending tid stats count which waits for REO status
+ * @is_query_timeout: flag to show is stats query timeout
+ */
+struct dp_req_rx_hw_stats_t {
+	qdf_atomic_t pending_tid_stats_cnt;
+	bool is_query_timeout;
+};
+#endif
 
 #endif /* _DP_TYPES_H_ */
