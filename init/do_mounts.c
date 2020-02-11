@@ -657,7 +657,8 @@ void __init prepare_namespace(void)
 		 * For example, it is not atypical to wait 5 seconds here
 		 * for the touchpad of a laptop to initialize.
 		 */
-		wait_for_device_probe();
+		if (!is_early_userspace)
+			wait_for_device_probe();
 	}
 
 	if ((!is_early_userspace) || (is_early_userspace && first_time)) {

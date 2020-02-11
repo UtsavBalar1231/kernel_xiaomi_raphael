@@ -228,6 +228,7 @@ extern bool initcall_debug;
 #define late_initcall(fn)		__define_initcall(fn, 7)
 #define late_initcall_sync(fn)		__define_initcall(fn, 7s)
 
+extern void early_subsys_finish(void);
 extern initcall_t __early0_initcall_start[];
 extern initcall_t __early1_initcall_start[];
 extern initcall_t __early2_initcall_start[];

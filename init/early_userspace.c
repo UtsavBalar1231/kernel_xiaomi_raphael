@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,6 +20,8 @@
 #include <linux/of_device.h>
 #include <linux/kallsyms.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
+#include <linux/ftrace.h>
 
 struct subsystem_work {
 	struct work_struct work;
@@ -29,6 +31,7 @@ struct subsystem_work {
 static DECLARE_COMPLETION(populate_done);
 static DECLARE_COMPLETION(subsys_done);
 static DECLARE_COMPLETION(plat_subsys_done);
+static atomic_t subsys_finish = ATOMIC_INIT(EARLY_SUBSYS_NUM);
 bool is_early_userspace;
 EXPORT_SYMBOL(is_early_userspace);
 
@@ -66,12 +69,21 @@ static void do_early_subsys_init(int id)
 	}
 }
 
+void __ref early_subsys_finish(void)
+{
+	if (atomic_dec_and_test(&subsys_finish)) {
+		ftrace_free_init_mem();
+		free_initmem();
+	}
+}
+
 static void early_subsys_init(struct work_struct *w)
 {
 	struct subsystem_work *subsys_work =
 		container_of(w, struct subsystem_work, work);
 
 	do_early_subsys_init(subsys_work->id);
+	early_subsys_finish();
 	kfree(subsys_work);
 }
 
