@@ -746,6 +746,7 @@ void cam_sensor_shutdown(struct cam_sensor_ctrl_t *s_ctrl)
 	struct cam_sensor_power_ctrl_t *power_info =
 		&s_ctrl->sensordata->power_info;
 	int rc = 0;
+	int idx = 0;
 
 	if ((s_ctrl->sensor_state == CAM_SENSOR_INIT) &&
 		(s_ctrl->is_probe_succeed == 0))
@@ -774,6 +775,15 @@ void cam_sensor_shutdown(struct cam_sensor_ctrl_t *s_ctrl)
 	s_ctrl->is_probe_succeed = 0;
 	s_ctrl->last_flush_req = 0;
 	s_ctrl->sensor_state = CAM_SENSOR_INIT;
+
+	for (idx = 0; idx < AIS_MAX_INTR_GPIO; idx++) {
+		if (s_ctrl->s_intr[idx].work_inited == 1){
+			gpio_free(s_ctrl->s_intr[idx].gpio_array[0].gpio);
+			free_irq(gpio_to_irq(s_ctrl->s_intr[idx].gpio_array[0].gpio),
+				&s_ctrl->s_intr[idx]);
+			s_ctrl->s_intr[idx].work_inited = 0;
+		}
+	}
 }
 
 int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
