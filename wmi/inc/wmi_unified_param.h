@@ -2236,6 +2236,8 @@ struct param_slot_scoring {
  * ap over the roam score of the current ap
  * @roam_trigger_bitmap: bitmap of roam triggers on which roam_score_delta
  * will be applied
+ * @vendor_roam_score_algorithm: Preferred algorithm for roam candidate
+ * selection
  * @rssi_scoring: RSSI scoring information.
  * @esp_qbss_scoring: ESP/QBSS scoring percentage information
  * @oce_wan_scoring: OCE WAN metrics percentage information
@@ -2258,6 +2260,7 @@ struct scoring_param {
 	uint32_t nss_index_score;
 	uint32_t roam_score_delta;
 	uint32_t roam_trigger_bitmap;
+	uint32_t vendor_roam_score_algorithm;
 	struct rssi_scoring rssi_scoring;
 	struct param_slot_scoring esp_qbss_scoring;
 	struct param_slot_scoring oce_wan_scoring;
@@ -5727,6 +5730,12 @@ typedef enum {
 	wmi_get_ani_level_event_id,
 	wmi_oem_data_event_id,
 	wmi_roam_auth_offload_event_id,
+	wmi_mgmt_offload_data_event_id,
+	wmi_roam_pmkid_request_event_id,
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	wmi_wlan_time_sync_ftm_start_stop_event_id,
+	wmi_wlan_time_sync_q_master_slave_offset_eventid,
+#endif
 	wmi_events_max,
 } wmi_conv_event_id;
 
@@ -6171,6 +6180,9 @@ typedef enum {
 	wmi_service_adaptive_11r_support,
 	wmi_service_sae_roam_support,
 	wmi_service_owe_roam_support,
+	wmi_service_nan_vdev,
+	wmi_service_packet_capture_support,
+	wmi_service_time_sync_ftm,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
@@ -6290,6 +6302,8 @@ struct wmi_host_fw_abi_ver {
  * @twt_ap_sta_count: Max no of STA with which TWT sessions can be formed
  *                    by the AP
  * @three_way_coex_config_legacy_en: enable three way coex legacy feature
+ * @time_sync_ftm: enable ftm based time sync
+ * @nan_separate_iface_support: Separate iface creation for NAN
  */
 typedef struct {
 	uint32_t num_vdevs;
@@ -6336,7 +6350,8 @@ typedef struct {
 		 mgmt_comp_evt_bundle_support:1,
 		 tx_msdu_new_partition_id_support:1,
 		 new_htt_msg_format:1,
-		 peer_unmap_conf_support:1;
+		 peer_unmap_conf_support:1,
+		 pktcapture_support:1;
 	uint32_t iphdr_pad_config;
 	uint32_t
 		qwrap_config:16,
@@ -6368,6 +6383,8 @@ typedef struct {
 	uint32_t twt_ap_sta_count;
 	bool tstamp64_en;
 	bool three_way_coex_config_legacy_en;
+	bool time_sync_ftm;
+	bool nan_separate_iface_support;
 } target_resource_config;
 
 /**

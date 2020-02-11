@@ -666,6 +666,7 @@ static QDF_STATUS scm_add_update_entry(struct wlan_objmgr_psoc *psoc,
 	QDF_STATUS status;
 	struct scan_dbs *scan_db;
 	struct wlan_scan_obj *scan_obj;
+	uint8_t security_type;
 
 	scan_db = wlan_pdev_get_scan_db(psoc, pdev);
 	if (!scan_db) {
@@ -694,15 +695,20 @@ static QDF_STATUS scm_add_update_entry(struct wlan_objmgr_psoc *psoc,
 	is_dup_found = scm_find_duplicate(pdev, scan_obj, scan_db, scan_params,
 					  &dup_node);
 
-	scm_nofl_debug("Received %s: BSSID: %pM tsf_delta %u Seq %d ssid: %.*s rssi: %d chan %d phy_mode %d hidden %d chan_mismatch %d",
+	security_type = scan_params->security_type;
+
+	scm_nofl_debug("Received %s: %pM \"%.*s\" chan %d rssi %d tsf_delta %u seq %d phy %d hidden %d mismatch %d %s%s%s%s",
 		       (scan_params->frm_subtype == MGMT_SUBTYPE_PROBE_RESP) ?
-		       "Probe Rsp" : "Beacon", scan_params->bssid.bytes,
-		       scan_params->tsf_delta, scan_params->seq_num,
+		       "prb rsp" : "bcn", scan_params->bssid.bytes,
 		       scan_params->ssid.length, scan_params->ssid.ssid,
-		       scan_params->rssi_raw,
-		       scan_params->channel.chan_idx, scan_params->phy_mode,
-		       scan_params->is_hidden_ssid,
-		       scan_params->channel_mismatch);
+		       scan_params->channel.chan_idx, scan_params->rssi_raw,
+		       scan_params->tsf_delta, scan_params->seq_num,
+		       scan_params->phy_mode, scan_params->is_hidden_ssid,
+		       scan_params->channel_mismatch,
+		       security_type & SCAN_SECURITY_TYPE_WPA ? "[WPA]" : "",
+		       security_type & SCAN_SECURITY_TYPE_RSN ? "[RSN]" : "",
+		       security_type & SCAN_SECURITY_TYPE_WAPI ? "[WAPI]" : "",
+		       security_type & SCAN_SECURITY_TYPE_WEP ? "[WEP]" : "");
 
 	if (scan_obj->cb.inform_beacon)
 		scan_obj->cb.inform_beacon(pdev, scan_params);
@@ -817,10 +823,11 @@ QDF_STATUS scm_handle_bcn_probe(struct scheduler_msg *msg)
 
 		if (scan_obj->drop_bcn_on_chan_mismatch &&
 		    scan_entry->channel_mismatch) {
-			scm_debug("Drop frame, as channel mismatch Received for from BSSID: %pM Seq Num: %d chan %d RSSI %d",
-				  scan_entry->bssid.bytes, scan_entry->seq_num,
-				  scan_entry->channel.chan_idx,
-				  scan_entry->rssi_raw);
+			scm_nofl_debug("Drop frame for chan mismatch %pM Seq Num: %d chan %d RSSI %d",
+				       scan_entry->bssid.bytes,
+				       scan_entry->seq_num,
+				       scan_entry->channel.chan_idx,
+				       scan_entry->rssi_raw);
 			util_scan_free_cache_entry(scan_entry);
 			qdf_mem_free(scan_node);
 			continue;
