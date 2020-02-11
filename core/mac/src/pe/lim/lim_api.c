@@ -1445,7 +1445,8 @@ void pe_register_callbacks_with_wma(tpAniSirGlobal pMac,
 			ready_req->csr_roam_synch_cb,
 			ready_req->csr_roam_auth_event_handle_cb,
 			ready_req->pe_roam_synch_cb,
-			ready_req->pe_disconnect_cb);
+			ready_req->pe_disconnect_cb,
+			ready_req->csr_roam_pmkid_req_cb);
 	if (status != QDF_STATUS_SUCCESS)
 		pe_err("Registering roaming callbacks with WMA failed");
 }
@@ -2242,26 +2243,30 @@ lim_roam_fill_bss_descr(tpAniSirGlobal pMac,
  *
  * Return: None
  */
-static void lim_copy_and_free_hlp_data_from_session(tpPESession session_ptr,
-				    roam_offload_synch_ind *roam_sync_ind_ptr)
+static void
+lim_copy_and_free_hlp_data_from_session(tpPESession session_ptr,
+					roam_offload_synch_ind
+					*roam_sync_ind_ptr)
 {
-	if (session_ptr->hlp_data && session_ptr->hlp_data_len) {
-		cds_copy_hlp_info(&session_ptr->dst_mac,
-				&session_ptr->src_mac,
-				session_ptr->hlp_data_len,
-				session_ptr->hlp_data,
-				&roam_sync_ind_ptr->dst_mac,
-				&roam_sync_ind_ptr->src_mac,
-				&roam_sync_ind_ptr->hlp_data_len,
-				roam_sync_ind_ptr->hlp_data);
-		qdf_mem_free(session_ptr->hlp_data);
-		session_ptr->hlp_data = NULL;
-		session_ptr->hlp_data_len = 0;
+	if (session_ptr->fils_info->hlp_data &&
+	    session_ptr->fils_info->hlp_data_len) {
+		cds_copy_hlp_info(&session_ptr->fils_info->dst_mac,
+				  &session_ptr->fils_info->src_mac,
+				  session_ptr->fils_info->hlp_data_len,
+				  session_ptr->fils_info->hlp_data,
+				  &roam_sync_ind_ptr->dst_mac,
+				  &roam_sync_ind_ptr->src_mac,
+				  &roam_sync_ind_ptr->hlp_data_len,
+				  roam_sync_ind_ptr->hlp_data);
+
+		qdf_mem_free(session_ptr->fils_info->hlp_data);
+		session_ptr->fils_info->hlp_data = NULL;
+		session_ptr->fils_info->hlp_data_len = 0;
 	}
 }
 #else
-static inline void lim_copy_and_free_hlp_data_from_session(
-					tpPESession session_ptr,
+static inline void
+lim_copy_and_free_hlp_data_from_session(tpPESession session_ptr,
 					roam_offload_synch_ind
 					*roam_sync_ind_ptr)
 {}

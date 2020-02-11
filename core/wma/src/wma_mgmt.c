@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1099,14 +1099,7 @@ wma_fw_to_host_phymode_160(WMI_HOST_WLAN_PHY_MODE phymode)
 }
 #endif
 
-/**
- * wma_fw_to_host_phymode() - convert fw to host phymode
- * @phymode: phymode to convert
- *
- * Return: one of the values defined in enum wlan_phymode;
- *         or WLAN_PHYMODE_AUTO if the conversion fails
- */
-static enum wlan_phymode wma_fw_to_host_phymode(WMI_HOST_WLAN_PHY_MODE phymode)
+enum wlan_phymode wma_fw_to_host_phymode(WMI_HOST_WLAN_PHY_MODE phymode)
 {
 	enum wlan_phymode host_phymode;
 	switch (phymode) {
@@ -1216,14 +1209,7 @@ wma_host_to_fw_phymode_11ax(enum wlan_phymode host_phymode)
 }
 #endif
 
-/**
- * wma_host_to_fw_phymode() - convert host to fw phymode
- * @host_phymode: phymode to convert
- *
- * Return: one of the values defined in enum WMI_HOST_WLAN_PHY_MODE;
- *         or WMI_HOST_MODE_UNKNOWN if the conversion fails
- */
-static WMI_HOST_WLAN_PHY_MODE
+WMI_HOST_WLAN_PHY_MODE
 wma_host_to_fw_phymode(enum wlan_phymode host_phymode)
 {
 	WMI_HOST_WLAN_PHY_MODE fw_phymode;
@@ -1527,7 +1513,10 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 	    || params->encryptType == eSIR_ED_WPI
 #endif /* FEATURE_WLAN_WAPI */
 	    ) {
-		cmd->peer_flags |= WMI_PEER_NEED_PTK_4_WAY;
+		if (!params->no_ptk_4_way) {
+			cmd->peer_flags |= WMI_PEER_NEED_PTK_4_WAY;
+			WMA_LOGD("no ptk 4 way %d", params->no_ptk_4_way);
+		}
 		WMA_LOGD("Acquire set key wake lock for %d ms",
 			WMA_VDEV_SET_KEY_WAKELOCK_TIMEOUT);
 		wma_acquire_wakelock(&intr->vdev_set_key_wakelock,
@@ -4488,6 +4477,7 @@ QDF_STATUS wma_de_register_mgmt_frm_client(void)
  * @csr_roam_synch_cb: CSR roam synch callback routine pointer
  * @pe_roam_synch_cb: PE roam synch callback routine pointer
  * @csr_roam_auth_event_handle_cb: CSR callback routine pointer
+ * @csr_roam_pmkid_req_cb: CSR roam pmkid callback routine pointer
  *
  * Register the SME and PE callback routines with WMA for
  * handling roaming
@@ -4508,7 +4498,9 @@ QDF_STATUS wma_register_roaming_callbacks(
 		tpSirBssDescription  bss_desc_ptr,
 		enum sir_roam_op_code reason),
 	QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
-					uint8_t vdev_id))
+					uint8_t vdev_id),
+	QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
+		struct roam_pmkid_req_event *bss_list))
 {
 
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
@@ -4522,6 +4514,8 @@ QDF_STATUS wma_register_roaming_callbacks(
 	wma->pe_roam_synch_cb = pe_roam_synch_cb;
 	wma->pe_disconnect_cb = pe_disconnect_cb;
 	WMA_LOGD("Registered roam synch callbacks with WMA successfully");
+
+	wma->csr_roam_pmkid_req_cb = csr_roam_pmkid_req_cb;
 	return QDF_STATUS_SUCCESS;
 }
 #endif
