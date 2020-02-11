@@ -1845,13 +1845,15 @@ static int mdss_fb_blank_blank(struct msm_fb_data_type *mfd,
 
 	cur_power_state = mfd->panel_power_state;
 
-	pr_debug("Transitioning from %d --> %d\n", cur_power_state,
+	pr_err("Transitioning from %d --> %d\n", cur_power_state,
 		req_power_state);
 
 	if (cur_power_state == req_power_state) {
 		pr_debug("No change in power state\n");
 		return 0;
 	}
+	pr_debug("Early return from blank\n");
+	return 0;
 	mutex_lock(&mfd->update.lock);
 	mfd->update.type = NOTIFY_TYPE_SUSPEND;
 	mfd->update.is_suspend = 1;
@@ -2052,7 +2054,7 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
 	default:
-		req_power_state = MDSS_PANEL_POWER_OFF;
+	//	req_power_state = MDSS_PANEL_POWER_OFF;
 		pr_debug("blank powerdown called\n");
 		ret = mdss_fb_blank_blank(mfd, req_power_state);
 		break;
@@ -2272,9 +2274,6 @@ static int mdss_fb_fbmem_ion_mmap(struct fb_info *info,
 		pr_warn("requested map is greater than framebuffer\n");
 		return -EOVERFLOW;
 	}
-
-	mdss_fb_blank_blank(mfd, MDSS_PANEL_POWER_OFF);
-	mdss_fb_blank_unblank(mfd);
 
 	if (!mfd->fbi->screen_base) {
 		rc = mdss_fb_alloc_fb_ion_memory(mfd, fb_size);
