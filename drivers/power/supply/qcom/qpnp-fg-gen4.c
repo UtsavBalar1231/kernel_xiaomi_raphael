@@ -5798,11 +5798,7 @@ static void soc_work_fn(struct work_struct *work)
 {
 	struct fg_dev *fg = container_of(work,
 				struct fg_dev, soc_work.work);
-	struct fg_gen4_chip *chip = container_of(fg,
-				struct fg_gen4_chip, fg);
-	int msoc = 0, soc = 0, curr_ua = 0, volt_uv = 0, temp = 0;
-	int esr_uohms = 0;
-	int cycle_count;
+	int soc = 0, temp = 0;
 	int rc;
 	static int prev_soc = -EINVAL;
 
@@ -5810,38 +5806,9 @@ static void soc_work_fn(struct work_struct *work)
 	if (rc < 0)
 		pr_err("Error in getting capacity, rc=%d\n", rc);
 
-	rc = fg_get_msoc_raw(fg, &msoc);
-	if (rc < 0)
-		pr_err("Error in getting msoc, rc=%d\n", rc);
-
-	rc = fg_get_battery_resistance(fg, &esr_uohms);
-	if (rc < 0)
-		pr_err("Error in getting esr_uohms, rc=%d\n", rc);
-
-	fg_get_battery_current(fg, &curr_ua);
-	if (rc < 0)
-		pr_err("failed to get current, rc=%d\n", rc);
-
-	rc = fg_get_battery_voltage(fg, &volt_uv);
-	if (rc < 0)
-		pr_err("failed to get voltage, rc=%d\n", rc);
-
 	rc = fg_gen4_get_battery_temp(fg, &temp);
 	if (rc < 0)
 		pr_err("Error in getting batt_temp, rc=%d\n", rc);
-
-	rc = get_cycle_count(chip->counter, &cycle_count);
-	if (rc < 0)
-		pr_err("failed to get cycle count, rc=%d\n", rc);
-
-	pr_info("adjust_soc: s %d r %d i %d v %d t %d cc %d m 0x%02x\n",
-			soc,
-			esr_uohms,
-			curr_ua/1000,
-			volt_uv/1000,
-			temp,
-			cycle_count,
-			msoc);
 
 	if (temp < 450 && fg->last_batt_temp >= 450) {
 		/* follow the way that fg_notifier_cb use wake lock */
