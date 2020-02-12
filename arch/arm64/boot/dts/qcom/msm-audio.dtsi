@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, 2019-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -66,7 +66,6 @@
 	};
 
 	wdsp_mgr: qcom,wcd-dsp-mgr {
-		status = "disabled";
 		compatible = "qcom,wcd-dsp-mgr";
 		qcom,wdsp-components = <&wcd934x_cdc 0>,
 				       <&wcd_spi_0 1>,
@@ -75,8 +74,11 @@
 	};
 
 	wdsp_glink: qcom,wcd-dsp-glink {
-		status = "disabled";
 		compatible = "qcom,wcd-dsp-glink";
+		qcom,wdsp-channels = "g_glink_ctrl",
+				     "g_glink_persistent_data_nild",
+				     "g_glink_persistent_data_ild",
+				     "g_glink_audio_data";
 	};
 
 	compress: qcom,msm-compress-dsp {
