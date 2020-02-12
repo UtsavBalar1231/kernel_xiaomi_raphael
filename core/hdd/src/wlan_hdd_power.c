@@ -80,6 +80,7 @@
 #include "wlan_p2p_ucfg_api.h"
 #include "wlan_mlme_ucfg_api.h"
 #include <wlan_hdd_sar_limits.h>
+#include "wlan_pkt_capture_ucfg_api.h"
 
 /* Preprocessor definitions and constants */
 #ifdef QCA_WIFI_NAPIER_EMULATION
@@ -1303,6 +1304,7 @@ static void hdd_ssr_restart_sap(struct hdd_context *hdd_ctx)
 QDF_STATUS hdd_wlan_shutdown(void)
 {
 	struct hdd_context *hdd_ctx;
+	struct hdd_adapter *adapter;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 
 	hdd_info("WLAN driver shutting down!");
@@ -1330,6 +1332,12 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	wlan_hdd_rx_thread_resume(hdd_ctx);
 
 	dp_txrx_resume(cds_get_context(QDF_MODULE_ID_SOC));
+
+	if (ucfg_pkt_capture_get_mode(hdd_ctx->psoc)) {
+		adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
+		if (adapter)
+			ucfg_pkt_capture_resume_mon_thread(adapter->vdev);
+	}
 
 	/*
 	 * After SSR, FW clear its txrx stats. In host,
@@ -1681,6 +1689,7 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 {
 	struct hdd_context *hdd_ctx = wiphy_priv(wiphy);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	struct hdd_adapter *adapter;
 	int exit_code;
 
 	hdd_enter();
@@ -1741,6 +1750,12 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 
 	if (hdd_ctx->enable_dp_rx_threads)
 		dp_txrx_resume(cds_get_context(QDF_MODULE_ID_SOC));
+
+	if (ucfg_pkt_capture_get_mode(hdd_ctx->psoc)) {
+		adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
+		if (adapter)
+			ucfg_pkt_capture_resume_mon_thread(adapter->vdev);
+	}
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_CFG80211_RESUME_WLAN,
@@ -1946,6 +1961,13 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 	if (hdd_ctx->enable_dp_rx_threads)
 		dp_txrx_suspend(cds_get_context(QDF_MODULE_ID_SOC));
 
+	if (ucfg_pkt_capture_get_mode(hdd_ctx->psoc)) {
+		adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
+		if (adapter)
+			if (ucfg_pkt_capture_suspend_mon_thread(adapter->vdev))
+				goto resume_pkt_capture_mon_thread;
+	}
+
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_CFG80211_SUSPEND_WLAN,
 		   NO_SESSION, hdd_ctx->is_wiphy_suspended);
@@ -1965,6 +1987,14 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 resume_dp_thread:
 	if (hdd_ctx->enable_dp_rx_threads)
 		dp_txrx_resume(cds_get_context(QDF_MODULE_ID_SOC));
+
+resume_pkt_capture_mon_thread:
+	/* Resume packet capture MON thread */
+	if (ucfg_pkt_capture_get_mode(hdd_ctx->psoc)) {
+		adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
+		if (adapter)
+			ucfg_pkt_capture_resume_mon_thread(adapter->vdev);
+	}
 
 resume_ol_rx:
 	/* Resume tlshim Rx thread */

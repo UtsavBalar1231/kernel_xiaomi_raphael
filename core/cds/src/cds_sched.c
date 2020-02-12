@@ -531,7 +531,6 @@ QDF_STATUS cds_sched_open(void *p_cds_context,
 #ifdef QCA_CONFIG_SMP
 OL_RX_THREAD_START_FAILURE:
 #endif
-
 #ifdef QCA_CONFIG_SMP
 	qdf_cpuhp_unregister(&pSchedContext->cpuhp_event_handle);
 	cds_free_ol_rx_pkt_freeq(gp_cds_sched_context);
