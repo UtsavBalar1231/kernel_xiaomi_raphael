@@ -2590,6 +2590,9 @@ static int DWC_ETH_QOS_hib_freeze(struct device *dev) {
 	DWC_ETH_QOS_free_gpios();
 
 	EMACINFO("end\n");
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+	pdata->print_kpi = 0;
+#endif
 
 	return ret;
 }
