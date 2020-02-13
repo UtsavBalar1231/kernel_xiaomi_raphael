@@ -54,6 +54,18 @@ struct wlan_ies {
 };
 
 /**
+ * struct wlan_disconnect_info - WLAN Disconnection Information
+ * @self_discon_ies: Disconnect IEs to be sent in deauth/disassoc frames
+ *                   originated from driver
+ * @peer_discon_ies: Disconnect IEs received in deauth/disassoc frames
+ *                       from peer
+ */
+struct wlan_disconnect_info {
+	struct wlan_ies self_discon_ies;
+	struct wlan_ies peer_discon_ies;
+};
+
+/**
  * struct peer_mlme_priv_obj - peer MLME component object
  * @ucast_key_cipher: unicast crypto type.
  * @is_pmf_enabled: True if PMF is enabled
@@ -128,10 +140,7 @@ struct wlan_mlme_roam {
  * @ini_cfg: Max configuration of nss, chains supported for vdev.
  * @sta_dynamic_oce_value: Dyanmic oce flags value for sta
  * @roam_invoke_params: Roam invoke params
- * @self_disconnect_ies: Disconnect IEs to be sent in deauth/disassoc frames
- *			 originated from driver
- * @peer_disconnect_ies: Disconnect IEs received in deauth/disassoc frames
- *			 from peer
+ * @disconnect_info: Disconnection information
  * @roam_off_state: Roam offload state
  */
 struct mlme_legacy_priv {
@@ -146,8 +155,7 @@ struct mlme_legacy_priv {
 	struct wlan_mlme_nss_chains ini_cfg;
 	uint8_t sta_dynamic_oce_value;
 	struct mlme_roam_after_data_stall roam_invoke_params;
-	struct wlan_ies self_disconnect_ies;
-	struct wlan_ies peer_disconnect_ies;
+	struct wlan_disconnect_info disconnect_info;
 	struct wlan_mlme_roam mlme_roam;
 };
 
