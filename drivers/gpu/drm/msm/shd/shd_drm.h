@@ -47,6 +47,7 @@ struct shd_display_base {
 	int intf_idx;
 	int connector_type;
 	bool mst_port;
+	int tile_num;
 };
 
 struct shd_display {

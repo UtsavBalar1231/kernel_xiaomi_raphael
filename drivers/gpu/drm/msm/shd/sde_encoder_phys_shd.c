@@ -47,8 +47,8 @@
  */
 struct sde_encoder_phys_shd {
 	struct sde_encoder_phys base;
-	struct sde_hw_mixer *hw_lm[CRTC_DUAL_MIXERS];
-	struct sde_hw_ctl *hw_ctl[CRTC_DUAL_MIXERS];
+	struct sde_hw_mixer *hw_lm[MAX_MIXERS_PER_CRTC];
+	struct sde_hw_ctl *hw_ctl[MAX_MIXERS_PER_CRTC];
 	u32 num_mixers;
 	u32 num_ctls;
 };
@@ -179,7 +179,7 @@ static int _sde_encoder_phys_shd_rm_reserve(
 	struct sde_hw_pingpong *hw_pp;
 	int i, rc = 0;
 
-	encoder = display->base->encoder;
+	encoder = display->base->connector->encoder;
 	rm = &phys_enc->sde_kms->rm;
 	shd_enc = to_sde_encoder_phys_shd(phys_enc);
 
@@ -190,7 +190,7 @@ static int _sde_encoder_phys_shd_rm_reserve(
 	shd_enc->num_mixers = 0;
 	shd_enc->num_ctls = 0;
 
-	for (i = 0; i < CRTC_DUAL_MIXERS; i++) {
+	for (i = 0; i < MAX_MIXERS_PER_CRTC; i++) {
 		/* reserve lm */
 		if (!sde_rm_get_hw(rm, &lm_iter))
 			break;
@@ -215,6 +215,25 @@ static int _sde_encoder_phys_shd_rm_reserve(
 		}
 		shd_enc->num_mixers++;
 
+		/* reserve pingpong */
+		if (!sde_rm_get_hw(rm, &pp_iter))
+			break;
+		hw_pp = pp_iter.hw;
+
+		SDE_DEBUG("reserve PP%d from enc %d to %d\n",
+			hw_pp->idx,
+			DRMID(encoder),
+			DRMID(phys_enc->parent));
+
+		rc = sde_rm_ext_blk_create_reserve(rm,
+			&hw_pp->base, phys_enc->parent);
+		if (rc) {
+			SDE_ERROR("failed to create & reserve pingpong\n");
+			break;
+		}
+	}
+
+	for (i = 0; i < MAX_MIXERS_PER_CRTC; i++) {
 		/* reserve ctl */
 		if (!sde_rm_get_hw(rm, &ctl_iter))
 			break;
@@ -237,23 +256,6 @@ static int _sde_encoder_phys_shd_rm_reserve(
 			break;
 		}
 		shd_enc->num_ctls++;
-
-		/* reserve pingpong */
-		if (!sde_rm_get_hw(rm, &pp_iter))
-			break;
-		hw_pp = pp_iter.hw;
-
-		SDE_DEBUG("reserve PP%d from enc %d to %d\n",
-			hw_pp->idx,
-			DRMID(encoder),
-			DRMID(phys_enc->parent));
-
-		rc = sde_rm_ext_blk_create_reserve(rm,
-			&hw_pp->base, phys_enc->parent);
-		if (rc) {
-			SDE_ERROR("failed to create & reserve pingpong\n");
-			break;
-		}
 	}
 
 	return rc;
@@ -292,7 +294,7 @@ static void sde_encoder_phys_shd_mode_set(
 	}
 
 	display = sde_connector_get_display(connector);
-	encoder = display->base->encoder;
+	encoder = display->base->connector->encoder;
 
 	if (_sde_encoder_phys_shd_rm_reserve(phys_enc, display))
 		return;
@@ -650,7 +652,7 @@ void *sde_encoder_phys_shd_init(enum sde_intf_type type,
 		goto fail_alloc;
 	}
 
-	for (i = 0; i < CRTC_DUAL_MIXERS; i++) {
+	for (i = 0; i < MAX_MIXERS_PER_CRTC; i++) {
 		hw_ctl = kzalloc(sizeof(*hw_ctl), GFP_KERNEL);
 		if (!hw_ctl) {
 			ret = -ENOMEM;
@@ -701,7 +703,7 @@ void *sde_encoder_phys_shd_init(enum sde_intf_type type,
 	return phys_enc;
 
 fail_ctl:
-	for (i = 0; i < CRTC_DUAL_MIXERS; i++) {
+	for (i = 0; i < MAX_MIXERS_PER_CRTC; i++) {
 		kfree(shd_enc->hw_ctl[i]);
 		kfree(shd_enc->hw_lm[i]);
 	}

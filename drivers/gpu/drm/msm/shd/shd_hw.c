@@ -396,7 +396,7 @@ static void _sde_shd_flush_hw_lm(struct sde_hw_mixer *ctx)
 }
 
 void sde_shd_hw_flush(struct sde_hw_ctl *ctl_ctx,
-	struct sde_hw_mixer *lm_ctx[CRTC_DUAL_MIXERS], int lm_num)
+	struct sde_hw_mixer *lm_ctx[MAX_MIXERS_PER_CRTC], int lm_num)
 {
 	struct sde_hw_blk_reg_map *c;
 	unsigned long lock_flags;

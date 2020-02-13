@@ -60,7 +60,7 @@ struct sde_shd_hw_mixer {
 };
 
 void sde_shd_hw_flush(struct sde_hw_ctl *ctl_ctx,
-	struct sde_hw_mixer *lm_ctx[CRTC_DUAL_MIXERS], int lm_num);
+	struct sde_hw_mixer *lm_ctx[MAX_MIXERS_PER_CRTC], int lm_num);
 
 void sde_shd_hw_ctl_init_op(struct sde_hw_ctl *ctx);
 
