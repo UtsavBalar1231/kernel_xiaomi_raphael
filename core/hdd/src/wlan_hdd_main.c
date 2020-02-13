@@ -12081,6 +12081,12 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 
 		hdd_runtime_suspend_context_deinit(hdd_ctx);
 
+		/*
+		 * Call this before free pdev(cdp_pdev_detach/cdp_soc_detach),
+		 * as it will use pdev to free the cdp vdev if any.
+		 */
+		wma_release_pending_vdev_refs();
+
 		qdf_status = cds_dp_close(hdd_ctx->psoc);
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			hdd_warn("Failed to stop CDS DP: %d", qdf_status);
