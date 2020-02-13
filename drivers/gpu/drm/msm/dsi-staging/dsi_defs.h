@@ -487,6 +487,34 @@ struct dsi_host_common_cfg {
 };
 
 /**
+ * struct dsi_data_type_config - Long/short Packet Data Type Configuration
+ * @override:       Override the default Data Types per DSI-2 spec.
+ * @vs:             Vertical Sync Start packet. Default 0x01.
+ * @ve:             Vertical Sync End packet. Default 0x11.
+ * @hs:             Horizontal Sync Start packet. Default 0x21.
+ * @he:             Horizontal Sync End packet. Default 0x31.
+ * @rgb565:         Packed RGB565 pixel stream packet. Default 0x0E.
+ * @rgb666_packed:  Packed RGB666 pixel stream packet. Default 0x1E.
+ * @rgb666:         Loosely packed RGB666 pixel stream packet. Default 0x2E.
+ * @rgb888:         Packed RGB888 pixel stream packet. Default 0x3E.
+ * @blank:          Blanking packet. Default 0x19.
+ * @blank_data:     Blanking packet payload data. Default 0x00.
+ */
+struct dsi_data_type_config {
+	bool override;
+	u8 vs;
+	u8 ve;
+	u8 hs;
+	u8 he;
+	u8 rgb565;
+	u8 rgb666_packed;
+	u8 rgb666;
+	u8 rgb888;
+	u8 blank;
+	u8 blank_data;
+};
+
+/**
  * struct dsi_video_engine_cfg - DSI video engine configuration
  * @last_line_interleave_en:   Allow command mode op interleaved on last line of
  *                             video stream.
@@ -502,6 +530,7 @@ struct dsi_host_common_cfg {
  * @vc_id:                     Virtual channel identifier.
  * @dma_sched_line:         Line number, after vactive end, at which command dma
  *			       needs to be triggered.
+ * @data_type:                 Data Type for the video mode packets.
  */
 struct dsi_video_engine_cfg {
 	bool last_line_interleave_en;
@@ -514,6 +543,7 @@ struct dsi_video_engine_cfg {
 	enum dsi_video_traffic_mode traffic_mode;
 	u32 vc_id;
 	u32 dma_sched_line;
+	struct dsi_data_type_config data_type;
 };
 
 /**
