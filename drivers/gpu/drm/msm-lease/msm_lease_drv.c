@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  * Copyright (c) 2017 Keith Packard <keithp@keithp.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -108,24 +108,19 @@ static inline bool _obj_is_leased(int id,
 static struct drm_master *msm_lease_get_dev_master(struct drm_device *dev)
 {
 	if (!g_master_ddev_master) {
-		mutex_lock(&dev->master_mutex);
-
 		if (dev->master) {
 			DRM_ERROR("card0 master already opened\n");
-			goto out;
+			return NULL;
 		}
 
 		g_master_ddev_master = drm_master_create(dev);
 		if (!g_master_ddev_master) {
 			DRM_ERROR("failed to create dev master\n");
-			goto out;
+			return NULL;
 		}
 
 		dev->master = g_master_ddev_master;
 		kref_init(&g_master_ddev_master_ref);
-
-out:
-		mutex_unlock(&dev->master_mutex);
 	} else
 		kref_get(&g_master_ddev_master_ref);
 
@@ -134,22 +129,19 @@ out:
 
 static void msm_lease_destroy_dev_master(struct kref *kref)
 {
-	struct drm_device *dev = g_master_ddev_master->dev;
+	struct drm_device *dev;
 
-	mutex_lock(&dev->master_mutex);
-	drm_master_put(&dev->master);
-	mutex_unlock(&dev->master_mutex);
-
-	g_master_ddev_master = NULL;
+	if (g_master_ddev_master) {
+		dev = g_master_ddev_master->dev;
+		drm_master_put(&dev->master);
+		g_master_ddev_master = NULL;
+	} else {
+		DRM_ERROR("global master doesn't exist\n");
+	}
 }
 
 static void msm_lease_put_dev_master(struct drm_device *dev)
 {
-	if (!g_master_ddev_master) {
-		DRM_ERROR("global master deosn't exist\n");
-		return;
-	}
-
 	kref_put(&g_master_ddev_master_ref, msm_lease_destroy_dev_master);
 }
 
@@ -189,7 +181,9 @@ static int msm_lease_open(struct drm_device *dev, struct drm_file *file)
 
 	lease = _find_lease_from_minor(file->minor);
 	if (!lease)
-		goto out;
+		goto out2;
+
+	mutex_lock(&dev->master_mutex);
 
 	if (!lease->master) {
 		/* get device master */
@@ -230,6 +224,7 @@ static int msm_lease_open(struct drm_device *dev, struct drm_file *file)
 		if (id < 0) {
 			mutex_unlock(&dev->mode_config.idr_mutex);
 			msm_lease_put_dev_master(dev);
+			DRM_ERROR("idr_alloc failed\n");
 			idr_destroy(&leases);
 			drm_master_put(&lessee);
 			rc = id;
@@ -252,6 +247,8 @@ static int msm_lease_open(struct drm_device *dev, struct drm_file *file)
 		file->master = drm_master_get(lease->master);
 
 out:
+	mutex_unlock(&dev->master_mutex);
+out2:
 	mutex_unlock(&g_lease_mutex);
 
 	return rc;
@@ -269,10 +266,12 @@ static void msm_lease_postclose(struct drm_device *dev, struct drm_file *file)
 	if (!lease)
 		goto out;
 
+	mutex_lock(&dev->master_mutex);
 	if (drm_is_current_master(file)) {
 		drm_master_put(&lease->master);
 		msm_lease_put_dev_master(dev);
 	}
+	mutex_unlock(&dev->master_mutex);
 
 	drm_master_release(file);
 
