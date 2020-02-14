@@ -362,7 +362,7 @@ char *lim_msg_str(uint32_t msgType)
 	case eWNI_SME_HW_MODE_TRANS_IND:
 		return "eWNI_SME_HW_MODE_TRANS_IND";
 	default:
-		return "INVALID SME message";
+		return "Unknown";
 	}
 }
 
@@ -431,7 +431,7 @@ char *lim_result_code_str(tSirResultCodes resultCode)
 		return "eSIR_SME_HAL_SEND_MESSAGE_FAIL";
 
 	default:
-		return "INVALID resultCode";
+		return "Unknown resultCode";
 	}
 }
 

@@ -962,9 +962,7 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 	struct target_psoc_info *tgt_hdl;
 	struct sir_set_tx_rx_aggregation_size aggr;
 
-	WMA_LOGD("wmihandle %pK", wma->wmi_handle);
 	qdf_mem_zero(&aggr, sizeof(aggr));
-
 	if (!mac) {
 		WMA_LOGE("%s: Failed to get mac", __func__);
 		return;

@@ -1028,19 +1028,17 @@ void hdd_disable_arp_offload(struct hdd_adapter *adapter,
 	QDF_STATUS status;
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
-	hdd_enter();
-
 	status = ucfg_pmo_check_arp_offload(hdd_ctx->psoc, trigger,
 					    adapter->vdev_id);
 	if (status != QDF_STATUS_SUCCESS) {
-		hdd_err("Flushing of ARP offload not required");
-		goto out;
+		hdd_debug("Flushing of ARP offload not required");
+		return;
 	}
 
 	status = ucfg_pmo_flush_arp_offload_req(adapter->vdev);
 	if (status != QDF_STATUS_SUCCESS) {
 		hdd_err("Failed to flush arp Offload");
-		goto out;
+		return;
 	}
 
 	status = ucfg_pmo_disable_arp_offload_in_fwr(adapter->vdev,
@@ -1050,8 +1048,6 @@ void hdd_disable_arp_offload(struct hdd_adapter *adapter,
 			PMO_OFFLOAD_DISABLE);
 	else
 		hdd_info("fail to disable arp offload");
-out:
-	hdd_exit();
 }
 
 void hdd_enable_mc_addr_filtering(struct hdd_adapter *adapter,
@@ -1060,13 +1056,11 @@ void hdd_enable_mc_addr_filtering(struct hdd_adapter *adapter,
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	QDF_STATUS status;
 
-	hdd_enter();
-
 	if (wlan_hdd_validate_context(hdd_ctx))
-		goto out;
+		return;
 
 	if (!hdd_adapter_is_connected_sta(adapter))
-		goto out;
+		return;
 
 	status = ucfg_pmo_enable_mc_addr_filtering_in_fwr(hdd_ctx->psoc,
 							  adapter->vdev_id,
@@ -1074,8 +1068,6 @@ void hdd_enable_mc_addr_filtering(struct hdd_adapter *adapter,
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_debug("failed to enable mc list; status:%d", status);
 
-out:
-	hdd_exit();
 }
 
 void hdd_disable_mc_addr_filtering(struct hdd_adapter *adapter,
@@ -1084,31 +1076,24 @@ void hdd_disable_mc_addr_filtering(struct hdd_adapter *adapter,
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	QDF_STATUS status;
 
-	hdd_enter();
-
 	if (wlan_hdd_validate_context(hdd_ctx))
-		goto out;
+		return;
 
 	if (!hdd_adapter_is_connected_sta(adapter))
-		goto out;
+		return;
 
 	status = ucfg_pmo_disable_mc_addr_filtering_in_fwr(hdd_ctx->psoc,
 							   adapter->vdev_id,
 							   trigger);
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_err("failed to disable mc list; status:%d", status);
-
-out:
-	hdd_exit();
 }
 
 int hdd_cache_mc_addr_list(struct pmo_mc_addr_list_params *mc_list_config)
 {
 	QDF_STATUS status;
 
-	hdd_enter();
 	status = ucfg_pmo_cache_mc_addr_list(mc_list_config);
-	hdd_exit();
 
 	return qdf_status_to_os_return(status);
 }
@@ -1118,8 +1103,6 @@ void hdd_disable_and_flush_mc_addr_list(struct hdd_adapter *adapter,
 {
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	QDF_STATUS status;
-
-	hdd_enter();
 
 	if (!hdd_adapter_is_connected_sta(adapter))
 		goto flush_mc_list;
@@ -1137,7 +1120,6 @@ flush_mc_list:
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_debug("failed to flush mc list; status:%d", status);
 
-	hdd_exit();
 }
 
 /**
