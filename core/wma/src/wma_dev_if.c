@@ -1348,9 +1348,9 @@ static void wma_sap_peer_send_phymode(struct wlan_objmgr_vdev *vdev,
 	wma_set_peer_param(wma, peer_mac_addr, WMI_PEER_CHWIDTH,
 			   max_ch_width_supported, vdev_id);
 
-	wma_debug("nw_type %d old phymode %d new phymode %d bw %d macaddr "QDF_MAC_ADDR_STR,
-		  nw_type, old_peer_phymode, new_phymode,
-		  max_ch_width_supported, QDF_MAC_ADDR_ARRAY(peer_mac_addr));
+	wma_debug("old phymode %d new phymode %d bw %d macaddr "QDF_MAC_ADDR_STR,
+		  old_peer_phymode, new_phymode, max_ch_width_supported,
+		  QDF_MAC_ADDR_ARRAY(peer_mac_addr));
 }
 
 static void
@@ -1427,15 +1427,13 @@ wma_handle_channel_switch_resp(tp_wma_handle wma,
 		err = wma_set_peer_param(wma, iface->bssid,
 					 WMI_PEER_PHYMODE, iface->chanmode,
 					resp_event->vdev_id);
-		WMA_LOGD("%s:vdev_id %d chanmode %d status %d",
-			 __func__, resp_event->vdev_id, iface->chanmode, err);
-
 		chanwidth = wmi_get_ch_width_from_phy_mode(wma->wmi_handle,
 							   iface->chanmode);
 		err = wma_set_peer_param(wma, iface->bssid, WMI_PEER_CHWIDTH,
 					 chanwidth, resp_event->vdev_id);
-		WMA_LOGD("%s:vdev_id %d chanwidth %d status %d",
-			 __func__, resp_event->vdev_id, chanwidth, err);
+		wma_debug("vdev_id %d chanwidth %d chanmode %d",
+			  resp_event->vdev_id, chanwidth,
+			  iface->chanmode);
 	}
 
 	if (wma_is_vdev_in_ap_mode(wma, resp_event->vdev_id) ||
@@ -1486,8 +1484,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 		return -EINVAL;
 	}
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
-
-	WMA_LOGD("%s: Enter", __func__);
 
 	wlan_res_cfg = lmac_get_tgt_res_cfg(psoc);
 	if (!wlan_res_cfg) {

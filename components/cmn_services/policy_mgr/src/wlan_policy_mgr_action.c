@@ -2269,10 +2269,8 @@ QDF_STATUS policy_mgr_check_and_set_hw_mode_for_channel_switch(
 	if (!policy_mgr_is_hw_dbs_capable(psoc) ||
 	    (!policy_mgr_is_hw_dbs_2x2_capable(psoc) &&
 	    !policy_mgr_is_hw_dbs_required_for_band(
-					psoc, HW_MODE_MAC_BAND_2G))) {
-		policy_mgr_debug("2x2 DBS is not enabled");
+					psoc, HW_MODE_MAC_BAND_2G)))
 		return QDF_STATUS_E_NOSUPPORT;
-	}
 
 	/*
 	 * Stop opportunistic timer as current connection info will change once
@@ -2286,10 +2284,8 @@ QDF_STATUS policy_mgr_check_and_set_hw_mode_for_channel_switch(
 		return QDF_STATUS_E_ALREADY;
 	}
 
-	if (!WLAN_CHAN_IS_2GHZ(chan)) {
-		policy_mgr_debug("DBS is not required for 5Ghz chan");
+	if (!WLAN_CHAN_IS_2GHZ(chan))
 		return QDF_STATUS_E_NOSUPPORT;
-	}
 
 	qdf_mutex_acquire(&pm_ctx->qdf_conc_list_lock);
 	/*

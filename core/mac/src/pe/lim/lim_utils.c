@@ -1883,7 +1883,6 @@ static void __lim_process_channel_switch_timeout(struct pe_session *pe_session)
 	}
 	switch (pe_session->gLimChannelSwitch.state) {
 	case eLIM_CHANNEL_SWITCH_PRIMARY_ONLY:
-		pe_warn("CHANNEL_SWITCH_PRIMARY_ONLY");
 		lim_switch_primary_channel(mac,
 					   pe_session->gLimChannelSwitch.
 					   primaryChannel, pe_session);
@@ -1891,7 +1890,6 @@ static void __lim_process_channel_switch_timeout(struct pe_session *pe_session)
 			eLIM_CHANNEL_SWITCH_IDLE;
 		break;
 	case eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY:
-		pe_warn("CHANNEL_SWITCH_PRIMARY_AND_SECONDARY");
 		lim_switch_primary_secondary_channel(mac, pe_session,
 			pe_session->gLimChannelSwitch.primaryChannel,
 			pe_session->gLimChannelSwitch.ch_center_freq_seg0,
@@ -2218,16 +2216,6 @@ void lim_switch_channel_cback(struct mac_context *mac, QDF_STATUS status,
 			pe_session->gLimChannelSwitch.ch_center_freq_seg1;
 
 	pSirSmeSwitchChInd->status = status;
-	pe_debug(
-		"session: %d chan: %d width: %d sec offset: %d seg0: %d seg1: %d status %d",
-		pSirSmeSwitchChInd->sessionId,
-		pSirSmeSwitchChInd->newChannelId,
-		pSirSmeSwitchChInd->chan_params.ch_width,
-		pSirSmeSwitchChInd->chan_params.sec_ch_offset,
-		pSirSmeSwitchChInd->chan_params.center_freq_seg0,
-		pSirSmeSwitchChInd->chan_params.center_freq_seg1,
-		status);
-
 	qdf_mem_copy(pSirSmeSwitchChInd->bssid.bytes, pe_session->bssId,
 		     QDF_MAC_ADDR_SIZE);
 	mmhMsg.bodyptr = pSirSmeSwitchChInd;
@@ -2257,8 +2245,8 @@ void lim_switch_channel_cback(struct mac_context *mac, QDF_STATUS status,
 void lim_switch_primary_channel(struct mac_context *mac, uint8_t newChannel,
 				struct pe_session *pe_session)
 {
-	pe_debug("old chnl: %d --> new chnl: %d",
-		       pe_session->currentOperChannel, newChannel);
+	pe_debug("chan: %d --> chan: %d",
+		 pe_session->currentOperChannel, newChannel);
 
 	pe_session->currentReqChannel = newChannel;
 	pe_session->limRFBand = lim_get_rf_band(newChannel);
@@ -2316,13 +2304,13 @@ void lim_switch_primary_secondary_channel(struct mac_context *mac,
 
 	/* Store the new primary and secondary channel in session entries if different */
 	if (pe_session->currentOperChannel != newChannel) {
-		pe_warn("switch old chnl: %d --> new chnl: %d",
+		pe_warn("chan: %d --> chan: %d",
 			pe_session->currentOperChannel, newChannel);
 		pe_session->currentOperChannel = newChannel;
 	}
 	if (pe_session->htSecondaryChannelOffset !=
 			pe_session->gLimChannelSwitch.sec_ch_offset) {
-		pe_warn("switch old sec chnl: %d --> new sec chnl: %d",
+		pe_warn("HT sec chnl: %d --> HT sec chnl: %d",
 			pe_session->htSecondaryChannelOffset,
 			pe_session->gLimChannelSwitch.sec_ch_offset);
 		pe_session->htSecondaryChannelOffset =
@@ -7717,12 +7705,9 @@ void lim_process_ap_ecsa_timeout(void *data)
 	/* Stop the timer if already running */
 	qdf_mc_timer_stop(&session->ap_ecsa_timer);
 
-	if (session->gLimChannelSwitch.switchCount) {
+	if (session->gLimChannelSwitch.switchCount)
 		/* Decrement the beacon switch count */
 		session->gLimChannelSwitch.switchCount--;
-		pe_debug("current beacon count %d",
-			 session->gLimChannelSwitch.switchCount);
-	}
 
 	/*
 	 * Send only g_sap_chanswitch_beacon_cnt beacons with CSA IE Set in
@@ -8388,7 +8373,7 @@ void lim_flush_bssid(struct mac_context *mac_ctx, uint8_t *bssid)
 	wlan_objmgr_pdev_release_ref(pdev, WLAN_LEGACY_MAC_ID);
 
 	if (QDF_IS_STATUS_SUCCESS(status))
-		pe_debug("Removed BSS entry:%pM", bssid);
+		pe_debug("Removed BSS entry:%pM from scan cache", bssid);
 
 	if (filter)
 		qdf_mem_free(filter);

@@ -461,7 +461,6 @@ lim_configure_ap_start_bss_session(struct mac_context *mac_ctx,
 	session->sap_dot11mc = sme_start_bss_req->sap_dot11mc;
 	session->vendor_vht_sap =
 			sme_start_bss_req->vendor_vht_sap;
-	pe_debug("vendor_vht_sap %d", session->vendor_vht_sap);
 	lim_get_short_slot_from_phy_mode(mac_ctx, session, session->gLimPhyMode,
 		&session->shortSlotTimeSupported);
 	session->isCoalesingInIBSSAllowed =
@@ -561,7 +560,6 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 			      NULL, 0, 0);
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
-	pe_debug("Received START_BSS_REQ");
 	size = sizeof(*sme_start_bss_req);
 	sme_start_bss_req = qdf_mem_malloc(size);
 	if (!sme_start_bss_req) {
@@ -677,9 +675,6 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 		session->vhtCapability =
 			IS_DOT11_MODE_VHT(session->dot11mode);
 
-		pe_debug("HT[%d], VHT[%d]",
-			session->htCapability, session->vhtCapability);
-
 		if (IS_DOT11_MODE_HE(session->dot11mode)) {
 			lim_update_session_he_capable(mac_ctx, session);
 			lim_copy_bss_he_cap(session, sme_start_bss_req);
@@ -690,9 +685,8 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 		session->txLdpcIniFeatureEnabled =
 			sme_start_bss_req->txLdpcIniFeatureEnabled;
 #ifdef WLAN_FEATURE_11W
-		session->limRmfEnabled =
-			sme_start_bss_req->pmfCapable ? 1 : 0;
-		pe_debug("Session RMF enabled: %d", session->limRmfEnabled);
+		session->limRmfEnabled = sme_start_bss_req->pmfCapable ? 1 : 0;
+		pe_debug("RMF enabled: %d", session->limRmfEnabled);
 #endif
 
 		qdf_mem_copy((void *)&session->rateSet,
@@ -747,8 +741,6 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 			break;
 		}
 
-		pe_debug("persona - %d, nss - %d",
-				session->opmode, session->vdev_nss);
 		session->nss = session->vdev_nss;
 		if (!mac_ctx->mlme_cfg->vht_caps.vht_cap_info.enable2x2)
 			session->nss = 1;
@@ -785,14 +777,9 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 			sme_start_bss_req->sec_ch_offset;
 		session->htRecommendedTxWidthSet =
 			(session->htSecondaryChannelOffset) ? 1 : 0;
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			  FL("cbMode %u"), sme_start_bss_req->cbMode);
 		if (lim_is_session_he_capable(session) ||
 		    session->vhtCapability || session->htCapability) {
 			chanwidth = sme_start_bss_req->vht_channel_width;
-			pe_debug("vht_channel_width %u htSupportedChannelWidthSet %d",
-				sme_start_bss_req->vht_channel_width,
-				session->htSupportedChannelWidthSet);
 			session->ch_width = chanwidth;
 			if (session->htSupportedChannelWidthSet) {
 				session->ch_center_freq_seg0 =
@@ -808,11 +795,7 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 		if (session->vhtCapability &&
 			(session->ch_width > CH_WIDTH_80MHZ)) {
 			session->nss = 1;
-			pe_debug("nss set to [%d]", session->nss);
 		}
-		pe_debug("vht su tx bformer %d",
-			session->vht_config.su_beam_former);
-
 		/* Delete pre-auth list if any */
 		lim_delete_pre_auth_list(mac_ctx);
 
@@ -973,6 +956,13 @@ __lim_handle_sme_start_bss_request(struct mac_context *mac_ctx, uint32_t *msg_bu
 
 		session->limPrevSmeState = session->limSmeState;
 		session->limSmeState = eLIM_SME_WT_START_BSS_STATE;
+
+		pe_debug("Chan %d width %d freq0 %d freq1 %d, dot11mode %d nss %d vendor vht %d",
+			 session->currentOperChannel, session->ch_width,
+			 session->ch_center_freq_seg0,
+			 session->ch_center_freq_seg1,
+			 session->dot11mode, session->vdev_nss,
+			 session->vendor_vht_sap);
 		MTRACE(mac_trace
 			(mac_ctx, TRACE_CODE_SME_STATE,
 			session->peSessionId,
@@ -1665,12 +1655,14 @@ __lim_process_sme_join_req(struct mac_context *mac_ctx, void *msg_buf)
 			session->spectrumMgtEnabled = true;
 
 		session->isOSENConnection = sme_join_req->isOSENConnection;
-		pe_debug("Smps %d: mode %d action %d, nss 1x1 %d vdev_nss %d nss %d cbMode %d width %d dot11mode %d subfer %d subfee %d csn %d is_cisco %d",
+		pe_debug("Chan %d width %d freq0 %d freq1 %d, Smps %d: mode %d action %d, nss 1x1 %d vdev_nss %d nss %d cbMode %d dot11mode %d subfer %d subfee %d csn %d is_cisco %d",
+			 session->currentOperChannel, session->ch_width,
+			 session->ch_center_freq_seg0,
+			 session->ch_center_freq_seg1,
 			 session->enableHtSmps, session->htSmpsvalue,
 			 session->send_smps_action, session->supported_nss_1x1,
 			 session->vdev_nss, session->nss,
-			 sme_join_req->cbMode, session->ch_width,
-			 session->dot11mode,
+			 sme_join_req->cbMode, session->dot11mode,
 			 session->vht_config.su_beam_former,
 			 session->vht_config.su_beam_formee,
 			 session->vht_config.csnof_beamformer_antSup,
@@ -5136,12 +5128,11 @@ static void lim_process_sme_channel_change_request(struct mac_context *mac_ctx,
 		session_entry->channelChangeReasonCode =
 			LIM_SWITCH_CHANNEL_MONITOR;
 
-	pe_debug("switch old chnl %d to new chnl %d, ch_bw %d, nw_type %d, dot11mode %d",
-		 session_entry->currentOperChannel,
-		 ch_change_req->targetChannel,
-		 ch_change_req->ch_width,
-		 ch_change_req->nw_type,
-		 ch_change_req->dot11mode);
+	pe_nofl_debug("SAP CSA: %d ---> %d, ch_bw %d, nw_type %d, dot11mode %d",
+		      session_entry->currentOperChannel,
+		      ch_change_req->targetChannel,
+		      ch_change_req->ch_width, ch_change_req->nw_type,
+		      ch_change_req->dot11mode);
 
 	/* Store the New Channel Params in session_entry */
 	session_entry->ch_width = ch_change_req->ch_width;
@@ -5812,7 +5803,6 @@ skip_vht:
 	 * become 0 and bcn template with new switchCount will be sent to
 	 * firmware.
 	 */
-	pe_debug("start ap_ecsa_timer for %d ms", MAX_WAIT_FOR_BCN_TX_COMPLETE);
 	status = qdf_mc_timer_start(&session_entry->ap_ecsa_timer,
 				    MAX_WAIT_FOR_BCN_TX_COMPLETE);
 	if (QDF_IS_STATUS_ERROR(status))

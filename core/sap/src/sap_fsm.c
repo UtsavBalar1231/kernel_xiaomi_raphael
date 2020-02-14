@@ -2520,8 +2520,7 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 		 * Transition from SAP_STARTING to SAP_STARTED
 		 * (both without substates)
 		 */
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("from state channel = %d %s => %s ch_width %d"),
+		sap_debug("Chan %d %s => %s ch_width %d",
 			  sap_ctx->channel, "SAP_STARTING", "SAP_STARTED",
 			  sap_ctx->ch_params.ch_width);
 		sap_ctx->fsm_state = SAP_STARTED;
@@ -2530,13 +2529,6 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 		qdf_status = sap_signal_hdd_event(sap_ctx, roam_info,
 				eSAP_START_BSS_EVENT,
 				(void *) eSAP_STATUS_SUCCESS);
-
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("ap_ctx->ch_params.ch_width %d, channel %d"),
-			     sap_ctx->ch_params.ch_width,
-			     wlan_reg_get_channel_state(mac_ctx->pdev,
-							sap_ctx->channel));
-
 		/*
 		 * The upper layers have been informed that AP is up and
 		 * running, however, the AP is still not beaconing, until
@@ -2779,9 +2771,7 @@ QDF_STATUS sap_fsm(struct sap_context *sap_ctx, struct sap_sm_event *sap_event)
 	}
 	mac_handle = MAC_HANDLE(mac_ctx);
 
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-		  FL("sap_ctx=%pK, state_var=%d, msg=0x%x"),
-		  sap_ctx, state_var, msg);
+	sap_debug("state=%d handle event=%d", state_var, msg);
 
 	switch (state_var) {
 	case SAP_INIT:

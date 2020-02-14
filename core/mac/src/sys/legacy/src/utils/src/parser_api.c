@@ -715,8 +715,6 @@ populate_dot11f_ht_caps(struct mac_context *mac,
 	if (pe_session) {
 		disable_high_ht_mcs_2x2 =
 				mac->mlme_cfg->rates.disable_high_ht_mcs_2x2;
-		pe_debug("disable HT high MCS INI param[%d]",
-			 disable_high_ht_mcs_2x2);
 		if (pe_session->nss == NSS_1x1_MODE) {
 			pDot11f->supportedMCSSet[1] = 0;
 		} else if (IS_24G_CH(pe_session->currentOperChannel) &&
