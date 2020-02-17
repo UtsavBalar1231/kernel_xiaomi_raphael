@@ -587,11 +587,6 @@ rrm_process_beacon_report_req(struct mac_context *mac,
 			     pBeaconReq->measurement_request.Beacon.
 			     RequestedInfo.requested_eids,
 			     pCurrentReq->request.Beacon.reqIes.num);
-		pe_debug("802.11k BCN RPT: Requested EIDs: num:[%d]",
-			 pCurrentReq->request.Beacon.reqIes.num);
-		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			   pCurrentReq->request.Beacon.reqIes.pElementIds,
-			   pCurrentReq->request.Beacon.reqIes.num);
 	}
 
 	if (pBeaconReq->measurement_request.Beacon.num_APChannelReport) {
@@ -761,14 +756,9 @@ rrm_fill_beacon_ies(struct mac_context *mac, uint8_t *pIes,
 		pe_debug("EID = %d, len = %d total = %d",
 			*pBcnIes, *(pBcnIes + 1), len);
 
-		if (BcnNumIes < len) {
+		if (BcnNumIes < len || len <= 2) {
 			pe_err("RRM: Invalid IE len:%d exp_len:%d",
 			       len, BcnNumIes);
-			break;
-		}
-
-		if (len <= 2) {
-			pe_err("RRM: Invalid IE");
 			break;
 		}
 
@@ -776,9 +766,6 @@ rrm_fill_beacon_ies(struct mac_context *mac, uint8_t *pIes,
 		do {
 			if ((!eids) || (*pBcnIes == eids[i])) {
 				if (((*pNumIes) + len) < pIesMaxSize) {
-					pe_debug("Adding Eid %d, len=%d",
-						 *pBcnIes, len);
-
 					qdf_mem_copy(pIes, pBcnIes, len);
 					pIes += len;
 					*pNumIes += len;
@@ -917,14 +904,15 @@ rrm_process_beacon_report_xmit(struct mac_context *mac_ctx,
 					bss_desc->bssId, sizeof(tSirMacAddr));
 			}
 
+			pe_debug("TX: [802.11 BCN_RPT] requested reporting detail %d",
+				 curr_req->request.Beacon.reportingDetail);
+
 			switch (curr_req->request.Beacon.reportingDetail) {
 			case BEACON_REPORTING_DETAIL_NO_FF_IE:
 				/* 0: No need to include any elements. */
-				pe_debug("No reporting detail requested");
 				break;
 			case BEACON_REPORTING_DETAIL_ALL_FF_REQ_IE:
 				/* 1: Include all FFs and Requested Ies. */
-				pe_debug("Only requested IEs in reporting detail requested");
 
 				if (!bss_desc)
 					break;
@@ -941,7 +929,6 @@ rrm_process_beacon_report_xmit(struct mac_context *mac_ctx,
 			case BEACON_REPORTING_DETAIL_ALL_FF_IE:
 				/* 2: default - Include all FFs and all Ies. */
 			default:
-				pe_debug("Default all IEs and FFs");
 				if (!bss_desc)
 					break;
 
@@ -995,18 +982,17 @@ rrm_process_beacon_report_xmit(struct mac_context *mac_ctx,
 		num_frames = i / RADIO_REPORTS_MAX_IN_A_FRAME;
 		if (i % RADIO_REPORTS_MAX_IN_A_FRAME)
 			num_frames++;
-
 		for (j = 0; j < num_frames; j++) {
 			num_reports_in_frame = QDF_MIN((i - report_index),
 						RADIO_REPORTS_MAX_IN_A_FRAME);
-
-			pe_debug("Sending Action frame number %d",
-				 num_reports_in_frame);
 			lim_send_radio_measure_report_action_frame(mac_ctx,
 				curr_req->dialog_token, num_reports_in_frame,
 				(j == num_frames - 1) ? true : false,
 				&report[report_index],
 				beacon_xmit_ind->bssId, session_entry);
+			pe_debug("Sending Action frame number %d",
+				 num_reports_in_frame);
+
 			report_index += num_reports_in_frame;
 		}
 		curr_req->sendEmptyBcnRpt = false;
@@ -1017,7 +1003,7 @@ end:
 		qdf_mem_free(beacon_xmit_ind->pBssDescription[counter]);
 
 	if (beacon_xmit_ind->fMeasureDone) {
-		pe_debug("Measurement done....cleanup the context");
+		pe_debug("Measurement done.");
 		rrm_cleanup(mac_ctx);
 	}
 
@@ -1051,8 +1037,7 @@ static void rrm_process_beacon_request_failure(struct mac_context *mac,
 		pReport->incapable = 1;
 		break;
 	default:
-		pe_err("Beacon request processing failed no report sent with status %d",
-			       status);
+		pe_err("Beacon request processing failed no report sent");
 		qdf_mem_free(pReport);
 		return;
 	}
@@ -1133,6 +1118,7 @@ QDF_STATUS rrm_process_beacon_req(struct mac_context *mac_ctx, tSirMacAddr peer,
 			rrm_cleanup(mac_ctx);
 		}
 	}
+
 	return QDF_STATUS_SUCCESS;
 }
 

@@ -1044,11 +1044,10 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(struct mac_context *mac,
 	else
 		country[2] = OP_CLASS_GLOBAL;
 
-	sme_debug("Channel = %d", pBeaconReq->channelInfo.channelNum);
-
-	sme_debug("Request Reg class %d, AP's country code %c%c 0x%x",
+	sme_debug("Request Reg class %d, AP's country code %c%c 0x%x Channel = %d",
 		  pBeaconReq->channelInfo.regulatoryClass,
-		  country[0], country[1], country[2]);
+		  country[0], country[1], country[2],
+		  pBeaconReq->channelInfo.channelNum);
 
 	if (pBeaconReq->channelList.numChannels >
 	    SIR_ESE_MAX_MEAS_IE_REQS) {
@@ -1160,12 +1159,11 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(struct mac_context *mac,
 		     (uint8_t *) &pBeaconReq->measurementDuration,
 		     SIR_ESE_MAX_MEAS_IE_REQS);
 
-	sme_debug("token: %d regClass: %d randnIntvl: %d msgSource: %d measurementduration %d, rrm_ctx duration %d Meas_mode: %s",
-		pSmeRrmContext->token, pSmeRrmContext->regClass,
-		pSmeRrmContext->randnIntvl, pSmeRrmContext->msgSource,
-		pBeaconReq->measurementDuration[0],
-		pSmeRrmContext->duration[0],
-		sme_rrm_get_meas_mode_string(pSmeRrmContext->measMode[0]));
+	sme_debug("token: %d randnIntvl: %d msgSource: %d measurementduration %d, rrm_ctx duration %d Meas_mode: %s",
+		pSmeRrmContext->token, pSmeRrmContext->randnIntvl,
+		pSmeRrmContext->msgSource, pBeaconReq->measurementDuration[0],
+		pSmeRrmContext->duration[0], sme_rrm_get_meas_mode_string(
+						 pSmeRrmContext->measMode[0]));
 
 	return sme_rrm_issue_scan_req(mac);
 
