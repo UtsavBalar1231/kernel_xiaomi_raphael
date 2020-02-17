@@ -2112,6 +2112,7 @@ done:
 		} else if (qdf_nbuf_is_rx_chfrag_cont(nbuf)) {
 			msdu_len = QDF_NBUF_CB_RX_PKT_LEN(nbuf);
 			nbuf = dp_rx_sg_create(nbuf);
+			next = nbuf->next;
 
 			if (qdf_nbuf_is_raw_frame(nbuf)) {
 				DP_STATS_INC(vdev->pdev, rx_raw_pkts, 1);
