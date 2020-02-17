@@ -41,11 +41,8 @@ ifeq ($(CONFIG_ICNSS), y)
 	endif
 endif
 
-ifneq ($(DEVELOPER_DISABLE_BUILD_TIMESTAMP), y)
-ifneq ($(WLAN_DISABLE_BUILD_TAG), y)
-CONFIG_BUILD_TAG := y
-endif
-endif
+# Do not inject timestamps, we do not need them.
+CONFIG_BUILD_TAG := n
 
 ifeq ($(CONFIG_ARCH_MDM9630), y)
 CONFIG_MOBILE_ROUTER := y
