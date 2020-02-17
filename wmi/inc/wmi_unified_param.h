@@ -4863,6 +4863,7 @@ typedef enum {
 	wmi_service_ready_ext2_event_id,
 	wmi_oem_data_event_id,
 	wmi_roam_stats_event_id,
+	wmi_roam_pmkid_request_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
