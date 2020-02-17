@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -737,7 +737,9 @@ QDF_STATUS wma_register_roaming_callbacks(
 		QDF_STATUS (*pe_disconnect_cb) (struct mac_context *mac,
 			uint8_t vdev_id,
 			uint8_t *deauth_disassoc_frame,
-			uint16_t deauth_disassoc_frame_len));
+			uint16_t deauth_disassoc_frame_len),
+		QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
+			struct roam_pmkid_req_event *bss_list));
 #else
 static inline QDF_STATUS wma_register_roaming_callbacks(
 		QDF_STATUS (*csr_roam_synch_cb)(struct mac_context *mac,
@@ -755,7 +757,9 @@ static inline QDF_STATUS wma_register_roaming_callbacks(
 		QDF_STATUS (*pe_disconnect_cb) (struct mac_context *mac,
 			uint8_t vdev_id,
 			uint8_t *deauth_disassoc_frame,
-			uint16_t deauth_disassoc_frame_len))
+			uint16_t deauth_disassoc_frame_len),
+		QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
+			struct roam_pmkid_req_event *bss_list))
 {
 	return QDF_STATUS_E_NOSUPPORT;
 }
