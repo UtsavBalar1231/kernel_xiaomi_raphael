@@ -195,12 +195,6 @@ static inline int wma_unified_radio_tx_mem_free(void *handle)
 {
 	return 0;
 }
-
-static void
-wma_unified_link_stats_results_mem_free(tSirLLStatsResults *link_stats_results)
-{
-	return;
-}
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 
 /**
