@@ -1118,6 +1118,7 @@ struct wlan_mlme_chainmask {
  * candidate is found in partial scan based on channel map
  * @enable_ring_buffer: Decide to enable/disable ring buffer for bug report
  * @enable_peer_unmap_conf_support: Indicate whether to send conf for peer unmap
+ * @disable_4way_hs_offload: enable/disable 4 way handshake offload to firmware
  */
 struct wlan_mlme_generic {
 	enum band_info band_capability;
@@ -1153,6 +1154,7 @@ struct wlan_mlme_generic {
 	bool bmiss_skip_full_scan;
 	bool enable_ring_buffer;
 	bool enable_peer_unmap_conf_support;
+	bool disable_4way_hs_offload;
 };
 
 /*
