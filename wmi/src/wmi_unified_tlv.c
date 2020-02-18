@@ -3027,6 +3027,40 @@ error:
 	return ret;
 }
 
+#define WMI_MAX_CHAN_INFO_LOG 192
+
+/**
+ * wmi_scan_chanlist_dump() - Dump scan channel list info
+ * @scan_chan_list: scan channel list
+ *
+ * Return: void
+ */
+static void wmi_scan_chanlist_dump(struct scan_chan_list_params *scan_chan_list)
+{
+	uint32_t i;
+	uint8_t info[WMI_MAX_CHAN_INFO_LOG];
+	uint32_t len = 0;
+	struct channel_param *chan;
+	int ret;
+
+	wmi_debug("Total chan %d", scan_chan_list->nallchans);
+	for (i = 0; i < scan_chan_list->nallchans; i++) {
+		chan = &scan_chan_list->ch_param[i];
+		ret = qdf_scnprintf(info + len, sizeof(info) - len,
+				    " %d[%d][%d]", chan->mhz, chan->maxregpower,
+				    chan->dfs_set);
+		if (ret <= 0)
+			break;
+		len += ret;
+		if (len >= (sizeof(info) - 20)) {
+			wmi_nofl_debug("Chan[TXPwr][DFS]:%s", info);
+			len = 0;
+		}
+	}
+	if (len)
+		wmi_nofl_debug("Chan[TXPwr][DFS]:%s", info);
+}
+
 static QDF_STATUS send_scan_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 				struct scan_chan_list_params *chan_list)
 {
@@ -3039,6 +3073,7 @@ static QDF_STATUS send_scan_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 	struct channel_param *tchan_info;
 	uint16_t len = sizeof(*cmd) + WMI_TLV_HDR_SIZE;
 
+	wmi_scan_chanlist_dump(chan_list);
 	len += sizeof(wmi_channel) * chan_list->nallchans;
 	buf = wmi_buf_alloc(wmi_handle, len);
 	if (!buf) {
@@ -3052,8 +3087,6 @@ static QDF_STATUS send_scan_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_TAG_STRUC_wmi_scan_chan_list_cmd_fixed_param,
 		       WMITLV_GET_STRUCT_TLVLEN
 			       (wmi_scan_chan_list_cmd_fixed_param));
-
-	WMI_LOGD("no of channels = %d, len = %d", chan_list->nallchans, len);
 
 	if (chan_list->append)
 		cmd->flags |= APPEND_TO_EXISTING_CHAN_LIST;
@@ -3122,7 +3155,6 @@ static QDF_STATUS send_scan_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 					     tchan_info->maxregpower);
 		WMI_SET_CHANNEL_MAX_BANDWIDTH(chan_info,
 					      tchan_info->max_bw_supported);
-		WMI_LOGD("chan[%d] = %u", i, chan_info->mhz);
 
 		tchan_info++;
 		chan_info++;
