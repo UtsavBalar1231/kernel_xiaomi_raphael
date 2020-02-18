@@ -500,6 +500,26 @@ static int shd_connector_get_mode_info(struct drm_connector *connector,
 	mode_info->vtotal = drm_mode->vtotal;
 	mode_info->comp_info.comp_type = MSM_DISPLAY_COMPRESSION_NONE;
 
+	/*
+	 * When this function is called for resource allocation,
+	 * we return with zero topology as no h/w res is required. When
+	 * called for topology population, we return with base topology
+	 * as needed for user space pipe split.
+	 */
+	if (!(drm_mode->private_flags & MSM_MODE_FLAG_SHARED_DISPLAY)) {
+		struct sde_connector *base_conn;
+		struct msm_mode_info base_mode_info;
+
+		base_conn = to_sde_connector(shd_display->base->connector);
+		base_conn->ops.get_mode_info(shd_display->base->connector,
+			&shd_display->base->mode,
+			&base_mode_info,
+			max_mixer_width,
+			base_conn->display);
+
+		mode_info->topology = base_mode_info.topology;
+	}
+
 	if (shd_display->src.h != shd_display->roi.h)
 		mode_info->vpadding = shd_display->roi.h;
 
@@ -652,6 +672,7 @@ bool shd_bridge_mode_fixup(struct drm_bridge *drm_bridge,
 				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
+	adjusted_mode->private_flags |= MSM_MODE_FLAG_SHARED_DISPLAY;
 	return true;
 }
 
