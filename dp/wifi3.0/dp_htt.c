@@ -43,11 +43,16 @@
 #define HTT_PID_BIT_MASK 0x3
 
 #define DP_EXT_MSG_LENGTH 2048
-#define DP_HTT_SEND_HTC_PKT(soc, pkt)                            \
-do {                                                             \
-	if (htc_send_pkt(soc->htc_soc, &pkt->htc_pkt) ==         \
-					QDF_STATUS_SUCCESS)      \
-		htt_htc_misc_pkt_list_add(soc, pkt);             \
+#define DP_HTT_SEND_HTC_PKT(soc, pkt)                                       \
+do {                                                                        \
+	if (htc_send_pkt(soc->htc_soc, &pkt->htc_pkt) ==                    \
+	    QDF_STATUS_SUCCESS) {                                           \
+		htt_htc_misc_pkt_list_add(soc, pkt);                        \
+	} else {                                                            \
+		dp_err("htc_send_pkt failure!!");                           \
+		qdf_nbuf_free((qdf_nbuf_t)(pkt->htc_pkt.pNetBufContext));   \
+		htt_htc_pkt_free(soc, pkt);                                 \
+	}                                                                   \
 } while (0)
 
 #define HTT_MGMT_CTRL_TLV_HDR_RESERVERD_LEN 16
