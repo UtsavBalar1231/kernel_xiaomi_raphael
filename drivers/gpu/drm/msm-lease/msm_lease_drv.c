@@ -42,6 +42,7 @@ static const struct file_operations *g_master_ddev_fops;
 static struct drm_master *g_master_ddev_master;
 static struct kref g_master_ddev_master_ref;
 static bool g_master_ddev_name_overridden;
+static char g_master_ddev_name[32];
 
 struct msm_lease {
 	struct device *dev;
@@ -52,6 +53,18 @@ struct msm_lease {
 	u32 object_ids[MAX_LEASE_OBJECT_COUNT];
 	int obj_cnt;
 	const char *dev_name;
+};
+
+struct drm_v32 {
+	int version_major;
+	int version_minor;
+	int version_patchlevel;
+	u32 name_len;
+	u32 name;
+	u32 date_len;
+	u32 date;
+	u32 desc_len;
+	u32 desc;
 };
 
 static struct drm_driver msm_lease_driver;
@@ -155,7 +168,7 @@ static const char *msm_lease_get_dev_name(struct drm_file *file)
 	lease = _find_lease_from_minor(file->minor);
 	if (!lease || !lease->dev_name) {
 		if (file->minor->index == 0 && g_master_ddev_name_overridden)
-			dev_name = "n/a";
+			dev_name = g_master_ddev_name;
 		else
 			dev_name = file->minor->dev->driver->name;
 	} else
@@ -318,6 +331,61 @@ static long msm_lease_ioctl(struct file *filp,
 	}
 
 	return g_master_ddev_fops->unlocked_ioctl(filp, cmd, arg);
+}
+
+static long msm_lease_compat_ioctl(struct file *filp,
+		unsigned int cmd, unsigned long arg)
+{
+	if (DRM_IOCTL_NR(cmd) == DRM_IOCTL_NR(DRM_IOCTL_VERSION)) {
+		const char *dev_name;
+		struct drm_version v;
+		struct drm_v32 v32;
+		u32 name_len;
+		long err;
+
+		dev_name = msm_lease_get_dev_name(filp->private_data);
+		if (!dev_name)
+			return -EFAULT;
+
+		if (copy_from_user(&v32, (void __user *)arg, sizeof(v32)))
+			return -EFAULT;
+
+		v.name_len = v32.name_len;
+		v.name = compat_ptr(v32.name);
+		v.date_len = v32.date_len;
+		v.date = compat_ptr(v32.date);
+		v.desc_len = v32.desc_len;
+		v.desc = compat_ptr(v32.desc);
+
+		name_len = v.name_len;
+
+		err = drm_ioctl_kernel(filp, drm_version, &v,
+			DRM_UNLOCKED|DRM_RENDER_ALLOW|DRM_CONTROL_ALLOW);
+		if (err)
+			return err;
+
+		/* replace device name with card name */
+		v.name_len = strlen(dev_name);
+		if (v.name_len < name_len)
+			name_len = v.name_len;
+
+		if (v.name && name_len)
+			if (copy_to_user(v.name, dev_name, name_len))
+				return -EFAULT;
+
+		v32.version_major = v.version_major;
+		v32.version_minor = v.version_minor;
+		v32.version_patchlevel = v.version_patchlevel;
+		v32.name_len = v.name_len;
+		v32.date_len = v.date_len;
+		v32.desc_len = v.desc_len;
+		if (copy_to_user((void __user *)arg, &v32, sizeof(v32)))
+			return -EFAULT;
+
+		return 0;
+	}
+
+	return g_master_ddev_fops->compat_ioctl(filp, cmd, arg);
 }
 
 static int msm_lease_add_connector(struct drm_device *dev, const char *name,
@@ -499,7 +567,7 @@ static const struct file_operations msm_lease_fops = {
 	.open               = drm_open,
 	.release            = msm_lease_release,
 	.unlocked_ioctl     = msm_lease_ioctl,
-	.compat_ioctl       = drm_compat_ioctl,
+	.compat_ioctl       = msm_lease_compat_ioctl,
 	.poll               = drm_poll,
 	.read               = drm_read,
 	.llseek             = no_llseek,
@@ -592,8 +660,11 @@ static int msm_lease_probe(struct platform_device *pdev)
 
 	/* if lease device has the same name, hide the original name */
 	if (lease_drv->dev_name &&
-	    !strcmp(lease_drv->dev_name, master_ddev->driver->name))
+	    !strcmp(lease_drv->dev_name, master_ddev->driver->name)) {
 		g_master_ddev_name_overridden = true;
+		snprintf(g_master_ddev_name, sizeof(g_master_ddev_name),
+				"%s_orig", master_ddev->driver->name);
+	}
 
 fail:
 	mutex_unlock(&g_lease_mutex);
