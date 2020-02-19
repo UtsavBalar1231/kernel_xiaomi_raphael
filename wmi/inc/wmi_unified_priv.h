@@ -68,6 +68,10 @@
 #include <wlan_interop_issues_ap_public_structs.h>
 #endif
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+#include "wlan_pkt_capture_public_structs.h"
+#endif
+
 #define WMI_UNIFIED_MAX_EVENT 0x100
 
 #ifdef WMI_EXT_DBG
@@ -2030,6 +2034,12 @@ QDF_STATUS (*send_dscp_tid_map_cmd)(wmi_unified_t wmi_handle,
 #endif
 QDF_STATUS (*send_roam_scan_ch_list_req_cmd)(wmi_unified_t wmi_hdl,
 					     uint32_t vdev_id);
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+QDF_STATUS (*extract_vdev_mgmt_offload_event)(
+				void *handle,
+				void *event_buf,
+				struct mgmt_offload_event_params *params);
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
 
 };
 

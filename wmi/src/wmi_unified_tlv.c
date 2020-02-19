@@ -8046,6 +8046,36 @@ QDF_STATUS send_obss_spatial_reuse_set_cmd_tlv(wmi_unified_t wmi_handle,
 }
 #endif
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+static QDF_STATUS
+extract_vdev_mgmt_offload_event_tlv(void *handle, void *evt_buf,
+				    struct mgmt_offload_event_params *params)
+{
+	WMI_VDEV_MGMT_OFFLOAD_EVENTID_param_tlvs *param_tlvs;
+	wmi_mgmt_hdr *hdr;
+
+	param_tlvs = (WMI_VDEV_MGMT_OFFLOAD_EVENTID_param_tlvs *)evt_buf;
+	if (!param_tlvs)
+		return QDF_STATUS_E_INVAL;
+
+	hdr = param_tlvs->fixed_param;
+	if (!hdr)
+		return QDF_STATUS_E_INVAL;
+
+	if (hdr->buf_len > param_tlvs->num_bufp)
+		return QDF_STATUS_E_INVAL;
+
+	params->tsf_l32 = hdr->tsf_l32;
+	params->chan_freq = hdr->chan_freq;
+	params->rate_kbps = hdr->rate_kbps;
+	params->rssi = hdr->rssi;
+	params->buf_len = hdr->buf_len;
+	params->tx_status = hdr->tx_status;
+	params->buf = param_tlvs->bufp;
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
+
 #ifdef QCA_SUPPORT_CP_STATS
 /**
  * extract_cca_stats_tlv - api to extract congestion stats from event buffer
@@ -12413,6 +12443,9 @@ struct wmi_ops tlv_ops =  {
 	.extract_roam_result_stats = extract_roam_result_stats_tlv,
 	.extract_roam_11kv_stats = extract_roam_11kv_stats_tlv,
 	.send_roam_scan_ch_list_req_cmd = send_roam_scan_ch_list_req_cmd_tlv,
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+	.extract_vdev_mgmt_offload_event = extract_vdev_mgmt_offload_event_tlv,
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
 };
 
 /**
