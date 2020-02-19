@@ -2963,6 +2963,7 @@ struct category_name_info g_qdf_category_name[MAX_SUPPORTED_CATEGORY] = {
 	[QDF_MODULE_ID_TX_CAPTURE] = {"TX_CAPTURE_ENHANCE"},
 	[QDF_MODULE_ID_INTEROP_ISSUES_AP] = {"INTEROP_ISSUES_AP"},
 	[QDF_MODULE_ID_BLACKLIST_MGR] = {"blm"},
+	[QDF_MODULE_ID_PKT_CAPTURE] = {"pkt_capture"},
 	[QDF_MODULE_ID_ANY] = {"ANY"},
 };
 qdf_export_symbol(g_qdf_category_name);
@@ -3421,6 +3422,7 @@ static void set_default_trace_levels(struct category_info *cinfo)
 		[QDF_MODULE_ID_TX_CAPTURE] = QDF_TRACE_LEVEL_NONE,
 		[QDF_MODULE_ID_INTEROP_ISSUES_AP] = QDF_TRACE_LEVEL_NONE,
 		[QDF_MODULE_ID_BLACKLIST_MGR] = QDF_TRACE_LEVEL_NONE,
+		[QDF_MODULE_ID_PKT_CAPTURE] = QDF_TRACE_LEVEL_NONE,
 		[QDF_MODULE_ID_ANY] = QDF_TRACE_LEVEL_INFO,
 	};
 

@@ -372,6 +372,7 @@ typedef bool (*qdf_irqlocked_func_t)(void *);
  * @QDF_MODULE_ID_TX_CAPTURE: Tx capture enhancement feature ID
  * @QDF_MODULE_ID_INTEROP_ISSUES_AP: interop issues ap module ID
  * @QDF_MODULE_ID_BLACKLIST_MGR: Blacklist Manager module
+ * @QDF_MODULE_ID_PKT_CAPTURE: PACKET CAPTURE module ID
  * @QDF_MODULE_ID_ANY: anything
  * @QDF_MODULE_ID_MAX: Max place holder module ID
  */
@@ -488,6 +489,7 @@ typedef enum {
 	QDF_MODULE_ID_TX_CAPTURE,
 	QDF_MODULE_ID_INTEROP_ISSUES_AP,
 	QDF_MODULE_ID_BLACKLIST_MGR,
+	QDF_MODULE_ID_PKT_CAPTURE,
 	QDF_MODULE_ID_ANY,
 	QDF_MODULE_ID_MAX,
 } QDF_MODULE_ID;
@@ -721,6 +723,7 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 #define QDF_SAP_MASK (1 << QDF_SAP_MODE)
 #define QDF_P2P_CLIENT_MASK (1 << QDF_P2P_CLIENT_MODE)
 #define QDF_P2P_GO_MASK (1 << QDF_P2P_GO_MODE)
+#define QDF_MONITOR_MASK (1 << QDF_MONITOR_MODE)
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 
