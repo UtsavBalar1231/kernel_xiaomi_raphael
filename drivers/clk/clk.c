@@ -27,7 +27,6 @@
 #include <linux/of_platform.h>
 #include <linux/pm_opp.h>
 #include <linux/regulator/consumer.h>
-#include <linux/kthread.h>
 
 #include "clk.h"
 
@@ -3460,7 +3459,16 @@ void clock_debug_print_enabled(bool print_parent)
 }
 EXPORT_SYMBOL_GPL(clock_debug_print_enabled);
 
-static int clk_debug_kthread(void *arg)
+/**
+ * clk_debug_init - lazily populate the debugfs clk directory
+ *
+ * clks are often initialized very early during boot before memory can be
+ * dynamically allocated and well before debugfs is setup. This function
+ * populates the debugfs clk directory once at boot-time when we know that
+ * debugfs is setup. It should only be called once at boot-time, all other clks
+ * added dynamically will be done so with clk_debug_register.
+ */
+static int __init clk_debug_init(void)
 {
 	struct clk_core *core;
 	struct dentry *d;
@@ -3513,25 +3521,6 @@ static int clk_debug_kthread(void *arg)
 	mutex_unlock(&clk_debug_lock);
 
 	return 0;
-}
-
-/**
- * clk_debug_init - lazily populate the debugfs clk directory
- *
- * clks are often initialized very early during boot before memory can be
- * dynamically allocated and well before debugfs is setup. This function
- * populates the debugfs clk directory once at boot-time when we know that
- * debugfs is setup. It should only be called once at boot-time, all other clks
- * added dynamically will be done so with clk_debug_register.
- */
-static int __init clk_debug_init(void)
-{
-	struct task_struct *clk_debug_task =
-		kthread_run(clk_debug_kthread, NULL, "clk_debug_init");
-	if(IS_ERR(clk_debug_task))
-		return PTR_ERR(clk_debug_task);
-	else
-		return 0;
 }
 late_initcall(clk_debug_init);
 #else
