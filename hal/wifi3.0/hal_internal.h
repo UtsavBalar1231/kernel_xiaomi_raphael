@@ -370,6 +370,16 @@ struct hal_hw_txrx_ops {
 };
 
 /**
+ * struct hal_soc_stats - Hal layer stats
+ * @reg_write_fail: number of failed register writes
+ *
+ * This structure holds all the statistics at HAL layer.
+ */
+struct hal_soc_stats {
+	uint32_t reg_write_fail;
+};
+
+/**
  * HAL context to be used to access SRNG APIs (currently used by data path
  * and transport (CE) modules)
  */
@@ -412,6 +422,9 @@ struct hal_soc {
 	struct hal_hw_srng_config *hw_srng_table;
 	int32_t *hal_hw_reg_offset;
 	struct hal_hw_txrx_ops *ops;
+
+	/* Hal level stats */
+	struct hal_soc_stats stats;
 };
 
 void hal_qca6390_attach(struct hal_soc *hal_soc);
