@@ -4695,3 +4695,15 @@ bool hif_pci_needs_bmi(struct hif_softc *scn)
 {
 	return !ce_srng_based(scn);
 }
+
+#ifdef FEATURE_HAL_DELAYED_REG_WRITE
+int hif_prevent_link_low_power_states(struct hif_opaque_softc *hif)
+{
+	return pld_prevent_l1(HIF_GET_SOFTC(hif)->qdf_dev->dev);
+}
+
+void hif_allow_link_low_power_states(struct hif_opaque_softc *hif)
+{
+	pld_allow_l1(HIF_GET_SOFTC(hif)->qdf_dev->dev);
+}
+#endif
