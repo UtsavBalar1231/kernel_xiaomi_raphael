@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -383,6 +383,8 @@ void a6xx_preemption_trigger(struct adreno_device *adreno_dev)
 		jiffies + msecs_to_jiffies(ADRENO_PREEMPT_TIMEOUT));
 
 	adreno_set_preempt_state(adreno_dev, ADRENO_PREEMPT_TRIGGERED);
+	trace_adreno_preempt_trigger(adreno_dev->cur_rb, adreno_dev->next_rb,
+		cntl);
 
 	/* Trigger the preemption */
 	if (adreno_gmu_fenced_write(adreno_dev, ADRENO_REG_CP_PREEMPT, cntl,
@@ -392,8 +394,6 @@ void a6xx_preemption_trigger(struct adreno_device *adreno_dev)
 		goto err;
 	}
 
-	trace_adreno_preempt_trigger(adreno_dev->cur_rb, adreno_dev->next_rb,
-		cntl);
 
 	return;
 err:
@@ -619,14 +619,23 @@ static int a6xx_preemption_ringbuffer_init(struct adreno_device *adreno_dev,
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	int ret;
 
+	/*
+	 * Reserve CP context record size as
+	 * GMEM size + GPU HW state size i.e 0x110000
+	 */
 	ret = kgsl_allocate_global(device, &rb->preemption_desc,
-		A6XX_CP_CTXRECORD_SIZE_IN_BYTES, 0, KGSL_MEMDESC_PRIVILEGED,
+		adreno_dev->gpucore->gmem_size + 0x110000,
+		0, KGSL_MEMDESC_PRIVILEGED,
 		"preemption_desc");
 	if (ret)
 		return ret;
 
+	/*
+	 * Reserve CP context record size as
+	 * GMEM size + GPU HW state size i.e 0x110000
+	 */
 	ret = kgsl_allocate_user(device, &rb->secure_preemption_desc,
-		A6XX_CP_CTXRECORD_SIZE_IN_BYTES,
+		adreno_dev->gpucore->gmem_size + 0x110000,
 		KGSL_MEMFLAGS_SECURE | KGSL_MEMDESC_PRIVILEGED);
 	if (ret)
 		return ret;

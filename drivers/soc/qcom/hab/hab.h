@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -373,7 +373,7 @@ struct export_desc {
 int hab_vchan_open(struct uhab_context *ctx,
 		unsigned int mmid, int32_t *vcid,
 		int32_t timeout, uint32_t flags);
-void hab_vchan_close(struct uhab_context *ctx,
+int hab_vchan_close(struct uhab_context *ctx,
 		int32_t vcid);
 long hab_vchan_send(struct uhab_context *ctx,
 		int vcid,
@@ -589,4 +589,11 @@ static inline void hab_write_unlock(rwlock_t *lock, int irqs_disabled)
 /* Global singleton HAB instance */
 extern struct hab_driver hab_driver;
 
+int dump_hab_get_file_name(char *file_time, int ft_size);
+int dump_hab_open(void);
+void dump_hab_close(void);
+int dump_hab_buf(void *buf, int size);
+void hab_pipe_read_dump(struct physical_channel *pchan);
+void dump_hab(void);
+void dump_hab_wq(void *hyp_data);
 #endif /* __HAB_H */

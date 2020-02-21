@@ -519,16 +519,16 @@ unsigned long vmalloc_to_pfn(const void *addr);
  * On nommu, vmalloc/vfree wrap through kmalloc/kfree directly, so there
  * is no special casing required.
  */
-static inline bool is_vmalloc_addr(const void *x)
-{
-#ifdef CONFIG_MMU
-	unsigned long addr = (unsigned long)x;
 
-	return addr >= VMALLOC_START && addr < VMALLOC_END;
+#ifdef CONFIG_MMU
+extern int is_vmalloc_addr(const void *x);
 #else
-	return false;
-#endif
+static inline int is_vmalloc_addr(const void *x)
+{
+	return 0;
 }
+#endif
+
 #ifdef CONFIG_MMU
 extern int is_vmalloc_or_module_addr(const void *x);
 #else
@@ -561,11 +561,6 @@ static inline void *kvmalloc_array(size_t n, size_t size, gfp_t flags)
 }
 
 extern void kvfree(const void *addr);
-
-static inline atomic_t *compound_mapcount_ptr(struct page *page)
-{
-	return &page[1].compound_mapcount;
-}
 
 static inline int compound_mapcount(struct page *page)
 {

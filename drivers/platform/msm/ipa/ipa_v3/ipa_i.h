@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -183,7 +183,8 @@
 #define IPA_HDR_BIN2 2
 #define IPA_HDR_BIN3 3
 #define IPA_HDR_BIN4 4
-#define IPA_HDR_BIN_MAX 5
+#define IPA_HDR_BIN5 5
+#define IPA_HDR_BIN_MAX 6
 
 #define IPA_HDR_PROC_CTX_BIN0 0
 #define IPA_HDR_PROC_CTX_BIN1 1
@@ -251,6 +252,8 @@ enum {
 # define outer_flush_range(x, y)
 # define __cpuc_flush_dcache_area __flush_dcache_area
 #endif
+
+#define IPA_APP_VOTE_MAX 500
 
 #define IPA_SMP2P_OUT_CLK_RSP_CMPLT_IDX 0
 #define IPA_SMP2P_OUT_CLK_VOTE_IDX 1
@@ -442,6 +445,9 @@ enum {
 				compat_uptr_t)
 #define IPA_IOC_GET_NAT_IN_SRAM_INFO32 _IOWR(IPA_IOC_MAGIC, \
 				IPA_IOCTL_GET_NAT_IN_SRAM_INFO, \
+				compat_uptr_t)
+#define IPA_IOC_APP_CLOCK_VOTE32 _IOWR(IPA_IOC_MAGIC, \
+				IPA_IOCTL_APP_CLOCK_VOTE, \
 				compat_uptr_t)
 #endif /* #ifdef CONFIG_COMPAT */
 
@@ -1370,6 +1376,7 @@ struct ipa3_stats {
 	u32 flow_enable;
 	u32 flow_disable;
 	u32 tx_non_linear;
+	u32 rx_page_drop_cnt;
 	struct ipa3_page_recycle_stats page_recycle_stats[2];
 };
 
@@ -1724,6 +1731,11 @@ struct ipa3_pc_mbox_data {
 	struct mbox_chan *mbox;
 };
 
+struct ipa3_app_clock_vote {
+	struct mutex mutex;
+	u32 cnt;
+};
+
 /**
  * struct ipa3_context - IPA context
  * @cdev: cdev context
@@ -1788,6 +1800,7 @@ struct ipa3_pc_mbox_data {
  * @ipa_wdi2: using wdi-2.0
  * @ipa_config_is_auto: is this AUTO use case
  * @ipa_fltrt_not_hashable: filter/route rules not hashable
+ * @use_xbl_boot: use xbl loading for IPA FW
  * @use_64_bit_dma_mask: using 64bits dma mask
  * @ipa_bus_hdl: msm driver handle for the data path bus
  * @ctrl: holds the core specific operations based on
@@ -1815,6 +1828,7 @@ struct ipa3_pc_mbox_data {
  * @flt_rt_counters: the counters usage info for flt rt stats
  * @wdi3_ctx: IPA wdi3 context
  * @gsi_info: channel/protocol info for GSI offloading uC stats
+ * @app_vote: holds userspace application clock vote count
  * IPA context - holds all relevant info about IPA driver and its state
  * @coal_cmd_pyld: holds the coslescing close frame command payload
  */
@@ -1900,6 +1914,7 @@ struct ipa3_context {
 	bool ipa_wdi3_over_gsi;
 	bool ipa_endp_delay_wa;
 	bool ipa_fltrt_not_hashable;
+	bool use_xbl_boot;
 	bool use_64_bit_dma_mask;
 	/* featurize if memory footprint becomes a concern */
 	struct ipa3_stats stats;
@@ -1989,6 +2004,7 @@ struct ipa3_context {
 	bool ipa_mhi_proxy;
 	bool ipa_wan_skb_page;
 	struct ipahal_imm_cmd_pyld *coal_cmd_pyld;
+	struct ipa3_app_clock_vote app_clock_vote;
 };
 
 struct ipa3_plat_drv_res {
@@ -2014,6 +2030,7 @@ struct ipa3_plat_drv_res {
 	bool ipa_wdi2_over_gsi;
 	bool ipa_wdi3_over_gsi;
 	bool ipa_fltrt_not_hashable;
+	bool use_xbl_boot;
 	bool use_64_bit_dma_mask;
 	bool use_bw_vote;
 	u32 wan_rx_ring_size;
@@ -2230,8 +2247,10 @@ struct ipa3_mem_partition {
 	u32 uc_descriptor_ram_size;
 	u32 pdn_config_ofst;
 	u32 pdn_config_size;
-	u32 stats_quota_ofst;
-	u32 stats_quota_size;
+	u32 stats_quota_q6_ofst;
+	u32 stats_quota_q6_size;
+	u32 stats_quota_ap_ofst;
+	u32 stats_quota_ap_size;
 	u32 stats_tethering_ofst;
 	u32 stats_tethering_size;
 	u32 stats_fnr_ofst;
@@ -2334,6 +2353,8 @@ int ipa3_clear_endpoint_delay(u32 clnt_hdl);
  * Configuration
  */
 int ipa3_cfg_ep(u32 clnt_hdl, const struct ipa_ep_cfg *ipa_ep_cfg);
+
+int ipa3_cfg_ep_seq(u32 clnt_hdl, const struct ipa_ep_cfg_seq *seq_cfg);
 
 int ipa3_cfg_ep_nat(u32 clnt_hdl, const struct ipa_ep_cfg_nat *ipa_ep_cfg);
 
@@ -2491,6 +2512,7 @@ int ipa3_del_ipv6ct_table(struct ipa_ioc_nat_ipv6ct_table_del *del);
 
 int ipa3_nat_mdfy_pdn(struct ipa_ioc_nat_pdn_entry *mdfy_pdn);
 int ipa3_nat_get_sram_info(struct ipa_nat_in_sram_info *info_ptr);
+int ipa3_app_clk_vote(enum ipa_app_clock_vote_type vote_type);
 
 /*
  * Messaging

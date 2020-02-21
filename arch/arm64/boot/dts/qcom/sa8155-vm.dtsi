@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  */
 
 #include "skeleton64.dtsi"
@@ -20,15 +20,8 @@
 		pci-domain0 = &pcie0; /* PCIe0 domain */
 		sdhc2 = &sdhc_2; /* SDC2 SD card slot */
 	};
-
-	reserved_memory: reserved-memory {
-
-		pmem_shared: pmem_shared_region@a0000000 {
-			reg = <0x0 0xa0000000 0x0 0x20000000>;
-			label = "pmem_shared_mem";
-		};
-	};
 };
+
 
 &soc {
 	hsi2s: qcom,hsi2s {
@@ -127,6 +120,11 @@
 			tdm-inv-sync = <0>;
 			pcm-lane-config = <1>;
 		};
+	};
+
+	ptp_virtual {
+		compatible = "qcom,ptp_virtual";
+		reg = <0xeb600000 0x1000>;
 	};
 
 	clock_virt: qcom,virtio-gcc {
@@ -581,6 +579,119 @@
 				};
 			};
 		};
+
+		chip_cfg@2 {
+			reg = <0xa0000000 0x10000000>,
+			    <0xb0000000 0x10000>;
+			reg-names = "smmu_iova_base", "smmu_iova_ipa";
+
+			supported-ids = <0x1102>;
+			wlan_vregs = "vdd-wlan-aon", "vdd-wlan-rfa1",
+				   "vdd-wlan-rfa2", "vdd-wlan-rfa3";
+			qcom,vdd-wlan-aon-info = <1055000 1055000 0 0>;
+			qcom,vdd-wlan-rfa1-info = <1370000 1370000 0 0>;
+			qcom,vdd-wlan-rfa2-info = <2040000 2040000 0 0>;
+			qcom,vdd-wlan-rfa3-info = <1900000 1900000 0 0>;
+
+			qcom,wlan-ramdump-dynamic = <0x300000>;
+			mhi,max-channels = <30>;
+			mhi,timeout = <10000>;
+			mhi,ee = <0x3>, <0x4>;
+			mhi,ee-names = "SBL", "RDDM";
+			mhi,bhie-offset = <0x0324>;
+
+			mhi_channels {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				mhi_chan@0 {
+					reg = <0>;
+					label = "LOOPBACK";
+					mhi,num-elements = <32>;
+					mhi,event-ring = <1>;
+					mhi,chan-dir = <1>;
+					mhi,data-type = <0>;
+					mhi,doorbell-mode = <2>;
+					mhi,ee = <0x14>;
+				};
+
+				mhi_chan@1 {
+					reg = <1>;
+					label = "LOOPBACK";
+					mhi,num-elements = <32>;
+					mhi,event-ring = <1>;
+					mhi,chan-dir = <2>;
+					mhi,data-type = <0>;
+					mhi,doorbell-mode = <2>;
+					mhi,ee = <0x14>;
+				};
+
+				mhi_chan@4 {
+					reg = <4>;
+					label = "DIAG";
+					mhi,num-elements = <32>;
+					mhi,event-ring = <1>;
+					mhi,chan-dir = <1>;
+					mhi,data-type = <0>;
+					mhi,doorbell-mode = <2>;
+					mhi,ee = <0x14>;
+				};
+
+				mhi_chan@5 {
+					reg = <5>;
+					label = "DIAG";
+					mhi,num-elements = <32>;
+					mhi,event-ring = <1>;
+					mhi,chan-dir = <2>;
+					mhi,data-type = <0>;
+					mhi,doorbell-mode = <2>;
+					mhi,ee = <0x14>;
+				};
+
+				mhi_chan@16 {
+					reg = <16>;
+					label = "IPCR";
+					mhi,num-elements = <32>;
+					mhi,event-ring = <1>;
+					mhi,chan-dir = <1>;
+					mhi,data-type = <1>;
+					mhi,doorbell-mode = <2>;
+					mhi,ee = <0x14>;
+					mhi,auto-start;
+				};
+
+				mhi_chan@17 {
+					reg = <17>;
+					label = "IPCR";
+					mhi,num-elements = <32>;
+					mhi,event-ring = <1>;
+					mhi,chan-dir = <2>;
+					mhi,data-type = <0>;
+					mhi,doorbell-mode = <2>;
+					mhi,ee = <0x14>;
+					mhi,auto-queue;
+					mhi,auto-start;
+				};
+			};
+
+			mhi_events {
+				mhi_event@0 {
+					mhi,num-elements = <32>;
+					mhi,intmod = <1>;
+					mhi,msi = <1>;
+					mhi,priority = <1>;
+					mhi,brstmode = <2>;
+					mhi,data-type = <1>;
+				};
+
+				mhi_event@1 {
+					mhi,num-elements = <256>;
+					mhi,intmod = <1>;
+					mhi,msi = <2>;
+					mhi,priority = <1>;
+					mhi,brstmode = <2>;
+				};
+			};
+		};
 	};
 
 	sdhc_2: sdhci@8804000 {
@@ -676,6 +787,21 @@
 			type = "native";
 			offset = <512>;
 		};
+	};
+
+	qcom_rng: qrng@793000 {
+		compatible = "qcom,msm-rng";
+		reg = <0x793000 0x1000>;
+		qcom,msm-rng-iface-clk;
+		qcom,no-qrng-config;
+		qcom,msm-bus,name = "msm-rng-noc";
+		qcom,msm-bus,num-cases = <2>;
+		qcom,msm-bus,num-paths = <1>;
+		qcom,msm-bus,vectors-KBps =
+			<1 618 0 0>,    /* No vote */
+			<1 618 0 300000>;  /* 75 MHz */
+		clocks = <&clock_virt GCC_PRNG_AHB_CLK>;
+		clock-names = "iface_clk";
 	};
 };
 
