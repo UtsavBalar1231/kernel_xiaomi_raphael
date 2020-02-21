@@ -67,6 +67,8 @@
 #define CFG_MAX_STR_LEN       256
 #define MAX_VENDOR_IES_LEN 1532
 
+#define CFG_MAX_PMK_LEN       64
+
 #define CFG_VALID_CHANNEL_LIST_STRING_LEN (CFG_VALID_CHANNEL_LIST_LEN * 4)
 
 #define DEFAULT_ROAM_TRIGGER_BITMAP 0xFFFFFFFF
@@ -1486,8 +1488,8 @@ struct bss_load_trigger {
  * @fw_akm_bitmap:                  Supported Akm suites of firmware
  * @roam_full_scan_period: Idle period in seconds between two successive
  * full channel roam scans
- * @sae_same_pmk_feature_enabled: Contains value of ini
- * sae_same_pmk_feature_enabled
+ * @sae_single_pmk_feature_enabled: Contains value of ini
+ * sae_single_pmk_feature_enabled
  */
 struct wlan_mlme_lfr_cfg {
 	bool mawc_roam_enabled;
@@ -1592,8 +1594,8 @@ struct wlan_mlme_lfr_cfg {
 	uint32_t roam_scan_period_after_inactivity;
 	uint32_t fw_akm_bitmap;
 	uint32_t roam_full_scan_period;
-#ifdef WLAN_SAE_SINGLE_PMK
-	bool sae_same_pmk_feature_enabled;
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+	bool sae_single_pmk_feature_enabled;
 #endif
 };
 
@@ -2266,6 +2268,27 @@ struct wlan_mlme_cfg {
 	struct wlan_mlme_reg reg;
 	struct roam_trigger_score_delta trig_score_delta[NUM_OF_ROAM_TRIGGERS];
 	struct roam_trigger_min_rssi trig_min_rssi[NUM_OF_ROAM_TRIGGERS];
+};
+
+/**
+ * struct mlme_pmk_info - SAE Roaming using single pmk info
+ * @pmk: pmk
+ * @pmk_len: pmk length
+ */
+struct mlme_pmk_info {
+	uint8_t pmk[CFG_MAX_PMK_LEN];
+	uint8_t pmk_len;
+};
+
+/**
+ * struct wlan_mlme_sae_single_pmk - SAE Roaming using single pmk configuration
+ * structure
+ * @sae_single_pmk_ap: Current connected AP has VSIE or not
+ * @pmk_info: pmk information
+ */
+struct wlan_mlme_sae_single_pmk {
+	bool sae_single_pmk_ap;
+	struct mlme_pmk_info pmk_info;
 };
 
 /**

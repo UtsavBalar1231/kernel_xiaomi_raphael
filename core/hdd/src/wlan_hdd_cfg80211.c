@@ -21303,6 +21303,40 @@ static int wlan_hdd_cfg80211_add_station(struct wiphy *wiphy,
 	return errno;
 }
 
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/**
+ * wlan_update_sae_single_pmk_info() - Update a separate pmk information
+ * structure to support sae roaming using same pmk
+ * @vdev: vdev common object
+ * @pmk_cache: Pointer to pmk cache info
+ *
+ * Return: None
+ */
+static void wlan_update_sae_single_pmk_info(struct wlan_objmgr_vdev *vdev,
+					    tPmkidCacheInfo *pmk_cache)
+{
+	struct mlme_pmk_info *pmk_info;
+
+	pmk_info = qdf_mem_malloc(sizeof(*pmk_info));
+	if (!pmk_info)
+		return;
+
+	qdf_mem_copy(pmk_info->pmk, pmk_cache->pmk, pmk_cache->pmk_len);
+	pmk_info->pmk_len = pmk_cache->pmk_len;
+
+	ucfg_mlme_update_sae_single_pmk_info(vdev, pmk_info);
+
+	qdf_mem_zero(pmk_info, sizeof(*pmk_info));
+	qdf_mem_free(pmk_info);
+
+}
+#else
+static void wlan_update_sae_single_pmk_info(struct wlan_objmgr_vdev *vdev,
+					    tPmkidCacheInfo *pmk_cache)
+{
+}
+#endif
+
 #ifdef WLAN_CONV_CRYPTO_IE_SUPPORT
 static QDF_STATUS wlan_hdd_set_pmksa_cache(struct hdd_adapter *adapter,
 					   tPmkidCacheInfo *pmk_cache)
@@ -21372,7 +21406,17 @@ static QDF_STATUS wlan_hdd_set_pmksa_cache(struct hdd_adapter *adapter,
 					   tPmkidCacheInfo *pmk_cache)
 {
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	struct wlan_objmgr_vdev *vdev;
+	struct hdd_station_ctx *sta_ctx =
+			WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 
+	if (sta_ctx->conn_info.auth_type == eCSR_AUTH_TYPE_SAE) {
+		vdev = hdd_objmgr_get_vdev(adapter);
+		if (!vdev)
+			return QDF_STATUS_E_FAILURE;
+		wlan_update_sae_single_pmk_info(vdev, pmk_cache);
+		hdd_objmgr_put_vdev(vdev);
+	}
 	return sme_roam_set_pmkid_cache(
 		hdd_ctx->mac_handle, adapter->vdev_id, pmk_cache, 1, false);
 }
