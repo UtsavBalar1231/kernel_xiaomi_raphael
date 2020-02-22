@@ -1195,6 +1195,7 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 			return ret;
 		}
 
+		pdata->phy_irq_enabled = true;
 		phydev->irq = PHY_IGNORE_INTERRUPT;
 		phydev->interrupts =  PHY_INTERRUPT_ENABLED;
 
