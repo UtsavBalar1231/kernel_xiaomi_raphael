@@ -1847,6 +1847,8 @@ static int DWC_ETH_QOS_configure_netdevice(struct platform_device *pdev)
 		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_96;
 	else if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_2 )
 		pdata->default_ptp_clock = DWC_ETH_QOS_PTP_CLOCK_62_5;
+	else
+		pdata->default_ptp_clock = DWC_ETH_QOS_DEFAULT_PTP_CLOCK;
 
 #ifdef DWC_ETH_QOS_CONFIG_PTP
 	DWC_ETH_QOS_ptp_init(pdata);
@@ -2152,6 +2154,11 @@ static int DWC_ETH_QOS_probe(struct platform_device *pdev)
 			goto err_out_dev_failed;
 	}
 	EMACDBG("<-- DWC_ETH_QOS_probe\n");
+
+#if defined DWC_ETH_QOS_BUILTIN && defined CONFIG_MSM_BOOT_TIME_MARKER
+	place_marker("M - Ethernet probe end");
+#endif
+
 	return ret;
 
  err_out_dev_failed:
