@@ -1196,7 +1196,7 @@ static void goodix_switch_mode_work(struct work_struct *work)
 	if (value >= INPUT_EVENT_WAKUP_MODE_OFF
 		&& value <= INPUT_EVENT_WAKUP_MODE_ON) {
 		info->double_wakeup = value - INPUT_EVENT_WAKUP_MODE_OFF;
-		info->gesture_enabled = info->double_wakeup | info->fod_status;
+		info->gesture_enabled = info->double_wakeup || info->aod_status;
 		/*goodix_gesture_enable(!!info->gesture_enabled);*/
 #ifdef CONFIG_GOODIX_HWINFO
 		snprintf(ch, sizeof(ch), "%s", info->gesture_enabled ? "enabled" : "disabled");
@@ -1553,11 +1553,11 @@ int goodix_ts_suspend(struct goodix_ts_core *core_data)
 
 			r = ext_module->funcs->before_suspend(core_data, ext_module);
 			if (r == EVT_CANCEL_SUSPEND) {
-				if (core_data->double_wakeup && core_data->fod_status) {
+				if (core_data->double_wakeup && (core_data->aod_status || core_data->fod_status)) {
 					atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK_FOD);
-				} else if (core_data->double_wakeup) {
+				} else if (core_data->double_wakeup && (!core_data->aod_status)) {
 					atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK);
-				} else if (core_data->fod_status) {
+				} else if (core_data->fod_status && core_data->aod_status) {
 					atomic_set(&core_data->suspend_stat, TP_GESTURE_FOD);
 				}
 				mutex_unlock(&goodix_modules.mutex);
