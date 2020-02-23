@@ -475,6 +475,7 @@ struct goodix_ts_core {
 	int is_usb_exist;
 	int gesture_enabled;
 	int fod_status;
+	bool fod_enabled;
 	int aod_status;
 	int fod_pressed;
 	int fod_test;
@@ -500,6 +501,7 @@ struct goodix_ts_core {
 struct goodix_mode_switch {
 	struct goodix_ts_core *info;
 	unsigned char mode;
+	struct work_struct switch_mode_work;
 };
 
 /* external module structures */
@@ -700,7 +702,7 @@ static inline u32 checksum_be32(u8 *data, u32 size)
 #define ECHKSUM					1002
 #define EMEMCMP					1003
 
-//#define CONFIG_GOODIX_DEBUG
+#define CONFIG_GOODIX_DEBUG
 /* log macro */
 #ifdef CONFIG_GOODIX_DEBUG
 #define ts_info(fmt, arg...)	pr_info("[GTP9886-INF][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
