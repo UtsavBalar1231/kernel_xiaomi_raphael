@@ -43,8 +43,7 @@ MODULE_LICENSE("GPL v2");
 
 #define THERMAL_MAX_ACTIVE	16
 
-#define CPU_LIMITS_PARAM_NUM    2
-
+#define CPU_LIMITS_PARAM_NUM	2
 
 static DEFINE_IDA(thermal_tz_ida);
 static DEFINE_IDA(thermal_cdev_ida);
@@ -57,10 +56,17 @@ static DEFINE_MUTEX(thermal_list_lock);
 static DEFINE_MUTEX(thermal_governor_lock);
 static DEFINE_MUTEX(poweroff_lock);
 
+static atomic_t in_suspend;
+static bool power_off_triggered;
+
+static struct thermal_governor *def_governor;
+
+static struct workqueue_struct *thermal_passive_wq;
+
 #ifdef CONFIG_DRM
 struct screen_monitor {
 	struct notifier_block thermal_notifier;
-	int screen_state;
+	int screen_state; /* 1: on; 0:off */
 };
 
 struct screen_monitor sm;
@@ -69,15 +75,6 @@ struct screen_monitor sm;
 static atomic_t switch_mode = ATOMIC_INIT(-1);
 static atomic_t temp_state = ATOMIC_INIT(0);
 static char boost_buf[128];
-const char *board_sensor;
-static char board_sensor_temp[128];
-
-static atomic_t in_suspend;
-static bool power_off_triggered;
-
-static struct thermal_governor *def_governor;
-
-static struct workqueue_struct *thermal_passive_wq;
 
 /*
  * Governor section: set of functions to handle thermal governors
@@ -1654,7 +1651,7 @@ thermal_screen_state_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", sm.screen_state);
 }
 
-static DEVICE_ATTR(screen_state, 0664,
+static DEVICE_ATTR(screen_state, 0644,
 		thermal_screen_state_show, NULL);
 #endif
 
@@ -1664,7 +1661,6 @@ thermal_sconfig_show(struct device *dev,
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&switch_mode));
 }
-
 
 static ssize_t
 thermal_sconfig_store(struct device *dev,
@@ -1694,7 +1690,7 @@ thermal_boost_store(struct device *dev,
 				      struct device_attribute *attr, const char *buf, size_t len)
 {
 	int ret;
-	ret = snprintf(boost_buf, PAGE_SIZE, buf);
+	ret = snprintf(boost_buf, sizeof(boost_buf), buf);
 	return len;
 }
 
@@ -1748,38 +1744,6 @@ cpu_limits_store(struct device *dev,
 	return len;
 }
 
-static ssize_t
-thermal_board_sensor_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	if (!board_sensor)
-		board_sensor = "invalid";
-
-	return snprintf(buf, PAGE_SIZE, "%s", board_sensor);
-}
-
-static DEVICE_ATTR(board_sensor, 0664,
-		thermal_board_sensor_show, NULL);
-
-static ssize_t
-thermal_board_sensor_temp_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-       return snprintf(buf, PAGE_SIZE, board_sensor_temp);
-}
-
-static ssize_t
-thermal_board_sensor_temp_store(struct device *dev,
-				struct device_attribute *attr, const char *buf, size_t len)
-{
-       snprintf(board_sensor_temp, PAGE_SIZE, buf);
-
-       return len;
-}
-
-static DEVICE_ATTR(board_sensor_temp, 0664,
-		thermal_board_sensor_temp_show, thermal_board_sensor_temp_store);
-
 static DEVICE_ATTR(cpu_limits, 0664,
 		   cpu_limits_show, cpu_limits_store);
 
@@ -1812,13 +1776,6 @@ static int create_thermal_message_node(void)
 		ret = sysfs_create_file(&thermal_message_dev.kobj, &dev_attr_cpu_limits.attr);
 		if (ret < 0)
 			pr_warn("Thermal: create cpu limits node failed\n");
-		ret = sysfs_create_file(&thermal_message_dev.kobj, &dev_attr_board_sensor.attr);
-		if (ret < 0)
-			pr_warn("Thermal: create board sensor node failed\n");
-
-		ret = sysfs_create_file(&thermal_message_dev.kobj, &dev_attr_board_sensor_temp.attr);
-		if (ret < 0)
-			pr_warn("Thermal: create board sensor temp node failed\n");
 	}
 
 	return ret;
@@ -1830,8 +1787,6 @@ static void destroy_thermal_message_node(void)
 	sysfs_remove_file(&thermal_message_dev.kobj, &dev_attr_temp_state.attr);
 	sysfs_remove_file(&thermal_message_dev.kobj, &dev_attr_boost.attr);
 	sysfs_remove_file(&thermal_message_dev.kobj, &dev_attr_sconfig.attr);
-	sysfs_remove_file(&thermal_message_dev.kobj, &dev_attr_board_sensor_temp.attr);
-	sysfs_remove_file(&thermal_message_dev.kobj, &dev_attr_board_sensor.attr);
 #ifdef CONFIG_DRM
 	sysfs_remove_file(&thermal_message_dev.kobj, &dev_attr_screen_state.attr);
 #endif
@@ -1867,23 +1822,6 @@ static int screen_state_for_thermal_callback(struct notifier_block *nb, unsigned
 }
 #endif
 
-static int of_parse_thermal_message(void)
-{
-	struct device_node *np;
-
-	np = of_find_node_by_name(NULL, "thermal-message");
-	if (!np)
-		return -EINVAL;
-
-	if (of_property_read_string(np, "board-sensor", &board_sensor))
-		return -EINVAL;
-
-	pr_info("%s board sensor: %s\n", board_sensor);
-
-	return 0;
-}
-
-
 static int __init thermal_init(void)
 {
 	int result;
@@ -1918,10 +1856,6 @@ static int __init thermal_init(void)
 	result = create_thermal_message_node();
 	if (result)
 		pr_warn("Thermal: create thermal message node failed, return %d\n",
-			result);
-	result = of_parse_thermal_message();
-	if (result)
-		pr_warn("Thermal: Can not parse thermal message node, return %d\n",
 			result);
 
 #ifdef CONFIG_DRM

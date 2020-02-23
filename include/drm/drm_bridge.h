@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Intel Corporation
- * Copyright (C) 2020 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -239,9 +239,11 @@ struct drm_bridge_funcs {
 	void (*enable)(struct drm_bridge *bridge);
 
 	void (*disp_param_set)(struct drm_bridge *bridge, int cmd);
-	ssize_t (*disp_param_get)(struct drm_bridge *bridge, char *buf);
 
 	int (*disp_get_panel_info)(struct drm_bridge *bridge, char *name);
+
+	void (*disp_count_set)(struct drm_bridge *bridge, const char *buf);
+	ssize_t (*disp_count_get)(struct drm_bridge *bridge, char *buf);
 };
 
 /**
