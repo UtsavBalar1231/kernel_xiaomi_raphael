@@ -560,7 +560,7 @@ static int smb1390_awake_vote_cb(struct votable *votable, void *data,
 	struct smb1390 *chip = data;
 
 	if (awake)
-		__pm_stay_awake(chip->cp_ws);
+		__pm_wakeup_event(chip->cp_ws, 500);
 	else
 		__pm_relax(chip->cp_ws);
 
