@@ -2188,6 +2188,12 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	dev_set_drvdata(core_data->gtp_touch_dev, core_data);
 
 	if (sysfs_create_file(&core_data->gtp_touch_dev->kobj,
+				&dev_attr_fod_status.attr)) {
+		ts_err("Failed to create fod_status sysfs group!\n");
+		goto out;
+	}
+
+	if (sysfs_create_file(&core_data->gtp_touch_dev->kobj,
 			&dev_attr_touch_suspend_notify.attr)) {
 		ts_err("Failed to create sysfs group!\n");
 		goto out;
