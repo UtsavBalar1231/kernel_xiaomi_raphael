@@ -70,6 +70,14 @@ config CORESIGHT_SOURCE_ETM4X
 	  for instruction level tracing. Depending on the implemented version
 	  data tracing may also be available.
 
+config CORESIGHT_QCOM_REPLICATOR
+	bool "Qualcomm Technologies, Inc. CoreSight Replicator driver"
+	depends on CORESIGHT_LINKS_AND_SINKS
+	help
+	  This enables support for Qualcomm Technologies, Inc. CoreSight link driver.
+	  The programmable ATB replicator sends the ATB trace stream from the
+	  ETB/ETF to the TPIUi and ETR.
+
 config CORESIGHT_DYNAMIC_REPLICATOR
 	bool "CoreSight Programmable Replicator driver"
 	depends on CORESIGHT_LINKS_AND_SINKS
