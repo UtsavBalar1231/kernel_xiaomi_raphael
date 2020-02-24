@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, 2020, The Linux Foundation. All rights reserved.
  *
  * Description: CoreSight Replicator driver
  *
@@ -108,6 +108,7 @@ static int replicator_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
+	dev_info(dev, "REPLICATOR initialized\n");
 	return 0;
 
 out_disable_pm:
