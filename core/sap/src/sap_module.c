@@ -2987,7 +2987,6 @@ uint8_t wlansap_get_chan_band_restrict(struct sap_context *sap_ctx)
 	if (intf_ch)
 		restart_chan = intf_ch;
 	sap_debug("CSA target ch: %d", restart_chan);
-	sap_ctx->csa_reason = CSA_REASON_BAND_RESTRICTED;
 
 	return restart_chan;
 }

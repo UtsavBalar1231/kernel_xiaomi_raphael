@@ -3125,6 +3125,8 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	struct hdd_adapter *ap_adapter = wlan_hdd_get_adapter_from_vdev(
 					psoc, vdev_id);
 	struct sap_context *sap_context;
+	enum sap_csa_reason_code csa_reason =
+		CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
 
 	if (!ap_adapter) {
 		hdd_err("ap_adapter is NULL");
@@ -3163,6 +3165,11 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	intf_ch = wlansap_get_chan_band_restrict(sap_context);
+	if (intf_ch) {
+		csa_reason = CSA_REASON_BAND_RESTRICTED;
+		goto sap_restart;
+	}
 	if (policy_mgr_get_connection_count(psoc) == 1) {
 		/*
 		 * If STA+SAP sessions are on DFS channel and STA+SAP SCC is
@@ -3175,6 +3182,12 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 				  intf_ch);
 			goto sap_restart;
 		}
+	}
+	if (ap_adapter->device_mode == QDF_P2P_GO_MODE &&
+	    !policy_mgr_go_scc_enforced(psoc)) {
+		wlansap_context_put(sap_context);
+		hdd_debug("p2p go no scc required");
+		return QDF_STATUS_E_FAILURE;
 	}
 	ucfg_policy_mgr_get_mcc_scc_switch(hdd_ctx->psoc,
 					   &mcc_to_scc_switch);
@@ -3202,16 +3215,11 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 
 sap_restart:
 	if (!intf_ch) {
-		intf_ch = wlansap_get_chan_band_restrict(hdd_ap_ctx->sap_context);
-		if (intf_ch == sap_ch)
-			intf_ch = 0;
-	} else if (hdd_ap_ctx->sap_context)
-		hdd_ap_ctx->sap_context->csa_reason =
-				CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
-	if (!intf_ch) {
 		wlansap_context_put(sap_context);
 		hdd_debug("interface channel is 0");
 		return QDF_STATUS_E_FAILURE;
+	} else {
+		sap_context->csa_reason = csa_reason;
 	}
 
 	hdd_debug("SAP restart orig chan: %d, new chan: %d",
