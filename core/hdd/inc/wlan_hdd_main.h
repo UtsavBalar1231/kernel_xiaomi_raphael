@@ -921,6 +921,7 @@ enum dhcp_nego_status {
  * @tx_retry_fw: the number of retried frames from firmware to remote station
  * @tx_retry_exhaust_fw: the number of frames retried but finally failed from
  *                    firmware to remote station
+ * @assoc_req_ies: Assoc request IEs of the peer station
  */
 struct hdd_station_info {
 	bool in_use;
@@ -977,6 +978,7 @@ struct hdd_station_info {
 	uint32_t tx_total_fw;
 	uint32_t tx_retry_fw;
 	uint32_t tx_retry_exhaust_fw;
+	struct wlan_ies assoc_req_ies;
 };
 
 /**
