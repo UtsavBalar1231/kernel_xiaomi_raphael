@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,6 +37,7 @@ struct sde_shd_hw_ctl {
 	struct shd_stage_range range;
 	struct sde_hw_ctl *orig;
 	u32 flush_mask;
+	u32 old_mask;
 	struct sde_shd_ctl_mixer_cfg mixer_cfg[MAX_BLOCKS];
 };
 
@@ -59,7 +60,7 @@ struct sde_shd_hw_mixer {
 };
 
 void sde_shd_hw_flush(struct sde_hw_ctl *ctl_ctx,
-	struct sde_hw_mixer *lm_ctx[CRTC_DUAL_MIXERS], int lm_num);
+	struct sde_hw_mixer *lm_ctx[MAX_MIXERS_PER_CRTC], int lm_num);
 
 void sde_shd_hw_ctl_init_op(struct sde_hw_ctl *ctx);
 

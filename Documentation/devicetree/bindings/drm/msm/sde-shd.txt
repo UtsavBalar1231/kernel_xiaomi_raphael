@@ -25,6 +25,8 @@ Required properties:
 
 qcom,shared-display-base properties:
 - qcom,shared-display-base-intf: A u32 property defines intf index of the base display.
+- qcom,shared-display-base-tile-num: A u32 property defines connector h_tile_num of base display.
+			Accepted value is 2 or 3. Only exist when connector is tiled.
 - qcom,shared-display-base-mst: A u32 property defines the DP MST branch port, needed if
 			the base display sits on DP MST display.
 - qcom,shared-display-base-mode: timing of the physical base display, contains the
