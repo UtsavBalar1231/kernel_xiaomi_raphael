@@ -678,8 +678,12 @@ static bool dp_bond_check_connector(struct drm_connector *connector,
 		if (!p->is_sst_connected)
 			return false;
 
-		if (p->force_bond_mode)
-			continue;
+		if (dp_display->force_bond_mode) {
+			if (p->force_bond_mode)
+				continue;
+			else
+				return false;
+		}
 
 		p_conn = p->base_connector;
 		if (!p_conn->has_tile || !p_conn->tile_group ||

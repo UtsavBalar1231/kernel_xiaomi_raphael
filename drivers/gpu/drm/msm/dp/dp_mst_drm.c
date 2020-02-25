@@ -1670,6 +1670,7 @@ mode_set:
 				if (rc < 0)
 					goto end;
 				slots += rc;
+				rc = 0;
 			}
 			bridge_state->num_slots = slots;
 			goto end;
