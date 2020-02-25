@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -71,6 +71,9 @@ static const struct sde_rm_topology_def g_ctl_ver_1_top_table[] = {
 	{   SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC, 2, 1, 1, 1, false },
 	{   SDE_RM_TOPOLOGY_DUALPIPE_DSCMERGE,    2, 2, 1, 1, false },
 	{   SDE_RM_TOPOLOGY_PPSPLIT,              1, 0, 2, 1, true  },
+	{   SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE,     4, 0, 2, 1, false },
+	{   SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC, 4, 3, 2, 1, false },
+	{   SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE,    4, 4, 2, 1, false },
 };
 
 
@@ -190,16 +193,28 @@ void sde_rm_init_hw_iter(
 	iter->type = type;
 }
 
-enum sde_rm_topology_name sde_rm_get_topology_name(
+enum sde_rm_topology_name sde_rm_get_topology_name(struct sde_rm *rm,
 	struct msm_display_topology topology)
 {
 	int i;
 
 	for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
-		if (RM_IS_TOPOLOGY_MATCH(g_top_table[i], topology))
-			return g_top_table[i].top_name;
+		if (RM_IS_TOPOLOGY_MATCH(rm->topology_tbl[i], topology))
+			return rm->topology_tbl[i].top_name;
 
 	return SDE_RM_TOPOLOGY_NONE;
+}
+
+int sde_rm_get_topology_num_encoders(struct sde_rm *rm,
+	enum sde_rm_topology_name topology)
+{
+	int i;
+
+	for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
+		if (rm->topology_tbl[i].top_name == topology)
+			return rm->topology_tbl[i].num_comp_enc;
+
+	return 0;
 }
 
 static bool _sde_rm_get_hw_locked(struct sde_rm *rm, struct sde_rm_hw_iter *i)
@@ -706,6 +721,8 @@ static bool _sde_rm_check_lm_and_get_connected_blks(
 			ret = is_valid_dspp;
 		else if (RM_RQ_DS(reqs))
 			ret = is_valid_ds;
+		else if (reqs->topology->num_lm == CRTC_QUAD_MIXERS)
+			ret = !is_valid_ds;
 		else
 			ret = !(is_valid_dspp || is_valid_ds);
 
@@ -829,6 +846,7 @@ static int _sde_rm_reserve_lms(
 	struct sde_rm_hw_blk *ds[MAX_BLOCKS];
 	struct sde_rm_hw_blk *pp[MAX_BLOCKS];
 	struct sde_rm_hw_iter iter_i, iter_j;
+	u32 lm_mask = 0;
 	int lm_count = 0;
 	int i, rc = 0;
 
@@ -841,13 +859,13 @@ static int _sde_rm_reserve_lms(
 	sde_rm_init_hw_iter(&iter_i, 0, SDE_HW_BLK_LM);
 	while (lm_count != reqs->topology->num_lm &&
 			_sde_rm_get_hw_locked(rm, &iter_i)) {
-		memset(&lm, 0, sizeof(lm));
-		memset(&dspp, 0, sizeof(dspp));
-		memset(&ds, 0, sizeof(ds));
-		memset(&pp, 0, sizeof(pp));
+		if (lm_mask & (1 << iter_i.blk->id))
+			continue;
 
-		lm_count = 0;
 		lm[lm_count] = iter_i.blk;
+		dspp[lm_count] = NULL;
+		ds[lm_count] = NULL;
+		pp[lm_count] = NULL;
 
 		SDE_DEBUG("blk id = %d, _lm_ids[%d] = %d\n",
 			iter_i.blk->id,
@@ -863,15 +881,24 @@ static int _sde_rm_reserve_lms(
 				&pp[lm_count], NULL))
 			continue;
 
+		lm_mask |= (1 << iter_i.blk->id);
 		++lm_count;
+
+		/* Return if peer is not needed */
+		if (lm_count == reqs->topology->num_lm)
+			break;
 
 		/* Valid primary mixer found, find matching peers */
 		sde_rm_init_hw_iter(&iter_j, 0, SDE_HW_BLK_LM);
 
-		while (lm_count != reqs->topology->num_lm &&
-				_sde_rm_get_hw_locked(rm, &iter_j)) {
-			if (iter_i.blk == iter_j.blk)
+		while (_sde_rm_get_hw_locked(rm, &iter_j)) {
+			if (lm_mask & (1 << iter_j.blk->id))
 				continue;
+
+			lm[lm_count] = iter_j.blk;
+			dspp[lm_count] = NULL;
+			ds[lm_count] = NULL;
+			pp[lm_count] = NULL;
 
 			if (!_sde_rm_check_lm_and_get_connected_blks(
 					rm, rsvp, reqs, iter_j.blk,
@@ -879,16 +906,23 @@ static int _sde_rm_reserve_lms(
 					&pp[lm_count], iter_i.blk))
 				continue;
 
-			lm[lm_count] = iter_j.blk;
 			SDE_DEBUG("blk id = %d, _lm_ids[%d] = %d\n",
-				iter_i.blk->id,
+				iter_j.blk->id,
 				lm_count,
 				_lm_ids ? _lm_ids[lm_count] : -1);
 
 			if (_lm_ids && (lm[lm_count])->id != _lm_ids[lm_count])
 				continue;
 
+			lm_mask |= (1 << iter_j.blk->id);
 			++lm_count;
+			break;
+		}
+
+		/* Rollback primary LM if peer is not found */
+		if (!iter_j.hw) {
+			lm_mask &= ~(1 << iter_i.blk->id);
+			--lm_count;
 		}
 	}
 
@@ -897,10 +931,7 @@ static int _sde_rm_reserve_lms(
 		return -ENAVAIL;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(lm); i++) {
-		if (!lm[i])
-			break;
-
+	for (i = 0; i < lm_count; i++) {
 		lm[i]->rsvp_nxt = rsvp;
 		pp[i]->rsvp_nxt = rsvp;
 		if (dspp[i])
@@ -1645,7 +1676,8 @@ static struct drm_connector *_sde_rm_get_connector(
 	return NULL;
 }
 
-int sde_rm_update_topology(struct drm_connector_state *conn_state,
+int sde_rm_update_topology(struct sde_rm *rm,
+	struct drm_connector_state *conn_state,
 	struct msm_display_topology *topology)
 {
 	int i, ret = 0;
@@ -1658,8 +1690,8 @@ int sde_rm_update_topology(struct drm_connector_state *conn_state,
 	if (topology) {
 		top = *topology;
 		for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
-			if (RM_IS_TOPOLOGY_MATCH(g_top_table[i], top)) {
-				top_name = g_top_table[i].top_name;
+			if (RM_IS_TOPOLOGY_MATCH(rm->topology_tbl[i], top)) {
+				top_name = rm->topology_tbl[i].top_name;
 				break;
 			}
 	}

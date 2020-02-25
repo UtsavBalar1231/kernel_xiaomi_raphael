@@ -68,7 +68,6 @@
 #define MAX_PHYS_ENCODERS_PER_VIRTUAL \
 	(MAX_H_TILES_PER_DISPLAY * NUM_PHYS_ENCODER_TYPES)
 
-#define MAX_CHANNELS_PER_ENC 2
 
 #define MISR_BUFF_SIZE			256
 
@@ -83,6 +82,11 @@
 		(((x) == SDE_RM_TOPOLOGY_DUALPIPE_DSCMERGE) || \
 		((x) == SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE) || \
 		((x) == SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC))
+
+#define TOPOLOGY_QUADPIPE_MERGE_MODE(x) \
+		(((x) == SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE) || \
+		((x) == SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE) || \
+		((x) == SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC))
 
 /**
  * enum sde_enc_rc_events - events for resource control state machine
@@ -465,7 +469,8 @@ bool sde_encoder_is_dsc_merge(struct drm_encoder *drm_enc)
 		return false;
 
 	topology = sde_connector_get_topology_name(drm_conn);
-	if (topology == SDE_RM_TOPOLOGY_DUALPIPE_DSCMERGE)
+	if (topology == SDE_RM_TOPOLOGY_DUALPIPE_DSCMERGE ||
+			topology == SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE)
 		return true;
 
 	return false;
@@ -1144,7 +1149,8 @@ static int sde_encoder_virt_atomic_check(
 		if (crtc_state->active)
 			topology = &sde_conn_state->mode_info.topology;
 
-		ret = sde_rm_update_topology(conn_state, topology);
+		ret = sde_rm_update_topology(&sde_kms->rm, conn_state,
+				topology);
 		if (ret) {
 			SDE_ERROR_ENC(sde_enc,
 				"RM failed to update topology, rc: %d\n", ret);
@@ -1411,6 +1417,213 @@ static int _sde_encoder_dsc_n_lm_1_enc_1_intf(struct sde_encoder_virt *sde_enc)
 	return 0;
 }
 
+static int _sde_encoder_dsc_4_lm_3_enc_2_intf(struct sde_encoder_virt *sde_enc,
+		struct sde_encoder_kickoff_params *params)
+{
+	int this_frame_slices;
+	int intf_ip_w, enc_ip_w;
+	int ich_res, dsc_common_mode = 0;
+	struct sde_encoder_phys *enc_master = sde_enc->cur_master;
+	const struct sde_rect *roi = &sde_enc->cur_conn_roi;
+	struct sde_hw_dsc *hw_dsc[MAX_CHANNELS_PER_ENC];
+	struct sde_hw_pingpong *hw_pp[MAX_CHANNELS_PER_ENC];
+	struct sde_hw_pingpong *hw_dsc_pp[MAX_CHANNELS_PER_ENC];
+	struct msm_display_dsc_info *dsc = NULL;
+	struct sde_hw_ctl *hw_ctl = NULL;
+	struct sde_ctl_dsc_cfg cfg;
+	int i, dsc_pic_width, rc;
+	struct msm_mode_info mode_info;
+
+	if (!enc_master) {
+		SDE_ERROR_ENC(sde_enc, "invalid encoder master for DSC\n");
+		return -EINVAL;
+	}
+
+	if (params->num_channels < 3) {
+		SDE_ERROR_ENC(sde_enc, "invalid enc number for DSC\n");
+		return -EINVAL;
+	}
+
+	rc = _sde_encoder_get_mode_info(&sde_enc->base, &mode_info);
+	if (rc) {
+		SDE_ERROR_ENC(sde_enc, "failed to get mode info\n");
+		return -EINVAL;
+	}
+
+	memset(&cfg, 0, sizeof(cfg));
+
+	for (i = 0; i < params->num_channels; i++) {
+		hw_pp[i] = sde_enc->hw_pp[i];
+		hw_dsc[i] = sde_enc->hw_dsc[i];
+		hw_dsc_pp[i] = sde_enc->hw_dsc_pp[i];
+
+		if (!hw_pp[i] || !hw_dsc[i] || !hw_dsc_pp[i]) {
+			SDE_ERROR_ENC(sde_enc, "invalid params for DSC\n");
+			return -EINVAL;
+		}
+	}
+
+	hw_ctl = enc_master->hw_ctl;
+
+	dsc = &mode_info.comp_info.dsc_info;
+
+	dsc_common_mode = 0;
+	if (enc_master->intf_mode == INTF_MODE_VIDEO)
+		dsc_common_mode |= DSC_MODE_VIDEO;
+
+	if (enc_master->split_role == ENC_ROLE_MASTER ||
+			enc_master->split_role == ENC_ROLE_SLAVE)
+		dsc_pic_width = roi->w / 2;
+	else
+		dsc_pic_width = roi->w;
+
+	_sde_encoder_dsc_update_pic_dim(dsc, dsc_pic_width, roi->h);
+
+	this_frame_slices = dsc_pic_width / dsc->slice_width;
+	intf_ip_w = this_frame_slices * dsc->slice_width;
+	_sde_encoder_dsc_pclk_param_calc(dsc, intf_ip_w);
+
+	enc_ip_w = intf_ip_w / 2;
+	_sde_encoder_dsc_initial_line_calc(dsc, enc_ip_w);
+
+	ich_res = _sde_encoder_dsc_ich_reset_override_needed(false, dsc);
+
+	SDE_DEBUG_ENC(sde_enc, "dsc_width: %d pic_w: %d pic_h: %d mode:%d\n",
+			dsc_pic_width, roi->w, roi->h, dsc_common_mode);
+	SDE_EVT32(DRMID(&sde_enc->base), roi->w, roi->h,
+			dsc_common_mode, i, params->affected_displays);
+
+
+	/* This topology reserves 3 DSC but only programs 2 (DSC-0, DSC-2)*/
+	_sde_encoder_dsc_pipe_cfg(hw_dsc[0], hw_pp[0], dsc,
+			dsc_common_mode, ich_res, true, hw_dsc_pp[0]);
+
+	cfg.dsc[0] = hw_dsc[0]->idx;
+	cfg.dsc_count++;
+
+	if (hw_ctl->ops.update_bitmask_dsc)
+		hw_ctl->ops.update_bitmask_dsc(hw_ctl, cfg.dsc[0], 1);
+
+	_sde_encoder_dsc_pipe_cfg(hw_dsc[2], hw_pp[2], dsc,
+			dsc_common_mode, ich_res, true, hw_dsc_pp[2]);
+
+	cfg.dsc[1] = hw_dsc[2]->idx;
+	cfg.dsc_count++;
+
+	if (hw_ctl->ops.update_bitmask_dsc)
+		hw_ctl->ops.update_bitmask_dsc(hw_ctl, cfg.dsc[1], 1);
+
+	/* setup dsc active configuration in the control path */
+	if (hw_ctl->ops.setup_dsc_cfg) {
+		hw_ctl->ops.setup_dsc_cfg(hw_ctl, &cfg);
+		SDE_DEBUG_ENC(sde_enc,
+				"setup_dsc_cfg hw_ctl[%d], count:%d, dsc[0]:%d, dsc[1]:%d\n",
+				hw_ctl->idx, cfg.dsc_count, cfg.dsc[0],
+				cfg.dsc[1]);
+	}
+
+	return 0;
+}
+
+static int _sde_encoder_dsc_4_lm_4_enc_2_intf(struct sde_encoder_virt *sde_enc,
+		struct sde_encoder_kickoff_params *params)
+{
+	int this_frame_slices;
+	int intf_ip_w, enc_ip_w;
+	int ich_res, dsc_common_mode = 0;
+	struct sde_encoder_phys *enc_master = sde_enc->cur_master;
+	const struct sde_rect *roi = &sde_enc->cur_conn_roi;
+	struct sde_hw_dsc *hw_dsc[MAX_CHANNELS_PER_ENC];
+	struct sde_hw_pingpong *hw_pp[MAX_CHANNELS_PER_ENC];
+	struct sde_hw_pingpong *hw_dsc_pp[MAX_CHANNELS_PER_ENC];
+	struct msm_display_dsc_info *dsc = NULL;
+	struct sde_hw_ctl *hw_ctl = NULL;
+	struct sde_ctl_dsc_cfg cfg;
+	int i, dsc_pic_width, rc;
+	struct msm_mode_info mode_info;
+
+	if (!enc_master) {
+		SDE_ERROR_ENC(sde_enc, "invalid encoder master for DSC\n");
+		return -EINVAL;
+	}
+
+	rc = _sde_encoder_get_mode_info(&sde_enc->base, &mode_info);
+	if (rc) {
+		SDE_ERROR_ENC(sde_enc, "failed to get mode info\n");
+		return -EINVAL;
+	}
+
+	memset(&cfg, 0, sizeof(cfg));
+
+	for (i = 0; i < params->num_channels; i++) {
+		hw_pp[i] = sde_enc->hw_pp[i];
+		hw_dsc[i] = sde_enc->hw_dsc[i];
+		hw_dsc_pp[i] = sde_enc->hw_dsc_pp[i];
+
+		if (!hw_pp[i] || !hw_dsc[i] || !hw_dsc_pp[i]) {
+			SDE_ERROR_ENC(sde_enc, "invalid params for DSC\n");
+			return -EINVAL;
+		}
+	}
+
+	hw_ctl = enc_master->hw_ctl;
+
+	dsc = &mode_info.comp_info.dsc_info;
+
+	dsc_common_mode |= DSC_MODE_SPLIT_PANEL | DSC_MODE_MULTIPLEX;
+	if (enc_master->intf_mode == INTF_MODE_VIDEO)
+		dsc_common_mode |= DSC_MODE_VIDEO;
+
+	if (enc_master->split_role == ENC_ROLE_MASTER ||
+			enc_master->split_role == ENC_ROLE_SLAVE)
+		dsc_pic_width = roi->w / 2;
+	else
+		dsc_pic_width = roi->w;
+
+	_sde_encoder_dsc_update_pic_dim(dsc, dsc_pic_width, roi->h);
+
+	this_frame_slices = dsc_pic_width / dsc->slice_width;
+	intf_ip_w = this_frame_slices * dsc->slice_width;
+	_sde_encoder_dsc_pclk_param_calc(dsc, intf_ip_w);
+
+	/*
+	 * dsc merge case: when using 2 encoders for the same stream,
+	 * no. of slices need to be same on both the encoders.
+	 */
+	enc_ip_w = intf_ip_w / 2;
+	_sde_encoder_dsc_initial_line_calc(dsc, enc_ip_w);
+
+	ich_res = _sde_encoder_dsc_ich_reset_override_needed(false, dsc);
+
+	SDE_DEBUG_ENC(sde_enc, "dsc_width: %d pic_w: %d pic_h: %d mode:%d\n",
+			dsc_pic_width, roi->w, roi->h, dsc_common_mode);
+	SDE_EVT32(DRMID(&sde_enc->base), roi->w, roi->h,
+			dsc_common_mode, i, params->affected_displays);
+
+	for (i = 0; i < params->num_channels; i++) {
+		_sde_encoder_dsc_pipe_cfg(hw_dsc[i], hw_pp[i], dsc,
+				dsc_common_mode, ich_res, true, hw_dsc_pp[i]);
+
+		cfg.dsc[i] = hw_dsc[i]->idx;
+		cfg.dsc_count++;
+
+		if (hw_ctl->ops.update_bitmask_dsc)
+			hw_ctl->ops.update_bitmask_dsc(hw_ctl, cfg.dsc[i], 1);
+	}
+
+	/* setup dsc active configuration in the control path */
+	if (hw_ctl->ops.setup_dsc_cfg) {
+		hw_ctl->ops.setup_dsc_cfg(hw_ctl, &cfg);
+		SDE_DEBUG_ENC(sde_enc,
+				"setup_dsc_cfg hw_ctl[%d], count:%d, dsc[0]:%d, dsc[1]:%d, dsc[2]:%d, dsc[3]:%d\n",
+				hw_ctl->idx, cfg.dsc_count, cfg.dsc[0],
+				cfg.dsc[1], cfg.dsc[2], cfg.dsc[3]);
+	}
+
+	return 0;
+}
+
+
 static int _sde_encoder_dsc_2_lm_2_enc_2_intf(struct sde_encoder_virt *sde_enc,
 		struct sde_encoder_kickoff_params *params)
 {
@@ -1432,7 +1645,7 @@ static int _sde_encoder_dsc_2_lm_2_enc_2_intf(struct sde_encoder_virt *sde_enc,
 
 	memset(&cfg, 0, sizeof(cfg));
 
-	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
+	for (i = 0; i < params->num_channels; i++) {
 		hw_pp[i] = sde_enc->hw_pp[i];
 		hw_dsc[i] = sde_enc->hw_dsc[i];
 		hw_dsc_pp[i] = sde_enc->hw_dsc_pp[i];
@@ -1555,7 +1768,7 @@ static int _sde_encoder_dsc_2_lm_2_enc_1_intf(struct sde_encoder_virt *sde_enc,
 
 	memset(&cfg, 0, sizeof(cfg));
 
-	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
+	for (i = 0; i < params->num_channels; i++) {
 		hw_pp[i] = sde_enc->hw_pp[i];
 		hw_dsc[i] = sde_enc->hw_dsc[i];
 		hw_dsc_pp[i] = sde_enc->hw_dsc_pp[i];
@@ -1676,8 +1889,11 @@ static int _sde_encoder_update_roi(struct drm_encoder *drm_enc)
 static int _sde_encoder_dsc_setup(struct sde_encoder_virt *sde_enc,
 		struct sde_encoder_kickoff_params *params)
 {
+	struct sde_kms *sde_kms;
 	enum sde_rm_topology_name topology;
 	struct drm_connector *drm_conn;
+	struct drm_encoder *drm_enc;
+	struct msm_drm_private *priv;
 	int ret = 0;
 
 	if (!sde_enc || !params || !sde_enc->phys_encs[0] ||
@@ -1686,11 +1902,18 @@ static int _sde_encoder_dsc_setup(struct sde_encoder_virt *sde_enc,
 
 	drm_conn = sde_enc->phys_encs[0]->connector;
 
+	drm_enc = &sde_enc->base;
+	priv = drm_enc->dev->dev_private;
+	sde_kms = to_sde_kms(priv->kms);
+
 	topology = sde_connector_get_topology_name(drm_conn);
 	if (topology == SDE_RM_TOPOLOGY_NONE) {
 		SDE_ERROR_ENC(sde_enc, "topology not set yet\n");
 		return -EINVAL;
 	}
+
+	params->num_channels =
+		sde_rm_get_topology_num_encoders(&sde_kms->rm, topology);
 
 	SDE_DEBUG_ENC(sde_enc, "topology:%d\n", topology);
 	SDE_EVT32(DRMID(&sde_enc->base), topology,
@@ -1720,11 +1943,17 @@ static int _sde_encoder_dsc_setup(struct sde_encoder_virt *sde_enc,
 	case SDE_RM_TOPOLOGY_DUALPIPE_DSC:
 		ret = _sde_encoder_dsc_2_lm_2_enc_2_intf(sde_enc, params);
 		break;
+	case SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE:
+		ret = _sde_encoder_dsc_4_lm_4_enc_2_intf(sde_enc, params);
+		break;
+	case SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC:
+		ret = _sde_encoder_dsc_4_lm_3_enc_2_intf(sde_enc, params);
+		break;
 	default:
 		SDE_ERROR_ENC(sde_enc, "No DSC support for topology %d",
 				topology);
 		return -EINVAL;
-	};
+	}
 
 	return ret;
 }
@@ -2759,6 +2988,39 @@ static int sde_encoder_resource_control(struct drm_encoder *drm_enc,
 	return 0;
 }
 
+static int _sde_encoder_calc_lm_to_intf_ratio(struct sde_encoder_virt *sde_enc,
+	int *ratio)
+{
+	struct msm_mode_info mode_info;
+	int num_lm, num_intf;
+	int lm_to_intf_ratio;
+	int ret;
+
+	if (!sde_enc || !ratio)
+		return -EINVAL;
+
+	ret = _sde_encoder_get_mode_info(&sde_enc->base, &mode_info);
+	if (ret) {
+		SDE_ERROR_ENC(sde_enc, "failed to get mode info\n");
+		return ret;
+	}
+
+	num_lm = mode_info.topology.num_lm;
+	num_intf = mode_info.topology.num_intf;
+	if (!num_lm || !num_intf) {
+		*ratio = 0;
+		return 0;
+	}
+
+	lm_to_intf_ratio = num_lm / num_intf;
+	if (!lm_to_intf_ratio)
+		lm_to_intf_ratio = 1;
+
+	*ratio = lm_to_intf_ratio;
+
+	return 0;
+}
+
 static void sde_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 				      struct drm_display_mode *mode,
 				      struct drm_display_mode *adj_mode)
@@ -2772,6 +3034,7 @@ static void sde_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct sde_rm_hw_request request_hw;
 	bool is_cmd_mode = false;
 	int i = 0, ret;
+	int ratio;
 
 	if (!drm_enc) {
 		SDE_ERROR("invalid encoder\n");
@@ -2892,17 +3155,24 @@ static void sde_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 			(struct sde_hw_pingpong *) request_hw.hw;
 	}
 
+	if (_sde_encoder_calc_lm_to_intf_ratio(sde_enc, &ratio)) {
+		SDE_ERROR_ENC(sde_enc, "invalid lm to interface ratio");
+		return;
+	}
+
 	for (i = 0; i < sde_enc->num_phys_encs; i++) {
 		struct sde_encoder_phys *phys = sde_enc->phys_encs[i];
 
 		if (phys) {
-			if (!sde_enc->hw_pp[i] && sde_enc->topology.num_intf) {
-				SDE_ERROR_ENC(sde_enc,
-				    "invalid pingpong block for the encoder\n");
+			if (!sde_enc->hw_pp[i * ratio] && ratio) {
+				SDE_ERROR_ENC(sde_enc, "invalid hw_pp[%d]\n",
+						i * ratio);
 				return;
 			}
-			phys->hw_pp = sde_enc->hw_pp[i];
+
+			phys->hw_pp = sde_enc->hw_pp[i * ratio];
 			phys->connector = conn->state->connector;
+
 			if (phys->ops.mode_set)
 				phys->ops.mode_set(phys, mode, adj_mode);
 		}
@@ -4204,7 +4474,8 @@ static void _sde_encoder_setup_dither(struct sde_encoder_phys *phys)
 	if (ret)
 		return;
 
-	if (TOPOLOGY_DUALPIPE_MERGE_MODE(topology)) {
+	if (TOPOLOGY_DUALPIPE_MERGE_MODE(topology) ||
+			TOPOLOGY_QUADPIPE_MERGE_MODE(topology)) {
 		for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
 			hw_pp = sde_enc->hw_pp[i];
 			if (hw_pp) {
@@ -4805,7 +5076,8 @@ int sde_encoder_helper_reset_mixers(struct sde_encoder_phys *phys_enc,
 		/* only enable border color on LM */
 		if (phys_enc->hw_ctl->ops.setup_blendstage)
 			phys_enc->hw_ctl->ops.setup_blendstage(
-					phys_enc->hw_ctl, hw_lm->idx, NULL);
+					phys_enc->hw_ctl, hw_lm->idx,
+					hw_lm->cfg.lm_layout, NULL);
 	}
 
 	if (!lm_valid) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -1210,19 +1210,44 @@ static bool _sde_crtc_setup_is_3dmux_dsc(struct drm_crtc_state *state)
 {
 	int i;
 	struct sde_crtc_state *cstate;
-	bool is_3dmux_dsc = false;
+	uint64_t topology = SDE_RM_TOPOLOGY_NONE;
 
 	cstate = to_sde_crtc_state(state);
 
 	for (i = 0; i < cstate->num_connectors; i++) {
 		struct drm_connector *conn = cstate->connectors[i];
 
-		if (sde_connector_get_topology_name(conn) ==
-				SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC)
-			is_3dmux_dsc = true;
+		topology = sde_connector_get_topology_name(conn);
+		if ((topology == SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC) ||
+				(topology ==
+				SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC))
+			return true;
 	}
 
-	return is_3dmux_dsc;
+	return false;
+}
+
+static bool _sde_crtc_setup_is_quad_pipe(struct drm_crtc_state *state)
+{
+	int i;
+	struct sde_crtc_state *cstate;
+	uint64_t topology = SDE_RM_TOPOLOGY_NONE;
+
+	cstate = to_sde_crtc_state(state);
+
+	for (i = 0; i < cstate->num_connectors; i++) {
+		struct drm_connector *conn = cstate->connectors[i];
+
+		topology = sde_connector_get_topology_name(conn);
+		if ((topology == SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE) ||
+				(topology ==
+				SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE) ||
+				(topology ==
+				SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC))
+			return true;
+	}
+
+	return false;
 }
 
 static int _sde_crtc_set_crtc_roi(struct drm_crtc *crtc,
@@ -1459,7 +1484,7 @@ static int _sde_crtc_check_rois_centered_and_symmetric(struct drm_crtc *crtc,
 {
 	struct sde_crtc *sde_crtc;
 	struct sde_crtc_state *crtc_state;
-	const struct sde_rect *roi[CRTC_DUAL_MIXERS];
+	const struct sde_rect *roi[MAX_MIXERS_PER_CRTC];
 
 	if (!crtc || !state)
 		return -EINVAL;
@@ -1467,7 +1492,7 @@ static int _sde_crtc_check_rois_centered_and_symmetric(struct drm_crtc *crtc,
 	sde_crtc = to_sde_crtc(crtc);
 	crtc_state = to_sde_crtc_state(state);
 
-	if (sde_crtc->num_mixers > CRTC_DUAL_MIXERS) {
+	if (sde_crtc->num_mixers > MAX_MIXERS_PER_CRTC) {
 		SDE_ERROR("%s: unsupported number of mixers: %d\n",
 				sde_crtc->name, sde_crtc->num_mixers);
 		return -EINVAL;
@@ -1737,7 +1762,8 @@ static void _sde_crtc_program_lm_output_roi(struct drm_crtc *crtc)
 	struct sde_crtc_state *crtc_state;
 	const struct sde_rect *lm_roi;
 	struct sde_hw_mixer *hw_lm;
-	int lm_idx, lm_horiz_position;
+	bool right_mixer = false;
+	int lm_idx;
 
 	if (!crtc)
 		return;
@@ -1745,26 +1771,27 @@ static void _sde_crtc_program_lm_output_roi(struct drm_crtc *crtc)
 	sde_crtc = to_sde_crtc(crtc);
 	crtc_state = to_sde_crtc_state(crtc->state);
 
-	lm_horiz_position = 0;
 	for (lm_idx = 0; lm_idx < sde_crtc->num_mixers; lm_idx++) {
 		struct sde_hw_mixer_cfg cfg;
 
 		lm_roi = &crtc_state->lm_roi[lm_idx];
 		hw_lm = sde_crtc->mixers[lm_idx].hw_lm;
+		right_mixer = (hw_lm->idx - LM_0) % CRTC_DUAL_MIXERS;
 
 		SDE_EVT32(DRMID(crtc_state->base.crtc), lm_idx,
-			lm_roi->x, lm_roi->y, lm_roi->w, lm_roi->h);
+				lm_roi->x, lm_roi->y, lm_roi->w, lm_roi->h,
+				right_mixer);
 
 		if (sde_kms_rect_is_null(lm_roi))
 			continue;
 
 		hw_lm->cfg.out_width = lm_roi->w;
 		hw_lm->cfg.out_height = lm_roi->h;
-		hw_lm->cfg.right_mixer = lm_horiz_position;
+		hw_lm->cfg.right_mixer = right_mixer;
 
 		cfg.out_width = lm_roi->w;
 		cfg.out_height = lm_roi->h;
-		cfg.right_mixer = lm_horiz_position++;
+		cfg.right_mixer = right_mixer;
 		cfg.flags = 0;
 		hw_lm->ops.setup_mixer_out(hw_lm, &cfg);
 	}
@@ -1861,6 +1888,7 @@ static int _sde_crtc_validate_src_split_order(struct drm_crtc *crtc,
 	struct sde_kms *sde_kms;
 	int32_t left_pid, right_pid;
 	int32_t stage;
+	int32_t left_layout, right_layout;
 	int i, rc = 0;
 
 	sde_kms = _sde_crtc_get_kms(crtc);
@@ -1874,6 +1902,14 @@ static int _sde_crtc_validate_src_split_order(struct drm_crtc *crtc,
 		cur_pstate = &pstates[i];
 
 		if (prv_pstate->stage != cur_pstate->stage)
+			continue;
+
+		left_layout = sde_plane_get_property(prv_pstate->sde_pstate,
+				PLANE_PROP_LAYOUT);
+		right_layout = sde_plane_get_property(cur_pstate->sde_pstate,
+				PLANE_PROP_LAYOUT);
+
+		if (left_layout != right_layout)
 			continue;
 
 		stage = cur_pstate->stage;
@@ -2096,6 +2132,9 @@ static void _sde_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 					sde_plane_pipe(plane);
 		stage_cfg->multirect_index[pstate->stage][stage_idx] =
 					pstate->multirect_index;
+		stage_cfg->sspp_layout[pstate->stage][stage_idx] =
+				sde_plane_get_property(pstate,
+				PLANE_PROP_LAYOUT);
 
 		SDE_EVT32(DRMID(crtc), DRMID(plane), stage_idx,
 			sde_plane_pipe(plane) - SSPP_VIG0, pstate->stage,
@@ -2234,7 +2273,7 @@ static void _sde_crtc_blend_setup(struct drm_crtc *crtc,
 
 	SDE_DEBUG("%s\n", sde_crtc->name);
 
-	if (sde_crtc->num_mixers > CRTC_DUAL_MIXERS) {
+	if (sde_crtc->num_mixers > MAX_MIXERS_PER_CRTC) {
 		SDE_ERROR("invalid number mixers: %d\n", sde_crtc->num_mixers);
 		return;
 	}
@@ -2290,6 +2329,7 @@ static void _sde_crtc_blend_setup(struct drm_crtc *crtc,
 			cfg.pending_flush_mask);
 
 		ctl->ops.setup_blendstage(ctl, mixer[i].hw_lm->idx,
+			mixer[i].hw_lm->cfg.lm_layout,
 			&sde_crtc->stage_cfg);
 	}
 
@@ -2630,7 +2670,7 @@ static int _sde_validate_hw_resources(struct sde_crtc *sde_crtc)
 	}
 
 	if (!sde_crtc->num_mixers ||
-		sde_crtc->num_mixers > CRTC_DUAL_MIXERS) {
+		sde_crtc->num_mixers > MAX_MIXERS_PER_CRTC) {
 		SDE_ERROR("%s: invalid number mixers: %d\n",
 			sde_crtc->name, sde_crtc->num_mixers);
 		SDE_EVT32(DRMID(&sde_crtc->base), sde_crtc->num_mixers,
@@ -3554,6 +3594,27 @@ static void _sde_crtc_wait_for_fences(struct drm_crtc *crtc)
 	SDE_ATRACE_END("plane_wait_input_fence");
 }
 
+static void _sde_crtc_setup_quad_lm_layout(struct sde_crtc *sde_crtc,
+	struct sde_crtc_mixer *mixer, int mixer_num)
+{
+	struct sde_hw_mixer_cfg *lm_cfg;
+
+	if (!sde_crtc || !mixer || mixer_num >= CRTC_QUAD_MIXERS) {
+		SDE_ERROR("invalid arguments\n");
+		return;
+	}
+
+	lm_cfg = &mixer->hw_lm->cfg;
+
+	if (mixer_num < CRTC_DUAL_MIXERS)
+		lm_cfg->lm_layout = SDE_LAYOUT_LEFT;
+	else
+		lm_cfg->lm_layout = SDE_LAYOUT_RIGHT;
+
+	SDE_DEBUG("mixer number:%d, lm layout:%d\n", mixer_num,
+			lm_cfg->lm_layout);
+}
+
 static void _sde_crtc_setup_mixer_for_encoder(
 		struct drm_crtc *crtc,
 		struct drm_encoder *enc)
@@ -3596,6 +3657,10 @@ static void _sde_crtc_setup_mixer_for_encoder(
 					mixer->hw_lm->idx - LM_0);
 			return;
 		}
+
+		if (_sde_crtc_setup_is_quad_pipe(sde_crtc->base.state))
+			_sde_crtc_setup_quad_lm_layout(sde_crtc, mixer,
+					sde_crtc->num_mixers);
 
 		/* Dspp may be null */
 		(void) sde_rm_get_hw(rm, &dspp_iter);

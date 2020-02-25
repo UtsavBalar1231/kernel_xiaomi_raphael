@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -129,6 +129,7 @@ enum msm_mdp_plane_property {
 	PLANE_PROP_SRC_CONFIG,
 	PLANE_PROP_FB_TRANSLATION_MODE,
 	PLANE_PROP_MULTIRECT_MODE,
+	PLANE_PROP_LAYOUT,
 
 	/* total # of properties */
 	PLANE_PROP_COUNT
@@ -204,7 +205,7 @@ enum msm_mdp_conn_property {
 	CONNECTOR_PROP_COUNT
 };
 
-#define MAX_H_TILES_PER_DISPLAY 2
+#define MAX_H_TILES_PER_DISPLAY 3
 
 /**
  * enum msm_display_compression_type - compression method used for pixel stream
@@ -986,4 +987,7 @@ static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
 	return remaining_jiffies;
 }
 
+int msm_get_mixer_count(struct msm_drm_private *priv,
+		const struct drm_display_mode *mode,
+		u32 max_mixer_width, u32 *num_lm);
 #endif /* __MSM_DRV_H__ */

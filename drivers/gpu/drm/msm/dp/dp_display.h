@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -23,22 +23,27 @@
 
 #define DP_MST_SIM_MAX_PORTS	2
 
+#define MAX_DP_ACTIVE_DISPLAY	3
+
 enum dp_drv_state {
 	PM_DEFAULT,
 	PM_SUSPEND,
 };
 
-struct dp_mst_hpd_info {
-	bool mst_protocol;
-	bool mst_hpd_sim;
-	u32 mst_port_cnt;
-	u8 *edid;
+struct dp_display_info {
+	u32 cell_idx;
+	u32 intf_idx[DP_STREAM_MAX];
+	u32 phy_idx;
+};
+
+struct dp_display_bond_displays {
+	void *dp_display[MAX_DP_BOND_NUM];
+	u32 dp_display_num;
 };
 
 struct dp_mst_drm_cbs {
-	void (*hpd)(void *display, bool hpd_status,
-			struct dp_mst_hpd_info *info);
-	void (*hpd_irq)(void *display, struct dp_mst_hpd_info *info);
+	void (*hpd)(void *display, bool hpd_status);
+	void (*hpd_irq)(void *display);
 	void (*set_drv_state)(void *dp_display,
 			enum dp_drv_state mst_state);
 };
@@ -80,6 +85,8 @@ struct dp_display {
 	u32 max_vdisplay;
 	u32 no_mst_encoder;
 	void *dp_mst_prv_info;
+	void *dp_bond_prv_info;
+	bool force_bond_mode;
 
 	int (*enable)(struct dp_display *dp_display, void *panel);
 	int (*post_enable)(struct dp_display *dp_display, void *panel);
@@ -139,5 +146,10 @@ struct dp_display {
 
 int dp_display_get_num_of_displays(void);
 int dp_display_get_displays(void **displays, int count);
-int dp_display_get_num_of_streams(void);
+int dp_display_get_num_of_streams(void *dp_display);
+int dp_display_get_num_of_bonds(void *dp_display);
+int dp_display_get_info(void *dp_display, struct dp_display_info *dp_info);
+int dp_display_get_bond_displays(void *dp_display, enum dp_bond_type type,
+		struct dp_display_bond_displays *dp_bond_info);
+
 #endif /* _DP_DISPLAY_H_ */

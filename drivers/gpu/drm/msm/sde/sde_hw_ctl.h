@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -48,11 +48,13 @@ struct sde_hw_ctl;
  * struct sde_hw_stage_cfg - blending stage cfg
  * @stage : SSPP_ID at each stage
  * @multirect_index: index of the rectangle of SSPP.
+ * @sspp_layout: SSPP to LM staging layout configuration.
  */
 struct sde_hw_stage_cfg {
 	enum sde_sspp stage[SDE_STAGE_MAX][PIPES_PER_STAGE];
 	enum sde_sspp_multirect_index multirect_index
 					[SDE_STAGE_MAX][PIPES_PER_STAGE];
+	enum sde_layout sspp_layout[SDE_STAGE_MAX][PIPES_PER_STAGE];
 };
 
 /**
@@ -444,10 +446,11 @@ struct sde_hw_ctl_ops {
 	 * Configure layer mixer to pipe configuration
 	 * @ctx       : ctl path ctx pointer
 	 * @lm        : layer mixer enumeration
+	 * @lm_layout : layer mixer staging layout
 	 * @cfg       : blend stage configuration
 	 */
 	void (*setup_blendstage)(struct sde_hw_ctl *ctx,
-		enum sde_lm lm, struct sde_hw_stage_cfg *cfg);
+		enum sde_lm lm, int lm_layout, struct sde_hw_stage_cfg *cfg);
 
 	/**
 	 * Get all the sspp staged on a layer mixer

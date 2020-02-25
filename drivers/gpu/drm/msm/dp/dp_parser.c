@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -192,6 +192,9 @@ static int dp_parser_misc(struct dp_parser *parser)
 					"qcom,display-type", NULL);
 	if (!parser->display_type)
 		parser->display_type = "unknown";
+
+	parser->force_bond_mode = of_property_read_bool(of_node,
+			"qcom,dp-force-bond-mode");
 
 	return 0;
 }
@@ -799,6 +802,59 @@ static void dp_parser_widebus(struct dp_parser *parser)
 			parser->has_widebus);
 }
 
+static int dp_parser_bond(struct dp_parser *parser)
+{
+	struct device *dev = &parser->pdev->dev;
+	int count, i;
+	int rc;
+
+	count = of_property_count_u32_elems(dev->of_node,
+			"qcom,bond-dual-ctrl");
+	if (count > 0) {
+		if (count != 2) {
+			pr_warn("dual bond ctrl num doesn't match\n");
+			goto next;
+		}
+		for (i = 0; i < 2; i++) {
+			rc = of_property_read_u32_index(dev->of_node,
+				"qcom,bond-dual-ctrl", i,
+				&parser->bond_cfg[DP_BOND_DUAL].ctrl[i]);
+			if (rc) {
+				pr_warn("failed to read bond index %d", i);
+				goto next;
+			}
+		}
+		parser->bond_cfg[DP_BOND_DUAL].enable = true;
+	}
+
+next:
+	count = of_property_count_u32_elems(dev->of_node,
+			"qcom,bond-tri-ctrl");
+	if (count > 0) {
+		if (count != 3) {
+			pr_warn("tri bond ctrl num doesn't match\n");
+			goto out;
+		}
+		for (i = 0; i < 3; i++) {
+			rc = of_property_read_u32_index(dev->of_node,
+				"qcom,bond-tri-ctrl", i,
+				&parser->bond_cfg[DP_BOND_TRIPLE].ctrl[i]);
+			if (rc) {
+				pr_warn("failed to read bond index %d", i);
+				goto out;
+			}
+		}
+		parser->bond_cfg[DP_BOND_TRIPLE].enable = true;
+	}
+
+out:
+	pr_debug("dual-bond:%d tri-bond:%d\n",
+			parser->bond_cfg[DP_BOND_DUAL].enable,
+			parser->bond_cfg[DP_BOND_TRIPLE].enable);
+
+	return 0;
+}
+
 static int dp_parser_parse(struct dp_parser *parser)
 {
 	int rc = 0;
@@ -846,6 +902,10 @@ static int dp_parser_parse(struct dp_parser *parser)
 		goto err;
 
 	rc = dp_parser_mst(parser);
+	if (rc)
+		goto err;
+
+	rc = dp_parser_bond(parser);
 	if (rc)
 		goto err;
 

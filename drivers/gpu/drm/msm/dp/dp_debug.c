@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,6 +24,7 @@
 #include "drm_connector.h"
 #include "sde_connector.h"
 #include "dp_display.h"
+#include <soc/qcom/msm_dp_mst_sim_helper.h>
 
 #define DEBUG_NAME "drm_dp"
 
@@ -41,6 +42,7 @@ struct dp_debug_private {
 	char exe_mode[SZ_32];
 	char reg_dump[SZ_32];
 
+	u32 index;
 	struct dp_hpd *hpd;
 	struct dp_link *link;
 	struct dp_panel *panel;
@@ -53,7 +55,72 @@ struct dp_debug_private {
 	struct dp_ctrl *ctrl;
 	struct dp_power *power;
 	struct mutex lock;
+	struct msm_dp_aux_bridge *sim_bridge;
 };
+
+static int dp_debug_sim_hpd_cb(void *arg, bool hpd, bool hpd_irq)
+{
+	struct dp_debug_private *debug = arg;
+
+	if (hpd_irq)
+		return debug->hpd->simulate_attention(debug->hpd, 0);
+	else
+		return debug->hpd->simulate_connect(debug->hpd, hpd);
+}
+
+static int dp_debug_configure_mst_bridge(struct dp_debug_private *debug)
+{
+	struct device_node *bridge_node;
+	struct msm_dp_mst_sim_port *ports;
+	int i, ret;
+
+	static const struct msm_dp_mst_sim_port output_port = {
+		false, false, true, 3, false, 0x12,
+		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		0, 0, 2520, 2520, NULL, 0
+	};
+
+	if (!debug->sim_bridge) {
+		bridge_node = of_parse_phandle(debug->dev->of_node,
+			"qcom,dp-aux-bridge-sim", 0);
+		if (!bridge_node)
+			return 0;
+		debug->sim_bridge = of_msm_dp_aux_find_bridge(bridge_node);
+	}
+
+	if (!debug->sim_bridge)
+		return -EINVAL;
+
+	if (debug->sim_bridge->register_hpd) {
+		ret = debug->sim_bridge->register_hpd(debug->sim_bridge,
+			dp_debug_sim_hpd_cb, debug);
+		if (ret)
+			return ret;
+	}
+
+	if (!debug->dp_debug.mst_port_cnt || !debug->sim_bridge->mst_ctx)
+		return 0;
+
+	ports = kcalloc(debug->dp_debug.mst_port_cnt,
+		sizeof(*ports), GFP_KERNEL);
+	if (!ports)
+		return -ENOMEM;
+
+	for (i = 0; i < debug->dp_debug.mst_port_cnt; i++) {
+		memcpy(&ports[i], &output_port, sizeof(*ports));
+		ports[i].peer_guid[0] = i;
+		ports[i].edid = debug->edid;
+		ports[i].edid_size = debug->edid_size;
+	}
+
+	ret = msm_dp_mst_sim_update(debug->sim_bridge->mst_ctx,
+		debug->dp_debug.mst_port_cnt, ports);
+
+	kfree(ports);
+
+	return ret;
+}
 
 static int dp_debug_get_edid_buf(struct dp_debug_private *debug)
 {
@@ -141,7 +208,8 @@ static ssize_t dp_debug_write_edid(struct file *file,
 
 			debug->aux->set_sim_mode(debug->aux,
 					debug->dp_debug.sim_mode,
-					debug->edid, debug->dpcd);
+					debug->edid, debug->dpcd,
+					debug->sim_bridge);
 		}
 	}
 
@@ -174,6 +242,9 @@ bail:
 	 * triggered by a tester or a script.
 	 */
 	pr_info("[%s]\n", edid ? "SET" : "CLEAR");
+
+	if (dp_debug_configure_mst_bridge(debug))
+		pr_err("failed to config mst bridge\n");
 
 	mutex_unlock(&debug->lock);
 	return rc;
@@ -699,10 +770,40 @@ static ssize_t dp_debug_mst_sideband_mode_write(struct file *file,
 		return -EINVAL;
 	}
 
-	debug->parser->has_mst_sideband = mst_sideband_mode ? true : false;
 	debug->dp_debug.mst_port_cnt = mst_port_cnt;
 	pr_debug("mst_sideband_mode: %d port_cnt:%d\n",
 			mst_sideband_mode, mst_port_cnt);
+
+	if (dp_debug_configure_mst_bridge(debug))
+		pr_err("failed to config mst bridge\n");
+
+	return count;
+}
+
+static ssize_t dp_debug_force_bond_mode_write(struct file *file,
+		const char __user *user_buff, size_t count, loff_t *ppos)
+{
+	struct dp_debug_private *debug = file->private_data;
+	char buf[SZ_8];
+	size_t len = 0;
+	int force_bond = 0;
+
+	if (!debug)
+		return -ENODEV;
+
+	/* Leave room for termination char */
+	len = min_t(size_t, count, SZ_8 - 1);
+	if (copy_from_user(buf, user_buff, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	if (kstrtoint(buf, 10, &force_bond) != 0)
+		return -EINVAL;
+
+	debug->dp_debug.force_bond_mode = !!force_bond;
+	pr_debug("force_bond_mode: %d\n", force_bond);
+
 	return count;
 }
 
@@ -1483,10 +1584,14 @@ static void dp_debug_set_sim_mode(struct dp_debug_private *debug, bool sim)
 			return;
 		}
 
+		if (dp_debug_configure_mst_bridge(debug))
+			pr_err("failed to config mst bridge\n");
+
+		debug->dp_debug.mst_hpd_sim = true;
 		debug->dp_debug.sim_mode = true;
 		debug->power->sim_mode = true;
 		debug->aux->set_sim_mode(debug->aux, true,
-			debug->edid, debug->dpcd);
+			debug->edid, debug->dpcd, debug->sim_bridge);
 	} else {
 
 		if (debug->hotplug) {
@@ -1498,9 +1603,10 @@ static void dp_debug_set_sim_mode(struct dp_debug_private *debug, bool sim)
 		debug->aux->abort(debug->aux, false);
 		debug->ctrl->abort(debug->ctrl, false);
 
-		debug->aux->set_sim_mode(debug->aux, false, NULL, NULL);
+		debug->aux->set_sim_mode(debug->aux, false, NULL, NULL, NULL);
 		debug->power->sim_mode = false;
 		debug->dp_debug.sim_mode = false;
+		debug->dp_debug.mst_hpd_sim = false;
 
 		debug->panel->set_edid(debug->panel, 0);
 		if (debug->edid) {
@@ -1748,6 +1854,11 @@ static const struct file_operations mst_sideband_mode_fops = {
 	.write = dp_debug_mst_sideband_mode_write,
 };
 
+static const struct file_operations force_bond_mode_fops = {
+	.open = simple_open,
+	.write = dp_debug_force_bond_mode_write,
+};
+
 static const struct file_operations max_pclk_khz_fops = {
 	.open = simple_open,
 	.write = dp_debug_max_pclk_khz_write,
@@ -1771,15 +1882,22 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	struct dp_debug_private *debug = container_of(dp_debug,
 		struct dp_debug_private, dp_debug);
 	struct dentry *dir, *file;
+	char debug_name[16];
 
-	dir = debugfs_create_dir(DEBUG_NAME, NULL);
+	if (!debug->index)
+		strlcpy(debug_name, DEBUG_NAME, sizeof(debug_name));
+	else
+		snprintf(debug_name, sizeof(debug_name), "%s%d", DEBUG_NAME,
+				debug->index);
+
+	dir = debugfs_create_dir(debug_name, NULL);
 	if (IS_ERR_OR_NULL(dir)) {
 		if (!dir)
 			rc = -EINVAL;
 		else
 			rc = PTR_ERR(dir);
 		pr_err("[%s] debugfs create dir failed, rc = %d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error;
 	}
 
@@ -1790,7 +1908,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create file failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1799,7 +1917,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create edid_modes failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1808,7 +1926,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create edid_modes_mst failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1817,7 +1935,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create mst_con_id failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1826,7 +1944,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs create mst_conn_info failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1835,7 +1953,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs hpd failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1844,7 +1962,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs connected failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1853,7 +1971,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_bw_code failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_file("exe_mode", 0644, dir,
@@ -1861,7 +1979,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs register failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_file("edid", 0644, dir,
@@ -1869,7 +1987,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs edid failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1878,7 +1996,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs dpcd failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1887,7 +2005,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs tpg failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1897,7 +2015,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs hdr failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1907,7 +2025,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs sim failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1917,7 +2035,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs attention failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1927,7 +2045,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs dump failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1936,7 +2054,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_bw_code failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1945,7 +2063,16 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_bw_code failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
+		goto error_remove_dir;
+	}
+
+	file = debugfs_create_file("force_bond_mode", 0644, dir,
+			debug, &force_bond_mode_fops);
+	if (IS_ERR_OR_NULL(file)) {
+		rc = PTR_ERR(file);
+		pr_err("[%s] debugfs force_bond_mode, rc=%d\n",
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1954,7 +2081,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_pclk_khz failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1963,7 +2090,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs force_encryption failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1972,7 +2099,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs hdcp failed, rc=%d\n",
-			DEBUG_NAME, rc);
+			debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1982,7 +2109,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs hdcp_wait_sink_sync failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 		goto error_remove_dir;
 	}
 
@@ -1992,7 +2119,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs dsc_feature failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_bool("fec_feature_enable", 0644, dir,
@@ -2000,7 +2127,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs fec_feature_enable failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_file("widebus_mode", 0644, dir,
@@ -2008,7 +2135,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs widebus failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	file = debugfs_create_u32("max_lclk_khz", 0644, dir,
@@ -2016,7 +2143,7 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 	if (IS_ERR_OR_NULL(file)) {
 		rc = PTR_ERR(file);
 		pr_err("[%s] debugfs max_lclk_khz failed, rc=%d\n",
-		       DEBUG_NAME, rc);
+		       debug_name, rc);
 	}
 
 	return 0;
@@ -2085,6 +2212,7 @@ struct dp_debug *dp_debug_get(struct dp_debug_in *in)
 	debug->parser = in->parser;
 	debug->ctrl = in->ctrl;
 	debug->power = in->power;
+	debug->index = in->index;
 
 	dp_debug = &debug->dp_debug;
 	dp_debug->vdisplay = 0;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -781,7 +781,7 @@ static void sde_hw_ctl_clear_all_blendstages(struct sde_hw_ctl *ctx)
 }
 
 static void sde_hw_ctl_setup_blendstage(struct sde_hw_ctl *ctx,
-	enum sde_lm lm, struct sde_hw_stage_cfg *stage_cfg)
+	enum sde_lm lm, int lm_layout, struct sde_hw_stage_cfg *stage_cfg)
 {
 	struct sde_hw_blk_reg_map *c;
 	u32 mixercfg = 0, mixercfg_ext = 0, mix, ext;
@@ -795,7 +795,7 @@ static void sde_hw_ctl_setup_blendstage(struct sde_hw_ctl *ctx,
 
 	c = &ctx->hw;
 	stages = _mixer_stages(ctx->mixer_hw_caps, ctx->mixer_count, lm);
-	if (stages < 0)
+	if ((int)stages < 0)
 		return;
 
 	if (test_bit(SDE_MIXER_SOURCESPLIT,
@@ -815,6 +815,12 @@ static void sde_hw_ctl_setup_blendstage(struct sde_hw_ctl *ctx,
 		for (j = 0 ; j < pipes_per_stage; j++) {
 			enum sde_sspp_multirect_index rect_index =
 				stage_cfg->multirect_index[i][j];
+
+			enum sde_layout sspp_layout =
+				stage_cfg->sspp_layout[i][j];
+
+			if (sspp_layout && (sspp_layout != lm_layout))
+				continue;
 
 			switch (stage_cfg->stage[i][j]) {
 			case SSPP_VIG0:
