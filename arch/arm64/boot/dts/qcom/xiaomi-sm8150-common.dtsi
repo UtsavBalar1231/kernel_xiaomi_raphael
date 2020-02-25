@@ -372,7 +372,11 @@
 };
 
 &pcie0 {
-	qcom,no-l1-supported;
+	status = "disabled";
+};
+
+&pcie1 {
+	status = "disabled";
 };
 
 &usb1 {
