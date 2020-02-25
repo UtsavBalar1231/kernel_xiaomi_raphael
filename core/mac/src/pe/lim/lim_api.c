@@ -2266,6 +2266,14 @@ pe_disconnect_callback(struct mac_context *mac, uint8_t vdev_id,
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	if (!((session->limMlmState == eLIM_MLM_LINK_ESTABLISHED_STATE) &&
+	      (session->limSmeState != eLIM_SME_WT_DISASSOC_STATE) &&
+	      (session->limSmeState != eLIM_SME_WT_DEAUTH_STATE))) {
+		pe_info("Cannot handle in mlmstate %d sme state %d as vdev_id:%d is not in connected state",
+			session->limMlmState, session->limSmeState, vdev_id);
+		return QDF_STATUS_SUCCESS;
+	}
+
 	lim_extract_ies_from_deauth_disassoc(session, deauth_disassoc_frame,
 					     deauth_disassoc_frame_len);
 	lim_tear_down_link_with_ap(mac, session->peSessionId,
