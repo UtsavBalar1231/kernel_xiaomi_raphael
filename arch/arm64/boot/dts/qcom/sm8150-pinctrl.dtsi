@@ -434,7 +434,6 @@
 				};
 			};
 
-			/*
 			pcie0_perst_default: pcie0_perst_default {
 				mux {
 					pins = "gpio35";
@@ -460,7 +459,6 @@
 					bias-pull-up;
 				};
 			};
-			*/
 		};
 
 		pcie1 {
