@@ -11,7 +11,7 @@
  * GNU General Public License for more details.
  */
 
-&s/pi_7 {
+&spi_7 {
 	status = "okay";
 };
 

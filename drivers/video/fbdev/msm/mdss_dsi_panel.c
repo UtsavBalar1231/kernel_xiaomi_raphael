@@ -2395,20 +2395,6 @@ dynamic_bitclk:
 	return;
 }
 
-static int dsi_panel_wled_register(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
-{
-	int rc = 0;
-	struct backlight_device *bd;
-
-	bd = backlight_device_get_by_type(BACKLIGHT_RAW);
-	if (!bd) {
-		pr_err("fail raw backlight register\n");
-		rc = -EINVAL;
-	}
-	ctrl_pdata->raw_bd = bd;
-	return rc;
-}
-
 #ifdef CONFIG_BACKLIGHT_QCOM_SPMI_WLED
 static int dsi_panel_wled_register(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {

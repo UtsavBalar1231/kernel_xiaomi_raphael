@@ -463,6 +463,7 @@ dtb-$(CONFIG_ARCH_SDM660) += sdm660-sim.dtb \
 	sdm660-usbc-audio-mtp.dtb \
 	sdm660-usbc-audio-rcm.dtb
 endif
+endif
 
 ifeq ($(CONFIG_ARM64),y)
 always		:= $(dtb-y)
