@@ -1,7 +1,7 @@
 /*
  * MDSS MDP Interface (used by framebuffer core)
  *
- * Copyright (c) 2007-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2007-2018,2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 2007 Google Incorporated
  *
  * This software is licensed under the terms of the GNU General Public
@@ -51,6 +51,8 @@
 #include "soc/qcom/secure_buffer.h"
 #include <asm/cacheflush.h>
 #include <linux/soc/qcom/smd-rpm.h>
+#include "soc/qcom/secure_buffer.h"
+#include <asm/cacheflush.h>
 
 #include "mdss.h"
 #include "mdss_fb.h"
@@ -5271,7 +5273,6 @@ int mdss_mdp_secure_session_ctrl(unsigned int enable, u64 flags)
 		desc.args[0] = MDP_DEVICE_ID;
 		desc.args[1] = SCM_BUFFER_PHYS(&sid_info);
 		desc.args[2] = sizeof(uint32_t);
-
 
 		pr_debug("Enable/Disable: %d, Flags %llx\n", enable, flags);
 		if (enable) {

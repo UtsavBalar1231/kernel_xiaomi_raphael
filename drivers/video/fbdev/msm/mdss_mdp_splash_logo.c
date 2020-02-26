@@ -149,7 +149,7 @@ static int mdss_mdp_splash_iommu_attach(struct msm_fb_data_type *mfd)
 		!mdss_mdp_iommu_dyn_attach_supported(mdp5_data->mdata) ||
 		!mdp5_data->splash_mem_addr ||
 		!mdp5_data->splash_mem_size) {
-		pr_debug("dynamic attach is not supported\n");
+		pr_err("dynamic attach is not supported\n");
 		return -EPERM;
 	}
 

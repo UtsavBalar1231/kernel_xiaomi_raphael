@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018,2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -136,6 +136,8 @@
 #define PANIC_LUT_NRT_READ	0x0
 #define ROBUST_LUT_NRT_READ	0xFFFF
 
+/* Pipe flag to indicate this pipe contains secure camera buffer */
+#define MDP_SECURE_CAMERA_OVERLAY_SESSION 0x100000000
 /* hw cursor can only be setup in highest mixer stage */
 #define HW_CURSOR_STAGE(mdata) \
 	(((mdata)->max_target_zorder + MDSS_MDP_STAGE_0) - 1)

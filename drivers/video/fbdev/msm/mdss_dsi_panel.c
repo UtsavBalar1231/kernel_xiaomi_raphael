@@ -2409,6 +2409,22 @@ static int dsi_panel_wled_register(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 	return rc;
 }
 
+#ifdef CONFIG_BACKLIGHT_QCOM_SPMI_WLED
+static int dsi_panel_wled_register(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+	int rc = 0;
+	struct backlight_device *bd;
+
+	bd = backlight_device_get_by_type(BACKLIGHT_RAW);
+	if (!bd) {
+		pr_err("fail raw backlight register\n");
+		rc = -EINVAL;
+	}
+	ctrl_pdata->raw_bd = bd;
+	return rc;
+}
+#endif
+
 int mdss_panel_parse_bl_settings(struct device_node *np,
 			struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
@@ -2425,7 +2441,7 @@ int mdss_panel_parse_bl_settings(struct device_node *np,
 				&bl_led_trigger);
 #else
 			rc = dsi_panel_wled_register(ctrl_pdata);
-			if(rc)
+			if (rc)
 				return rc;
 #endif
 			pr_debug("%s: SUCCESS-> WLED TRIGGER register\n",

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -103,6 +103,7 @@ enum gsi_intr_type {
  * @user_data:  cookie used for notifications
  * @clk_status_cb: callback to update the current msm bus clock vote
  *
+ * @enable_clk_bug_on: enable IPA clock for dump saving before assert
  * All the callbacks are in interrupt context
  *
  */
@@ -125,6 +126,7 @@ struct gsi_per_props {
 	int (*rel_clk_cb)(void *user_data);
 	void *user_data;
 	int (*clk_status_cb)(void);
+	void (*enable_clk_bug_on)(void);
 };
 
 enum gsi_evt_err {
@@ -596,6 +598,53 @@ struct __packed gsi_mhi_channel_scratch {
 };
 
 /**
+ * gsi_mhi_channel_scratch_v2 - MHI protocol SW config area of
+ * channel scratch
+ *
+ * @mhi_host_wp_addr_lo: Valid only when UL/DL Sync En is asserted. Defines
+ *                       address in host from which channel write pointer
+ *                       should be read in polling mode
+ * @mhi_host_wp_addr_hi: Valid only when UL/DL Sync En is asserted. Defines
+ *                       address in host from which channel write pointer
+ *                       should be read in polling mode
+ * @assert_bit40:        1: bit #41 in address should be asserted upon
+ *                       IPA_IF.ProcessDescriptor routine (for MHI over PCIe
+ *                       transfers)
+ *                       0: bit #41 in address should be deasserted upon
+ *                       IPA_IF.ProcessDescriptor routine (for non-MHI over
+ *                       PCIe transfers)
+ * @polling_configuration: Uplink channels: Defines timer to poll on MHI
+ *                       context. Range: 1 to 31 milliseconds.
+ *                       Downlink channel: Defines transfer ring buffer
+ *                       availability threshold to poll on MHI context in
+ *                       multiple of 8. Range: 0 to 31, meaning 0 to 258 ring
+ *                       elements. E.g., value of 2 indicates 16 ring elements.
+ *                       Valid only when Burst Mode Enabled is set to 1
+ * @burst_mode_enabled:  0: Burst mode is disabled for this channel
+ *                       1: Burst mode is enabled for this channel
+ * @polling_mode:        0: the channel is not in polling mode, meaning the
+ *                       host should ring DBs.
+ *                       1: the channel is in polling mode, meaning the host
+ * @oob_mod_threshold:   Defines OOB moderation threshold. Units are in 8
+ *                       ring elements.
+ *                       should not ring DBs until notified of DB mode/OOB mode
+ */
+struct __packed gsi_mhi_channel_scratch_v2 {
+	uint32_t mhi_host_wp_addr_lo;
+	uint32_t mhi_host_wp_addr_hi:9;
+	uint32_t polling_configuration:5;
+	uint32_t rsvd1:18;
+	uint32_t rsvd2:1;
+	uint32_t assert_bit40:1;
+	uint32_t resvd3:5;
+	uint32_t burst_mode_enabled:1;
+	uint32_t polling_mode:1;
+	uint32_t oob_mod_threshold:5;
+	uint32_t resvd4:18; /* Not configured by AP */
+	uint32_t resvd5; /* Not configured by AP */
+};
+
+/**
  * gsi_xdci_channel_scratch - xDCI protocol SW config area of
  * channel scratch
  *
@@ -844,6 +893,7 @@ union __packed gsi_wdi3_channel_scratch2_reg {
 union __packed gsi_channel_scratch {
 	struct __packed gsi_gpi_channel_scratch gpi;
 	struct __packed gsi_mhi_channel_scratch mhi;
+	struct __packed gsi_mhi_channel_scratch_v2 mhi_v2;
 	struct __packed gsi_xdci_channel_scratch xdci;
 	struct __packed gsi_wdi_channel_scratch wdi;
 	struct __packed gsi_11ad_rx_channel_scratch rx_11ad;
@@ -1619,6 +1669,20 @@ int gsi_alloc_channel_ee(unsigned int chan_idx, unsigned int ee, int *code);
 
 int gsi_chk_intset_value(void);
 
+/**
+ * gsi_enable_flow_control_ee - Peripheral should call this function
+ * to enable flow control other EE's channel. This is usually done in USB
+ * connent and SSR scenarios.
+ *
+ * @chan_idx: Virtual channel index
+ * @ee: EE
+ * @code: [out] response code for operation
+
+ * @Return gsi_status
+ */
+int gsi_enable_flow_control_ee(unsigned int chan_idx, unsigned int ee,
+								int *code);
+
 /*
  * Here is a typical sequence of calls
  *
@@ -1882,8 +1946,13 @@ static inline int gsi_alloc_channel_ee(unsigned int chan_idx, unsigned int ee,
 	return -GSI_STATUS_UNSUPPORTED_OP;
 }
 
-
 static inline int gsi_chk_intset_value(void)
+{
+	return -GSI_STATUS_UNSUPPORTED_OP;
+}
+
+static inline int gsi_enable_flow_control_ee(unsigned int chan_idx,
+			unsigned int ee, int *code)
 {
 	return -GSI_STATUS_UNSUPPORTED_OP;
 }

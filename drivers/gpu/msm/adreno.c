@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2818,6 +2818,32 @@ static int adreno_getproperty(struct kgsl_device *device,
 	}
 	break;
 
+	case KGSL_PROP_MACROTILING_CHANNELS:
+	{
+		unsigned int channel;
+
+		if (sizebytes < sizeof(unsigned int)) {
+			status = -EINVAL;
+			break;
+		}
+
+		if (of_property_read_u32(device->pdev->dev.of_node,
+			"qcom,macrotiling-channels", &channel)) {
+			/* return error when not set in device tree
+			 * and let user decide.
+			 */
+			status = -EINVAL;
+			break;
+		}
+
+		if (copy_to_user(value, &channel, sizeof(channel))) {
+			status = -EFAULT;
+			break;
+		}
+		status = 0;
+	}
+	break;
+
 	default:
 		status = -EINVAL;
 	}
@@ -4243,7 +4269,7 @@ static struct platform_driver kgsl_bus_platform_driver = {
 	}
 };
 
-static int __init kgsl_3d_init(void)
+static int __kgsl_3d_init(void *arg)
 {
 	int ret;
 
@@ -4256,6 +4282,21 @@ static int __init kgsl_3d_init(void)
 		platform_driver_unregister(&kgsl_bus_platform_driver);
 
 	return ret;
+}
+
+static int __init kgsl_3d_init(void)
+{
+#ifdef CONFIG_PLATFORM_AUTO
+	struct task_struct *kgsl_3d_init_task =
+		kthread_run(__kgsl_3d_init, NULL, "kgsl_3d_init");
+	if (IS_ERR(kgsl_3d_init_task))
+		return PTR_ERR(kgsl_3d_init_task);
+	else
+		return 0;
+#else
+	__kgsl_3d_init(NULL);
+	return 0;
+#endif
 }
 
 static void __exit kgsl_3d_exit(void)

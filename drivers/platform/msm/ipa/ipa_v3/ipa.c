@@ -131,6 +131,10 @@ static void ipa_dec_clients_disable_clks_on_wq(struct work_struct *work);
 static DECLARE_DELAYED_WORK(ipa_dec_clients_disable_clks_on_wq_work,
 	ipa_dec_clients_disable_clks_on_wq);
 
+static void ipa_inc_clients_enable_clks_on_wq(struct work_struct *work);
+static DECLARE_WORK(ipa_inc_clients_enable_clks_on_wq_work,
+	ipa_inc_clients_enable_clks_on_wq);
+
 static struct ipa3_plat_drv_res ipa3_res = {0, };
 
 static struct clk *ipa3_clk;
@@ -864,7 +868,7 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int i;
 	u32 usr_pyld_sz;
 	u32 pyld_sz;
-	u8 header[128] = { 0 };
+	u8 header[256] = { 0 };
 	u8 *param = NULL;
 	u8 *kptr = NULL;
 	unsigned long uptr = 0;
@@ -1935,7 +1939,7 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		pre_entry =
-			((struct ipa_ioc_del_hdr_proc_ctx *)header)->num_hdls;
+		((struct ipa_ioc_del_hdr_proc_ctx *)header)->num_hdls;
 		pyld_sz =
 		   sizeof(struct ipa_ioc_del_hdr_proc_ctx) +
 		   pre_entry * sizeof(struct ipa_hdr_proc_ctx_del);
@@ -2845,8 +2849,11 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IPA_IOC_GET_PHERIPHERAL_EP_INFO:
 		IPADBG("Got IPA_IOC_GET_EP_INFO\n");
-		if (ipa3_ctx->ipa_config_is_auto == false)
-			return -ENOTTY;
+		if (ipa3_ctx->ipa_config_is_auto == false) {
+			IPADBG("not an auto config: returning error\n");
+			retval = -ENOTTY;
+			break;
+		}
 		if (copy_from_user(&ep_info, (const void __user *)arg,
 			sizeof(struct ipa_ioc_get_ep_info))) {
 			IPAERR_RL("copy_from_user fails\n");
@@ -2897,6 +2904,7 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
+		break;
 
 	case IPA_IOC_APP_CLOCK_VOTE:
 		retval = ipa3_app_clk_vote(
@@ -4022,22 +4030,23 @@ int _ipa_init_sram_v3(void)
 	if (ipa_get_hw_type() >= IPA_HW_v4_5) {
 		ipa3_sram_set_canary(ipa_sram_mmio,
 			IPA_MEM_PART(nat_tbl_ofst) - 12);
-		ipa3_sram_set_canary(ipa_sram_mmio,
-			IPA_MEM_PART(nat_tbl_ofst) - 8);
-		ipa3_sram_set_canary(ipa_sram_mmio,
-			IPA_MEM_PART(nat_tbl_ofst) - 4);
-		ipa3_sram_set_canary(ipa_sram_mmio, IPA_MEM_PART(nat_tbl_ofst));
 	}
 	if (ipa_get_hw_type() >= IPA_HW_v4_0) {
-		ipa3_sram_set_canary(ipa_sram_mmio,
-			IPA_MEM_PART(pdn_config_ofst) - 4);
-		ipa3_sram_set_canary(ipa_sram_mmio,
-			IPA_MEM_PART(pdn_config_ofst));
-		ipa3_sram_set_canary(ipa_sram_mmio,
-			IPA_MEM_PART(stats_quota_ofst) - 4);
-		ipa3_sram_set_canary(ipa_sram_mmio,
-			IPA_MEM_PART(stats_quota_ofst));
+		if (ipa_get_hw_type() < IPA_HW_v4_5) {
+			ipa3_sram_set_canary(ipa_sram_mmio,
+				IPA_MEM_PART(pdn_config_ofst) - 4);
+			ipa3_sram_set_canary(ipa_sram_mmio,
+				IPA_MEM_PART(pdn_config_ofst));
+			ipa3_sram_set_canary(ipa_sram_mmio,
+				IPA_MEM_PART(stats_quota_q6_ofst) - 4);
+			ipa3_sram_set_canary(ipa_sram_mmio,
+				IPA_MEM_PART(stats_quota_q6_ofst));
+		} else {
+			ipa3_sram_set_canary(ipa_sram_mmio,
+				IPA_MEM_PART(stats_quota_q6_ofst) - 12);
+		}
 	}
+
 	if (ipa_get_hw_type() <= IPA_HW_v3_5 ||
 		ipa_get_hw_type() >= IPA_HW_v4_5) {
 		ipa3_sram_set_canary(ipa_sram_mmio,
@@ -4986,6 +4995,12 @@ void ipa3_disable_clks(void)
 
 	IPADBG("disabling IPA clocks and bus voting\n");
 
+	/*
+	 * We see a NoC error on GSI on this flag sequence.
+	 * Need to set this flag first before clock off.
+	 */
+	atomic_set(&ipa3_ctx->ipa_clk_vote, 0);
+
 	ipa3_ctx->ctrl->ipa3_disable_clks();
 
 	if (ipa3_ctx->use_ipa_pm)
@@ -4993,7 +5008,6 @@ void ipa3_disable_clks(void)
 
 	if (msm_bus_scale_client_update_request(ipa3_ctx->ipa_bus_hdl, 0))
 		WARN(1, "bus scaling failed");
-	atomic_set(&ipa3_ctx->ipa_clk_vote, 0);
 }
 
 /**
@@ -5175,6 +5189,12 @@ void ipa3_inc_client_enable_clks(struct ipa_active_client_logging_info *id)
 	mutex_unlock(&ipa3_ctx->ipa3_active_clients.mutex);
 }
 
+static void ipa3_handle_gsi_differ_irq(void)
+{
+	queue_work(ipa3_ctx->power_mgmt_wq,
+		&ipa_inc_clients_enable_clks_on_wq_work);
+}
+
 /**
  * ipa3_active_clks_status() - update the current msm bus clock vote
  * status
@@ -5277,6 +5297,13 @@ void ipa3_dec_client_disable_clks(struct ipa_active_client_logging_info *id)
 static void ipa_dec_clients_disable_clks_on_wq(struct work_struct *work)
 {
 	__ipa3_dec_client_disable_clks();
+}
+
+static void ipa_inc_clients_enable_clks_on_wq(struct work_struct *work)
+{
+	ipa3_enable_clks();
+	IPAERR("unexpected clk access, clock on IPA to save reg");
+	ipa_assert();
 }
 
 /**
@@ -6122,6 +6149,7 @@ static int ipa3_post_init(const struct ipa3_plat_drv_res *resource_p,
 	gsi_props.req_clk_cb = NULL;
 	gsi_props.rel_clk_cb = NULL;
 	gsi_props.clk_status_cb = ipa3_active_clks_status;
+	gsi_props.enable_clk_bug_on = ipa3_handle_gsi_differ_irq;
 
 	if (ipa3_ctx->ipa_config_is_mhi) {
 		gsi_props.mhi_er_id_limits_valid = true;
@@ -6685,6 +6713,7 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 	ipa3_ctx->ipa_wdi2_over_gsi = resource_p->ipa_wdi2_over_gsi;
 	ipa3_ctx->ipa_wdi3_over_gsi = resource_p->ipa_wdi3_over_gsi;
 	ipa3_ctx->ipa_fltrt_not_hashable = resource_p->ipa_fltrt_not_hashable;
+	ipa3_ctx->use_xbl_boot = resource_p->use_xbl_boot;
 	ipa3_ctx->use_64_bit_dma_mask = resource_p->use_64_bit_dma_mask;
 	ipa3_ctx->wan_rx_ring_size = resource_p->wan_rx_ring_size;
 	ipa3_ctx->lan_rx_ring_size = resource_p->lan_rx_ring_size;
@@ -7365,6 +7394,7 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	ipa_drv_res->ipa_wan_skb_page = false;
 	ipa_drv_res->ipa_wdi2_over_gsi = false;
 	ipa_drv_res->ipa_wdi3_over_gsi = false;
+	ipa_drv_res->use_xbl_boot = false;
 	ipa_drv_res->ipa_mhi_dynamic_config = false;
 	ipa_drv_res->use_64_bit_dma_mask = false;
 	ipa_drv_res->use_bw_vote = false;
@@ -7505,6 +7535,12 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	IPADBG(": IPA filter/route rule hashable = %s\n",
 			ipa_drv_res->ipa_fltrt_not_hashable
 			? "True" : "False");
+
+	ipa_drv_res->use_xbl_boot =
+		of_property_read_bool(pdev->dev.of_node,
+		"qcom,use-xbl-boot");
+	IPADBG("Is xbl loading used ? (%s)\n",
+		ipa_drv_res->use_xbl_boot ? "Yes":"No");
 
 	ipa_drv_res->use_64_bit_dma_mask =
 			of_property_read_bool(pdev->dev.of_node,
@@ -8362,6 +8398,32 @@ int ipa3_plat_drv_probe(struct platform_device *pdev_p,
 		cb =  ipa3_get_smmu_ctx(IPA_SMMU_CB_UC);
 		cb->dev = dev;
 		smmu_info.present[IPA_SMMU_CB_UC] = true;
+
+		if (ipa3_ctx->use_xbl_boot) {
+			/* Ensure uC probe is the last. */
+			if (!smmu_info.present[IPA_SMMU_CB_AP] ||
+				!smmu_info.present[IPA_SMMU_CB_WLAN]) {
+				IPAERR("AP or WLAN CB probe not done. Defer");
+				return -EPROBE_DEFER;
+			}
+
+			pr_info("Using XBL boot load for IPA FW\n");
+			ipa3_ctx->fw_loaded = true;
+
+			result = ipa3_attach_to_smmu();
+			if (result) {
+				IPAERR("IPA attach to smmu failed %d\n",
+				result);
+				return result;
+			}
+
+			result = ipa3_post_init(&ipa3_res, ipa3_ctx->cdev.dev);
+			if (result) {
+				IPAERR("IPA post init failed %d\n", result);
+				return result;
+			}
+		}
+
 
 		return 0;
 	}

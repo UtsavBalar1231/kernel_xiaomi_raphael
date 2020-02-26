@@ -968,7 +968,7 @@ static int mdss_mdp_put_img(struct mdss_mdp_img_data *data, bool rotator,
 		 * be filled due to map call which will be unmapped above.
 		 *
 		 */
-		pr_debug("free memory handle for secure display/camera content\n");
+		pr_debug("skip memory unmapping for secure display/camera content\n");
 	} else {
 		return -ENOMEM;
 	}

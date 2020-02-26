@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,10 +13,15 @@
 #define	_DWMAC_QCOM_ETHQOS_H
 
 #include <linux/ipc_logging.h>
+#include <linux/msm-bus.h>
+#include <linux/mailbox_client.h>
+#include <linux/mailbox/qmp.h>
+#include <linux/mailbox_controller.h>
 
 extern void *ipc_emac_log_ctxt;
 
 #define IPCLOG_STATE_PAGES 50
+#define MAX_QMP_MSG_SIZE 96
 #define __FILENAME__ (strrchr(__FILE__, '/') ? \
 		strrchr(__FILE__, '/') + 1 : __FILE__)
 
@@ -43,6 +48,8 @@ do {\
 #define RGMII_IO_MACRO_CONFIG2		0x1C
 
 #define ETHQOS_CONFIG_PPSOUT_CMD 44
+#define ETHQOS_AVB_ALGORITHM 27
+
 #define MAC_PPS_CONTROL			0x00000b70
 #define PPS_MAXIDX(x)			((((x) + 1) * 8) - 1)
 #define PPS_MINIDX(x)			((x) * 8)
@@ -153,11 +160,15 @@ do {\
 #define MICREL_PHY_ID PHY_ID_KSZ9031
 #define DWC_ETH_QOS_MICREL_PHY_INTCS 0x1b
 #define DWC_ETH_QOS_MICREL_PHY_CTL 0x1f
-#define DWC_ETH_QOS_MICREL_INTR_LEVEL 0x4000
 #define DWC_ETH_QOS_BASIC_STATUS     0x0001
 #define LINK_STATE_MASK 0x4
 #define AUTONEG_STATE_MASK 0x20
 #define MICREL_LINK_UP_INTR_STATUS BIT(0)
+
+#define VOTE_IDX_0MBPS 0
+#define VOTE_IDX_10MBPS 1
+#define VOTE_IDX_100MBPS 2
+#define VOTE_IDX_1000MBPS 3
 
 #define TLMM_BASE_ADDRESS (tlmm_central_base_addr)
 
@@ -235,7 +246,6 @@ do {\
 
 #define TLMM_RGMII_RX_HV_MODE_CTL_RGRD(data)\
 	((data) = ioread32((void __iomem *)TLMM_RGMII_RX_HV_MODE_CTL_ADDRESS))
-
 static inline u32 PPSCMDX(u32 x, u32 val)
 {
 	return (GENMASK(PPS_MINIDX(x) + 3, PPS_MINIDX(x)) &
@@ -252,6 +262,52 @@ static inline u32 PPSX_MASK(u32 x)
 {
 	return GENMASK(PPS_MAXIDX(x), PPS_MINIDX(x));
 }
+
+enum IO_MACRO_PHY_MODE {
+		RGMII_MODE,
+		RMII_MODE,
+		MII_MODE
+};
+
+#define RGMII_IO_BASE_ADDRESS ethqos->rgmii_base
+
+#define RGMII_IO_MACRO_CONFIG_RGOFFADDR_OFFSET (0x00000000)
+
+#define RGMII_IO_MACRO_CONFIG_RGWR(data)\
+	writel_relaxed(data, RGMII_IO_MACRO_CONFIG_RGOFFADDR)
+
+#define RGMII_IO_MACRO_CONFIG_RGOFFADDR \
+	(RGMII_IO_BASE_ADDRESS + RGMII_IO_MACRO_CONFIG_RGOFFADDR_OFFSET)
+
+#define RX_CONTEXT_DESC_RDES3_OWN_MLF_WR(ptr, data)\
+	SET_BITS(0x1f, 0x1f, ptr, data)
+
+#define RGMII_IO_MACRO_CONFIG_RGRD(data)\
+	((data) = (readl_relaxed((RGMII_IO_MACRO_CONFIG_RGOFFADDR))))
+
+#define RGMII_GPIO_CFG_TX_INT_MASK (unsigned long)(0x3)
+
+#define RGMII_GPIO_CFG_TX_INT_WR_MASK (unsigned long)(0xfff9ffff)
+
+#define RGMII_GPIO_CFG_TX_INT_UDFWR(data) do {\
+	unsigned long v;\
+	RGMII_IO_MACRO_CONFIG_RGRD(v);\
+	v = ((v & RGMII_GPIO_CFG_TX_INT_WR_MASK) | \
+	((data & RGMII_GPIO_CFG_TX_INT_MASK) << 17));\
+	RGMII_IO_MACRO_CONFIG_RGWR(v);\
+} while (0)
+
+#define RGMII_GPIO_CFG_RX_INT_MASK (unsigned long)(0x3)
+
+#define RGMII_GPIO_CFG_RX_INT_WR_MASK (unsigned long)(0xffe7ffff)
+
+#define RGMII_GPIO_CFG_RX_INT_UDFWR(data) do {\
+	unsigned long v;\
+	RGMII_IO_MACRO_CONFIG_RGRD(v);\
+	v = ((v & RGMII_GPIO_CFG_RX_INT_WR_MASK) | \
+	((data & RGMII_GPIO_CFG_RX_INT_MASK) << 19));\
+	RGMII_IO_MACRO_CONFIG_RGWR(v);\
+} while (0)
 
 struct ethqos_emac_por {
 	unsigned int offset;
@@ -279,10 +335,14 @@ static const struct ethqos_emac_por emac_v2_3_2_por[] = {
 struct qcom_ethqos {
 	struct platform_device *pdev;
 	void __iomem *rgmii_base;
+	void __iomem *ioaddr;
 
+	struct msm_bus_scale_pdata *bus_scale_vec;
+	u32 bus_hdl;
 	unsigned int rgmii_clk_rate;
 	struct clk *rgmii_clk;
 	unsigned int speed;
+	unsigned int vote_idx;
 
 	int gpio_phy_intr_redirect;
 	u32 phy_intr;
@@ -317,7 +377,29 @@ struct qcom_ethqos {
 	unsigned long avb_class_b_intr_cnt;
 	struct dentry *debugfs_dir;
 
+	int oldlink;
+	/* saving state for Wake-on-LAN */
+	int wolopts;
+	/* state of enabled wol options in PHY*/
+	u32 phy_wol_wolopts;
+	/* state of supported wol options in PHY*/
+	u32 phy_wol_supported;
+	/* Boolean to check if clock is suspended*/
+	int clks_suspended;
+	/* Structure which holds done and wait members */
+	struct completion clk_enable_done;
+
 	int always_on_phy;
+	/* QMP message for disabling ctile power collapse while XO shutdown */
+	struct mbox_chan *qmp_mbox_chan;
+	struct mbox_client *qmp_mbox_client;
+	struct work_struct qmp_mailbox_work;
+	int disable_ctile_pc;
+
+	u32 emac_mem_base;
+	u32 emac_mem_size;
+
+	bool ipa_enabled;
 };
 
 struct pps_cfg {
@@ -353,4 +435,66 @@ int create_pps_interrupt_device_node(dev_t *pps_dev_t,
 				     struct cdev **pps_cdev,
 				     struct class **pps_class,
 				     char *pps_dev_node_name);
+void qcom_ethqos_request_phy_wol(struct plat_stmmacenet_data *plat);
+
+int ppsout_config(struct stmmac_priv *priv, struct ifr_data_struct *req);
+
+u16 dwmac_qcom_select_queue(
+	struct net_device *dev,
+	struct sk_buff *skb,
+	void *accel_priv,
+	select_queue_fallback_t fallback);
+
+#define QTAG_VLAN_ETH_TYPE_OFFSET 16
+#define QTAG_UCP_FIELD_OFFSET 14
+#define QTAG_ETH_TYPE_OFFSET 12
+#define PTP_UDP_EV_PORT 0x013F
+#define PTP_UDP_GEN_PORT 0x0140
+
+#define IPA_DMA_TX_CH 0
+#define IPA_DMA_RX_CH 0
+
+#define VLAN_TAG_UCP_SHIFT 13
+#define CLASS_A_TRAFFIC_UCP 3
+#define CLASS_A_TRAFFIC_TX_CHANNEL 3
+
+#define CLASS_B_TRAFFIC_UCP 2
+#define CLASS_B_TRAFFIC_TX_CHANNEL 2
+
+#define NON_TAGGED_IP_TRAFFIC_TX_CHANNEL 1
+#define ALL_OTHER_TRAFFIC_TX_CHANNEL 1
+#define ALL_OTHER_TX_TRAFFIC_IPA_DISABLED 0
+
+#define DEFAULT_INT_MOD 1
+#define AVB_INT_MOD 8
+#define IP_PKT_INT_MOD 32
+#define PTP_INT_MOD 1
+
+enum dwmac_qcom_queue_operating_mode {
+	DWMAC_QCOM_QDISABLED = 0X0,
+	DWMAC_QCOM_QAVB,
+	DWMAC_QCOM_QDCB,
+	DWMAC_QCOM_QGENERIC
+};
+
+struct dwmac_qcom_avb_algorithm_params {
+	unsigned int idle_slope;
+	unsigned int send_slope;
+	unsigned int hi_credit;
+	unsigned int low_credit;
+};
+
+struct dwmac_qcom_avb_algorithm {
+	unsigned int qinx;
+	unsigned int algorithm;
+	unsigned int cc;
+	struct dwmac_qcom_avb_algorithm_params speed100params;
+	struct dwmac_qcom_avb_algorithm_params speed1000params;
+	enum dwmac_qcom_queue_operating_mode op_mode;
+};
+
+void dwmac_qcom_program_avb_algorithm(
+	struct stmmac_priv *priv, struct ifr_data_struct *req);
+unsigned int dwmac_qcom_get_plat_tx_coal_frames(
+	struct sk_buff *skb);
 #endif

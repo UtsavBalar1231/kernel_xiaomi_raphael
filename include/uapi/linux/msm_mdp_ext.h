@@ -106,9 +106,9 @@ LAYER FLAG CONFIGURATION
 /* Flag indicates that layer is associated with secure camera session */
 #define MDP_LAYER_SECURE_CAMERA_SESSION		0x4000
 
-/**********************************************************************
-DESTINATION SCALER FLAG CONFIGURATION
-**********************************************************************/
+/*
+ * DESTINATION SCALER FLAG CONFIGURATION
+ */
 
 /* Enable/disable Destination scaler */
 #define MDP_DESTSCALER_ENABLE		0x1

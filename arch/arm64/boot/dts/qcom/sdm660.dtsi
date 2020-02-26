@@ -825,26 +825,6 @@
 		reg = <0x1fe5040 0x28>;
 	};
 
-	qcom,bcl {
-		compatible = "qcom,bcl";
-		qcom,bcl-enable;
-		qcom,bcl-framework-interface;
-		qcom,bcl-hotplug-list = <&CPU6 &CPU7>;
-		qcom,bcl-soc-hotplug-list = <&CPU4 &CPU5 &CPU6 &CPU7>;
-		qcom,ibat-monitor {
-			qcom,low-threshold-uamp = <3400000>;
-			qcom,high-threshold-uamp = <4200000>;
-			qcom,vph-high-threshold-uv = <3500000>;
-			qcom,vph-low-threshold-uv = <3300000>;
-			qcom,soc-low-threshold = <10>;
-		};
-	};
-
-	qcom,lmh {
-		compatible = "qcom,lmh_v1";
-		interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
 	uartblsp2dm1: serial@0c1b0000 {
 		compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 		reg = <0xc1b0000 0x1000>;
@@ -2703,7 +2683,6 @@
 &gdsc_gpu_cx {
 	status = "ok";
 };
-
 
 #include "msm-arm-smmu-660.dtsi"
 #include "msm-arm-smmu-impl-defs-660.dtsi"
