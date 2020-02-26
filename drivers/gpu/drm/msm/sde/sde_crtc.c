@@ -1757,7 +1757,7 @@ static void _sde_crtc_program_lm_output_roi(struct drm_crtc *crtc)
 
 		lm_roi = &crtc_state->lm_roi[lm_idx];
 		hw_lm = sde_crtc->mixers[lm_idx].hw_lm;
-		right_mixer = (hw_lm->idx - LM_0) % CRTC_DUAL_MIXERS;
+		right_mixer = lm_idx % CRTC_DUAL_MIXERS;
 
 		SDE_EVT32(DRMID(crtc_state->base.crtc), lm_idx,
 				lm_roi->x, lm_roi->y, lm_roi->w, lm_roi->h,
