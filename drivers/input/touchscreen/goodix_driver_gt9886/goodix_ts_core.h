@@ -95,8 +95,6 @@
 
 #define CONFIG_TOUCHSCREEN_GOODIX_DEBUG_FS
 
-#define CONFIG_GOODIX_HWINFO
-
 /*
  * struct goodix_module - external modules container
  * @head: external modules list
@@ -491,9 +489,6 @@ struct goodix_ts_core {
 	struct completion pm_resume_completion;
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_DEBUG_FS
 	struct dentry *debugfs;
-#endif
-#ifdef CONFIG_GOODIX_HWINFO
-	int dbclick_count;
 #endif
 
 };

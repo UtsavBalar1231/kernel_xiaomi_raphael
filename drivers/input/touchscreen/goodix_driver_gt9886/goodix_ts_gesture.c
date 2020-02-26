@@ -2,7 +2,7 @@
  * Goodix GTX5 Gesture Dirver
  *
  * Copyright (C) 2015 - 2016 Goodix, Inc.
- * Copyright (C) 2019 XiaoMi, Inc.
+ * Copyright (C) 2020 XiaoMi, Inc.
  * Authors:  Wang Yafei <wangyafei@goodix.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -399,10 +399,6 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 	unsigned char clear_reg = 0;
 	unsigned char checksum = 0, temp_data[GSX_KEY_DATA_LEN];
 	struct goodix_ts_device *ts_dev = core_data->ts_dev;
-#ifdef CONFIG_GOODIX_HWINFO
-	char ch[64] = { 0x0, };
-#endif
-
 
 	/*ts_debug("gsx_gesture_ist, core_data-suspend=%d",
 			atomic_read(&core_data->suspended));*/
@@ -504,12 +500,6 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 
 	if (temp_data[2] == 0xcc && core_data->double_wakeup) {
 		/*ts_info("Gesture match success, resume IC");*/
-#ifdef CONFIG_GOODIX_HWINFO
-		if (core_data) {
-		core_data->dbclick_count++;
-		snprintf(ch, sizeof(ch), "%d", core_data->dbclick_count);
-		}
-#endif
 		input_report_key(core_data->input_dev, KEY_WAKEUP, 1);
 		input_sync(core_data->input_dev);
 		input_report_key(core_data->input_dev, KEY_WAKEUP, 0);
