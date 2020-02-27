@@ -16,6 +16,7 @@ obj-$(CONFIG_CORESIGHT_SOURCE_ETM3X) += coresight-etm3x.o coresight-etm-cp14.o \
 					coresight-etm3x-sysfs.o
 obj-$(CONFIG_CORESIGHT_SOURCE_ETM4X) += coresight-etm4x.o \
 					coresight-etm4x-sysfs.o
+obj-$(CONFIG_CORESIGHT_QCOM_REPLICATOR) += coresight-replicator-qcom.o
 obj-$(CONFIG_CORESIGHT_DYNAMIC_REPLICATOR) += coresight-dynamic-replicator.o
 obj-$(CONFIG_CORESIGHT_STM) += coresight-stm.o
 obj-$(CONFIG_CORESIGHT_CPU_DEBUG) += coresight-cpu-debug.o
@@ -25,6 +26,7 @@ obj-$(CONFIG_CORESIGHT_TPDA) += coresight-tpda.o
 obj-$(CONFIG_CORESIGHT_TPDM) += coresight-tpdm.o
 obj-$(CONFIG_CORESIGHT_EVENT) += coresight-event.o
 obj-$(CONFIG_CORESIGHT_CTI) += coresight-cti.o
+obj-$(CONFIG_CORESIGHT_QPDI) += coresight-qpdi.o
 obj-$(CONFIG_CORESIGHT_CSR) += coresight-csr.o
 obj-$(CONFIG_CORESIGHT_HWEVENT) += coresight-hwevent.o
 obj-$(CONFIG_CORESIGHT_DUMMY) += coresight-dummy.o
