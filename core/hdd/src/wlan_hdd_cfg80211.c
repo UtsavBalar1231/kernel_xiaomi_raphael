@@ -19839,8 +19839,6 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 	 */
 	status = wlan_hdd_reassoc_bssid_hint(adapter, req);
 	if (!status) {
-		hdd_debug("reassoc failed for bssid:"QDF_MAC_ADDR_STR,
-			  QDF_MAC_ADDR_ARRAY(bssid));
 		return status;
 	}
 
