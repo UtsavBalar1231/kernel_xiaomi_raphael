@@ -63,7 +63,12 @@
 };
 
 &pm660l_wled {
-	qcom,led-strings-list = [00 01];
+	qcom,string-cfg= <6>;
+	status = "ok";
+};
+
+&pm660l_lcdb {
+	status = "ok";
 };
 
 &soc {
