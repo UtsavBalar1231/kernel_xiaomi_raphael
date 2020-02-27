@@ -1038,12 +1038,6 @@ void mdss_dp_config_ctrl(struct mdss_dp_drv_pdata *dp)
 	mdss_dp_configuration_ctrl(&dp->ctrl_io, data);
 }
 
-static inline void mdss_dp_ack_state(struct mdss_dp_drv_pdata *dp, u32 state)
-{
-	if (dp)
-		mdss_dp_send_audio_notification(dp, state);
-}
-
 static int mdss_dp_wait4video_ready(struct mdss_dp_drv_pdata *dp_drv)
 {
 	int ret = 0;
@@ -1240,6 +1234,7 @@ static int mdss_dp_init_ext_disp(struct mdss_dp_drv_pdata *dp)
 	ops->cable_status = dp_get_cable_status;
 	ops->teardown_done = dp_audio_teardown_done;
 	ops->acknowledge = dp_audio_ack_done;
+	ops->get_intf_id = dp_get_intf_id;
 	ops->ready = dp_audio_codec_ready;
 
 	if (!dp->pdev->dev.of_node) {
@@ -3444,7 +3439,6 @@ static int mdss_retrieve_dp_ctrl_resources(struct platform_device *pdev,
 static void mdss_dp_video_ready(struct mdss_dp_drv_pdata *dp)
 {
 	pr_debug("dp_video_ready\n");
-	mdss_dp_ack_state(dp, true);
 	complete(&dp->video_comp);
 }
 
