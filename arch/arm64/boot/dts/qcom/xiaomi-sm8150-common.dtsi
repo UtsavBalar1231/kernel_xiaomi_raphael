@@ -256,6 +256,17 @@
 	qcom,platform-reset-gpio = <&tlmm 6 0>;
 };
 
+&dsi_ss_fhd_ea8076_global_cmd {
+	qcom,panel-supply-entries = <&dsi_amoled_panel_pwr_external_supply>;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	qcom,mdss-dsi-bl-min-level = <2>;
+	qcom,mdss-dsi-bl-max-level = <2047>;
+	qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
+	//qcom,panel-mode-gpio = <&tlmm 7 0>;
+	qcom,platform-te-gpio = <&tlmm 8 0>;
+	qcom,platform-reset-gpio = <&tlmm 6 0>;
+};
+
 &dsi_visionox_fhd_r66456_f11_cmd {
 	qcom,panel-supply-entries = <&dsi_amoled_panel_pwr_external_supply>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
