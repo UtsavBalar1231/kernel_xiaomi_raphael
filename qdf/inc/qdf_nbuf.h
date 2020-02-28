@@ -239,6 +239,9 @@
  * @first_data_seq_ctrl: Sequence ctrl field of first data frame
  * @rxpcu_filter_pass: Flag which indicates whether RX packets are received in
  *						BSS mode(not in promisc mode)
+ * @tx_status: packet tx status
+ * @tx_retry_cnt: tx retry count
+ * @tx_retry_cnt: tx retry count
  */
 struct mon_rx_status {
 	uint64_t tsft;
@@ -318,6 +321,9 @@ struct mon_rx_status {
 	uint16_t first_data_seq_ctrl;
 	uint8_t ltf_size;
 	uint8_t rxpcu_filter_pass;
+	uint8_t  tx_status;
+	uint8_t  tx_retry_cnt;
+	bool add_rtap_ext;
 };
 
 /**
