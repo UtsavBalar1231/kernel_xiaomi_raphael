@@ -3703,3 +3703,16 @@ wlan_mlme_get_4way_hs_offload(struct wlan_objmgr_psoc *psoc, bool *value)
 
 	return QDF_STATUS_SUCCESS;
 }
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+uint32_t wlan_mlme_get_roaming_triggers(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_mlme_psoc_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_obj(psoc);
+	if (!mlme_obj)
+		return cfg_default(CFG_ROAM_TRIGGER_BITMAP);
+
+	return mlme_obj->cfg.lfr.roam_trigger_bitmap;
+}
+#endif
