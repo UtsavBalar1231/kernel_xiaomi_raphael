@@ -6973,13 +6973,13 @@ void sme_free_join_rsp_fils_params(struct csr_roam_info *roam_info)
 	struct fils_join_rsp_params *roam_fils_params;
 
 	if (!roam_info) {
-		sme_err("FILS Roam Info NULL");
+		sme_debug("FILS Roam Info NULL");
 		return;
 	}
 
 	roam_fils_params = roam_info->fils_join_rsp;
 	if (!roam_fils_params) {
-		sme_err("FILS Roam Param NULL");
+		sme_debug("FILS Roam Param NULL");
 		return;
 	}
 
@@ -8013,8 +8013,7 @@ sme_restore_default_roaming_params(tpAniSirGlobal mac,
 		roam_config->neighborRoamConfig.nNeighborScanTimerPeriod;
 	roam_info->cfgParams.neighborLookupThreshold =
 		roam_config->neighborRoamConfig.nNeighborLookupRssiThreshold;
-	roam_info->cfgParams.roam_rssi_diff =
-		roam_config->neighborRoamConfig.roam_rssi_diff;
+	roam_info->cfgParams.roam_rssi_diff = roam_config->RoamRssiDiff;
 	roam_info->cfgParams.roam_scan_home_away_time =
 			roam_config->nRoamScanHomeAwayTime;
 	roam_info->cfgParams.roam_scan_n_probes =
@@ -9405,6 +9404,25 @@ QDF_STATUS sme_send_cesium_enable_ind(tHalHandle hHal, uint32_t sessionId)
 
 	return status;
 }
+
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+QDF_STATUS sme_send_dscp_up_map_to_fw(uint32_t *dscp_to_up_map)
+{
+	QDF_STATUS status;
+	void *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wma) {
+		sme_err("wma is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = wma_send_dscp_up_map_to_fw(wma, dscp_to_up_map);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		sme_err("%s: failed to send dscp_up_map to FW", __func__);
+
+	return status;
+}
+#endif
 
 QDF_STATUS sme_set_wlm_latency_level(tHalHandle hal, uint16_t session_id,
 				     uint16_t latency_level)
