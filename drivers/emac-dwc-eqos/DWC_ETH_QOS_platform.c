@@ -2154,6 +2154,11 @@ static int DWC_ETH_QOS_probe(struct platform_device *pdev)
 			goto err_out_dev_failed;
 	}
 	EMACDBG("<-- DWC_ETH_QOS_probe\n");
+
+#if defined DWC_ETH_QOS_BUILTIN && defined CONFIG_MSM_BOOT_TIME_MARKER
+	place_marker("M - Ethernet probe end");
+#endif
+
 	return ret;
 
  err_out_dev_failed:
@@ -2590,6 +2595,9 @@ static int DWC_ETH_QOS_hib_freeze(struct device *dev) {
 	DWC_ETH_QOS_free_gpios();
 
 	EMACINFO("end\n");
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+	pdata->print_kpi = 0;
+#endif
 
 	return ret;
 }
