@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -514,10 +514,8 @@ static QDF_STATUS process_peer_for_noa(struct wlan_objmgr_vdev *vdev,
 	}
 	p2p_vdev_obj = wlan_objmgr_vdev_get_comp_private_obj(vdev,
 						WLAN_UMAC_COMP_P2P);
-	if (!p2p_vdev_obj) {
-		p2p_err("p2p_vdev_obj:%pK", p2p_vdev_obj);
+	if (!p2p_vdev_obj)
 		return QDF_STATUS_E_INVAL;
-	}
 	mode = wlan_vdev_mlme_get_opmode(vdev);
 
 	peer_type = wlan_peer_get_peer_type(peer);
@@ -1201,10 +1199,8 @@ void p2p_peer_authorized(struct wlan_objmgr_vdev *vdev, uint8_t *mac_addr)
 	status = process_peer_for_noa(vdev, psoc, peer);
 	wlan_objmgr_peer_release_ref(peer, WLAN_P2P_ID);
 
-	if (status != QDF_STATUS_SUCCESS) {
-		p2p_err("status:%u", status);
+	if (status != QDF_STATUS_SUCCESS)
 		return;
-	}
 	p2p_debug("peer is authorized");
 }
 
@@ -1281,16 +1277,12 @@ QDF_STATUS p2p_status_connect(struct wlan_objmgr_vdev *vdev)
 	enum QDF_OPMODE mode;
 
 	p2p_soc_obj = get_p2p_soc_obj_by_vdev(vdev);
-	if (!p2p_soc_obj) {
-		p2p_err("P2P soc context is NULL");
+	if (!p2p_soc_obj)
 		return QDF_STATUS_E_FAILURE;
-	}
 
 	mode = wlan_vdev_mlme_get_opmode(vdev);
-	if (mode != QDF_P2P_CLIENT_MODE) {
-		p2p_debug("this is not P2P CLIENT, mode:%d", mode);
+	if (mode != QDF_P2P_CLIENT_MODE)
 		return QDF_STATUS_SUCCESS;
-	}
 
 	p2p_debug("connection status:%d", p2p_soc_obj->connection_status);
 	switch (p2p_soc_obj->connection_status) {
@@ -1329,10 +1321,8 @@ QDF_STATUS p2p_status_disconnect(struct wlan_objmgr_vdev *vdev)
 	}
 
 	mode = wlan_vdev_mlme_get_opmode(vdev);
-	if (mode != QDF_P2P_CLIENT_MODE) {
-		p2p_debug("this is not P2P CLIENT, mode:%d", mode);
+	if (mode != QDF_P2P_CLIENT_MODE)
 		return QDF_STATUS_SUCCESS;
-	}
 
 	p2p_debug("connection status:%d", p2p_soc_obj->connection_status);
 	switch (p2p_soc_obj->connection_status) {
