@@ -735,6 +735,7 @@ update_time:
 	chip->dynamic_fv_last_update_time = ktime_get();
 	return 0;
 }
+extern unsigned int skip_therm;
 
 /* set JEITA_SUSPEND_HYST_UV to 70mV to avoid recharge frequently when jeita warm */
 #define JEITA_SUSPEND_HYST_UV		70000
@@ -767,6 +768,14 @@ static int handle_jeita(struct step_chg_info *chip)
 	/* skip processing, event too early */
 	if (elapsed_us < STEP_CHG_HYSTERISIS_DELAY_US)
 		return 0;
+
+	if (skip_therm) {
+		vote(chip->fcc_votable, JEITA_VOTER, false, 0);
+		vote(chip->fv_votable, JEITA_VOTER, false, 0);
+		vote(chip->usb_icl_votable, JEITA_VOTER, false, 0);
+		vote(chip->dc_suspend_votable, JEITA_VOTER, false, 0);
+		goto update_time;
+	}
 
 	if (chip->jeita_fcc_config->param.use_bms)
 		rc = power_supply_get_property(chip->bms_psy,
