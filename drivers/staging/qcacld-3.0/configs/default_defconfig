@@ -363,7 +363,7 @@ CONFIG_WLAN_LOG_INFO := n
 CONFIG_ATH_PERF_PWR_OFFLOAD := y
 
 #Disable packet log
-CONFIG_REMOVE_PKT_LOG := y
+CONFIG_REMOVE_PKT_LOG := n
 
 #Enable 11AC TX
 ifeq ($(CONFIG_ROME_IF),pci)
