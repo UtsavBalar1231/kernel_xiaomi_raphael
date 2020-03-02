@@ -139,6 +139,27 @@ not_flushed:
 	SDE_ATRACE_END("vblank_irq");
 }
 
+static void sde_encoder_phys_shd_roi_misr_irq(void *arg, int irq_idx)
+{
+	struct sde_encoder_phys *phys_enc = arg;
+	bool event_status;
+
+	if (!phys_enc)
+		return;
+
+	/**
+	 * call helper function to collect signature,
+	 * update fence data and check event should be
+	 * sent or not
+	 */
+	event_status = sde_encoder_helper_roi_misr_update_fence(phys_enc);
+
+	if (event_status && phys_enc->parent_ops.handle_roi_misr_virt)
+		phys_enc->parent_ops.handle_roi_misr_virt(
+			phys_enc->parent,
+			SDE_ENCODER_MISR_EVENT_SIGNAL_ROI_MSIR_FENCE);
+}
+
 static int _sde_encoder_phys_shd_register_irq(
 		struct sde_encoder_phys *phys_enc,
 		enum sde_intr_idx intr_idx,
@@ -159,11 +180,58 @@ void _sde_encoder_phys_shd_setup_irq_hw_idx(
 		struct sde_encoder_phys *phys_enc)
 {
 	struct sde_encoder_irq *irq;
+	int misr_idx;
+	int i;
 
 	irq = &phys_enc->irq[INTR_IDX_VSYNC];
 
 	if (irq->irq_idx < 0)
 		irq->hw_idx = phys_enc->intf_idx;
+
+	for (i = 0; i < MAX_ROIS_PER_PHYS; i++) {
+		misr_idx = i / ROI_MISR_MAX_ROIS_PER_MISR;
+		irq = &phys_enc->irq[MISR_ROI_MISMATCH_BASE_IDX + i];
+
+		if (phys_enc->hw_roi_misr[misr_idx] && (irq->irq_idx < 0))
+			irq->hw_idx = phys_enc->hw_roi_misr[misr_idx]->idx;
+	}
+}
+
+static int sde_encoder_phys_shd_control_roi_misr_irq(
+		struct sde_encoder_phys *phys_enc,
+		int seqno, bool enable)
+{
+	int phy_misr_idx;
+	int base_irq_idx;
+	int ret;
+	int i;
+
+	/**
+	 * each physical encoder has a maximum of two MISRs
+	 * we can according to misr sequence number to
+	 * distinguish which MISR should be used in this
+	 * encoder, then get the related irq table
+	 */
+	phy_misr_idx =
+		(phys_enc->num_misrs == MAX_ROI_MISR_PER_PHYS)
+		? (seqno % MAX_ROI_MISR_PER_PHYS) : 0;
+
+	base_irq_idx = MISR_ROI_MISMATCH_BASE_IDX
+		+ phy_misr_idx * ROI_MISR_MAX_ROIS_PER_MISR;
+
+	for (i = 0; i < ROI_MISR_MAX_ROIS_PER_MISR; i++) {
+		ret = sde_encoder_helper_roi_misr_irq_enable(phys_enc,
+			base_irq_idx, i, enable);
+		if (ret)
+			return ret;
+
+		if (enable)
+			phys_enc->roi_misr_seqno[phy_misr_idx] = seqno;
+		else
+			phys_enc->roi_misr_seqno[phy_misr_idx] = -1;
+	}
+
+	return 0;
 }
 
 static int _sde_encoder_phys_shd_rm_reserve(
@@ -172,11 +240,12 @@ static int _sde_encoder_phys_shd_rm_reserve(
 {
 	struct sde_encoder_phys_shd *shd_enc;
 	struct sde_rm *rm;
-	struct sde_rm_hw_iter ctl_iter, lm_iter, pp_iter;
+	struct sde_rm_hw_iter ctl_iter, lm_iter, pp_iter, roi_misr_iter;
 	struct drm_encoder *encoder;
 	struct sde_shd_hw_ctl *hw_ctl;
 	struct sde_shd_hw_mixer *hw_lm;
 	struct sde_hw_pingpong *hw_pp;
+	struct sde_hw_roi_misr *hw_roi_misr;
 	int i, rc = 0;
 
 	encoder = display->base->connector->encoder;
@@ -186,6 +255,8 @@ static int _sde_encoder_phys_shd_rm_reserve(
 	sde_rm_init_hw_iter(&ctl_iter, encoder->base.id, SDE_HW_BLK_CTL);
 	sde_rm_init_hw_iter(&lm_iter, encoder->base.id, SDE_HW_BLK_LM);
 	sde_rm_init_hw_iter(&pp_iter, encoder->base.id, SDE_HW_BLK_PINGPONG);
+	sde_rm_init_hw_iter(&roi_misr_iter, encoder->base.id,
+			SDE_HW_BLK_ROI_MISR);
 
 	shd_enc->num_mixers = 0;
 	shd_enc->num_ctls = 0;
@@ -229,6 +300,23 @@ static int _sde_encoder_phys_shd_rm_reserve(
 			&hw_pp->base, phys_enc->parent);
 		if (rc) {
 			SDE_ERROR("failed to create & reserve pingpong\n");
+			break;
+		}
+
+		/* reserve roi_misr */
+		if (!sde_rm_get_hw(rm, &roi_misr_iter))
+			break;
+		hw_roi_misr = roi_misr_iter.hw;
+
+		SDE_DEBUG("reserve ROI_MISR%d from enc %d to %d\n",
+			hw_roi_misr->idx,
+			DRMID(encoder),
+			DRMID(phys_enc->parent));
+
+		rc = sde_rm_ext_blk_create_reserve(rm,
+			&hw_roi_misr->base, phys_enc->parent);
+		if (rc) {
+			SDE_ERROR("failed to create & reserve roi_misr\n");
 			break;
 		}
 	}
@@ -282,6 +370,7 @@ static void sde_encoder_phys_shd_mode_set(
 	struct drm_encoder *encoder;
 	struct sde_rm_hw_iter iter;
 	struct sde_rm *rm;
+	int i;
 
 	SDE_DEBUG("%d\n", phys_enc->parent->base.id);
 
@@ -331,6 +420,19 @@ static void sde_encoder_phys_shd_mode_set(
 				PTR_ERR(phys_enc->hw_pp));
 		phys_enc->hw_pp = NULL;
 		return;
+	}
+
+	sde_rm_init_hw_iter(&iter, DRMID(encoder), SDE_HW_BLK_ROI_MISR);
+	for (i = 0; i < MAX_ROI_MISR_PER_PHYS; i++) {
+		if (sde_rm_get_hw(rm, &iter))
+			phys_enc->hw_roi_misr[i] =
+					(struct sde_hw_roi_misr *)iter.hw;
+		if (IS_ERR(phys_enc->hw_roi_misr)) {
+			SDE_DEBUG("failed to init roi_misr: %ld\n",
+					PTR_ERR(phys_enc->hw_roi_misr));
+			phys_enc->hw_roi_misr[i] = NULL;
+			return;
+		}
 	}
 
 	_sde_encoder_phys_shd_setup_irq_hw_idx(phys_enc);
@@ -541,6 +643,9 @@ static void sde_encoder_phys_shd_disable(struct sde_encoder_phys *phys_enc)
 {
 	struct shd_display *display;
 	unsigned long lock_flags;
+	struct sde_hw_roi_misr *hw_roi_misr;
+	int base_irq_idx;
+	int i, j;
 
 	SDE_DEBUG("%d\n", phys_enc->parent->base.id);
 
@@ -555,6 +660,29 @@ static void sde_encoder_phys_shd_disable(struct sde_encoder_phys *phys_enc)
 				phys_enc->hw_intf != 0, phys_enc->hw_ctl != 0);
 		return;
 	}
+
+	for (i = 0; i < MAX_ROI_MISR_PER_PHYS; i++) {
+		hw_roi_misr = phys_enc->hw_roi_misr[i];
+		if (hw_roi_misr == NULL)
+				continue;
+
+		base_irq_idx = MISR_ROI_MISMATCH_BASE_IDX
+			+ i * ROI_MISR_MAX_ROIS_PER_MISR;
+
+		for(j = 0; j < ROI_MISR_MAX_ROIS_PER_MISR; j++)
+			sde_encoder_helper_roi_misr_irq_enable(phys_enc,
+				i, j, false);
+
+		if (hw_roi_misr->ops.reset_roi_misr)
+			hw_roi_misr->ops.reset_roi_misr(hw_roi_misr);
+
+		phys_enc->hw_ctl->ops.update_bitmask_dsc(
+				phys_enc->hw_ctl,
+				(enum sde_dsc)hw_roi_misr->idx,
+				true);
+	}
+
+	phys_enc->num_misrs = 0;
 
 	if (phys_enc->enable_state == SDE_ENC_DISABLED) {
 		SDE_ERROR("already disabled\n");
@@ -624,6 +752,7 @@ static void sde_encoder_phys_shd_init_ops(struct sde_encoder_phys_ops *ops)
 	ops->enable = sde_encoder_phys_shd_enable;
 	ops->disable = sde_encoder_phys_shd_disable;
 	ops->destroy = sde_encoder_phys_shd_destroy;
+	ops->control_roi_misr_irq = sde_encoder_phys_shd_control_roi_misr_irq;
 	ops->wait_for_commit_done = sde_encoder_phys_shd_wait_for_vblank;
 	ops->wait_for_vblank = sde_encoder_phys_shd_wait_for_vblank_no_notify;
 	ops->prepare_for_kickoff = sde_encoder_phys_shd_prepare_for_kickoff;
@@ -695,6 +824,17 @@ void *sde_encoder_phys_shd_init(enum sde_intf_type type,
 		irq->hw_idx = -EINVAL;
 		irq->cb.arg = phys_enc;
 	}
+
+	for (i = INTR_IDX_MISR_ROI0_MISMATCH; i < INTR_IDX_MAX; i++) {
+		irq = &phys_enc->irq[i];
+		irq->name = "roi_misr_mismatch";
+		irq->intr_type = SDE_IRQ_TYPE_ROI_MISR;
+		irq->intr_idx = i;
+		irq->cb.func = sde_encoder_phys_shd_roi_misr_irq;
+	}
+
+	for (i = 0; i < MAX_ROI_MISR_PER_PHYS; i++)
+		phys_enc->roi_misr_seqno[i] = -1;
 
 	atomic_set(&phys_enc->vblank_refcount, 0);
 	atomic_set(&phys_enc->pending_kickoff_cnt, 0);

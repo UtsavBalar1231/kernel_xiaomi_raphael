@@ -186,6 +186,10 @@ enum sde_enc_rc_states {
  *			pingpong blocks can be different than num_phys_encs.
  * @hw_dsc:		Array of DSC block handles used for the display.
  * @dirty_dsc_ids:	Cached dsc indexes for dirty DSC blocks needing flush
+ * @hw_roi_misr:	Array of ROI MISR block handles used for the display
+ * @crtc_roi_misr_cb:	Callback into the upper layer / CRTC for
+ *			notification of the ROI MISR
+ * @crtc_roi_misr_cb_data:	Data from upper layer for ROI MISR notification
  * @intfs_swapped	Whether or not the phys_enc interfaces have been swapped
  *			for partial update right-only cases, such as pingpong
  *			split where virtual pingpong does not generate IRQs
@@ -251,6 +255,10 @@ struct sde_encoder_virt {
 	struct sde_hw_dsc *hw_dsc[MAX_CHANNELS_PER_ENC];
 	struct sde_hw_pingpong *hw_dsc_pp[MAX_CHANNELS_PER_ENC];
 	enum sde_dsc dirty_dsc_ids[MAX_CHANNELS_PER_ENC];
+
+	struct sde_hw_roi_misr *hw_roi_misr[MAX_CHANNELS_PER_ENC];
+	void (*crtc_roi_misr_cb)(void *, u32 event);
+	void *crtc_roi_misr_cb_data;
 
 	bool intfs_swapped;
 	bool qdss_status;
@@ -733,6 +741,129 @@ int sde_encoder_helper_unregister_irq(struct sde_encoder_phys *phys_enc,
 	irq->irq_idx = -EINVAL;
 
 	return 0;
+}
+
+int sde_encoder_helper_roi_misr_irq_enable(struct sde_encoder_phys *phys_enc,
+		int base_irq_idx, int roi_idx, bool enable)
+{
+	struct sde_encoder_irq *irq;
+	struct sde_encoder_virt *sde_enc;
+	int roi_irq_idx;
+	int ret;
+
+	if (!phys_enc) {
+		SDE_ERROR("invalid parameters\n");
+		return -EINVAL;
+	}
+
+	sde_enc = to_sde_encoder_virt(phys_enc->parent);
+	roi_irq_idx = base_irq_idx + roi_idx;
+	irq = &phys_enc->irq[roi_irq_idx];
+
+	if ((irq->irq_idx >= 0) && enable) {
+		SDE_DEBUG_PHYS(phys_enc,
+			"skipping already registered irq %s type %d\n",
+			irq->name, irq->intr_type);
+		return 0;
+	}
+
+	if ((irq->irq_idx < 0) && (!enable))
+		return 0;
+
+	irq->irq_idx = sde_core_irq_idx_lookup(phys_enc->sde_kms,
+			irq->intr_type, irq->hw_idx) + roi_idx;
+
+	if (enable) {
+		ret = sde_core_irq_register_callback(phys_enc->sde_kms,
+				irq->irq_idx,
+				&phys_enc->irq[irq->intr_idx].cb);
+		if (ret) {
+			SDE_ERROR("failed to register IRQ[%d]\n",
+				irq->irq_idx);
+			return ret;
+		}
+
+		ret = sde_core_irq_enable(phys_enc->sde_kms,
+				&irq->irq_idx, 1);
+		if (ret) {
+			SDE_ERROR("enable irq[%d] error %d\n",
+				irq->irq_idx, ret);
+
+			sde_core_irq_unregister_callback(
+				phys_enc->sde_kms, irq->irq_idx,
+				&phys_enc->irq[irq->intr_idx].cb);
+			return ret;
+		}
+	} else {
+		sde_core_irq_disable(phys_enc->sde_kms,
+			&irq->irq_idx, 1);
+
+		sde_core_irq_unregister_callback(
+			phys_enc->sde_kms, irq->irq_idx,
+			&phys_enc->irq[irq->intr_idx].cb);
+
+		irq->irq_idx = -EINVAL;
+	}
+
+	return 0;
+}
+
+bool sde_encoder_helper_roi_misr_update_fence(
+		struct sde_encoder_phys *phys_enc)
+{
+	struct sde_misr_fence *fence;
+	struct sde_hw_roi_misr *hw_misr;
+	uint32_t signature;
+	int misr_seqno;
+	int all_roi_num = 0;
+	int orig_order_idx;
+	int orig_order;
+	int i, j;
+	bool success;
+
+	fence = sde_encoder_get_fence_object(phys_enc->parent);
+	if (!fence)
+		return false;
+
+	/* if has sent event to this fence, we should not send again */
+	if (test_bit(MISR_FENCE_FLAG_EVENT_BIT, &fence->flags))
+		return false;
+
+	for (i = 0; i < MAX_ROI_MISR_PER_PHYS; ++i) {
+		if (!phys_enc->hw_roi_misr[i]
+			|| (phys_enc->roi_misr_seqno[i] < 0))
+			break;
+
+		hw_misr = phys_enc->hw_roi_misr[i];
+		misr_seqno = phys_enc->roi_misr_seqno[i];
+
+		for (j = 0; j < ROI_MISR_MAX_ROIS_PER_MISR; ++j) {
+			success = hw_misr->ops.collect_roi_misr_signature(
+				hw_misr, j, &signature);
+			if (success) {
+				orig_order_idx =
+					misr_seqno * ROI_MISR_MAX_ROIS_PER_MISR
+					+ j;
+				orig_order = fence->orig_order[orig_order_idx];
+				fence->data[orig_order] = signature;
+				++fence->updated_count;
+			}
+		}
+	}
+
+	for (i = 0; i < ROI_MISR_MAX_MISRS_PER_CRTC; ++i)
+		all_roi_num += fence->roi_num[i];
+
+	if (fence->updated_count >= all_roi_num) {
+		set_bit(MISR_FENCE_FLAG_EVENT_BIT, &fence->flags);
+
+		if (fence->updated_count > all_roi_num)
+			SDE_ERROR("roi misr issue, please check!\n");
+
+		return true;
+	}
+
+	return false;
 }
 
 void sde_encoder_get_hw_resources(struct drm_encoder *drm_enc,
@@ -3065,11 +3196,12 @@ static void sde_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct sde_kms *sde_kms;
 	struct list_head *connector_list;
 	struct drm_connector *conn = NULL, *conn_iter;
-	struct sde_rm_hw_iter dsc_iter, pp_iter, qdss_iter;
+	struct sde_rm_hw_iter dsc_iter, pp_iter, qdss_iter, roi_misr_iter;
 	struct sde_rm_hw_request request_hw;
 	bool is_cmd_mode = false;
-	int i = 0, ret;
+	int i = 0, j = 0, ret;
 	int ratio;
+	int misr_id;
 
 	if (!drm_enc) {
 		SDE_ERROR("invalid encoder\n");
@@ -3195,6 +3327,17 @@ static void sde_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		return;
 	}
 
+	sde_rm_init_hw_iter(&roi_misr_iter, drm_enc->base.id,
+			SDE_HW_BLK_ROI_MISR);
+	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
+		sde_enc->hw_roi_misr[i] = NULL;
+		if (!sde_rm_get_hw(&sde_kms->rm, &roi_misr_iter))
+			break;
+
+		sde_enc->hw_roi_misr[i] =
+			(struct sde_hw_roi_misr *) roi_misr_iter.hw;
+	}
+
 	for (i = 0; i < sde_enc->num_phys_encs; i++) {
 		struct sde_encoder_phys *phys = sde_enc->phys_encs[i];
 
@@ -3207,6 +3350,19 @@ static void sde_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 
 			phys->hw_pp = sde_enc->hw_pp[i * ratio];
 			phys->connector = conn->state->connector;
+
+			if (sde_encoder_is_dsc_merge(drm_enc)) {
+				for (j = 0; j < MAX_ROI_MISR_PER_PHYS; j++) {
+					misr_id = MAX_ROI_MISR_PER_PHYS * i + j;
+
+					phys->hw_roi_misr[j] =
+						sde_enc->hw_roi_misr[misr_id];
+					phys->num_misrs++;
+				}
+			} else {
+				phys->hw_roi_misr[0] = sde_enc->hw_roi_misr[i];
+				phys->num_misrs++;
+			}
 
 			if (phys->ops.mode_set)
 				phys->ops.mode_set(phys, mode, adj_mode);
@@ -3804,6 +3960,27 @@ static void sde_encoder_vblank_callback(struct drm_encoder *drm_enc,
 	SDE_ATRACE_END("encoder_vblank_callback");
 }
 
+static void sde_encoder_roi_misr_callback(struct drm_encoder *drm_enc,
+		u32 event)
+{
+	struct sde_encoder_virt *sde_enc = NULL;
+	unsigned long lock_flags;
+
+	if (!drm_enc)
+		return;
+
+	SDE_ATRACE_BEGIN("encoder_roi_misr_callback");
+	sde_enc = to_sde_encoder_virt(drm_enc);
+
+	spin_lock_irqsave(&sde_enc->enc_spinlock, lock_flags);
+	if (sde_enc->crtc_roi_misr_cb)
+		sde_enc->crtc_roi_misr_cb(
+			sde_enc->crtc_roi_misr_cb_data, event);
+	spin_unlock_irqrestore(&sde_enc->enc_spinlock, lock_flags);
+
+	SDE_ATRACE_END("encoder_roi_misr_callback");
+}
+
 static void sde_encoder_underrun_callback(struct drm_encoder *drm_enc,
 		struct sde_encoder_phys *phy_enc)
 {
@@ -3852,6 +4029,53 @@ void sde_encoder_register_vblank_callback(struct drm_encoder *drm_enc,
 			phys->ops.control_vblank_irq(phys, enable);
 	}
 	sde_enc->vblank_enabled = enable;
+}
+
+void sde_encoder_register_roi_misr_callback(struct drm_encoder *drm_enc,
+		void (*roi_misr_cb)(void *, u32 event),
+		void *roi_misr_data)
+{
+	struct sde_encoder_virt *sde_enc = to_sde_encoder_virt(drm_enc);
+	unsigned long lock_flags;
+	bool enable;
+
+	enable = roi_misr_cb ? true : false;
+
+	if (!drm_enc) {
+		SDE_ERROR("invalid encoder\n");
+		return;
+	}
+	SDE_DEBUG_ENC(sde_enc, "\n");
+	SDE_EVT32(DRMID(drm_enc), enable);
+
+	spin_lock_irqsave(&sde_enc->enc_spinlock, lock_flags);
+	sde_enc->crtc_roi_misr_cb = roi_misr_cb;
+	sde_enc->crtc_roi_misr_cb_data = roi_misr_data;
+	spin_unlock_irqrestore(&sde_enc->enc_spinlock, lock_flags);
+}
+
+void sde_encoder_roi_misr_irq_enable(struct drm_encoder *drm_enc,
+		int seqno, bool enable)
+{
+	struct sde_encoder_virt *sde_enc = to_sde_encoder_virt(drm_enc);
+	struct sde_encoder_phys *phys;
+	int phys_idx;
+
+	if (!drm_enc) {
+		SDE_ERROR("invalid encoder\n");
+		return;
+	}
+
+	/**
+	 * for multiple physical encoder in one virtual encoder
+	 * case, we can according to the misr sequence number to
+	 * distinguish which physical encoder should be used
+	 */
+	phys_idx = seqno / sde_enc->cur_master->num_misrs;
+	phys = sde_enc->phys_encs[phys_idx];
+
+	if (phys && phys->ops.control_roi_misr_irq)
+		phys->ops.control_roi_misr_irq(phys, seqno, enable);
 }
 
 void sde_encoder_register_frame_event_callback(struct drm_encoder *drm_enc,
@@ -4300,6 +4524,25 @@ static void _sde_encoder_kickoff_phys(struct sde_encoder_virt *sde_enc)
 		sde_enc->elevated_ahb_vote = false;
 	}
 
+}
+
+struct sde_misr_fence *sde_encoder_get_fence_object(
+		struct drm_encoder *encoder)
+{
+	struct sde_encoder_virt *sde_enc;
+	struct sde_crtc *sde_crtc;
+
+	if (!encoder || !encoder->dev)
+		return NULL;
+
+	sde_enc = to_sde_encoder_virt(encoder);
+
+	if (!sde_enc->crtc)
+		return NULL;
+
+	sde_crtc = to_sde_crtc(sde_enc->crtc);
+
+	return get_fence_instance(&sde_crtc->roi_misr_fence);
 }
 
 static void _sde_encoder_ppsplit_swap_intf_for_right_only_update(
@@ -5511,6 +5754,7 @@ static int sde_encoder_setup_display(struct sde_encoder_virt *sde_enc,
 	struct sde_encoder_virt_ops parent_ops = {
 		sde_encoder_vblank_callback,
 		sde_encoder_underrun_callback,
+		sde_encoder_roi_misr_callback,
 		sde_encoder_frame_done_callback,
 		sde_encoder_get_qsync_fps_callback,
 	};

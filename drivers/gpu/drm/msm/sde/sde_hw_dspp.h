@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -164,6 +164,15 @@ struct sde_hw_dspp_ops {
 	 */
 	void (*ad_read_intr_resp)(struct sde_hw_dspp *ctx, u32 event,
 			u32 *resp_in, u32 *resp_out);
+
+	/**
+	 * setup_roi_misr - update the roi misr property
+	 * @ctx: Pointer to dspp context
+	 * @roi_num: The number of roi should be set
+	 * @roi_cfg: Pointer to roi configuration
+	 */
+	void (*setup_roi_misr)(struct sde_hw_dspp *ctx, int roi_num,
+			struct sde_rect *roi_cfg);
 
 };
 

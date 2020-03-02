@@ -1959,6 +1959,51 @@ static const struct drm_connector_helper_funcs sde_connector_helper_ops_v2 = {
 	.atomic_check = sde_connector_atomic_check,
 };
 
+static void sde_connector_populate_roi_misr_roi_range(
+		struct sde_kms *sde_kms,
+		const struct drm_display_mode *drm_mode,
+		struct sde_kms_info *info,
+		int topology_idx)
+{
+	char misr_prop_name[20];
+	char misr_prop_value[30];
+	struct sde_rect roi_misr_rect_range[ROI_MISR_MAX_MISRS_PER_CRTC];
+	int range_data_idx;
+	int roi_misr_num;
+	int misr_width;
+	int i;
+
+	roi_misr_num = sde_rm_get_roi_misr_num(&sde_kms->rm, topology_idx);
+	if (!roi_misr_num)
+		return;
+
+	memset(misr_prop_name, 0, sizeof(misr_prop_name));
+	misr_width = drm_mode->hdisplay / roi_misr_num;
+
+	for (i = 0; i < roi_misr_num; i++) {
+		roi_misr_rect_range[i].x = misr_width * i;
+		roi_misr_rect_range[i].y = 0;
+		roi_misr_rect_range[i].w = misr_width;
+		roi_misr_rect_range[i].h = drm_mode->vdisplay;
+	}
+
+	for (i = 0; i < roi_misr_num * ROI_MISR_MAX_ROIS_PER_MISR; i++) {
+		range_data_idx = i / ROI_MISR_MAX_ROIS_PER_MISR;
+
+		snprintf(misr_prop_name, sizeof(misr_prop_name),
+				"misr_roi_%d", i);
+		snprintf(misr_prop_value, sizeof(misr_prop_value),
+				"(%d,%d,%d,%d)",
+				roi_misr_rect_range[range_data_idx].x,
+				roi_misr_rect_range[range_data_idx].y,
+				roi_misr_rect_range[range_data_idx].w,
+				roi_misr_rect_range[range_data_idx].h);
+
+		sde_kms_info_add_keystr(info, misr_prop_name,
+				misr_prop_value);
+	}
+}
+
 static int sde_connector_populate_mode_info(struct drm_connector *conn,
 	struct sde_kms_info *info)
 {
@@ -2012,6 +2057,9 @@ static int sde_connector_populate_mode_info(struct drm_connector *conn,
 			SDE_ERROR_CONN(c_conn, "invalid topology\n");
 			continue;
 		}
+
+		sde_connector_populate_roi_misr_roi_range(sde_kms,
+				mode, info, topology_idx);
 
 		sde_kms_info_add_keyint(info, "mdp_transfer_time_us",
 			mode_info.mdp_transfer_time_us);

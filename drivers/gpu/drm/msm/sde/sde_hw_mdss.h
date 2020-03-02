@@ -112,6 +112,7 @@ enum sde_hw_blk_type {
 	SDE_HW_BLK_INTF,
 	SDE_HW_BLK_WB,
 	SDE_HW_BLK_DSC,
+	SDE_HW_BLK_ROI_MISR,
 	SDE_HW_BLK_ROT,
 	SDE_HW_BLK_MERGE_3D,
 	SDE_HW_BLK_QDSS,
@@ -227,6 +228,17 @@ enum sde_dsc {
 	DSC_4,
 	DSC_5,
 	DSC_MAX
+};
+
+enum sde_roi_misr {
+	ROI_MISR_NONE = 0,
+	ROI_MISR_0,
+	ROI_MISR_1,
+	ROI_MISR_2,
+	ROI_MISR_3,
+	ROI_MISR_4,
+	ROI_MISR_5,
+	ROI_MISR_MAX
 };
 
 enum sde_intf {
@@ -545,6 +557,7 @@ struct sde_mdss_color {
 #define SDE_DBG_MASK_REGDMA   (1 << 14)
 #define SDE_DBG_MASK_QDSS     (1 << 15)
 #define SDE_DBG_MASK_SID      (1 << 15)
+#define SDE_DBG_MASK_ROI_MISR (1 << 16)
 
 /**
  * struct sde_hw_cp_cfg: hardware dspp/lm feature payload.
@@ -705,6 +718,65 @@ struct sde_hw_pp_vsync_info {
 	u32 rd_ptr_frame_count;
 	u32 rd_ptr_line_count;
 	u32 wr_ptr_line_count;
+};
+
+/**
+ * the maximum ROI number per MISR module, this number depends on HW limits
+ */
+#if defined(CONFIG_ARCH_SM8150) \
+	|| defined(CONFIG_ARCH_SM6150) \
+	|| defined(CONFIG_ARCH_SDMSHRIKE)
+/* For Gen3 platform */
+#define ROI_MISR_MAX_ROIS_PER_MISR 4
+#else
+/* default value */
+#define ROI_MISR_MAX_ROIS_PER_MISR 4
+#endif
+
+/* for multiple roi misrs case to extend related data structure */
+#define ROI_MISR_MAX_MISRS_PER_CRTC 6
+
+#define ROI_MISR_MAX_ROIS_PER_CRTC \
+	(ROI_MISR_MAX_MISRS_PER_CRTC * ROI_MISR_MAX_ROIS_PER_MISR)
+
+/**
+ * struct sde_roi_misr_cfg - Struct contains user parameters
+ *
+ * @user_fence_fd_addr: user address to store fence fd
+ * @roi_rect_num: roi number of user input
+ * @roi_ids: the roi index of user input, this index are
+ *           match with roi range index in mode_info
+ * @roi_rects: the rect info of user input
+ * @roi_golden_value: the golden value of user input
+ */
+struct sde_roi_misr_usr_cfg {
+	uint64_t *user_fence_fd_addr;
+	uint32_t roi_rect_num;
+	uint32_t roi_ids[ROI_MISR_MAX_ROIS_PER_CRTC];
+	struct drm_clip_rect roi_rects[ROI_MISR_MAX_ROIS_PER_CRTC];
+	uint32_t roi_golden_value[ROI_MISR_MAX_ROIS_PER_CRTC];
+};
+
+/**
+ * struct sde_roi_misr_hw_cfg - Struct contains parameters to configure
+ * @roi_num: the number of MSIR ROI should be enabled
+ * @orig_order: the original order of user setting rectangle
+ * @misr_roi_rect: the rectangle info of every MISR ROI
+ * @dspp_roi_num: the number of dspp ROI should be enabled
+ * @dspp_roi_rect: the rectangle info of every DSPP bypass ROI
+ *                 the number of dspp should be twice misr's
+ *                 counts for 3Dmux case
+ * @golden_value: the golden value be calculated by software
+ * @frame_count: number of frames to run before capturing
+ */
+struct sde_roi_misr_hw_cfg {
+	uint32_t roi_num;
+	uint32_t orig_order[ROI_MISR_MAX_ROIS_PER_MISR];
+	struct sde_rect misr_roi_rect[ROI_MISR_MAX_ROIS_PER_MISR];
+	uint32_t dspp_roi_num;
+	struct sde_rect dspp_roi_rect[ROI_MISR_MAX_ROIS_PER_MISR];
+	uint32_t golden_value[ROI_MISR_MAX_ROIS_PER_MISR];
+	uint8_t frame_count[ROI_MISR_MAX_ROIS_PER_MISR];
 };
 
 #endif  /* _SDE_HW_MDSS_H */

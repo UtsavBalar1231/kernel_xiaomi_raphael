@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -23,7 +23,7 @@
 
 #include "msm_prop.h"
 #include "sde_hw_mdss.h"
-
+#include "sde_fence_misr.h"
 
 #define MAX_CHANNELS_PER_ENC 4
 #define SDE_ENCODER_FRAME_EVENT_DONE			BIT(0)
@@ -31,6 +31,8 @@
 #define SDE_ENCODER_FRAME_EVENT_PANEL_DEAD		BIT(2)
 #define SDE_ENCODER_FRAME_EVENT_SIGNAL_RELEASE_FENCE	BIT(3)
 #define SDE_ENCODER_FRAME_EVENT_SIGNAL_RETIRE_FENCE	BIT(4)
+
+#define SDE_ENCODER_MISR_EVENT_SIGNAL_ROI_MSIR_FENCE	BIT(0)
 
 #define IDLE_POWERCOLLAPSE_DURATION	(66 - 16/2)
 #define IDLE_POWERCOLLAPSE_IN_EARLY_WAKEUP (200 - 16/2)
@@ -113,6 +115,26 @@ void sde_encoder_get_hw_resources(struct drm_encoder *encoder,
  */
 void sde_encoder_register_vblank_callback(struct drm_encoder *encoder,
 		void (*cb)(void *), void *data);
+
+/**
+ * sde_encoder_register_roi_misr_callback - provide callback to encoder that
+ *	will be called on the roi misr interrupt be triggered.
+ * @encoder: encoder pointer
+ * @roi_misr_cb: callback pointer, provide NULL to deregister and disable IRQs
+ * @roi_misr_data: user data provided to callback
+ */
+void sde_encoder_register_roi_misr_callback(struct drm_encoder *drm_enc,
+		void (*roi_misr_cb)(void *, u32 event),
+		void *roi_misr_data);
+
+/**
+ * sde_encoder_roi_misr_irq_enable - enable one misr irq for physical encoder
+ * @encoder: encoder pointer
+ * @seqno: sequence number of ROI MISR block to index callback
+ * @enable: enable or disable irq
+ */
+void sde_encoder_roi_misr_irq_enable(struct drm_encoder *drm_enc,
+		int seqno, bool enable);
 
 /**
  * sde_encoder_register_frame_event_callback - provide callback to encoder that
@@ -351,5 +373,13 @@ int sde_encoder_in_cont_splash(struct drm_encoder *enc);
  * @Return:     non zero value if ctl start timeout occurred
  */
 int sde_encoder_get_ctlstart_timeout_state(struct drm_encoder *enc);
+
+/**
+ * sde_encoder_get_fence_object - get fence object from CRTC
+ * @drm_enc:	Pointer to drm encoder structure
+ * @Return:	Pointer of fence object
+ */
+struct sde_misr_fence *sde_encoder_get_fence_object(
+		struct drm_encoder *encoder);
 
 #endif /* __SDE_ENCODER_H__ */

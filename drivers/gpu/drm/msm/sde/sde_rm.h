@@ -110,6 +110,16 @@ struct sde_rm_topology_def {
 };
 
 /**
+ * struct sde_rm_misr_topology_def - Topology table definition
+ * @top_name: name identifying this topology
+ * @num_roi_misr: number of roi misr used
+ */
+struct sde_rm_misr_topology_def {
+	enum sde_rm_topology_name top_name;
+	int num_roi_misr;
+};
+
+/**
  * struct sde_rm - SDE dynamic hardware resource manager
  * @dev: device handle for event logging purposes
  * @rsvps: list of hardware reservations by each crtc->encoder->connector
@@ -180,6 +190,16 @@ enum sde_rm_topology_name sde_rm_get_topology_name(struct sde_rm *rm,
  */
 int sde_rm_get_topology_num_encoders(struct sde_rm *rm,
 	enum sde_rm_topology_name topology);
+
+/**
+ * sde_rm_get_roi_misr_num - get the number of roi misr with
+ *                           the given drm_connector
+ * @rm: SDE Resource Manager handle
+ * @topology: topology name
+ * @Return: the number of roi misrs
+ */
+int sde_rm_get_roi_misr_num(struct sde_rm *rm,
+		enum sde_rm_topology_name topology);
 
 /**
  * sde_rm_init - Read hardware catalog and create reservation tracking objects

@@ -27,6 +27,10 @@
 #include "sde_core_perf.h"
 #include "sde_hw_blk.h"
 #include "sde_hw_ds.h"
+#include "sde_hw_roi_misr.h"
+#include "sde_hw_dspp.h"
+#include "sde_fence_misr.h"
+#include <uapi/drm/sde_drm.h>
 
 #define SDE_CRTC_NAME_SIZE	12
 
@@ -87,6 +91,7 @@ struct sde_crtc_retire_event {
  * @hw_ctl:	CTL Path HW driver context
  * @hw_dspp:	DSPP HW driver context
  * @hw_ds:	DS HW driver context
+ * @hw_roi_misr:	ROI_MISR HW driver context
  * @encoder:	Encoder attached to this lm & ctl
  * @mixer_op_mode: mixer blending operation mode
  */
@@ -95,6 +100,7 @@ struct sde_crtc_mixer {
 	struct sde_hw_ctl *hw_ctl;
 	struct sde_hw_dspp *hw_dspp;
 	struct sde_hw_ds *hw_ds;
+	struct sde_hw_roi_misr *hw_roi_misr;
 	struct drm_encoder *encoder;
 	u32 mixer_op_mode;
 };
@@ -124,6 +130,18 @@ struct sde_crtc_frame_event {
 	struct drm_connector *connector;
 	struct list_head list;
 	ktime_t ts;
+	u32 event;
+};
+
+/**
+ * struct sde_crtc_misr_event: stores roi misr event for crtc processing
+ * @work:	base work structure
+ * @crtc:	Pointer to crtc handling this event
+ * @event:	event identifier
+ */
+struct sde_crtc_misr_event {
+	struct kthread_work work;
+	struct drm_crtc *crtc;
 	u32 event;
 };
 
@@ -227,6 +245,10 @@ struct sde_crtc_fps_info {
  * @rp_lock       : serialization lock for resource pool
  * @rp_head       : list of active resource pool
  * @plane_mask_old: keeps track of the planes used in the previous commit
+ * @roi_misr_fence: list of roi_misr_fence for every commit
+ * @misr_fence_lock: spinlock around misr fence handling code
+ * @misr_event: static allocation of in-flight roi misr events
+ * @roi_misr_hw_cfg: the roi misr config should be written to register
  */
 struct sde_crtc {
 	struct drm_crtc base;
@@ -308,6 +330,12 @@ struct sde_crtc {
 
 	/* blob for histogram data */
 	struct drm_property_blob *hist_blob;
+
+	/* roi misr fence support */
+	struct list_head roi_misr_fence;
+	spinlock_t misr_fence_lock;
+	struct sde_crtc_misr_event misr_event;
+	struct sde_roi_misr_hw_cfg roi_misr_hw_cfg[ROI_MISR_MAX_MISRS_PER_CRTC];
 };
 
 #define to_sde_crtc(x) container_of(x, struct sde_crtc, base)
@@ -367,6 +395,18 @@ struct sde_crtc_respool {
 };
 
 /**
+ * sde_misr_state - sde misr state of current topology
+ * @num_misrs: Number of roi misrs in current topology
+ * @mixer_width: width of every mixer in current topology
+ * @roi_range: misr roi range table
+ */
+struct sde_misr_state {
+	u32 num_misrs;
+	u32 mixer_width;
+	struct drm_clip_rect roi_range[ROI_MISR_MAX_ROIS_PER_CRTC];
+};
+
+/**
  * struct sde_crtc_state - sde container for atomic crtc state
  * @base: Base drm crtc state structure
  * @connectors    : Currently associated drm connectors
@@ -403,6 +443,8 @@ struct sde_crtc_respool {
  * @padding_height: panel height after line padding
  * @padding_active: active lines in panel stacking pattern
  * @padding_dummy: dummy lines in panel stacking pattern
+ * @roi_misr_cfg: roi misr configuration from user space
+ * @misr_state: misr state of current topology
  */
 struct sde_crtc_state {
 	struct drm_crtc_state base;
@@ -444,6 +486,10 @@ struct sde_crtc_state {
 	u32 padding_dummy;
 
 	struct sde_crtc_respool rp;
+
+	/* roi misr config data */
+	struct sde_roi_misr_usr_cfg roi_misr_cfg;
+	struct sde_misr_state misr_state;
 };
 
 enum sde_crtc_irq_state {

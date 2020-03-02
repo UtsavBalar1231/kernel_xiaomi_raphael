@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -298,6 +298,13 @@ enum {
 };
 
 enum {
+	ROI_MISR_OFF,
+	ROI_MISR_LEN,
+	ROI_MSIR_ENABLE,
+	ROI_MISR_PROP_MAX,
+};
+
+enum {
 	DS_TOP_OFF,
 	DS_TOP_LEN,
 	DS_TOP_INPUT_LINEWIDTH,
@@ -335,6 +342,7 @@ enum {
 	DSPP_DITHER_PROP,
 	DSPP_HIST_PROP,
 	DSPP_VLUT_PROP,
+	DSPP_ROI_MISR_PROP,
 	DSPP_BLOCKS_PROP_MAX,
 };
 
@@ -636,6 +644,8 @@ static struct sde_prop_type dspp_blocks_prop[] = {
 	{DSPP_DITHER_PROP, "qcom,sde-dspp-dither", false, PROP_TYPE_U32_ARRAY},
 	{DSPP_HIST_PROP, "qcom,sde-dspp-hist", false, PROP_TYPE_U32_ARRAY},
 	{DSPP_VLUT_PROP, "qcom,sde-dspp-vlut", false, PROP_TYPE_U32_ARRAY},
+	{DSPP_ROI_MISR_PROP, "qcom,sde-dspp-roi-misr", false,
+		PROP_TYPE_U32_ARRAY},
 };
 
 static struct sde_prop_type ad_prop[] = {
@@ -674,6 +684,12 @@ static struct sde_prop_type pp_prop[] = {
 static struct sde_prop_type dsc_prop[] = {
 	{DSC_OFF, "qcom,sde-dsc-off", false, PROP_TYPE_U32_ARRAY},
 	{DSC_LEN, "qcom,sde-dsc-size", false, PROP_TYPE_U32},
+};
+
+static struct sde_prop_type roi_misr_prop[] = {
+	{ROI_MISR_OFF, "qcom,sde-roi-misr-off", false, PROP_TYPE_U32_ARRAY},
+	{ROI_MISR_LEN, "qcom,sde-roi-misr-size", false, PROP_TYPE_U32},
+	{ROI_MSIR_ENABLE, "qcom,sde-has-roi-misr", false, PROP_TYPE_BOOL},
 };
 
 static struct sde_prop_type cdm_prop[] = {
@@ -1624,8 +1640,8 @@ static int sde_mixer_parse_dt(struct device_node *np,
 	u32 off_count, blend_off_count, max_blendstages, lm_pair_mask;
 	struct sde_lm_cfg *mixer;
 	struct sde_lm_sub_blks *sblk;
-	int pp_count, dspp_count, ds_count, mixer_count;
-	u32 pp_idx, dspp_idx, ds_idx;
+	int pp_count, dspp_count, ds_count, roi_misr_count, mixer_count;
+	u32 pp_idx, dspp_idx, ds_idx, roi_misr_idx;
 	u32 mixer_base;
 	struct device_node *snp = NULL;
 
@@ -1656,6 +1672,7 @@ static int sde_mixer_parse_dt(struct device_node *np,
 	pp_count = sde_cfg->pingpong_count;
 	dspp_count = sde_cfg->dspp_count;
 	ds_count = sde_cfg->ds_count;
+	roi_misr_count = sde_cfg->roi_misr_count;
 
 	/* get mixer feature dt properties if they exist */
 	snp = of_get_child_by_name(np, mixer_prop[MIXER_BLOCKS].prop_name);
@@ -1696,7 +1713,7 @@ static int sde_mixer_parse_dt(struct device_node *np,
 		goto end;
 
 	for (i = 0, mixer_count = 0, pp_idx = 0, dspp_idx = 0,
-			ds_idx = 0; i < off_count; i++) {
+			ds_idx = 0, roi_misr_idx = 0; i < off_count; i++) {
 		const char *disp_pref = NULL;
 		const char *cwb_pref = NULL;
 
@@ -1756,12 +1773,16 @@ static int sde_mixer_parse_dt(struct device_node *np,
 		mixer->dspp = dspp_count > 0 ? dspp_idx + DSPP_0
 							: DSPP_MAX;
 		mixer->ds = ds_count > 0 ? ds_idx + DS_0 : DS_MAX;
+		mixer->roi_misr = roi_misr_count > 0 ? roi_misr_idx + ROI_MISR_0
+							: ROI_MISR_MAX;
 		pp_count--;
 		dspp_count--;
 		ds_count--;
+		roi_misr_count--;
 		pp_idx++;
 		dspp_idx++;
 		ds_idx++;
+		roi_misr_idx++;
 
 		mixer_count++;
 
@@ -2097,6 +2118,16 @@ static void _sde_dspp_setup_blocks(struct sde_mdss_cfg *sde_cfg,
 			DSPP_VLUT_PROP, 1);
 		sblk->sixzone.len = 0;
 		set_bit(SDE_DSPP_VLUT, &dspp->features);
+	}
+
+	sblk->roi_misr.id = SDE_DSPP_ROI_MISR;
+	if (prop_exists[DSPP_ROI_MISR_PROP]) {
+		sblk->roi_misr.base = PROP_VALUE_ACCESS(prop_value,
+			DSPP_ROI_MISR_PROP, 0);
+		sblk->roi_misr.version = PROP_VALUE_ACCESS(prop_value,
+			DSPP_ROI_MISR_PROP, 1);
+		sblk->roi_misr.len = 0;
+		set_bit(SDE_DSPP_ROI_MISR, &dspp->features);
 	}
 }
 
@@ -2580,6 +2611,64 @@ end:
 	kfree(prop_value);
 	return rc;
 };
+
+static int sde_roi_misr_parse_dt(struct device_node *np,
+				struct sde_mdss_cfg *sde_cfg)
+{
+	int rc, prop_count[MAX_BLOCKS], i;
+	struct sde_prop_value *prop_value = NULL;
+	bool prop_exists[ROI_MISR_PROP_MAX];
+	u32 off_count;
+	struct sde_roi_misr_cfg *roi_misr;
+
+	if (!sde_cfg) {
+		SDE_ERROR("invalid argument\n");
+		rc = -EINVAL;
+		goto end;
+	}
+
+	prop_value = kzalloc(ROI_MISR_PROP_MAX *
+			sizeof(struct sde_prop_value), GFP_KERNEL);
+	if (!prop_value) {
+		rc = -ENOMEM;
+		goto end;
+	}
+
+	rc = _validate_dt_entry(np, roi_misr_prop,
+		ARRAY_SIZE(roi_misr_prop), prop_count,
+		&off_count);
+	if (rc)
+		goto end;
+
+	sde_cfg->roi_misr_count = off_count;
+
+	rc = _read_dt_entry(np, roi_misr_prop,
+		ARRAY_SIZE(roi_misr_prop), prop_count,
+		prop_exists, prop_value);
+	if (rc)
+		goto end;
+
+	for (i = 0; i < off_count; i++) {
+		roi_misr = sde_cfg->roi_misr + i;
+		roi_misr->base = PROP_VALUE_ACCESS(prop_value,
+				ROI_MISR_OFF, i);
+		roi_misr->id = ROI_MISR_0 + i;
+		roi_misr->len = PROP_VALUE_ACCESS(prop_value,
+				ROI_MISR_LEN, 0);
+		snprintf(roi_misr->name, SDE_HW_BLK_NAME_LEN,
+				"roi_misr_%u", roi_misr->id - ROI_MISR_0);
+
+		if (!prop_exists[ROI_MISR_LEN])
+			roi_misr->len = DEFAULT_SDE_HW_BLOCK_LEN;
+	}
+
+	sde_cfg->has_roi_misr =
+		PROP_VALUE_ACCESS(prop_value, ROI_MSIR_ENABLE, 0);
+
+end:
+	kfree(prop_value);
+	return rc;
+}
 
 static int sde_cdm_parse_dt(struct device_node *np,
 				struct sde_mdss_cfg *sde_cfg)
@@ -4157,12 +4246,16 @@ struct sde_mdss_cfg *sde_hw_catalog_init(struct drm_device *dev, u32 hw_rev)
 	if (rc)
 		goto end;
 
+	rc = sde_roi_misr_parse_dt(np, sde_cfg);
+	if (rc)
+		goto end;
+
 	rc = sde_pp_parse_dt(np, sde_cfg);
 	if (rc)
 		goto end;
 
 	/* mixer parsing should be done after dspp,
-	 * ds and pp for mapping setup
+	 * ds, roi_misr and pp for mapping setup
 	 */
 	rc = sde_mixer_parse_dt(np, sde_cfg);
 	if (rc)

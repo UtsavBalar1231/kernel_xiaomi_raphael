@@ -898,6 +898,23 @@ static const struct attribute_group *sde_crtc_attr_groups[] = {
 	NULL,
 };
 
+static void sde_roi_misr_cleanup(struct sde_crtc *sde_crtc)
+{
+	struct sde_misr_fence *cur, *tmp;
+	unsigned long irq_flags;
+
+	if (list_empty(&sde_crtc->roi_misr_fence))
+		return;
+
+	spin_lock_irqsave(&sde_crtc->misr_fence_lock, irq_flags);
+
+	list_for_each_entry_safe(cur, tmp, &sde_crtc->roi_misr_fence, node)
+		del_fence_object(cur);
+
+	spin_unlock_irqrestore(&sde_crtc->misr_fence_lock, irq_flags);
+
+}
+
 static void sde_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct sde_crtc *sde_crtc = to_sde_crtc(crtc);
@@ -1201,6 +1218,87 @@ static int _sde_crtc_set_roi_v1(struct drm_crtc_state *state,
 				cstate->user_roi_list.roi[i].y1,
 				cstate->user_roi_list.roi[i].x2,
 				cstate->user_roi_list.roi[i].y2);
+	}
+
+	return 0;
+}
+
+static int _sde_crtc_set_roi_misr(struct drm_crtc_state *state,
+		void __user *usr_ptr)
+{
+	struct drm_crtc *crtc;
+	struct sde_kms *sde_kms;
+	struct sde_crtc *sde_crtc;
+	struct sde_crtc_state *cstate;
+	struct sde_drm_roi_misr_v1 roi_misr_info;
+	int max_rois;
+
+	if (!state) {
+		SDE_ERROR("crtc%d: invalid args\n", DRMID(crtc));
+		return -EINVAL;
+	}
+
+	if (!usr_ptr) {
+		SDE_DEBUG("crtc%d: roi misr cleared\n", DRMID(crtc));
+		return 0;
+	}
+
+	cstate = to_sde_crtc_state(state);
+	crtc = cstate->base.crtc;
+	sde_crtc = to_sde_crtc(crtc);
+	sde_kms = _sde_crtc_get_kms(crtc);
+
+	if (copy_from_user(&roi_misr_info, usr_ptr, sizeof(roi_misr_info))) {
+		SDE_ERROR("crtc%d: failed to copy roi_v1 data\n", DRMID(crtc));
+		return -EINVAL;
+	}
+
+	max_rois = cstate->misr_state.num_misrs * ROI_MISR_MAX_ROIS_PER_MISR;
+	if (roi_misr_info.roi_rect_num > max_rois) {
+		SDE_ERROR("crtc%d: failed to set roi_rect_num(%d)\n",
+				roi_misr_info.roi_rect_num, DRMID(crtc));
+		return -EINVAL;
+	}
+
+	/* if roi count is zero, we only disable misr irq */
+	if (roi_misr_info.roi_rect_num == 0)
+		return 0;
+
+	cstate->roi_misr_cfg.user_fence_fd_addr = roi_misr_info.fence_fd_ptr;
+	cstate->roi_misr_cfg.roi_rect_num = roi_misr_info.roi_rect_num;
+
+	if (!roi_misr_info.roi_ids || !roi_misr_info.roi_rects) {
+		SDE_ERROR("crtc%d: misr data pointer is NULL\n", DRMID(crtc));
+		return -EINVAL;
+	}
+
+	if (copy_from_user(cstate->roi_misr_cfg.roi_ids,
+		(void __user *)roi_misr_info.roi_ids,
+		sizeof(int) * roi_misr_info.roi_rect_num)) {
+		SDE_ERROR("crtc%d: failed to copy roi_ids data\n", DRMID(crtc));
+		return -EINVAL;
+	}
+
+	if (copy_from_user(cstate->roi_misr_cfg.roi_rects,
+		(void __user *)roi_misr_info.roi_rects,
+		sizeof(struct sde_rect) * roi_misr_info.roi_rect_num)) {
+		SDE_ERROR("crtc%d: failed to copy roi_rects data\n", DRMID(crtc));
+		return -EINVAL;
+	}
+
+	/**
+	 * if user don't set golden value, always set all
+	 * golden values to 0xFFFFFFFF as default value
+	 */
+	if (!roi_misr_info.roi_golden_value) {
+		memset(cstate->roi_misr_cfg.roi_golden_value, 0xFF,
+			sizeof(cstate->roi_misr_cfg.roi_golden_value));
+	} else if (copy_from_user(cstate->roi_misr_cfg.roi_golden_value,
+		(void __user *)roi_misr_info.roi_golden_value,
+		sizeof(uint32_t) * roi_misr_info.roi_rect_num)) {
+		SDE_ERROR("crtc%d: failed to copy roi_golden_value data\n",
+				DRMID(crtc));
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1735,6 +1833,114 @@ static int _sde_crtc_check_panel_stacking(struct drm_crtc *crtc,
 done:
 	sde_crtc_state->padding_height = mode_info.vpadding;
 	return 0;
+}
+
+static int _sde_crtc_misr_roi_check(struct sde_crtc_state *cstate)
+{
+	struct sde_roi_misr_usr_cfg *roi_misr_cfg;
+	struct drm_clip_rect roi_range;
+	int roi_id;
+	int i;
+
+	roi_misr_cfg = &cstate->roi_misr_cfg;
+
+	for (i = 0; i < roi_misr_cfg->roi_rect_num; ++i) {
+		roi_id = roi_misr_cfg->roi_ids[i];
+		roi_range = cstate->misr_state.roi_range[roi_id];
+
+		if (roi_misr_cfg->roi_rects[i].x1 < roi_range.x1
+			|| roi_misr_cfg->roi_rects[i].y1 < roi_range.y1
+			|| roi_misr_cfg->roi_rects[i].x2 > roi_range.x2
+			|| roi_misr_cfg->roi_rects[i].y2 > roi_range.y2) {
+			SDE_ERROR("error rect_info[%d]: {%d,%d,%d,%d}\n",
+				i, roi_misr_cfg->roi_rects[i].x1,
+				roi_misr_cfg->roi_rects[i].y1,
+				roi_misr_cfg->roi_rects[i].x2,
+				roi_misr_cfg->roi_rects[i].y2);
+
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static void _sde_crtc_calc_roi_range(struct drm_crtc_state *state)
+{
+	struct sde_crtc_state *cstate;
+	struct sde_kms *sde_kms;
+	struct drm_clip_rect *roi_range;
+	struct drm_display_mode drm_mode;
+	int all_roi_num;
+	int misr_width;
+	int i;
+
+	cstate = to_sde_crtc_state(state);
+	sde_kms = _sde_crtc_get_kms(cstate->base.crtc);
+
+	if (cstate->num_ds_enabled) {
+		SDE_ERROR("can't support roi misr with scaler enabled\n");
+		cstate->misr_state.num_misrs = 0;
+
+		return;
+	}
+
+	cstate->misr_state.num_misrs =
+			sde_rm_get_roi_misr_num(&sde_kms->rm,
+			cstate->topology_name);
+
+	if (!cstate->misr_state.num_misrs)
+		SDE_ERROR("roi misr is not supported on this topology\n");
+
+	drm_mode = state->adjusted_mode;
+	misr_width = drm_mode.hdisplay / cstate->misr_state.num_misrs;
+	cstate->misr_state.mixer_width =
+			drm_mode.hdisplay / cstate->num_mixers;
+
+	memset(cstate->misr_state.roi_range, 0,
+			sizeof(cstate->misr_state.roi_range));
+
+	all_roi_num = cstate->misr_state.num_misrs
+			* ROI_MISR_MAX_ROIS_PER_MISR;
+
+	for (i = 0; i < all_roi_num; i++) {
+		roi_range = &cstate->misr_state.roi_range[i];
+		roi_range->x1 = misr_width * (i / ROI_MISR_MAX_ROIS_PER_MISR);
+		roi_range->y1 = 0;
+		roi_range->x2 = roi_range->x1 + misr_width - 1;
+		roi_range->y2 = drm_mode.vdisplay - 1;
+	}
+}
+
+static int _sde_crtc_check_misr_rois(struct drm_crtc *crtc,
+		struct drm_crtc_state *state)
+{
+	struct sde_crtc *sde_crtc;
+	struct sde_crtc_state *crtc_state;
+	struct sde_roi_misr_usr_cfg *roi_misr_cfg;
+	int ret;
+
+	if (!crtc || !state)
+		return -EINVAL;
+
+	sde_crtc = to_sde_crtc(crtc);
+	crtc_state = to_sde_crtc_state(state);
+	roi_misr_cfg = &crtc_state->roi_misr_cfg;
+
+	/* rebuild roi range table based on current mode */
+	if (drm_atomic_crtc_needs_modeset(&crtc_state->base))
+		_sde_crtc_calc_roi_range(state);
+
+	/**
+	 * if user_fence_fd_addr is NULL, that means
+	 * user has not set the ROI_MISR property
+	 */
+	if (!roi_misr_cfg->user_fence_fd_addr)
+		return 0;
+
+	ret = _sde_crtc_misr_roi_check(crtc_state);
+
+	return ret;
 }
 
 static void _sde_crtc_program_lm_output_roi(struct drm_crtc *crtc)
@@ -2786,6 +2992,330 @@ static void _sde_crtc_dest_scaler_setup(struct drm_crtc *crtc)
 	}
 }
 
+static void sde_crtc_roi_misr_fence_signal(struct sde_crtc *sde_crtc)
+{
+	unsigned long irq_flags;
+	struct sde_misr_fence *fence =
+			get_fence_instance(&sde_crtc->roi_misr_fence);
+
+	if (!fence) {
+		SDE_ERROR("crtc%d: can't get roi misr fence instance!\n",
+				sde_crtc->base.base.id);
+		return;
+	}
+
+	misr_fence_signal(fence);
+
+	spin_lock_irqsave(&sde_crtc->misr_fence_lock, irq_flags);
+	del_fence_object(fence);
+	spin_unlock_irqrestore(&sde_crtc->misr_fence_lock, irq_flags);
+}
+
+static void sde_crtc_roi_misr_event_cb(void *data, u32 event)
+{
+	struct drm_crtc *crtc;
+	struct sde_crtc *sde_crtc;
+	struct msm_drm_private *priv;
+	struct sde_crtc_misr_event *misr_event;
+	u32 crtc_id;
+
+	if (!data) {
+		SDE_ERROR("invalid data parameters\n");
+		return;
+	}
+
+	crtc = (struct drm_crtc *)data;
+	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
+		SDE_ERROR("invalid crtc parameters\n");
+		return;
+	}
+
+	sde_crtc = to_sde_crtc(crtc);
+	priv = crtc->dev->dev_private;
+	crtc_id = drm_crtc_index(crtc);
+
+	SDE_DEBUG("crtc%d\n", crtc->base.id);
+	SDE_EVT32_VERBOSE(DRMID(crtc), event);
+
+	misr_event = &sde_crtc->misr_event;
+	misr_event->event = event;
+	misr_event->crtc = crtc;
+	kthread_queue_work(&priv->event_thread[crtc_id].worker, &misr_event->work);
+}
+
+static void sde_crtc_roi_misr_work(struct kthread_work *work)
+{
+	struct sde_crtc_misr_event *misr_event;
+	struct drm_crtc *crtc;
+	struct sde_crtc *sde_crtc;
+
+	if (!work) {
+		SDE_ERROR("invalid work handle\n");
+		return;
+	}
+
+	misr_event = container_of(work, struct sde_crtc_misr_event, work);
+	if (!misr_event->crtc || !misr_event->crtc->state) {
+		SDE_ERROR("invalid crtc\n");
+		return;
+	}
+
+	crtc = misr_event->crtc;
+	sde_crtc = to_sde_crtc(crtc);
+
+	SDE_ATRACE_BEGIN("crtc_frame_event");
+
+	SDE_DEBUG("crtc%d event:%u\n", crtc->base.id, misr_event->event);
+
+	if (misr_event->event & SDE_ENCODER_MISR_EVENT_SIGNAL_ROI_MSIR_FENCE)
+		sde_crtc_roi_misr_fence_signal(sde_crtc);
+
+	SDE_ATRACE_END("crtc_frame_event");
+}
+
+static void _sde_crtc_misr_roi_calc(struct sde_crtc *sde_crtc,
+		struct sde_crtc_state *cstate)
+{
+	struct sde_roi_misr_usr_cfg *roi_misr_cfg;
+	struct sde_roi_misr_hw_cfg *roi_misr_hw_cfg;
+	struct drm_clip_rect roi_range;
+	int roi_id;
+	int misr_idx;
+	int misr_roi_idx;
+	int i;
+
+	roi_misr_cfg = &cstate->roi_misr_cfg;
+
+	memset(sde_crtc->roi_misr_hw_cfg, 0,
+		sizeof(sde_crtc->roi_misr_hw_cfg));
+
+	for (i = 0; i < roi_misr_cfg->roi_rect_num; ++i) {
+		roi_id = roi_misr_cfg->roi_ids[i];
+		roi_range = cstate->misr_state.roi_range[roi_id];
+		misr_idx = roi_id / ROI_MISR_MAX_ROIS_PER_MISR;
+		roi_misr_hw_cfg = &sde_crtc->roi_misr_hw_cfg[misr_idx];
+		misr_roi_idx = roi_misr_hw_cfg->roi_num;
+
+		roi_misr_hw_cfg->misr_roi_rect[misr_roi_idx].x =
+			roi_misr_cfg->roi_rects[i].x1 - roi_range.x1;
+		roi_misr_hw_cfg->misr_roi_rect[misr_roi_idx].y =
+			roi_misr_cfg->roi_rects[i].y1;
+		roi_misr_hw_cfg->misr_roi_rect[misr_roi_idx].w =
+			roi_misr_cfg->roi_rects[i].x2
+			- roi_misr_cfg->roi_rects[i].x1 + 1;
+		roi_misr_hw_cfg->misr_roi_rect[misr_roi_idx].h =
+			roi_misr_cfg->roi_rects[i].y2
+			- roi_misr_cfg->roi_rects[i].y1 + 1;
+
+		roi_misr_hw_cfg->golden_value[misr_roi_idx] =
+			roi_misr_cfg->roi_golden_value[i];
+
+		/* always set frame_count to one */
+		roi_misr_hw_cfg->frame_count[misr_roi_idx] = 1;
+
+		/* record original roi order for return signature */
+		roi_misr_hw_cfg->orig_order[misr_roi_idx] = i;
+
+		++roi_misr_hw_cfg->roi_num;
+	}
+}
+
+
+static void _sde_crtc_dspp_roi_calc(struct sde_crtc *sde_crtc,
+		struct sde_crtc_state *cstate)
+{
+	const int dual_mixer = 2;
+	struct sde_rect roi_info;
+	struct sde_rect *left_rect, *right_rect;
+	struct sde_roi_misr_hw_cfg *misr_hw_cfg;
+	struct sde_roi_misr_hw_cfg *l_dspp_hw_cfg, *r_dspp_hw_cfg;
+	int mixer_width;
+	int lms_per_misr;
+	int l_roi, r_roi;
+	int l_idx, r_idx;
+	int i, j;
+
+	lms_per_misr = cstate->num_mixers / cstate->misr_state.num_misrs;
+	mixer_width = cstate->misr_state.mixer_width;
+
+	for (i = 0; i < cstate->misr_state.num_misrs; ++i) {
+		misr_hw_cfg = &sde_crtc->roi_misr_hw_cfg[i];
+
+		/**
+		 * Convert MISR rect info to DSPP bypass rect
+		 * this rect coordinate has been converted to
+		 * every MISR's coordinate, so we can use it
+		 * directly. Left and right are abstract concepts,
+		 * not specific LM, it is based on one MISR.
+		 *
+		 * if not in merge mode, only left can be used.
+		 *
+		 * if in merge mode, left & right are based on
+		 * the same MISR.
+		 */
+		l_idx = (lms_per_misr == dual_mixer)
+				? lms_per_misr * i : i;
+		l_dspp_hw_cfg = &sde_crtc->roi_misr_hw_cfg[l_idx];
+
+		r_idx = l_idx + 1;
+		r_dspp_hw_cfg = &sde_crtc->roi_misr_hw_cfg[r_idx];
+
+		for (j = 0; j < misr_hw_cfg->roi_num; ++j) {
+			roi_info = misr_hw_cfg->misr_roi_rect[j];
+
+			l_roi = l_dspp_hw_cfg->dspp_roi_num;
+			left_rect = &l_dspp_hw_cfg->dspp_roi_rect[l_roi];
+
+			r_roi = r_dspp_hw_cfg->dspp_roi_num;
+			right_rect = &r_dspp_hw_cfg->dspp_roi_rect[r_roi];
+
+			if ((roi_info.x + roi_info.w <= mixer_width)) {
+				left_rect->x = roi_info.x;
+				left_rect->y = roi_info.y;
+				left_rect->w = roi_info.w;
+				left_rect->h = roi_info.h;
+				l_dspp_hw_cfg->dspp_roi_num++;
+			} else if (roi_info.x >= mixer_width) {
+				right_rect->x = roi_info.x - mixer_width;
+				right_rect->y = roi_info.y;
+				right_rect->w = roi_info.w;
+				right_rect->h = roi_info.h;
+				r_dspp_hw_cfg->dspp_roi_num++;
+			} else if (lms_per_misr == dual_mixer) {
+				left_rect->x = roi_info.x;
+				left_rect->y = roi_info.y;
+				left_rect->w = mixer_width - left_rect->x;
+				left_rect->h = roi_info.h;
+				l_dspp_hw_cfg->dspp_roi_num++;
+
+				right_rect->x = 0;
+				right_rect->y = roi_info.y;
+				right_rect->w = roi_info.w - left_rect->w;
+				right_rect->h = roi_info.h;
+				r_dspp_hw_cfg->dspp_roi_num++;
+			}
+		}
+	}
+}
+
+/**
+ * _sde_crtc_roi_misr_setup - Set up roi misr block
+ * @crtc: Pointer to drm crtc
+ */
+static void _sde_crtc_roi_misr_setup(struct drm_crtc *crtc)
+{
+	struct sde_crtc *sde_crtc;
+	struct sde_crtc_state *cstate;
+	struct sde_hw_ctl *hw_ctl;
+	struct sde_hw_roi_misr *hw_misr;
+	struct sde_hw_dspp *hw_dspp;
+	struct sde_roi_misr_hw_cfg *misr_hw_cfg;
+	struct sde_kms *kms;
+	struct sde_misr_fence *misr_fence;
+	struct sde_ctl_dsc_cfg dsc_cfg;
+	int misr_cfg_idx = 0;
+	int orig_order_idx;
+	int i;
+
+	sde_crtc = to_sde_crtc(crtc);
+	cstate = to_sde_crtc_state(crtc->state);
+	kms = _sde_crtc_get_kms(crtc);
+
+	if (!kms->catalog->has_roi_misr)
+		return;
+
+	/* do nothing if user didn't set misr */
+	if (!cstate->roi_misr_cfg.user_fence_fd_addr)
+		return;
+
+	if (list_empty(&sde_crtc->roi_misr_fence)
+	    && (cstate->roi_misr_cfg.roi_rect_num > 0)) {
+		SDE_ERROR("crtc%d: can't find fence\n",
+				crtc->base.id);
+		return;
+	}
+
+	_sde_crtc_misr_roi_calc(sde_crtc, cstate);
+	_sde_crtc_dspp_roi_calc(sde_crtc, cstate);
+
+	misr_fence = get_fence_instance(&sde_crtc->roi_misr_fence);
+
+	memset(&dsc_cfg, 0, sizeof(dsc_cfg));
+
+	if (!cstate->roi_misr_cfg.roi_rect_num)
+		sde_encoder_register_roi_misr_callback(
+				sde_crtc->mixers[0].encoder,
+				NULL, NULL);
+	else
+		sde_encoder_register_roi_misr_callback(
+				sde_crtc->mixers[0].encoder,
+				sde_crtc_roi_misr_event_cb, crtc);
+
+	for (i = 0; i < sde_crtc->num_mixers; ++i) {
+		hw_dspp = sde_crtc->mixers[i].hw_dspp;
+		hw_ctl = sde_crtc->mixers[i].hw_ctl;
+		hw_misr = sde_crtc->mixers[i].hw_roi_misr;
+
+		if (!hw_misr)
+			continue;
+
+		if (misr_cfg_idx >= cstate->misr_state.num_misrs)
+			SDE_ERROR("crtc%d: misr config index error\n",
+					crtc->base.id);
+
+		misr_hw_cfg = &sde_crtc->roi_misr_hw_cfg[misr_cfg_idx];
+
+		/* update fence data */
+		misr_fence->roi_num[misr_cfg_idx] = misr_hw_cfg->roi_num;
+		orig_order_idx = misr_cfg_idx * ROI_MISR_MAX_ROIS_PER_MISR;
+		memcpy(&misr_fence->orig_order[orig_order_idx],
+			misr_hw_cfg->orig_order,
+			sizeof(misr_hw_cfg->orig_order));
+
+		if (hw_dspp) {
+			hw_dspp->ops.setup_roi_misr(hw_dspp,
+					misr_hw_cfg->dspp_roi_num,
+					misr_hw_cfg->dspp_roi_rect);
+
+			hw_ctl->ops.update_bitmask_dspp(hw_ctl,
+					hw_dspp->idx, true);
+		}
+
+		hw_misr->ops.setup_roi_misr(hw_misr, misr_hw_cfg);
+		hw_ctl->ops.update_bitmask_dsc(hw_ctl,
+				(enum sde_dsc)hw_misr->idx, true);
+
+		dsc_cfg.dsc[dsc_cfg.dsc_count++] = (enum sde_dsc)hw_misr->idx;
+		hw_ctl->ops.setup_dsc_cfg(hw_ctl, &dsc_cfg);
+
+		SDE_DEBUG("crtc%d: setup roi misr, index(%d),",
+				crtc->base.id, misr_cfg_idx);
+		SDE_DEBUG("roi_num(%d), hw_lm_id %d, hw_misr_id %d\n",
+				misr_hw_cfg->roi_num,
+				sde_crtc->mixers[i].hw_lm->idx,
+				hw_misr->idx);
+
+		if (!cstate->roi_misr_cfg.roi_rect_num) {
+			/* only disable irq if all misrs count is zero */
+			sde_encoder_roi_misr_irq_enable(
+					sde_crtc->mixers[i].encoder,
+					misr_cfg_idx,
+					false);
+
+			hw_misr->ops.reset_roi_misr(hw_misr);
+			hw_ctl->ops.update_bitmask_dsc(hw_ctl,
+				(enum sde_dsc)hw_misr->idx, true);
+		} else if (misr_hw_cfg->roi_num>= 0)
+			/* always enable irq for share display case */
+			sde_encoder_roi_misr_irq_enable(
+					sde_crtc->mixers[i].encoder,
+					misr_cfg_idx,
+					true);
+
+		++misr_cfg_idx;
+	}
+}
+
 static void sde_crtc_frame_event_cb(void *data, u32 event)
 {
 	struct drm_crtc *crtc = (struct drm_crtc *)data;
@@ -2855,6 +3385,57 @@ static void sde_crtc_frame_event_cb(void *data, u32 event)
 	kthread_queue_work(&priv->event_thread[crtc_id].worker, &fevent->work);
 }
 
+static void sde_crtc_prepare_roi_misr_fence(struct sde_crtc *sde_crtc,
+		struct sde_crtc_state *cstate)
+{
+	uint64_t fence_fd;
+	struct sde_misr_fence *misr_fence;
+	struct sde_kms *kms;
+	unsigned long irq_flags;
+	int ret;
+
+	kms = _sde_crtc_get_kms(&sde_crtc->base);
+
+	if (!kms->catalog->has_roi_misr)
+		return;
+
+	/**
+	 * if user_fence_fd_addr value equal NULL,
+	 * that means user has not set the ROI_MISR property
+	 *
+	 * if roi_rect_num are zero, we should disable all
+	 * misr irqs, so don't need to create fence
+	 */
+	if (!cstate->roi_misr_cfg.user_fence_fd_addr
+		|| !cstate->roi_misr_cfg.roi_rect_num)
+		return;
+
+	ret = misr_fence_create(&misr_fence, &fence_fd);
+	if (ret < 0) {
+		SDE_ERROR("roi msir fence create failed rc:%d\n", ret);
+		fence_fd = -1;
+	}
+
+	ret = copy_to_user(
+		(uint64_t __user *)cstate->roi_misr_cfg.user_fence_fd_addr,
+		&fence_fd, sizeof(uint64_t));
+	if (fence_fd == -1)
+		goto exit;
+	else if (ret) {
+		SDE_ERROR("copy misr fence_fd to user failed rc:%d\n", ret);
+		put_unused_fd(fence_fd);
+		misr_fence_put(misr_fence);
+		goto exit;
+	}
+
+	spin_lock_irqsave(&sde_crtc->misr_fence_lock, irq_flags);
+	add_fence_object(&misr_fence->node, &sde_crtc->roi_misr_fence);
+	spin_unlock_irqrestore(&sde_crtc->misr_fence_lock, irq_flags);
+
+exit:
+	return;
+}
+
 void sde_crtc_prepare_commit(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state)
 {
@@ -2898,6 +3479,9 @@ void sde_crtc_prepare_commit(struct drm_crtc *crtc,
 
 	/* prepare main output fence */
 	sde_fence_prepare(sde_crtc->output_fence);
+
+	/* prepare roi misr fence */
+	sde_crtc_prepare_roi_misr_fence(sde_crtc, cstate);
 	SDE_ATRACE_END("sde_crtc_prepare_commit");
 }
 
@@ -3621,11 +4205,13 @@ static void _sde_crtc_setup_mixer_for_encoder(
 	struct sde_hw_ctl *last_valid_ctl = NULL;
 	int i;
 	struct sde_rm_hw_iter lm_iter, ctl_iter, dspp_iter, ds_iter;
+	struct sde_rm_hw_iter roi_misr_iter;
 
 	sde_rm_init_hw_iter(&lm_iter, enc->base.id, SDE_HW_BLK_LM);
 	sde_rm_init_hw_iter(&ctl_iter, enc->base.id, SDE_HW_BLK_CTL);
 	sde_rm_init_hw_iter(&dspp_iter, enc->base.id, SDE_HW_BLK_DSPP);
 	sde_rm_init_hw_iter(&ds_iter, enc->base.id, SDE_HW_BLK_DS);
+	sde_rm_init_hw_iter(&roi_misr_iter, enc->base.id, SDE_HW_BLK_ROI_MISR);
 
 	/* Set up all the mixers and ctls reserved by this encoder */
 	for (i = sde_crtc->num_mixers; i < ARRAY_SIZE(sde_crtc->mixers); i++) {
@@ -3665,6 +4251,10 @@ static void _sde_crtc_setup_mixer_for_encoder(
 		(void) sde_rm_get_hw(rm, &ds_iter);
 		mixer->hw_ds = (struct sde_hw_ds *)ds_iter.hw;
 
+		/* ROI MISR may be null */
+		(void) sde_rm_get_hw(rm, &roi_misr_iter);
+		mixer->hw_roi_misr = (struct sde_hw_roi_misr *)roi_misr_iter.hw;
+
 		mixer->encoder = enc;
 
 		sde_crtc->num_mixers++;
@@ -3675,6 +4265,9 @@ static void _sde_crtc_setup_mixer_for_encoder(
 		if (mixer->hw_ds)
 			SDE_DEBUG("setup mixer %d: ds %d\n",
 				i, mixer->hw_ds->idx - DS_0);
+		if (mixer->hw_roi_misr)
+			SDE_DEBUG("setup mixer %d: roi_misr %d\n",
+				i, mixer->hw_roi_misr->idx - ROI_MISR_0);
 	}
 }
 
@@ -3851,6 +4444,8 @@ static void sde_crtc_atomic_begin(struct drm_crtc *crtc,
 	if (sde_kms_is_cp_operation_allowed(sde_kms) &&
 			(cont_splash_enabled || sde_crtc->enabled))
 		sde_cp_crtc_apply_properties(crtc);
+
+	_sde_crtc_roi_misr_setup(crtc);
 
 	/*
 	 * PP_DONE irq is only used by command mode for now.
@@ -4629,6 +5224,12 @@ static struct drm_crtc_state *sde_crtc_duplicate_state(struct drm_crtc *crtc)
 	/* record whether or not the sbuf_clk_rate fifo has been shifted */
 	cstate->sbuf_clk_shifted = false;
 
+	/**
+	 * roi misr data's lifecycle only valid during last atomic commit,
+	 * so we need clear these state when do state duplication operation
+	 */
+	memset(&cstate->roi_misr_cfg, 0, sizeof(cstate->roi_misr_cfg));
+
 	/* duplicate base helper */
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &cstate->base);
 
@@ -4981,6 +5582,8 @@ static void sde_crtc_disable(struct drm_crtc *crtc)
 			sde_connector_commit_reset(cstate->connectors[i],
 					ktime_get());
 	}
+
+	sde_roi_misr_cleanup(sde_crtc);
 
 	memset(sde_crtc->mixers, 0, sizeof(sde_crtc->mixers));
 	sde_crtc->num_mixers = 0;
@@ -5663,6 +6266,13 @@ static int sde_crtc_atomic_check(struct drm_crtc *crtc,
 		goto end;
 	}
 
+	rc = _sde_crtc_check_misr_rois(crtc, state);
+	if (rc) {
+		SDE_ERROR("crtc%d failed misr roi check %d\n",
+				crtc->base.id, rc);
+		goto end;
+	}
+
 end:
 	kfree(pstates);
 	kfree(multirect_plane);
@@ -5792,6 +6402,9 @@ static void sde_crtc_install_properties(struct drm_crtc *crtc,
 	msm_property_install_range(&sde_crtc->property_info,
 			"output_fence_offset", 0x0, 0, 1, 0,
 			CRTC_PROP_OUTPUT_FENCE_OFFSET);
+
+	msm_property_install_volatile_range(&sde_crtc->property_info,
+			"roi_misr", 0x0, 0, ~0, 0, CRTC_PROP_ROI_MISR);
 
 	msm_property_install_range(&sde_crtc->property_info,
 			"core_clk", 0x0, 0, U64_MAX,
@@ -6189,6 +6802,12 @@ static int sde_crtc_atomic_set_property(struct drm_crtc *crtc,
 			ret = -EFAULT;
 			goto exit;
 		}
+		break;
+	case CRTC_PROP_ROI_MISR:
+		ret = _sde_crtc_set_roi_misr(state,
+				(void __user *)(uintptr_t)val);
+		if (ret)
+			SDE_ERROR("set roi misr info failed rc:%d\n", ret);
 		break;
 	default:
 		/* nothing to do */
@@ -7046,6 +7665,12 @@ struct drm_crtc *sde_crtc_init(struct drm_device *dev, struct drm_plane *plane)
 
 	kthread_init_delayed_work(&sde_crtc->idle_notify_work,
 					__sde_crtc_idle_notify_work);
+
+	/* Initiate ROI MISR related object */
+	INIT_LIST_HEAD(&sde_crtc->roi_misr_fence);
+	spin_lock_init(&sde_crtc->misr_fence_lock);
+	kthread_init_work(&sde_crtc->misr_event.work,
+				sde_crtc_roi_misr_work);
 
 	SDE_DEBUG("%s: successfully initialized crtc\n", sde_crtc->name);
 	return crtc;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,12 +27,17 @@
 #include "sde_hw_cdm.h"
 #include "sde_encoder.h"
 #include "sde_connector.h"
+#include "sde_fence_misr.h"
+#include "sde_hw_roi_misr.h"
 
 #define SDE_ENCODER_NAME_MAX	16
 
 /* wait for at most 2 vsync for lowest refresh rate (24hz) */
 #define KICKOFF_TIMEOUT_MS		84
 #define KICKOFF_TIMEOUT_JIFFIES		msecs_to_jiffies(KICKOFF_TIMEOUT_MS)
+
+#define MAX_ROI_MISR_PER_PHYS	2
+#define MAX_ROIS_PER_PHYS	(MAX_ROI_MISR_PER_PHYS * ROI_MISR_MAX_ROIS_PER_MISR)
 
 /**
  * enum sde_enc_split_role - Role this physical encoder will play in a
@@ -78,6 +83,8 @@ struct sde_encoder_phys;
  *			Note: This is called from IRQ handler context.
  * @handle_underrun_virt: Notify virtual encoder of underrun IRQ reception
  *			Note: This is called from IRQ handler context.
+ * @handle_roi_misr_virt: Notify virtual encoder of ROI MISR IRQ reception
+ *			Note: This is called from IRQ handler context.
  * @handle_frame_done:	Notify virtual encoder that this phys encoder
  *			completes last request frame.
  * @get_qsync_fps:	Returns the min fps for the qsync feature.
@@ -87,6 +94,8 @@ struct sde_encoder_virt_ops {
 			struct sde_encoder_phys *phys);
 	void (*handle_underrun_virt)(struct drm_encoder *,
 			struct sde_encoder_phys *phys);
+	void (*handle_roi_misr_virt)(struct drm_encoder *,
+			u32 event);
 	void (*handle_frame_done)(struct drm_encoder *,
 			struct sde_encoder_phys *phys, u32 event);
 	void (*get_qsync_fps)(struct drm_encoder *,
@@ -114,6 +123,7 @@ struct sde_encoder_virt_ops {
  *				resources that this phys_enc is using.
  *				Expect no overlap between phys_encs.
  * @control_vblank_irq		Register/Deregister for VBLANK IRQ
+ * @control_roi_misr_irq:	Register/Deregister for ROI MISR IRQ
  * @wait_for_commit_done:	Wait for hardware to have flushed the
  *				current pending frames to hardware
  * @wait_for_tx_complete:	Wait for hardware to transfer the pixels
@@ -166,6 +176,8 @@ struct sde_encoder_phys_ops {
 			struct sde_encoder_hw_resources *hw_res,
 			struct drm_connector_state *conn_state);
 	int (*control_vblank_irq)(struct sde_encoder_phys *enc, bool enable);
+	int (*control_roi_misr_irq)(struct sde_encoder_phys *enc,
+			int misr_seq, bool enable);
 	int (*wait_for_commit_done)(struct sde_encoder_phys *phys_enc);
 	int (*wait_for_tx_complete)(struct sde_encoder_phys *phys_enc);
 	int (*wait_for_vblank)(struct sde_encoder_phys *phys_enc);
@@ -208,6 +220,14 @@ struct sde_encoder_phys_ops {
  * @INTR_IDX_PP5_OVFL: Pingpong overflow interrupt on PP5 for Concurrent WB
  * @INTR_IDX_AUTOREFRESH_DONE:  Autorefresh done for cmd mode panel meaning
  *                              autorefresh has triggered a double buffer flip
+ * @INTR_IDX_MISR_ROI0_MISMATCH: mismatch interrupt for MISR ROI 0
+ * @INTR_IDX_MISR_ROI1_MISMATCH: mismatch interrupt for MISR ROI 1
+ * @INTR_IDX_MISR_ROI2_MISMATCH: mismatch interrupt for MISR ROI 2
+ * @INTR_IDX_MISR_ROI3_MISMATCH: mismatch interrupt for MISR ROI 3
+ * @INTR_IDX_MISR_ROI4_MISMATCH: mismatch interrupt for MISR ROI 4
+ * @INTR_IDX_MISR_ROI5_MISMATCH: mismatch interrupt for MISR ROI 5
+ * @INTR_IDX_MISR_ROI6_MISMATCH: mismatch interrupt for MISR ROI 6
+ * @INTR_IDX_MISR_ROI7_MISMATCH: mismatch interrupt for MISR ROI 7
  */
 enum sde_intr_idx {
 	INTR_IDX_VSYNC,
@@ -222,8 +242,22 @@ enum sde_intr_idx {
 	INTR_IDX_PP3_OVFL,
 	INTR_IDX_PP4_OVFL,
 	INTR_IDX_PP5_OVFL,
+	INTR_IDX_MISR_ROI0_MISMATCH,
+	INTR_IDX_MISR_ROI1_MISMATCH,
+	INTR_IDX_MISR_ROI2_MISMATCH,
+	INTR_IDX_MISR_ROI3_MISMATCH,
+	INTR_IDX_MISR_ROI4_MISMATCH,
+	INTR_IDX_MISR_ROI5_MISMATCH,
+	INTR_IDX_MISR_ROI6_MISMATCH,
+	INTR_IDX_MISR_ROI7_MISMATCH,
 	INTR_IDX_MAX,
 };
+
+/**
+ * define base index for getting the real misr roi mismatch
+ * index in two misr case
+ */
+#define MISR_ROI_MISMATCH_BASE_IDX INTR_IDX_MISR_ROI0_MISMATCH
 
 /**
  * sde_encoder_irq - tracking structure for interrupts
@@ -259,6 +293,9 @@ struct sde_encoder_irq {
  * @hw_qdss:		Hardware interface to the qdss registers
  * @cdm_cfg:		Chroma-down hardware configuration
  * @hw_pp:		Hardware interface to the ping pong registers
+ * @num_misrs:	The number of roi misr per physical encoders
+ * @hw_roi_misr:	Hardware interface to the roi misr registers
+ * @roi_misr_seqno:	The roi misr sequence number for update fence
  * @sde_kms:		Pointer to the sde_kms top level
  * @cached_mode:	DRM mode cached at mode_set time, acted on in enable
  * @enabled:		Whether the encoder has enabled and running a mode
@@ -309,6 +346,9 @@ struct sde_encoder_phys {
 	struct sde_hw_qdss *hw_qdss;
 	struct sde_hw_cdm_cfg cdm_cfg;
 	struct sde_hw_pingpong *hw_pp;
+	u32 num_misrs;
+	struct sde_hw_roi_misr *hw_roi_misr[MAX_ROI_MISR_PER_PHYS];
+	int roi_misr_seqno[MAX_ROI_MISR_PER_PHYS];
 	struct sde_kms *sde_kms;
 	struct drm_display_mode cached_mode;
 	enum sde_enc_split_role split_role;
@@ -657,6 +697,27 @@ int sde_encoder_helper_register_irq(struct sde_encoder_phys *phys_enc,
  */
 int sde_encoder_helper_unregister_irq(struct sde_encoder_phys *phys_enc,
 		enum sde_intr_idx intr_idx);
+
+/**
+ * sde_encoder_helper_roi_misr_irq_enable - enable or disable all irqs
+ *		of one misr block
+ * @phys_enc: Pointer to physical encoder structure
+ * @base_irq_idx: one roi misr's base irq table index
+ * @roi_idx: the roi index of one misr
+ * @enable: control to enable or disable one misr block irqs
+ * @Return: 0 or -ERROR
+ */
+int sde_encoder_helper_roi_misr_irq_enable(struct sde_encoder_phys *phys_enc,
+		int base_irq_idx, int roi_idx, bool enable);
+
+/**
+ * sde_encoder_helper_roi_misr_update_fence - update fence data
+ * @phys_enc: Pointer to physical encoder structure
+ * @Return: true for all signature are ready
+ *          false for all signature are not ready
+ */
+bool sde_encoder_helper_roi_misr_update_fence(
+		struct sde_encoder_phys *phys_enc);
 
 /**
  * sde_encoder_helper_update_intf_cfg - update interface configuration for

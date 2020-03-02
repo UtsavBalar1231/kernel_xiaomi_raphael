@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,6 +18,39 @@
 #include "sde_dbg.h"
 #include "sde_ad4.h"
 #include "sde_kms.h"
+
+#define ROI_MISR_OP_MODE(i)                    (BIT(i) | BIT((i) + 16))
+#define ROI_MISR_ROI_POSITION(i)               (0x10 + 0x4 * (i))
+#define ROI_MISR_ROI_SIZE(i)                   (0x20 + 0x4 * (i))
+
+#define ROI_POSITION_VAL(x, y)                 ((x) | ((y) << 16))
+#define ROI_SIZE_VAL(w, h)                     ((w) | ((h) << 16))
+
+static void sde_setup_dspp_roi_misr(struct sde_hw_dspp *ctx,
+		int roi_num, struct sde_rect *roi_cfg)
+{
+	uint32_t op_mode = 0;
+	int i;
+
+	if (!ctx || !roi_cfg) {
+		DRM_ERROR("invalid param ctx %pK, roi_cfg %pK\n",
+				ctx, roi_cfg);
+		return;
+	}
+
+	for (i = 0; i < roi_num; i++) {
+		op_mode |= ROI_MISR_OP_MODE(i);
+
+		SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->roi_misr.base
+			+ ROI_MISR_ROI_POSITION(i),
+			ROI_POSITION_VAL(roi_cfg[i].x, roi_cfg[i].y));
+		SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->roi_misr.base
+			+ ROI_MISR_ROI_SIZE(i),
+			ROI_POSITION_VAL(roi_cfg[i].w, roi_cfg[i].h));
+	}
+
+	SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->roi_misr.base, op_mode);
+}
 
 static struct sde_dspp_cfg *_dspp_offset(enum sde_dspp dspp,
 		struct sde_mdss_cfg *m,
@@ -219,6 +252,12 @@ static void _setup_dspp_ops(struct sde_hw_dspp *c, unsigned long features)
 				c->ops.ad_read_intr_resp =
 					sde_read_intr_resp_ad4;
 				c->ops.validate_ad = sde_validate_dspp_ad4;
+			}
+			break;
+		case SDE_DSPP_ROI_MISR:
+			if (c->cap->sblk->roi_misr.version ==
+			    SDE_COLOR_PROCESS_VER(1, 0)) {
+				c->ops.setup_roi_misr = sde_setup_dspp_roi_misr;
 			}
 			break;
 		default:
