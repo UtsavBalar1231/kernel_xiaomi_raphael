@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -54,12 +54,10 @@
 #include <a_debug.h>
 #define FWLOG_DEBUG   ATH_DEBUG_MAKE_MODULE_MASK(0)
 
-#ifdef WLAN_DEBUG
-
 static int get_version;
 static int gprint_limiter;
 static bool tgt_assert_enable;
-
+#ifdef WLAN_DEBUG
 static ATH_DEBUG_MASK_DESCRIPTION g_fwlog_debug_description[] = {
 	{FWLOG_DEBUG, "fwlog"},
 };
