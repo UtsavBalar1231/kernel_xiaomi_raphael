@@ -731,6 +731,20 @@ struct cdp_mon_ops {
 		(struct cdp_pdev *, int val);
 };
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+/*
+ * struct cdp_pktcapture_ops - packet capture ops
+ * @txrx_pktcapture_record_channel: update channel information for packet
+ *                                  capture mode
+ */
+struct cdp_pktcapture_ops {
+	void (*txrx_pktcapture_record_channel)
+		(struct cdp_soc_t *soc,
+		 uint8_t pdev_id,
+		 int chan_no);
+};
+#endif /* #ifdef WLAN_FEATURE_PKT_CAPTURE */
+
 struct cdp_host_stats_ops {
 	int (*txrx_host_stats_get)(struct cdp_vdev *vdev,
 			struct ol_txrx_stats_req *req);
@@ -1401,6 +1415,9 @@ struct cdp_ops {
 	struct cdp_mob_stats_ops    *mob_stats_ops;
 	struct cdp_tx_delay_ops     *delay_ops;
 	struct cdp_pmf_ops          *pmf_ops;
+#endif
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+	struct cdp_pktcapture_ops   *pktcapture_ops;
 #endif
 };
 #endif
