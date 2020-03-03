@@ -814,7 +814,9 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 			len -= endp - line;
 			line = endp;
 			/* QG-D */
-			if (strstr(line, "healthd") || strstr(line, "cacert"))
+			if (strstr(line, "healthd")||
+				strstr(line, "cacert") ||
+				strcmp(line, "CP: Couldn't"))
 				goto free;
 		}
 	}
