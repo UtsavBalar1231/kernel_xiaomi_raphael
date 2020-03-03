@@ -326,8 +326,8 @@ static QDF_STATUS target_if_cp_stats_extract_vdev_chain_rssi_stats(
 		for (j = 0; j < MAX_NUM_CHAINS; j++) {
 			dat_snr = rssi_stats.rssi_avg_data[j];
 			bcn_snr = rssi_stats.rssi_avg_beacon[j];
-			cp_stats_debug("Chain %d SNR bcn: %d data: %d", j,
-				       bcn_snr, dat_snr);
+			cp_stats_nofl_debug("Chain %d SNR bcn: %d data: %d", j,
+					    bcn_snr, dat_snr);
 			/*
 			 * Get the absolute rssi value from the current rssi
 			 * value the snr value is hardcoded into 0 in the
@@ -355,10 +355,11 @@ static QDF_STATUS target_if_cp_stats_extract_event(struct wmi_unified *wmi_hdl,
 		cp_stats_err("stats param extract failed: %d", status);
 		return status;
 	}
-	cp_stats_debug("num: pdev: %d, vdev: %d, peer: %d, rssi: %d",
-		       stats_param.num_pdev_stats, stats_param.num_vdev_stats,
-		       stats_param.num_peer_stats, stats_param.num_rssi_stats);
-
+	cp_stats_nofl_debug("num: pdev: %d, vdev: %d, peer: %d, rssi: %d",
+			    stats_param.num_pdev_stats,
+			    stats_param.num_vdev_stats,
+			    stats_param.num_peer_stats,
+			    stats_param.num_rssi_stats);
 	ev->last_event = stats_param.last_event;
 	status = target_if_cp_stats_extract_pdev_stats(wmi_hdl, &stats_param,
 						       ev, data);
