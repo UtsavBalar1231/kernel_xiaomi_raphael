@@ -18,8 +18,6 @@
 #include <linux/pm.h>
 #include <linux/pm_qos.h>
 #include <linux/sched.h>
-#include <linux/sched/task.h>
-#include <linux/sched/mm.h>
 
 #include "kgsl.h"
 #include "kgsl_mmu.h"
@@ -575,35 +573,15 @@ static inline void kgsl_process_add_stats(struct kgsl_process_private *priv,
 
 	if (ret > atomic64_read(&priv->stats[type].max))
 		atomic64_set(&priv->stats[type].max, ret);
-	add_mm_counter(current->mm, MM_UNRECLAIMABLE, (size >> PAGE_SHIFT));
 }
 
 static inline void kgsl_process_sub_stats(struct kgsl_process_private *priv,
 	unsigned int type, uint64_t size)
 {
-	struct pid *pid_struct;
-	struct task_struct *task;
-	struct mm_struct *mm;
-
 	atomic64_sub(size, &priv->stats[type].cur);
-	pid_struct = find_get_pid(pid_nr(priv->pid));
-	if (pid_struct) {
-		task = get_pid_task(pid_struct, PIDTYPE_PID);
-		if (task) {
-			mm = get_task_mm(task);
-			if (mm) {
-				add_mm_counter(mm, MM_UNRECLAIMABLE,
-					-(size >> PAGE_SHIFT));
-				mmput(mm);
-			}
-			put_task_struct(task);
-		}
-		put_pid(pid_struct);
-	}
 }
 
-static inline bool kgsl_is_register_offset(struct kgsl_device *device,
-				unsigned int offsetwords)
+static inline bool kgsl_is_register_offset(struct kgsl_device *device, unsigned int offsetwords)
 {
 	return ((offsetwords * sizeof(uint32_t)) < device->reg_len);
 }

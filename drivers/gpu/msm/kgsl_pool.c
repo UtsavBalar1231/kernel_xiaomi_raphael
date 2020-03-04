@@ -89,8 +89,6 @@ _kgsl_pool_add_page(struct kgsl_page_pool *pool, struct page *p)
 	list_add_tail(&p->lru, &pool->page_list);
 	pool->page_count++;
 	spin_unlock(&pool->list_lock);
-	mod_node_page_state(page_pgdat(p), NR_KERNEL_MISC_RECLAIMABLE,
-				(1 << pool->pool_order));
 }
 
 /* Returns a page from specified pool */
@@ -107,10 +105,6 @@ _kgsl_pool_get_page(struct kgsl_page_pool *pool)
 	}
 	spin_unlock(&pool->list_lock);
 
-	if (p != NULL)
-		mod_node_page_state(page_pgdat(p),
-				NR_KERNEL_MISC_RECLAIMABLE,
-				-(1 << pool->pool_order));
 	return p;
 }
 
@@ -404,8 +398,6 @@ done:
 		pcount++;
 	}
 
-	mod_node_page_state(page_pgdat(page), NR_UNRECLAIMABLE_PAGES,
-					(1 << order));
 	return pcount;
 
 eagain:
@@ -424,9 +416,6 @@ void kgsl_pool_free_page(struct page *page)
 		return;
 
 	page_order = compound_order(page);
-
-	mod_node_page_state(page_pgdat(page), NR_UNRECLAIMABLE_PAGES,
-					-(1 << page_order));
 
 	if (!kgsl_pool_max_pages ||
 			(kgsl_pool_size_total() < kgsl_pool_max_pages)) {
