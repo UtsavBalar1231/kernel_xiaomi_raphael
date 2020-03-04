@@ -426,7 +426,6 @@ static int smb5_configure_internal_pull(struct smb_charger *chg, int type,
 
 int smblib_change_psns_to_curr(struct smb_charger *chg, int uv)
 {
-	dev_info(chg->dev, "get Vpsns = %d uV \n", uv);
 	uv =  uv * PSNS_CURRENT_SAMPLE_RATE / PSNS_CURRENT_SAMPLE_RESIS;
 
 	return uv;
