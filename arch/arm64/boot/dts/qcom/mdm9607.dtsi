@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -38,7 +38,7 @@
 
 		modem_adsp_mem: modem_adsp_region@0 {
 			compatible = "removed-dma-pool";
-			no-map-fixup;
+			no-map;
 			reg = <0x82a00000 0x5000000>;
 		};
 
@@ -376,6 +376,12 @@
 				< 1305600 >;
 	};
 
+	cpu-pmu {
+		compatible = "arm,cortex-a7-pmu";
+		qcom,irq-is-percpu;
+		interrupts = <1 8 0x100>;
+	};
+
 	qcom,sps {
 		compatible = "qcom,msm-sps-4k";
 		qcom,pipe-attr-ee;
@@ -428,11 +434,7 @@
 			compatible = "qcom,wcd9xxx-i2c";
 			reg = <0x0d>;
 
-			qcom,cdc-reset-gpio = <&tlmm_pinmux 26 0>;
-			pinctrl-names = "default", "idle";
-			pinctrl-0 = <&codec_reset_active>;
-			pinctrl-1 = <&codec_reset_sleep>;
-
+			qcom,wcd-rst-gpio-node = <&wcd_rst_gpio>;
 			qcom,cdc-micbias1-ext-cap;
 
 			interrupt-parent = <&wcd9xxx_intc>;
@@ -677,6 +679,8 @@
 		qcom,hsusb-otg-mode = <3>; /* OTG mode */
 		qcom,hsusb-otg-otg-control = <2>; /* PMIC control */
 		qcom,usbid-gpio = <&pm8019_mpps 1 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_id_default>;
 		qcom,hsusb-log2-itc = <4>;
 		qcom,dp-manual-pullup;
 		qcom,boost-sysclk-with-streaming;
@@ -889,25 +893,39 @@
 
 	 tsens: tsens@4a8000 {
 		compatible = "qcom,mdm9607-tsens";
-		reg = <0x4a8000 0x2000>,
-			<0xa4000  0x1000>;
-		reg-names = "tsens_physical", "tsens_eeprom_physical";
+		reg = <0x004A8000 0x1000>,
+			<0x004A9000 0x1000>,
+			<0x000A4000  0x1000>;
+		reg-names ="tsens_srot_physical",
+			"tsens_tm_physical",
+			"tsens_eeprom_physical";
 		interrupts = <0 184 0>;
 		interrupt-names = "tsens-upper-lower";
 		qcom,sensors = <5>;
 		qcom,slope = <3000 3000 3000 3000 3000>;
 		qcom,sensor-id = <0 1 2 3 4>;
-		qcom,temp1-offset = <1 (-4) 4 (-3) (-4)>;
-		qcom,temp2-offset = <1 (-2) 8 (-5) (-4)>;
+		#thermal-sensor-cells = <1>;
 	};
 
+	thermal_zones: thermal-zones {};
+
 	wcd9xxx_intc: wcd9xxx-irq {
+		status = "ok";
 		compatible = "qcom,wcd9xxx-irq";
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		interrupt-parent = <&tlmm_pinmux>;
 		qcom,gpio-connect = <&tlmm_pinmux 75 0>;
-		interrupt-names = "cdc-int";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wcd_intr_default>;
+	};
+
+	wcd_rst_gpio: msm_cdc_pinctrl@26 {
+		compatible = "qcom,msm-cdc-pinctrl";
+		qcom,cdc-rst-n-gpio = <&tlmm_pinmux 26 0>;
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&codec_reset_active>;
+		pinctrl-1 = <&codec_reset_sleep>;
 	};
 
 	sound-9330 {
@@ -932,6 +950,7 @@
 			"DMIC3", "MIC BIAS3 External",
 			"MIC BIAS3 External", "Digital Mic3";
 
+		qcom,prim_mi2s_aux_master = <&prim_master>;
 		qcom,codec-mclk-clk-freq = <12288000>;
 		qcom,mi2s-interface-mode = "pri_mi2s_master", "sec_mi2s_master";
 		qcom,auxpcm-interface-mode = "pri_pcm_master", "sec_pcm_master";
@@ -1077,6 +1096,11 @@
 		compatible = "qcom,msm-pcm-hostless";
 	};
 
+	audio_apr: qcom,msm-audio-apr {
+		compatible = "qcom,msm-audio-apr";
+		qcom,subsys-name = "apr_modem";
+	};
+
 	host_pcm: qcom,msm-voice-host-pcm {
 		compatible = "qcom,msm-voice-host-pcm";
 	};
@@ -1193,15 +1217,6 @@
 			qcom,msm-dai-q6-mi2s-dev-id = <0>;
 			qcom,msm-mi2s-rx-lines = <2>;
 			qcom,msm-mi2s-tx-lines = <1>;
-			pinctrl-names = "default", "idle";
-			pinctrl-0 = <&pri_mi2s_ws_active
-					&pri_mi2s_sck_active
-					&pri_mi2s_dout_active
-					&pri_mi2s_din_active>;
-			pinctrl-1 = <&pri_mi2s_ws_sleep
-					&pri_mi2s_sck_sleep
-					&pri_mi2s_dout_sleep
-					&pri_mi2s_din_sleep>;
 		};
 		mi2s_sec: qcom,msm-dai-q6-mi2s-sec {
 			compatible = "qcom,msm-dai-q6-mi2s";
@@ -1209,6 +1224,18 @@
 			qcom,msm-mi2s-rx-lines = <2>;
 			qcom,msm-mi2s-tx-lines = <1>;
 		};
+	};
+	prim_master: prim_master_pinctrl {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&pri_mi2s_ws_active
+				&pri_mi2s_sck_active
+				&pri_mi2s_dout_active
+				&pri_mi2s_din_active>;
+		pinctrl-1 = <&pri_mi2s_ws_sleep
+				&pri_mi2s_sck_sleep
+				&pri_mi2s_dout_sleep
+				&pri_mi2s_din_sleep>;
 	};
 
 	qcom,msm-thermal {
@@ -1344,8 +1371,19 @@
 		modem {
 			qcom,smd-edge = <0>;
 			qcom,ipc = <&apcs 0 12>;
+			qcom,remote-pid = <1>;
+			mbox-names = "mpss_smem";
 			interrupts = <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
-			label = "modem";
+			label = "mpss";
+			qcom,smd-channels = "IPCRTR";
+
+			qcom,modem_qrtr {
+				qcom,net-id = <1>;
+				qcom,low-latency;
+			};
+			qcom,apr_tal_rpmsg {
+				qcom,glink-channels = "apr_audio_svc";
+			};
 		};
 
 		rpm {
@@ -1371,12 +1409,12 @@
 
 		qcom,ipc-1 = <&apcs 0 13>;
 
-		apps_smsm: apps@0 {
+		apps_smsm_out: apps@0 {
 			reg = <0>;
 			#qcom,smem-state-cells = <1>;
 		};
 
-		modem_smsm: modem@1 {
+		modem_smsm_in: modem@1 {
 			reg = <1>;
 			interrupts = <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>;
 
@@ -1460,32 +1498,38 @@
 		compatible = "qcom,smdpkt";
 
 		qcom,smdpkt-data5-cntl {
-			qcom,smdpkt-remote = "modem";
-			qcom,smdpkt-port-name = "DATA5_CNTL";
+			qcom,smdpkt-edge = "modem";
+			qcom,smdpkt-ch-name = "DATA5_CNTL";
 			qcom,smdpkt-dev-name = "smdcntl0";
 		};
 
 		qcom,smdpkt-data22 {
-			qcom,smdpkt-remote = "modem";
-			qcom,smdpkt-port-name = "DATA22";
+			qcom,smdpkt-edge = "modem";
+			qcom,smdpkt-ch-name = "DATA22";
 			qcom,smdpkt-dev-name = "smd22";
 		};
 
 		qcom,smdpkt-data40-cntl {
-			qcom,smdpkt-remote = "modem";
-			qcom,smdpkt-port-name = "DATA40_CNTL";
+			qcom,smdpkt-edge = "modem";
+			qcom,smdpkt-ch-name = "DATA40_CNTL";
 			qcom,smdpkt-dev-name = "smdcntl8";
 		};
 
+		qcom,smdpkt-data2 {
+			qcom,smdpkt-edge = "modem";
+			qcom,smdpkt-ch-name = "DATA2";
+			qcom,smdpkt-dev-name = "at_mdm0";
+		};
+
 		qcom,smdpkt-apr-apps2 {
-			qcom,smdpkt-remote = "modem";
-			qcom,smdpkt-port-name = "apr_apps2";
+			qcom,smdpkt-edge = "modem";
+			qcom,smdpkt-ch-name = "apr_apps2";
 			qcom,smdpkt-dev-name = "apr_apps2";
 		};
 
 		qcom,smdpkt-loopback {
-			qcom,smdpkt-remote = "modem";
-			qcom,smdpkt-port-name = "LOOPBACK";
+			qcom,smdpkt-edge = "modem";
+			qcom,smdpkt-ch-name = "LOOPBACK";
 			qcom,smdpkt-dev-name = "smd_pkt_loopback";
 		};
 	};
@@ -1505,26 +1549,19 @@
 		qcom,disable-pil-loading;
 	};
 
-	apps_modem {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		apps_modem: apps@1 {
-			reg = <1>;
-			#qcom,smem-state-cells = <1>;
-		};
-	};
-
 	qcom,bam_dmux@4044000 {
 		compatible = "qcom,bam_dmux";
 		reg = <0x4044000 0x19000>;
-		interrupts = <0 29 1>;
 		qcom,rx-ring-size = <32>;
 		qcom,max-rx-mtu = <4096>;
 		qcom,fast-shutdown;
-
-		qcom,smem-states = <&apps_modem 0>, <&apps_modem 32>;
+		qcom,smem-states = <&apps_smsm_out 1>, <&apps_smsm_out 11>;
 		qcom,smem-state-names = "pwrctrl", "pwrctrlack";
+		interrupts-extended =
+				<&wakegic GIC_SPI 29 IRQ_TYPE_EDGE_RISING>,
+				<&modem_smsm_in 1 IRQ_TYPE_EDGE_BOTH>,
+				<&modem_smsm_in 11 IRQ_TYPE_EDGE_BOTH>;
+		interrupt-names = "dmux", "ctrl", "ack";
 	};
 
 	spmi_bus: qcom,spmi@200f000 {
@@ -1583,13 +1620,13 @@
 		reg-names = "qdsp6_base", "halt_q6", "halt_modem", "halt_nc",
 				"rmb_base", "restart_reg";
 
-		interrupts = <0 24 1>;
 		vdd_cx-supply = <&mdm9607_s3_level>;
 		vdd_cx-voltage = <RPM_SMD_REGULATOR_LEVEL_TURBO>;
 		vdd_mx-supply = <&mdm9607_l12_level>;
 		vdd_mx-uV = <RPM_SMD_REGULATOR_LEVEL_TURBO>;
 		vdd_pll-supply = <&mdm9607_l3>;
 		qcom,vdd_pll = <1800000>;
+		qcom,reset-clk;
 
 		clocks = <&clock_gcc clk_xo_pil_mss_clk>,
 			 <&clock_gcc clk_gcc_mss_cfg_ahb_clk>,
@@ -1601,11 +1638,30 @@
 
 		qcom,firmware-name = "modem";
 		qcom,pil-self-auth;
+		qcom,sequential-fw-load;
 		qcom,override-acc-1 = <0x80800000>;
 		qcom,sysmon-id = <0>;
 		qcom,ssctl-instance-id = <0x12>;
 		qcom,qdsp6v56-1-8-inrush-current;
 
+		/* GPIO inputs from mss */
+			interrupts-extended = <&intc 0 24 1>,
+				<&modem_smp2p_in 0 0>,
+				<&modem_smp2p_in 2 0>,
+				<&modem_smp2p_in 1 0>,
+				<&modem_smp2p_in 3 0>,
+				<&modem_smp2p_in 7 0>;
+
+			interrupt-names = "qcom,wdog",
+				"qcom,err-fatal",
+				"qcom,proxy-unvote",
+				"qcom,err-ready",
+				"qcom,stop-ack",
+				"qcom,shutdown-ack";
+
+		/* GPIO output to mss */
+		qcom,smem-states = <&modem_smp2p_out 0>;
+		qcom,smem-state-names = "qcom,force-stop";
 		memory-region = <&modem_adsp_mem>;
 	};
 
@@ -1824,18 +1880,21 @@
 #include "pm8019-rpm-regulator.dtsi"
 #include "pm8019.dtsi"
 #include "mdm9607-regulator.dtsi"
+#include "mdm9607-thermal.dtsi"
 
 /* MPP pin 1 config for USB ID interrupt line */
 &pm8019_mpps {
-	mpp@a000 {
+	usb_id_default: usb_id_default {
 		pins = "mpp1";
 		function = "digital";
 		input-enable;
+		power-source = <3>;
 	};
 };
 
 &usb_otg {
-	vbus_otg-supply = <&smb358_otg_vreg>;
+	vbus_otg-supply = <&smb358_otg_supply>;
+	extcon = <&smb358_otg_supply>;
 };
 
 &pm8019_vadc {

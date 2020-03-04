@@ -1433,6 +1433,19 @@
 					bias-pull-up;
 				};
 			};
+
+			pcie0_clkreq_sleep: pcie0_clkreq_sleep {
+				mux {
+					pins = "gpio56";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio56";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
 		};
 
 		pcie_ep {
@@ -1646,6 +1659,20 @@
 				     bias-pull-down; /* pull down */
 			     };
 		     };
+
+		sensor_enable_default: sensor_enable_default {
+			mux {
+				pins = "gpio87";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio87";
+				drive-strength = <16>; /* 16 mA */
+				bias-pull-up; /* pull up */
+				output-high;
+			};
+		};
 
 		pinctrl_pps: ppsgrp {
 			mux {

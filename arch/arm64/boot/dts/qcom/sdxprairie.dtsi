@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -118,7 +118,7 @@
 		dump_mem: mem_dump_region {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0 0x400000>;
+			size = <0x400000>;
 		};
 	};
 
@@ -1059,6 +1059,7 @@
 		qcom,smmu-s1-enable;
 
 		mhi,max-channels = <30>;
+		mhi,buffer-len = <0x8000>;
 		mhi,timeout = <10000>;
 
 		mhi_channels {
@@ -1405,6 +1406,64 @@
 		status = "disabled";
 	};
 
+	mtl_rx_setup: rx-queues-config {
+		snps,rx-queues-to-use = <4>;
+		snps,rx-sched-sp;
+
+		queue0 {
+			snps,dcb-algorithm;
+			snps,map-to-dma-channel = <0x0>;
+			snps,route-up;
+			snps,priority = <0x1>;
+		};
+
+		queue1 {
+			snps,dcb-algorithm;
+			snps,map-to-dma-channel = <0x1>;
+			snps,route-ptp;
+		};
+
+		queue2 {
+			snps,avb-algorithm;
+			snps,map-to-dma-channel = <0x2>;
+			snps,route-avcp;
+		};
+
+		queue3 {
+			snps,avb-algorithm;
+			snps,map-to-dma-channel = <0x3>;
+			snps,priority = <0xC>;
+		};
+	};
+
+	mtl_tx_setup: tx-queues-config {
+		snps,tx-queues-to-use = <5>;
+		snps,tx-sched-sp;
+		queue0 {
+			snps,dcb-algorithm;
+		};
+
+		queue1 {
+			snps,dcb-algorithm;
+		};
+
+		queue2 {
+			snps,avb-algorithm;
+			snps,send_slope = <0x1000>;
+			snps,idle_slope = <0x1000>;
+			snps,high_credit = <0x3E800>;
+			snps,low_credit = <0xFFC18000>;
+		};
+
+		queue3 {
+			snps,avb-algorithm;
+			snps,send_slope = <0x1000>;
+			snps,idle_slope = <0x1000>;
+			snps,high_credit = <0x3E800>;
+			snps,low_credit = <0xFFC18000>;
+		};
+	};
+
 	ethqos_hw: qcom,ethernet@00020000 {
 		compatible = "qcom,sdxprairie-ethqos";
 		qcom,arm-smmu;
@@ -1417,14 +1476,27 @@
 			<&clock_gcc GCC_ETH_PTP_CLK>,
 			<&clock_gcc GCC_ETH_RGMII_CLK>;
 		clock-names = "stmmaceth", "pclk", "ptp_ref", "rgmii";
+		snps,ptp-ref-clk-rate = <230400000>;
+		snps,ptp-req-clk-rate = <57600000>;
 		interrupts-extended = <&pdc 0 62 4>, <&pdc 0 60 4>,
 			<&tlmm 90 2>, <&pdc 0 290 1>, <&pdc 0 291 1>;
 		interrupt-names = "macirq", "eth_lpi",
 			"phy-intr",	"ptp_pps_irq_0", "ptp_pps_irq_1";
-
+		qcom,msm-bus,name = "emac";
+		qcom,msm-bus,num-cases = <4>;
+		qcom,msm-bus,num-paths = <2>;
+		qcom,msm-bus,vectors-KBps =
+			<98 512 0 0>, <1 781 0 0>,  /* No vote */
+			<98 512 2500 0>, <1 781 0 40000>,  /* 10Mbps vote */
+			<98 512 25000 0>, <1 781 0 40000>,  /* 100Mbps vote */
+			<98 512 250000 0>, <1 781 0 40000>; /* 1000Mbps vote */
+		qcom,bus-vector-names = "0", "10", "100", "1000";
 		snps,tso;
-		rx-fifo-depth = <4096>;
-		tx-fifo-depth = <4096>;
+		snps,pbl = <32>;
+		rx-fifo-depth = <16384>;
+		tx-fifo-depth = <20480>;
+		snps,mtl-rx-config = <&mtl_rx_setup>;
+		snps,mtl-tx-config = <&mtl_tx_setup>;
 
 		vreg_rgmii-supply = <&pmxprairie_vref_rgmii>;
 		vreg_emac_phy-supply =  <&vreg_emac_phy>;

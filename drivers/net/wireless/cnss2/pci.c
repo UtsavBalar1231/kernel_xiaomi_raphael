@@ -567,6 +567,7 @@ out:
 int cnss_pci_call_driver_remove(struct cnss_pci_data *pci_priv)
 {
 	struct cnss_plat_data *plat_priv;
+	int ret;
 
 	if (!pci_priv)
 		return -ENODEV;
@@ -595,7 +596,12 @@ int cnss_pci_call_driver_remove(struct cnss_pci_data *pci_priv)
 		clear_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state);
 	} else if (test_bit(CNSS_DRIVER_IDLE_SHUTDOWN,
 			    &plat_priv->driver_state)) {
-		pci_priv->driver_ops->idle_shutdown(pci_priv->pci_dev);
+		ret = pci_priv->driver_ops->idle_shutdown(pci_priv->pci_dev);
+		if (ret == -EAGAIN) {
+			clear_bit(CNSS_DRIVER_IDLE_SHUTDOWN,
+				  &plat_priv->driver_state);
+			return ret;
+		}
 		clear_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state);
 	}
 
@@ -726,7 +732,9 @@ static int cnss_qca6174_shutdown(struct cnss_pci_data *pci_priv)
 
 	cnss_pm_request_resume(pci_priv);
 
-	cnss_pci_call_driver_remove(pci_priv);
+	ret = cnss_pci_call_driver_remove(pci_priv);
+	if (ret == -EAGAIN)
+		goto out;
 
 	cnss_request_bus_bandwidth(&plat_priv->plat_dev->dev,
 				   CNSS_BUS_WIDTH_NONE);
@@ -742,6 +750,7 @@ static int cnss_qca6174_shutdown(struct cnss_pci_data *pci_priv)
 	clear_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state);
 	clear_bit(CNSS_DRIVER_IDLE_SHUTDOWN, &plat_priv->driver_state);
 
+out:
 	return ret;
 }
 
@@ -842,7 +851,9 @@ static int cnss_qca6290_shutdown(struct cnss_pci_data *pci_priv)
 
 	cnss_pm_request_resume(pci_priv);
 
-	cnss_pci_call_driver_remove(pci_priv);
+	ret = cnss_pci_call_driver_remove(pci_priv);
+	if (ret == -EAGAIN)
+		goto out;
 
 	cnss_request_bus_bandwidth(&plat_priv->plat_dev->dev,
 				   CNSS_BUS_WIDTH_NONE);
@@ -873,6 +884,7 @@ static int cnss_qca6290_shutdown(struct cnss_pci_data *pci_priv)
 	clear_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state);
 	clear_bit(CNSS_DRIVER_IDLE_SHUTDOWN, &plat_priv->driver_state);
 
+out:
 	return ret;
 }
 
@@ -993,6 +1005,7 @@ int cnss_pci_dev_crash_shutdown(struct cnss_pci_data *pci_priv)
 		break;
 	case QCA6290_DEVICE_ID:
 	case QCA6390_DEVICE_ID:
+	case QCN7605_DEVICE_ID:
 		cnss_qca6290_crash_shutdown(pci_priv);
 		break;
 	default:
@@ -1355,11 +1368,18 @@ static int cnss_pci_suspend(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
 	struct cnss_wlan_driver *driver_ops;
+	struct cnss_plat_data *plat_priv;
 
 	pm_message_t state = { .event = PM_EVENT_SUSPEND };
 
 	if (!pci_priv)
 		goto out;
+
+	plat_priv = pci_priv->plat_priv;
+	if (!plat_priv)
+		goto out;
+
+	set_bit(CNSS_IN_SUSPEND_RESUME, &plat_priv->driver_state);
 
 	driver_ops = pci_priv->driver_ops;
 	if (driver_ops && driver_ops->suspend) {
@@ -1368,7 +1388,7 @@ static int cnss_pci_suspend(struct device *dev)
 			cnss_pr_err("Failed to suspend host driver, err = %d\n",
 				    ret);
 			ret = -EAGAIN;
-			goto out;
+			goto clear_flag;
 		}
 	}
 
@@ -1396,6 +1416,8 @@ static int cnss_pci_suspend(struct device *dev)
 
 	return 0;
 
+clear_flag:
+	clear_bit(CNSS_IN_SUSPEND_RESUME, &plat_priv->driver_state);
 out:
 	return ret;
 }
@@ -1405,9 +1427,14 @@ static int cnss_pci_resume(struct device *dev)
 	int ret = 0;
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
+	struct cnss_plat_data *plat_priv;
 	struct cnss_wlan_driver *driver_ops;
 
 	if (!pci_priv)
+		goto out;
+
+	plat_priv = pci_priv->plat_priv;
+	if (!plat_priv)
 		goto out;
 
 	if (pci_priv->pci_link_down_ind)
@@ -1435,7 +1462,7 @@ static int cnss_pci_resume(struct device *dev)
 				    ret);
 	}
 
-	return 0;
+	clear_bit(CNSS_IN_SUSPEND_RESUME, &plat_priv->driver_state);
 
 out:
 	return ret;
@@ -1967,36 +1994,6 @@ static void cnss_pci_free_m3_mem(struct cnss_pci_data *pci_priv)
 	m3_mem->size = 0;
 }
 
-int cnss_pci_force_fw_assert_hdlr(struct cnss_pci_data *pci_priv)
-{
-	int ret;
-	struct cnss_plat_data *plat_priv;
-
-	if (!pci_priv)
-		return -ENODEV;
-
-	plat_priv = pci_priv->plat_priv;
-	if (!plat_priv)
-		return -ENODEV;
-
-	cnss_pci_dump_shadow_reg(pci_priv);
-
-	ret = cnss_pci_set_mhi_state(pci_priv, CNSS_MHI_TRIGGER_RDDM);
-	if (ret) {
-		cnss_fatal_err("Failed to trigger RDDM, err = %d\n", ret);
-		cnss_schedule_recovery(&pci_priv->pci_dev->dev,
-				       CNSS_REASON_DEFAULT);
-		return ret;
-	}
-
-	if (!test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state)) {
-		mod_timer(&plat_priv->fw_boot_timer,
-			  jiffies + msecs_to_jiffies(FW_ASSERT_TIMEOUT));
-	}
-
-	return 0;
-}
-
 void cnss_pci_fw_boot_timeout_hdlr(struct cnss_pci_data *pci_priv)
 {
 	if (!pci_priv)
@@ -2453,6 +2450,37 @@ static void cnss_pci_dump_registers(struct cnss_pci_data *pci_priv)
 	cnss_pci_dump_ce_reg(pci_priv, CNSS_CE_10);
 }
 
+int cnss_pci_force_fw_assert_hdlr(struct cnss_pci_data *pci_priv)
+{
+	int ret;
+	struct cnss_plat_data *plat_priv;
+
+	if (!pci_priv)
+		return -ENODEV;
+
+	plat_priv = pci_priv->plat_priv;
+	if (!plat_priv)
+		return -ENODEV;
+
+	cnss_pci_dump_shadow_reg(pci_priv);
+
+	ret = cnss_pci_set_mhi_state(pci_priv, CNSS_MHI_TRIGGER_RDDM);
+	if (ret) {
+		cnss_fatal_err("Failed to trigger RDDM, err = %d\n", ret);
+		cnss_pci_dump_registers(pci_priv);
+		cnss_schedule_recovery(&pci_priv->pci_dev->dev,
+				       CNSS_REASON_DEFAULT);
+		return ret;
+	}
+
+	if (!test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state)) {
+		mod_timer(&plat_priv->fw_boot_timer,
+			  jiffies + msecs_to_jiffies(FW_ASSERT_TIMEOUT));
+	}
+
+	return 0;
+}
+
 void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv, bool in_panic)
 {
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
@@ -2730,8 +2758,8 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 		mhi_ctrl->iova_stop = pci_priv->smmu_iova_start +
 					pci_priv->smmu_iova_len;
 	} else {
-		mhi_ctrl->iova_start = memblock_start_of_DRAM();
-		mhi_ctrl->iova_stop = memblock_end_of_DRAM();
+		mhi_ctrl->iova_start = 0;
+		mhi_ctrl->iova_stop = 0;
 	}
 
 	mhi_ctrl->link_status = cnss_mhi_link_status;

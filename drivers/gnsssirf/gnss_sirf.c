@@ -270,23 +270,18 @@ static int gnss_sirf_suspend(struct platform_device *pdev, pm_message_t state)
 	int ret = -ENODEV;
 
 	dev = &pdev->dev;
-	dev_info(dev, "%s", __func__);
-	dev_info(dev, "%s Initial Freeing resetPin", __func__);
+	dev_info(dev, "%s Initial Freeing of resetPin & onOffPin", __func__);
 	gpio_free(resetPin);
 	ret = gpio_request_one(resetPin, 1, "ssVreset-gpio");
-	dev_info(dev, "%s Config resetPin as Input", __func__);
 	if (ret < 0) {
 		pr_err("failed to request gpio %d: error:%d\n",
 				 resetPin, ret);
 		return ret;
 	}
 	gpio_direction_input(resetPin);
-	dev_info(dev, "%s Final Freeing resetPin", __func__);
 	gpio_free(resetPin);
 
-	dev_info(dev, "%s Initial Freeing onOffPin", __func__);
 	gpio_free(onOffPin);
-	dev_info(dev, "%s Config onOffPin as Input", __func__);
 	ret = gpio_request(onOffPin, "ssVonoff-gpio");
 	if (ret < 0) {
 		pr_err("failed to request gpio %d: error:%d\n",
@@ -294,8 +289,8 @@ static int gnss_sirf_suspend(struct platform_device *pdev, pm_message_t state)
 		return ret;
 	}
 	gpio_direction_input(onOffPin);
-	dev_info(dev, "%s Final Freeing onOffPin", __func__);
 	gpio_free(onOffPin);
+	dev_info(dev, "%s Final Free of resetPin & onOffPin", __func__);
 
 	return 0;
 }

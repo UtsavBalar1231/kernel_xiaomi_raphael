@@ -205,6 +205,14 @@ config QCOM_SMEM
 	  The driver provides an interface to items in a heap shared among all
 	  processors in a Qualcomm platform.
 
+config MSM_APM
+	bool "Qualcomm Technologies, Inc. platform specific APM driver"
+	help
+	  Platform specific driver to manage the power source of
+	  memory arrays. Interfaces with regulator drivers to ensure
+	  SRAM Vmin requirements are met across different performance
+	  levels.
+
 config QCOM_SMD_RPM
 	tristate "Qualcomm Resource Power Manager (RPM) over SMD"
 	depends on ARCH_QCOM
@@ -403,6 +411,16 @@ config MSM_PIL_SSR_GENERIC
          or a fatal error. Subsystems include LPASS, Venus, VPU, WCNSS and
          BCSS.
 
+config MSM_PIL_MSS_QDSP6V5
+       tristate "MSS QDSP6v5 (Hexagon) Boot Support"
+       depends on MSM_PIL && MSM_SUBSYSTEM_RESTART
+       help
+         Support for booting and shutting down QDSP6v5 (Hexagon) processors
+         in modem subsystems. If you would like to make or receive phone
+         calls then say Y here.
+
+         If unsure, say N.
+
 config SETUP_SSR_NOTIF_TIMEOUTS
 	bool "Set timeouts on SSR sysmon notifications and notifier callbacks"
 	help
@@ -554,6 +572,15 @@ config ICNSS_QMI
 	handshake messages to WLAN FW, which includes hardware capabilities
 	and configurations. It also send WLAN on/off control message to FW
 	over QMI channel.
+
+config CNSS_TIMESYNC
+	bool "cnss TIME SYNC support"
+	depends on ICNSS
+	---help---
+	  Say 'Y' here to enable cnss TIME SYNC support. TIME SYNC support
+	  primarily consists of reading the AUDIO TIMESYNC register for
+	  deriving WLAN mac time stamp relation when FTM based clock sync is
+	  used.
 
 config QCOM_EUD
 	tristate "QTI Embedded USB Debugger (EUD)"
@@ -770,6 +797,17 @@ config MSM_PM
 	  determines last CPU to call into PSCI for cluster Low power
 	  modes.
 
+config MSM_PM_LEGACY
+	depends on PM
+	select MSM_IDLE_STATS if DEBUG_FS
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	bool "Qualcomm Technologies, Inc. (QTI) platform specific Legacy PM driver"
+	help
+	  Platform specific legacy power driver to manage
+	  cores and l2 low power modes. It interface with
+	  various system driver and put the cores into
+	  low power modes.
+
 config MSM_NOPM
 	default y if !PM
 	bool
@@ -803,7 +841,7 @@ config QCOM_FSA4480_I2C
 	  for accessing the device, switching between USB and Audio
 	  modes, changing orientation.
 
-if MSM_PM
+if (MSM_PM || MSM_PM_LEGACY)
 menuconfig MSM_IDLE_STATS
 	bool "Collect idle statistics"
 	help
@@ -836,7 +874,7 @@ config MSM_SUSPEND_STATS_FIRST_BUCKET
 	  histogram.  This is for collecting statistics on suspend.
 
 endif # MSM_IDLE_STATS
-endif # MSM_PM
+endif # MSM_PM || MSM_PM_LEGACY
 
 source "drivers/soc/qcom/memshare/Kconfig"
 source "drivers/soc/qcom/hab/Kconfig"

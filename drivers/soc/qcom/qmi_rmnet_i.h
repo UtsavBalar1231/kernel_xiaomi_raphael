@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -43,6 +43,8 @@ struct rmnet_bearer_map {
 	u8  ack_req;
 	u32 last_grant;
 	u16 last_seq;
+	u32 bytes_in_flight;
+	u32 last_adjusted_grant;
 	bool tcp_bidir;
 	bool rat_switch;
 	bool tx_off;
@@ -71,6 +73,7 @@ struct mq_map {
 };
 
 struct qos_info {
+	struct list_head list;
 	u8 mux_id;
 	struct net_device *real_dev;
 	struct list_head flow_head;
@@ -86,6 +89,7 @@ struct qmi_info {
 	void *wda_pending;
 	void *dfc_clients[MAX_CLIENT_NUM];
 	void *dfc_pending[MAX_CLIENT_NUM];
+	bool dfc_client_exiting[MAX_CLIENT_NUM];
 	unsigned long ps_work_active;
 	bool ps_enabled;
 	bool dl_msg_active;

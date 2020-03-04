@@ -83,7 +83,7 @@
 #define ARM_MMU500_ACR_SMTNMB_TLBEN	(1 << 8)
 
 #define TLB_LOOP_TIMEOUT		500000	/* 500ms */
-#define TLB_SPIN_COUNT			10
+#define TLB_LOOP_INC_MAX		1000      /*1ms*/
 
 #define ARM_SMMU_IMPL_DEF0(smmu) \
 	((smmu)->base + (2 * (1 << (smmu)->pgshift)))
@@ -1285,16 +1285,17 @@ static void __arm_smmu_tlb_sync_timeout(struct arm_smmu_device *smmu)
 static int __arm_smmu_tlb_sync(struct arm_smmu_device *smmu,
 			void __iomem *sync, void __iomem *status)
 {
-	unsigned int spin_cnt, delay;
+	unsigned int inc, delay;
 
 	writel_relaxed(QCOM_DUMMY_VAL, sync);
-	for (delay = 1; delay < TLB_LOOP_TIMEOUT; delay *= 2) {
-		for (spin_cnt = TLB_SPIN_COUNT; spin_cnt > 0; spin_cnt--) {
-			if (!(readl_relaxed(status) & sTLBGSTATUS_GSACTIVE))
-				return 0;
-			cpu_relax();
-		}
-		udelay(delay);
+	for (delay = 1, inc = 1; delay < TLB_LOOP_TIMEOUT; delay += inc) {
+		if (!(readl_relaxed(status) & sTLBGSTATUS_GSACTIVE))
+			return 0;
+
+		cpu_relax();
+		udelay(inc);
+		if (inc < TLB_LOOP_INC_MAX)
+			inc *= 2;
 	}
 	trace_tlbsync_timeout(smmu->dev, 0);
 	__arm_smmu_tlb_sync_timeout(smmu);
@@ -4763,12 +4764,6 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 				 sizeof(*smmu->cbs), GFP_KERNEL);
 	if (!smmu->cbs)
 		return -ENOMEM;
-	for (i = 0; i < smmu->num_context_banks; i++) {
-		void __iomem *cb_base;
-
-		cb_base = ARM_SMMU_CB(smmu, i);
-		smmu->cbs[i].actlr = readl_relaxed(cb_base + ARM_SMMU_CB_ACTLR);
-	}
 
 	/* ID2 */
 	id = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID2);
@@ -5230,6 +5225,8 @@ static int __maybe_unused arm_smmu_pm_restore_early(struct device *dev)
 		arm_smmu_secure_domain_lock(smmu_domain);
 		arm_smmu_assign_table(smmu_domain);
 		arm_smmu_secure_domain_unlock(smmu_domain);
+		arm_smmu_init_context_bank(smmu_domain,
+					&smmu_domain->pgtbl_cfg);
 	}
 	smmu->smmu_restore = true;
 	ret = arm_smmu_pm_resume(dev);

@@ -30,6 +30,7 @@
 
 #define ATH10K_SNOC_RX_POST_RETRY_MS 50
 #define CE_POLL_PIPE 4
+#define ATH10K_SNOC_WAKE_IRQ 2
 
 static char *const ce_name[] = {
 	"WLAN_CE_0",
@@ -65,7 +66,7 @@ static void ath10k_snoc_htt_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
 
 static const struct ath10k_snoc_drv_priv drv_priv = {
 	.hw_rev = ATH10K_HW_WCN3990,
-	.dma_mask = DMA_BIT_MASK(37),
+	.dma_mask = DMA_BIT_MASK(35),
 	.msa_size = 0x100000,
 };
 
@@ -992,6 +993,7 @@ static void ath10k_snoc_hif_power_down(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif power down\n");
 
 	ath10k_snoc_wlan_disable(ar);
+	ath10k_ce_free_rri(ar);
 }
 
 static int ath10k_snoc_hif_power_up(struct ath10k *ar)
@@ -1006,6 +1008,8 @@ static int ath10k_snoc_hif_power_up(struct ath10k *ar)
 		ath10k_err(ar, "failed to enable wcn3990: %d\n", ret);
 		return ret;
 	}
+
+	ath10k_ce_alloc_rri(ar);
 
 	ret = ath10k_snoc_init_pipes(ar);
 	if (ret) {
@@ -1022,6 +1026,59 @@ err_wlan_enable:
 	return ret;
 }
 
+static int ath10k_snoc_hif_set_target_log_mode(struct ath10k *ar,
+					       u8 fw_log_mode)
+{
+	u8 fw_dbg_mode;
+
+	if (fw_log_mode)
+		fw_dbg_mode = ATH10K_ENABLE_FW_LOG_CE;
+	else
+		fw_dbg_mode = ATH10K_ENABLE_FW_LOG_DIAG;
+
+	return ath10k_qmi_set_fw_log_mode(ar, fw_dbg_mode);
+}
+
+#ifdef CONFIG_PM
+static int ath10k_snoc_hif_suspend(struct ath10k *ar)
+{
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	int ret;
+
+	if (!device_may_wakeup(ar->dev))
+		return -EPERM;
+
+	ret = enable_irq_wake(ar_snoc->ce_irqs[ATH10K_SNOC_WAKE_IRQ].irq_line);
+	if (ret) {
+		ath10k_err(ar, "failed to enable wakeup irq :%d\n", ret);
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc device suspended\n");
+
+	return ret;
+}
+
+static int ath10k_snoc_hif_resume(struct ath10k *ar)
+{
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	int ret;
+
+	if (!device_may_wakeup(ar->dev))
+		return -EPERM;
+
+	ret = disable_irq_wake(ar_snoc->ce_irqs[ATH10K_SNOC_WAKE_IRQ].irq_line);
+	if (ret) {
+		ath10k_err(ar, "failed to disable wakeup irq: %d\n", ret);
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc device resumed\n");
+
+	return ret;
+}
+#endif
+
 static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.read32		= ath10k_snoc_read32,
 	.write32	= ath10k_snoc_write32,
@@ -1035,6 +1092,11 @@ static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.send_complete_check	= ath10k_snoc_hif_send_complete_check,
 	.get_free_queue_number	= ath10k_snoc_hif_get_free_queue_number,
 	.get_target_info	= ath10k_snoc_hif_get_target_info,
+	.set_target_log_mode    = ath10k_snoc_hif_set_target_log_mode,
+#ifdef CONFIG_PM
+	.suspend                = ath10k_snoc_hif_suspend,
+	.resume                 = ath10k_snoc_hif_resume,
+#endif
 };
 
 static const struct ath10k_bus_ops ath10k_snoc_bus_ops = {

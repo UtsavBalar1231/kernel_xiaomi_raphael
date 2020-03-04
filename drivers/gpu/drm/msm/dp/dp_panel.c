@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -594,7 +594,7 @@ static void _dp_panel_calc_tu(struct dp_tu_calc_input *in,
 
 	tu.ratio = drm_fixp2int(tu.ratio_fp);
 	temp1_fp = drm_fixp_from_fraction(tu.nlanes, 1);
-	temp2_fp = tu.lwidth_fp % temp1_fp;
+	div64_u64_rem(tu.lwidth_fp, temp1_fp, &temp2_fp);
 	if (temp2_fp != 0 &&
 			!tu.ratio && tu.dsc_en == 0) {
 		tu.ratio_fp = drm_fixp_mul(tu.ratio_fp, RATIO_SCALE_fp);
@@ -1911,12 +1911,17 @@ static int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 		}
 	}
 
+	/* There is no need to read EDID from MST branch */
+	if (panel->parser->has_mst && dp_panel->read_mst_cap(dp_panel))
+		goto skip_edid;
+
 	rc = dp_panel_read_edid(dp_panel, connector);
 	if (rc) {
 		pr_err("panel edid read failed, set failsafe mode\n");
 		return rc;
 	}
 
+skip_edid:
 	dp_panel->widebus_en = panel->parser->has_widebus;
 	dp_panel->dsc_feature_enable = panel->parser->dsc_feature_enable;
 	dp_panel->fec_feature_enable = panel->parser->fec_feature_enable;

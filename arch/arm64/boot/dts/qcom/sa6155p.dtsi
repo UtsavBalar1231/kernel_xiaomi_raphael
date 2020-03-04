@@ -99,6 +99,12 @@
 	status = "ok";
 };
 
+&msm_vidc {
+	compatible = "qcom,msm-vidc", "qcom,sm6150-vidc", "qcom,sa6155p-vidc";
+	qcom,allowed-clock-rates = <133330000 240000000 300000000
+		380000000 410000000 460000000>;
+};
+
 &clock_gcc {
 	compatible = "qcom,gcc-sa6155", "syscon";
 	/delete-property/ protected-clocks;
@@ -201,6 +207,78 @@
 				temperature = <115000>;
 			};
 		};
+	};
+
+	gpu-step {
+		trips {
+			gpu-trip {
+				temperature = <105000>;
+			};
+
+			gpu-cx-mon {
+				temperature = <110000>;
+			};
+		};
+	};
+
+	q6-hvx-step {
+		trips {
+			q6-hvx-config {
+				temperature = <105000>;
+			};
+
+			q6-hvx-trip1 {
+				temperature = <105000>;
+			};
+
+			q6-hvx-cx-mon {
+				temperature = <110000>;
+			};
+		};
+	};
+
+	mdm-core-step {
+		trips {
+			mdm-core-cx-mon {
+				temperature = <110000>;
+			};
+		};
+	};
+
+	camera-step {
+		trips {
+			camera-cx-mon {
+				temperature = <110000>;
+			};
+		};
+	};
+
+	wlan-step {
+		trips {
+			wlan-cx-mon {
+				temperature = <110000>;
+			};
+		};
+	};
+
+	display-step {
+		trips {
+			display-cx-mon {
+				temperature = <110000>;
+			};
+		};
+	};
+
+	video-step {
+		trips {
+			video-cx-mon {
+				temperature = <110000>;
+			};
+		};
+	};
+
+	quiet-therm-step {
+		status = "disabled";
 	};
 };
 

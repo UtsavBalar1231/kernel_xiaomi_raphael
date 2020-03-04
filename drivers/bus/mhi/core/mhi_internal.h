@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -252,6 +252,9 @@ extern struct bus_type mhi_bus_type;
 #define REMOTE_TICKS_TO_US(x) (div_u64((x) * 100ULL, \
 			       div_u64(mhi_cntrl->remote_timer_freq, 10000ULL)))
 
+/* Wait time to allow runtime framework to resume MHI in milliseconds */
+#define MHI_RESUME_TIME	(30000)
+
 struct mhi_event_ctxt {
 	u32 reserved : 8;
 	u32 intmodc : 8;
@@ -303,6 +306,7 @@ enum mhi_cmd_type {
 	MHI_CMD_TYPE_STOP = 17,
 	MHI_CMD_TYPE_START = 18,
 	MHI_CMD_TYPE_TSYNC = 24,
+	MHI_CMD_TYPE_SFR_CFG = 73,
 };
 
 /* no operation command */
@@ -332,6 +336,11 @@ enum mhi_cmd_type {
 #define MHI_TRE_CMD_TSYNC_CFG_DWORD0 (0)
 #define MHI_TRE_CMD_TSYNC_CFG_DWORD1(er) ((MHI_CMD_TYPE_TSYNC << 16) | \
 					  (er << 24))
+
+/* subsystem failure reason cfg command */
+#define MHI_TRE_CMD_SFR_CFG_PTR(ptr) (ptr)
+#define MHI_TRE_CMD_SFR_CFG_DWORD0(len) (len)
+#define MHI_TRE_CMD_SFR_CFG_DWORD1 (MHI_CMD_TYPE_SFR_CFG << 16)
 
 #define MHI_TRE_GET_CMD_CHID(tre) (((tre)->dword[1] >> 24) & 0xFF)
 #define MHI_TRE_GET_CMD_TYPE(tre) (((tre)->dword[1] >> 16) & 0xFF)
@@ -372,6 +381,7 @@ enum MHI_CMD {
 	MHI_CMD_RESET_CHAN,
 	MHI_CMD_START_CHAN,
 	MHI_CMD_TIMSYNC_CFG,
+	MHI_CMD_SFR_CFG,
 };
 
 enum MHI_PKT_TYPE {
@@ -388,6 +398,7 @@ enum MHI_PKT_TYPE {
 	MHI_PKT_TYPE_RSC_TX_EVENT = 0x28,
 	MHI_PKT_TYPE_EE_EVENT = 0x40,
 	MHI_PKT_TYPE_TSYNC_EVENT = 0x48,
+	MHI_PKT_TYPE_SFR_CFG_CMD = 0x49,
 	MHI_PKT_TYPE_BW_REQ_EVENT = 0x50,
 	MHI_PKT_TYPE_STALE_EVENT, /* internal event */
 };
@@ -436,6 +447,7 @@ enum MHI_ST_TRANSITION {
 	MHI_ST_TRANSITION_READY,
 	MHI_ST_TRANSITION_SBL,
 	MHI_ST_TRANSITION_MISSION_MODE,
+	MHI_ST_TRANSITION_DISABLE,
 	MHI_ST_TRANSITION_MAX,
 };
 
@@ -589,6 +601,7 @@ struct mhi_pm_transitions {
 struct state_transition {
 	struct list_head node;
 	enum MHI_ST_TRANSITION state;
+	enum MHI_PM_STATE pm_state;
 };
 
 struct mhi_ctxt {
@@ -715,6 +728,15 @@ struct mhi_timesync {
 	struct list_head head;
 };
 
+struct mhi_sfr_info {
+	void *buf_addr;
+	dma_addr_t dma_addr;
+	size_t len;
+	char *str;
+	enum MHI_EV_CCS ccs;
+	struct completion completion;
+};
+
 struct mhi_bus {
 	struct list_head controller_list;
 	struct mutex lock;
@@ -723,6 +745,8 @@ struct mhi_bus {
 /* default MHI timeout */
 #define MHI_TIMEOUT_MS (1000)
 extern struct mhi_bus mhi_bus;
+
+struct mhi_controller *find_mhi_controller_by_name(const char *name);
 
 /* debug fs related functions */
 int mhi_debugfs_mhi_chan_show(struct seq_file *m, void *d);
@@ -804,11 +828,14 @@ int mhi_get_capability_offset(struct mhi_controller *mhi_cntrl, u32 capability,
 			      u32 *offset);
 void *mhi_to_virtual(struct mhi_ring *ring, dma_addr_t addr);
 int mhi_init_timesync(struct mhi_controller *mhi_cntrl);
+int mhi_init_sfr(struct mhi_controller *mhi_cntrl);
 int mhi_create_timesync_sysfs(struct mhi_controller *mhi_cntrl);
 void mhi_destroy_timesync(struct mhi_controller *mhi_cntrl);
 int mhi_create_sysfs(struct mhi_controller *mhi_cntrl);
 void mhi_destroy_sysfs(struct mhi_controller *mhi_cntrl);
 int mhi_early_notify_device(struct device *dev, void *data);
+void mhi_write_reg_offload(struct mhi_controller *mhi_cntrl,
+			void __iomem *base, u32 offset, u32 val);
 
 /* timesync log support */
 static inline void mhi_timesync_log(struct mhi_controller *mhi_cntrl)
@@ -878,6 +905,8 @@ void mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
 		      struct image_info *img_info);
 int mhi_prepare_channel(struct mhi_controller *mhi_cntrl,
 			struct mhi_chan *mhi_chan);
+void mhi_reset_reg_write_q(struct mhi_controller *mhi_cntrl);
+void mhi_force_reg_write(struct mhi_controller *mhi_cntrl);
 
 /* isr handlers */
 irqreturn_t mhi_msi_handlr(int irq_number, void *dev);
@@ -885,22 +914,9 @@ irqreturn_t mhi_intvec_threaded_handlr(int irq_number, void *dev);
 irqreturn_t mhi_intvec_handlr(int irq_number, void *dev);
 void mhi_ev_task(unsigned long data);
 
-#ifdef CONFIG_MHI_DEBUG
-
-#define MHI_ASSERT(cond, msg) do { \
+#define MHI_ASSERT(cond, fmt, ...) do { \
 	if (cond) \
-		panic(msg); \
+		panic(fmt); \
 } while (0)
-
-#else
-
-#define MHI_ASSERT(cond, msg) do { \
-	if (cond) { \
-		MHI_ERR(msg); \
-		WARN_ON(cond); \
-	} \
-} while (0)
-
-#endif
 
 #endif /* _MHI_INT_H */
