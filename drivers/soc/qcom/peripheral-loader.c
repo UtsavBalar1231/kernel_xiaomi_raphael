@@ -1700,7 +1700,7 @@ static int __init msm_pil_init(void)
 
 	pil_ipc_log = ipc_log_context_create(2, "PIL-IPC", 0);
 	if (!pil_ipc_log)
-		pr_warn("Failed to setup PIL ipc logging\n");
+		pr_debug("Failed to setup PIL ipc logging\n");
 out:
 	return register_pm_notifier(&pil_pm_notifier);
 }

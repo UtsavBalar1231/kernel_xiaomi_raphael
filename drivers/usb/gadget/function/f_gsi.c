@@ -3810,7 +3810,7 @@ static int fgsi_init(void)
 
 	ipc_log_ctxt = ipc_log_context_create(NUM_LOG_PAGES, "usb_gsi", 0);
 	if (!ipc_log_ctxt)
-		pr_err("%s: Err allocating ipc_log_ctxt\n", __func__);
+		pr_debug("%s: Err allocating ipc_log_ctxt\n", __func__);
 
 	gsi_class = class_create(THIS_MODULE, "gsi_usb");
 	if (IS_ERR(gsi_class)) {

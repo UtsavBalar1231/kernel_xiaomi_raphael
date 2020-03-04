@@ -1817,7 +1817,7 @@ static int ngd_slim_probe(struct platform_device *pdev)
 	dev->ipc_slimbus_log = ipc_log_context_create(IPC_SLIMBUS_LOG_PAGES,
 						dev_name(dev->dev), 0);
 	if (!dev->ipc_slimbus_log)
-		dev_err(&pdev->dev, "error creating ipc_logging context\n");
+		dev_dbg(&pdev->dev, "error creating ipc_logging context\n");
 	else {
 		/* Initialize the log mask */
 		dev->ipc_log_mask = INFO_LEV;
@@ -1834,7 +1834,7 @@ static int ngd_slim_probe(struct platform_device *pdev)
 		ipc_log_context_create(IPC_SLIMBUS_LOG_PAGES,
 						ipc_err_log_name, 0);
 	if (!dev->ipc_slimbus_log_err)
-		dev_err(&pdev->dev,
+		dev_dbg(&pdev->dev,
 			"error creating ipc_error_logging context\n");
 	else
 		SLIM_INFO(dev, "start error logging for slim dev %s\n",

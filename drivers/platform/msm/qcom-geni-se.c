@@ -1967,7 +1967,7 @@ static int geni_se_probe(struct platform_device *pdev)
 	geni_se_dev->log_ctx = ipc_log_context_create(NUM_LOG_PAGES,
 						dev_name(geni_se_dev->dev), 0);
 	if (!geni_se_dev->log_ctx)
-		dev_err(dev, "%s Failed to allocate log context\n", __func__);
+		dev_dbg(dev, "%s Failed to allocate log context\n", __func__);
 	dev_set_drvdata(dev, geni_se_dev);
 
 	ret = of_platform_populate(dev->of_node, geni_se_dt_match, NULL, dev);
