@@ -910,3 +910,7 @@ endif
 ifeq (y,$(findstring y,$(CONFIG_ARCH_MSM) $(CONFIG_ARCH_QCOM)))
 CONFIG_WLAN_FEATURE_DP_BUS_BANDWIDTH := y
 endif
+
+ifeq ($(CONFIG_ARCH_SDM660), y)
+CONFIG_WLAN_FEATURE_PKT_CAPTURE := y
+endif
