@@ -427,6 +427,7 @@ extern void *ipc_emac_log_ctxt;
 #define DWC_ETH_QOS_SYSCLOCK	250000000 /* System clock is 250MHz */
 #define DWC_ETH_QOS_SYSTIMEPERIOD	4 /* System time period is 4ns */
 
+#define DWC_ETH_QOS_DEFAULT_PTP_CLOCK    50000000
 #define DWC_ETH_QOS_PTP_CLOCK_57_6    57600000
 #define DWC_ETH_QOS_PTP_CLOCK_62_5    62500000
 #define DWC_ETH_QOS_PTP_CLOCK_96    96000000
@@ -1636,7 +1637,8 @@ struct DWC_ETH_QOS_prv_data {
 	/* Module parameter to check if PHY interrupt should be
 	enabled. Default value is true. */
 	bool enable_phy_intr;
-
+	bool en_ptp_pps_avb_class_a_irq;
+	bool en_ptp_pps_avb_class_b_irq;
 	struct msm_bus_scale_pdata *bus_scale_vec;
 	uint32_t bus_hdl;
 	u32 rgmii_clk_rate;

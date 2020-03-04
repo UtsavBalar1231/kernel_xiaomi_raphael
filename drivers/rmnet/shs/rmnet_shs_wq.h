@@ -31,7 +31,7 @@
 #define RMNET_SHS_NSEC_TO_SEC(x) ((x)/1000000000)
 #define RMNET_SHS_BYTE_TO_BIT(x) ((x)*8)
 #define RMNET_SHS_MIN_HSTAT_NODES_REQD 16
-#define RMNET_SHS_WQ_DELAY_TICKS  10
+#define RMNET_SHS_WQ_INTERVAL_MS  100
 
 extern unsigned long long rmnet_shs_cpu_rx_max_pps_thresh[MAX_CPUS]__read_mostly;
 extern unsigned long long rmnet_shs_cpu_rx_min_pps_thresh[MAX_CPUS]__read_mostly;
