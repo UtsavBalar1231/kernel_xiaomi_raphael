@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -60,8 +60,7 @@ void csr_neighbor_roam_state_transition(tpAniSirGlobal mac_ctx,
 	mac_ctx->roam.neighborRoamInfo[session].prevNeighborRoamState =
 		mac_ctx->roam.neighborRoamInfo[session].neighborRoamState;
 	mac_ctx->roam.neighborRoamInfo[session].neighborRoamState = newstate;
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		FL("Sessionid (%d) NeighborRoam transition from %s to %s"),
+	sme_nofl_debug("NeighborRoam transition: vdev %d %s --> %s",
 		session, csr_neighbor_roam_state_to_string(
 		mac_ctx->roam.neighborRoamInfo[session].prevNeighborRoamState),
 		csr_neighbor_roam_state_to_string(newstate));
@@ -773,8 +772,6 @@ void csr_roam_reset_roam_params(tpAniSirGlobal mac_ctx)
 	 * clear all the whitelist parameters and remaining
 	 * needs to be retained across connections.
 	 */
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		FL("Roaming parameters are reset"));
 	roam_params = &mac_ctx->roam.configParam.roam_params;
 	roam_params->num_ssid_allowed_list = 0;
 	qdf_mem_zero(&roam_params->ssid_allowed_list,
@@ -787,7 +784,6 @@ static void csr_roam_restore_default_config(tpAniSirGlobal mac_ctx,
 {
 	struct roam_triggers triggers;
 
-	sme_debug("Disable roam control config done through SET");
 	sme_set_roam_config_enable(MAC_HANDLE(mac_ctx), vdev_id, 0);
 
 	triggers.vdev_id = vdev_id;
@@ -992,8 +988,6 @@ static void csr_neighbor_roam_info_ctx_init(
 		ngbr_roam_info->cfgParams.nRoamBmissFinalBcnt;
 	ngbr_roam_info->currentRoamBeaconRssiWeight =
 		ngbr_roam_info->cfgParams.nRoamBeaconRssiWeight;
-	ngbr_roam_info->cfgParams.enable_scoring_for_roam =
-		pMac->roam.configParam.bss_score_params.enable_scoring_for_roam;
 	/*
 	 * Restore the inactivity params only if roam_control is not
 	 * enabled. If roam_control is enabled, the params will be restored
@@ -1001,6 +995,8 @@ static void csr_neighbor_roam_info_ctx_init(
 	 * the same.
 	 */
 	if (!ngbr_roam_info->roam_control_enable) {
+		ngbr_roam_info->cfgParams.enable_scoring_for_roam =
+		pMac->roam.configParam.bss_score_params.enable_scoring_for_roam;
 		ngbr_roam_info->cfgParams.roam_scan_inactivity_time =
 			pMac->roam.configParam.roam_scan_inactivity_time;
 		ngbr_roam_info->cfgParams.roam_inactive_data_packet_count =
@@ -1025,8 +1021,6 @@ static void csr_neighbor_roam_info_ctx_init(
 		ngbr_roam_info->is11rAssoc = true;
 	} else
 		ngbr_roam_info->is11rAssoc = false;
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			FL("11rAssoc is = %d"), ngbr_roam_info->is11rAssoc);
 
 #ifdef FEATURE_WLAN_ESE
 	/* Based on the auth scheme tell if we are 11r */
@@ -1036,9 +1030,6 @@ static void csr_neighbor_roam_info_ctx_init(
 		ngbr_roam_info->isESEAssoc = true;
 	} else
 		ngbr_roam_info->isESEAssoc = false;
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			FL("isESEAssoc is = %d ft = %d"),
-			ngbr_roam_info->isESEAssoc, init_ft_flag);
 #endif
 	/* If "FastRoamEnabled" ini is enabled */
 	if (csr_roam_is_fast_roam_enabled(pMac, session_id))
@@ -1066,9 +1057,6 @@ static void csr_neighbor_roam_info_ctx_init(
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 		if (session->roam_synch_in_progress) {
 			if (pMac->roam.pReassocResp != NULL) {
-				QDF_TRACE(QDF_MODULE_ID_SME,
-					QDF_TRACE_LEVEL_DEBUG,
-					"Free Reassoc Rsp");
 				qdf_mem_free(pMac->roam.pReassocResp);
 				pMac->roam.pReassocResp = NULL;
 			}
@@ -1110,7 +1098,7 @@ QDF_STATUS csr_neighbor_roam_indicate_connect(
 		&pMac->roam.neighborRoamInfo[session_id];
 	struct csr_roam_session *session = &pMac->roam.roamSession[session_id];
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
-	struct csr_roam_info roamInfo;
+	struct csr_roam_info *roam_info;
 #endif
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
@@ -1120,16 +1108,16 @@ QDF_STATUS csr_neighbor_roam_indicate_connect(
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	sme_debug("Connect ind. received with session id %d in state %s",
+	sme_debug("Connect ind, vdev id %d in state %s",
 		session_id, mac_trace_get_neighbour_roam_state(
 			ngbr_roam_info->neighborRoamState));
 
 	/* Bail out if this is NOT a STA persona */
 	if (pMac->roam.roamSession[session_id].pCurRoamProfile->csrPersona !=
 	QDF_STA_MODE) {
-		sme_err("Ignoring Connect ind received from a non STA. session_id: %d, csrPersonna %d",
-			session_id,
-			(int)session->pCurRoamProfile->csrPersona);
+		sme_debug("Ignoring Connect ind received from a non STA. session_id: %d, csrPersonna %d",
+			  session_id,
+			  (int)session->pCurRoamProfile->csrPersona);
 		return QDF_STATUS_SUCCESS;
 	}
 	/* if a concurrent session is running */
@@ -1144,18 +1132,21 @@ QDF_STATUS csr_neighbor_roam_indicate_connect(
 	if (session->roam_synch_in_progress &&
 		(eSIR_ROAM_AUTH_STATUS_AUTHENTICATED ==
 		session->roam_synch_data->authStatus)) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"LFR3:csr_neighbor_roam_indicate_connect");
-		qdf_copy_macaddr(&roamInfo.peerMac,
-			&session->connectedProfile.bssid);
-		roamInfo.roamSynchInProgress =
+		sme_debug("LFR3: Authenticated");
+		roam_info = qdf_mem_malloc(sizeof(*roam_info));
+		if (!roam_info)
+			return QDF_STATUS_E_NOMEM;
+		qdf_copy_macaddr(&roam_info->peerMac,
+				 &session->connectedProfile.bssid);
+		roam_info->roamSynchInProgress =
 			session->roam_synch_in_progress;
-		csr_roam_call_callback(pMac, session_id, &roamInfo, 0,
-			eCSR_ROAM_SET_KEY_COMPLETE,
-			eCSR_ROAM_RESULT_AUTHENTICATED);
+		csr_roam_call_callback(pMac, session_id, roam_info, 0,
+				       eCSR_ROAM_SET_KEY_COMPLETE,
+				       eCSR_ROAM_RESULT_AUTHENTICATED);
 		csr_neighbor_roam_reset_init_state_control_info(pMac,
-			session_id);
+								session_id);
 		csr_neighbor_roam_info_ctx_init(pMac, session_id);
+		qdf_mem_free(roam_info);
 		return status;
 	}
 #endif
@@ -1336,8 +1327,7 @@ QDF_STATUS csr_neighbor_roam_init(tpAniSirGlobal pMac, uint8_t sessionId)
 		pMac->roam.configParam.neighborRoamConfig.
 			nhi_rssi_scan_rssi_ub;
 	pNeighborRoamInfo->cfgParams.roam_rssi_diff =
-		pMac->roam.configParam.neighborRoamConfig.
-			roam_rssi_diff;
+		pMac->roam.configParam.RoamRssiDiff;
 
 	qdf_zero_macaddr(&pNeighborRoamInfo->currAPbssid);
 	pNeighborRoamInfo->currentNeighborLookupThreshold =

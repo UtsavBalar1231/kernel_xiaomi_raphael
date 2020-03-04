@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -278,7 +278,7 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 	uint8_t bss_counter = 0;
 	tCsrScanResultInfo *cur_result = NULL;
 	tpRrmSMEContext rrm_ctx = &mac_ctx->rrm.rrmSmeContext;
-	struct csr_roam_info roam_info;
+	struct csr_roam_info *roam_info;
 	tSirEseBcnReportRsp bcn_rpt_rsp;
 	tpSirEseBcnReportRsp bcn_report = &bcn_rpt_rsp;
 	tpCsrEseBeaconReqParams cur_meas_req = NULL;
@@ -294,6 +294,10 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 		sme_err("Beacon report xmit Ind to HDD Failed");
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	roam_info = qdf_mem_malloc(sizeof(*roam_info));
+	if (!roam_info)
+		return QDF_STATUS_E_NOMEM;
 
 	if (result_arr)
 		cur_result = result_arr[bss_counter];
@@ -382,15 +386,17 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 			bcn_report->numBss, j, bss_counter,
 			bcn_report->flag);
 
-		roam_info.pEseBcnReportRsp = bcn_report;
-		status = csr_roam_call_callback(mac_ctx, session_id, &roam_info,
-			0, eCSR_ROAM_ESE_BCN_REPORT_IND, 0);
+		roam_info->pEseBcnReportRsp = bcn_report;
+		status = csr_roam_call_callback(mac_ctx, session_id, roam_info,
+						0, eCSR_ROAM_ESE_BCN_REPORT_IND,
+						0);
 
 		/* Free the memory allocated to IE */
 		for (i = 0; i < j; i++)
 			if (bcn_report->bcnRepBssInfo[i].pBuf)
 				qdf_mem_free(bcn_report->bcnRepBssInfo[i].pBuf);
 	} while (cur_result);
+	qdf_mem_free(roam_info);
 	return status;
 }
 
@@ -1019,11 +1025,11 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 	else
 		country[2] = OP_CLASS_GLOBAL;
 
-	sme_debug("Channel = %d", pBeaconReq->channelInfo.channelNum);
 
-	sme_debug("Request Reg class %d, AP's country code %c%c 0x%x",
+	sme_debug("Request Reg class %d, AP's country code %c%c 0x%x Channel %d",
 		  pBeaconReq->channelInfo.regulatoryClass,
-		  country[0], country[1], country[2]);
+		  country[0], country[1], country[2],
+		  pBeaconReq->channelInfo.channelNum);
 
 	if (pBeaconReq->channelList.numChannels >
 	    SIR_ESE_MAX_MEAS_IE_REQS) {
@@ -1135,15 +1141,23 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 		     (uint8_t *) &pBeaconReq->measurementDuration,
 		     SIR_ESE_MAX_MEAS_IE_REQS);
 
-	sme_debug("token: %d regClass: %d randnIntvl: %d msgSource: %d",
-		pSmeRrmContext->token, pSmeRrmContext->regClass,
-		pSmeRrmContext->randnIntvl, pSmeRrmContext->msgSource);
+	sme_debug("token: %d randnIntvl: %d msgSource: %d",
+		pSmeRrmContext->token, pSmeRrmContext->randnIntvl,
+		pSmeRrmContext->msgSource);
 
 	return sme_rrm_issue_scan_req(pMac);
 
 cleanup:
-	if (pBeaconReq->msgSource == eRRM_MSG_SOURCE_11K)
+	if (pBeaconReq->msgSource == eRRM_MSG_SOURCE_11K) {
+		/* Copy session bssid */
+		qdf_mem_copy(pSmeRrmContext->sessionBssId.bytes,
+			     pBeaconReq->bssId, sizeof(tSirMacAddr));
+
+		/* copy measurement bssid */
+		qdf_mem_copy(pSmeRrmContext->bssId, pBeaconReq->macaddrBssid,
+			     sizeof(tSirMacAddr));
 		sme_rrm_send_beacon_report_xmit_ind(pMac, NULL, true, 0);
+	}
 
 	return status;
 }
@@ -1510,7 +1524,7 @@ static void rrm_iter_meas_timer_handle(void *userData)
 {
 	tpAniSirGlobal pMac = (tpAniSirGlobal) userData;
 
-	sme_warn("Randomization timer expired...send on next channel");
+	sme_debug("Randomization timer expired...send on next channel");
 	/* Issue a scan req for next channel. */
 	sme_rrm_issue_scan_req(pMac);
 }
