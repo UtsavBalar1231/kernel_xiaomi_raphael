@@ -756,9 +756,9 @@ static int goodix_ts_input_report(struct input_dev *dev,
 			/*point position*/
 			input_report_abs(dev, ABS_MT_POSITION_X, coords->x);
 			input_report_abs(dev, ABS_MT_POSITION_Y, coords->y);
-			/*
+
 			input_report_abs(dev, ABS_MT_TOUCH_MAJOR, coords->w);
-			input_report_abs(dev, ABS_MT_PRESSURE, coords->p);
+			/*input_report_abs(dev, ABS_MT_PRESSURE, coords->p);
 			input_report_abs(dev, ABS_MT_TOUCH_MINOR, coords->area);
 			*/
 
