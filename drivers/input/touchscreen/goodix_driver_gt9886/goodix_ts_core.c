@@ -1714,7 +1714,7 @@ static int goodix_bl_state_chg_callback(struct notifier_block *nb, unsigned long
 	if (data && core_data) {
 		blank = *(int *)(data);
 		ts_info("%s val:%lu, blank:%u\n", __func__, val, blank);
-		if (blank == BACKLIGHT_OFF && (atomic_read(&core_data->suspend_stat) && core_data->fod_status)) {
+		if (blank == BACKLIGHT_OFF && (atomic_read(&core_data->suspend_stat))) {
 			ts_info("%s BACKLIGHT OFF, disable irq\n", __func__);
 			goodix_ts_irq_enable(core_data, false);
 		} else
