@@ -1623,7 +1623,6 @@ static struct swr_driver wsa881x_codec_driver = {
 		.owner = THIS_MODULE,
 		.pm = &wsa881x_swr_pm_ops,
 		.of_match_table = wsa881x_swr_dt_match,
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe = wsa881x_swr_probe,
 	.remove = wsa881x_swr_remove,
