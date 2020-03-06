@@ -3220,7 +3220,8 @@ void lim_process_switch_channel_rsp(struct mac_context *mac, void *body)
 			pe_session->send_p2p_conf_frame = true;
 		}
 
-		ucfg_pkt_capture_record_channel(pe_session->vdev);
+		if (ucfg_pkt_capture_get_pktcap_mode())
+			ucfg_pkt_capture_record_channel(pe_session->vdev);
 		break;
 	case LIM_SWITCH_CHANNEL_SAP_DFS:
 		/* Note: This event code specific to SAP mode

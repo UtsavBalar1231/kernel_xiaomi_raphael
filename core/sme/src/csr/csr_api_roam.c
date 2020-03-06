@@ -22732,7 +22732,9 @@ static QDF_STATUS csr_process_roam_sync_callback(struct mac_context *mac_ctx,
 			mac_ctx->psoc);
 		mac_ctx->sme.set_connection_info_cb(false);
 		session->roam_synch_in_progress = false;
-		ucfg_pkt_capture_record_channel(vdev);
+
+		if (ucfg_pkt_capture_get_pktcap_mode())
+			ucfg_pkt_capture_record_channel(vdev);
 		csr_check_and_set_sae_single_pmk_cap(mac_ctx, session,
 						     session_id);
 
