@@ -1286,7 +1286,6 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	uint8_t scan_backoff_multiplier;
 	bool enable_connected_scan;
 
-	hdd_enter();
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
@@ -1415,7 +1414,6 @@ static int __wlan_hdd_cfg80211_sched_scan_stop(struct net_device *dev)
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	int errno;
 
-	hdd_enter();
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err_rl("Command not allowed in FTM mode");
@@ -1458,8 +1456,6 @@ static int __wlan_hdd_cfg80211_sched_scan_stop(struct net_device *dev)
 		return errno;
 
 	errno = wlan_hdd_sched_scan_stop(dev);
-
-	hdd_exit();
 
 	return errno;
 }

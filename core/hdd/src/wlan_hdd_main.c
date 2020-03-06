@@ -7553,7 +7553,6 @@ static QDF_STATUS hdd_abort_sched_scan_all_adapters(struct hdd_context *hdd_ctx)
 	struct hdd_adapter *adapter;
 	int err;
 
-	hdd_enter();
 
 	hdd_for_each_adapter(hdd_ctx, adapter) {
 		if (adapter->device_mode == QDF_STA_MODE ||
