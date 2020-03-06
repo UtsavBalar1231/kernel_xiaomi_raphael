@@ -16016,11 +16016,14 @@ QDF_STATUS csr_send_join_req_msg(struct mac_context *mac, uint32_t sessionId,
 			     &pSession->self_mac_addr,
 			     sizeof(tSirMacAddr));
 		sme_nofl_info("vdev-%d: Connecting to %.*s " QDF_MAC_ADDR_STR
-			      " rssi: %d channel: %d CC: %c%c",
+			      " rssi: %d channel: %d akm %d cipher: uc %d mc %d, CC: %c%c",
 			      sessionId, csr_join_req->ssId.length,
 			      csr_join_req->ssId.ssId,
 			      QDF_MAC_ADDR_ARRAY(pBssDescription->bssId),
 			      pBssDescription->rssi, pBssDescription->channelId,
+			      pProfile->negotiatedAuthType,
+			      pProfile->negotiatedUCEncryptionType,
+			      pProfile->negotiatedMCEncryptionType,
 			      mac->scan.countryCodeCurrent[0],
 			      mac->scan.countryCodeCurrent[1]);
 		/* bsstype */
