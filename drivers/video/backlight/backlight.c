@@ -121,7 +121,6 @@ static void backlight_generate_event(struct backlight_device *bd,
 	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
 	sysfs_notify(&bd->dev.kobj, NULL, "actual_brightness");
 	sysfs_notify(&bd->dev.kobj, NULL, "brightness");
-	sysfs_notify(&bd->dev.kobj, NULL, "brightness_clone");
 }
 
 static ssize_t bl_power_show(struct device *dev, struct device_attribute *attr,
