@@ -44,6 +44,8 @@
 #include "lim_ft_defs.h"
 #include "lim_session.h"
 #include "lim_ser_des_utils.h"
+#include "cdp_txrx_cmn.h"
+#include "cdp_txrx_peer_ops.h"
 
 /**
  * lim_delete_sta_util - utility function for deleting station context
@@ -593,5 +595,44 @@ void lim_rx_invalid_peer_process(struct mac_context *mac_ctx,
 	}
 
 	qdf_mem_free(msg);
+	lim_msg->bodyptr = NULL;
+}
+
+void lim_req_send_delba_ind_process(struct mac_context *mac_ctx,
+				    struct scheduler_msg *lim_msg)
+{
+	struct lim_delba_req_info *req =
+			(struct lim_delba_req_info *)lim_msg->bodyptr;
+	QDF_STATUS status;
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	void *peer, *pdev;
+	uint8_t peer_id;
+
+	if (!req) {
+		pe_err("Invalid body pointer in message");
+		return;
+	}
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev) {
+		pe_err("delba pdev is NULL");
+		goto error;
+	}
+	peer = cdp_peer_get_ref_by_addr(soc, pdev, req->peer_macaddr, &peer_id,
+					PEER_DEBUG_ID_WMA_DELBA_REQ);
+	if (!peer) {
+		pe_err("delba PEER [%pM] not found", req->peer_macaddr);
+		goto error;
+	}
+
+	status = lim_send_delba_action_frame(mac_ctx, req->vdev_id,
+					     req->peer_macaddr,
+					     req->tid, req->reason_code);
+	if (status != QDF_STATUS_SUCCESS)
+		cdp_delba_tx_completion(soc, peer, req->tid,
+					WMI_MGMT_TX_COMP_TYPE_DISCARD);
+	cdp_peer_release_ref(soc, peer, PEER_DEBUG_ID_WMA_DELBA_REQ);
+
+error:
+	qdf_mem_free(req);
 	lim_msg->bodyptr = NULL;
 }
