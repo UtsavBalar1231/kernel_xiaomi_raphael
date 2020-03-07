@@ -739,6 +739,15 @@ extern void *hal_srng_setup(void *hal_soc, int ring_type, int ring_num,
 #define REO_REMAP_UNUSED 7
 
 /*
+ * Macro to access HWIO_REO_R0_ERROR_DESTINATION_RING_CTRL_IX_0
+ * to map destination to rings
+ */
+#define HAL_REO_ERR_REMAP_IX0(_VALUE, _OFFSET) \
+	((_VALUE) << \
+	 (HWIO_REO_R0_ERROR_DESTINATION_MAPPING_IX_0_ERROR_ ## \
+	  DESTINATION_RING_ ## _OFFSET ## _SHFT))
+
+/*
  * currently this macro only works for IX0 since all the rings we are remapping
  * can be remapped from HWIO_REO_R0_DESTINATION_RING_CTRL_IX_0
  */
@@ -1862,5 +1871,18 @@ static inline void hal_srng_set_flush_last_ts(struct hal_srng *srng)
 static inline void hal_srng_inc_flush_cnt(struct hal_srng *srng)
 {
 	srng->flush_count++;
+}
+
+/**
+ * hal_reo_set_err_dst_remap() - Set REO error destination ring remap
+ *				 register value.
+ *
+ * @hal_soc: Opaque HAL soc handle
+ *
+ * Return: None
+ */
+static inline void hal_reo_set_err_dst_remap(struct hal_soc *hal_soc)
+{
+	hal_soc->ops->hal_reo_set_err_dst_remap(hal_soc);
 }
 #endif /* _HAL_APIH_ */

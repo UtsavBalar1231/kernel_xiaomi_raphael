@@ -2725,7 +2725,7 @@ static void dp_reo_frag_dst_set(struct dp_soc *soc, uint8_t *frag_dst_ring)
 
 	switch (offload_radio) {
 	case dp_nss_cfg_default:
-		*frag_dst_ring = HAL_SRNG_REO_EXCEPTION;
+		*frag_dst_ring = REO_REMAP_TCL;
 		break;
 	case dp_nss_cfg_dbdc:
 	case dp_nss_cfg_dbtc:
@@ -3009,6 +3009,8 @@ out:
 	dp_reo_frag_dst_set(soc, &reo_params.frag_dst_ring);
 
 	hal_reo_setup(soc->hal_soc, &reo_params);
+
+	hal_reo_set_err_dst_remap(soc->hal_soc);
 
 	qdf_atomic_set(&soc->cmn_init_done, 1);
 

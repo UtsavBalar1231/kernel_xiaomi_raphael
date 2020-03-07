@@ -407,6 +407,7 @@ struct hal_hw_txrx_ops {
 	void *scatter_bufs_base_vaddr[], uint32_t num_scatter_bufs,
 	uint32_t scatter_buf_size, uint32_t last_buf_end_offset,
 	uint32_t num_entries);
+	void (*hal_reo_set_err_dst_remap)(void *hal_soc);
 
 	/* tx */
 	void (*hal_tx_desc_set_dscp_tid_table_id)(void *desc, uint8_t id);
