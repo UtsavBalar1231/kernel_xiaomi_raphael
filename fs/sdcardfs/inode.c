@@ -63,7 +63,7 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 			 umode_t mode, bool want_excl)
 {
 	int err;
-	struct dentry *lower_dentry;
+	struct dentry *lower_dentry, *parent_dentry;
 	struct vfsmount *lower_dentry_mnt;
 	struct dentry *lower_parent_dentry = NULL;
 	struct path lower_path;
@@ -76,6 +76,15 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 		goto out_eacces;
 	}
 
+	parent_dentry = dget_parent(dentry);
+	if (!check_min_free_space(parent_dentry, 0, 1)) {
+		pr_err("sdcardfs: No minimum free space.\n");
+		err = -ENOSPC;
+		dput(parent_dentry);
+		goto out_eacces;
+	}
+	dput(parent_dentry);
+
 	/* save current_cred and override it */
 	saved_cred = override_fsids(SDCARDFS_SB(dir->i_sb),
 					SDCARDFS_I(dir)->data);
@@ -86,6 +95,9 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 	lower_dentry = lower_path.dentry;
 	lower_dentry_mnt = lower_path.mnt;
 	lower_parent_dentry = lock_parent(lower_dentry);
+
+	if (d_is_positive(lower_dentry))
+		return -EEXIST;
 
 	/* set last 16bytes of mode field to 0664 */
 	mode = (mode & S_IFMT) | 00664;
@@ -780,6 +792,7 @@ static int sdcardfs_getattr(const struct path *path, struct kstat *stat,
 		goto out;
 	sdcardfs_copy_and_fix_attrs(d_inode(dentry),
 			      d_inode(lower_path.dentry));
+	fsstack_copy_inode_size(d_inode(dentry), d_inode(lower_path.dentry));
 	err = sdcardfs_fillattr(mnt, d_inode(dentry), &lower_stat, stat);
 out:
 	sdcardfs_put_lower_path(dentry, &lower_path);
