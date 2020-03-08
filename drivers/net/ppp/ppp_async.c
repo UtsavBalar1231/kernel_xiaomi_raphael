@@ -876,9 +876,10 @@ ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 			skb = ap->rpkt;
 			if (!skb) {
 				skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2);
-				if (!skb)
+				if (!skb) {
 					goto nomem;
 				ap->rpkt = skb;
+				}
 			}
 			if (skb->len == 0) {
 				/* Try to get the payload 4-byte aligned.
