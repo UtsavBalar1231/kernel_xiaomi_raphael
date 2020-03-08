@@ -1116,7 +1116,7 @@ void msm_crus_pb_add_controls(struct snd_soc_platform *platform)
 EXPORT_SYMBOL(msm_crus_pb_add_controls);
 int crus_afe_port_start(u16 port_id)
 {
-	pr_info("%s: 0x%x\n", __func__, port_id);
+	pr_debug("%s: 0x%x\n", __func__, port_id);
 
 //CSPL do not be involved in AFE
 #if 0
@@ -1127,7 +1127,7 @@ int crus_afe_port_start(u16 port_id)
 		return 0;
 
 	this_ctrl.afe_start = true;
-	pr_info("%s: 0x%x\n", __func__, port_id);
+	pr_debug("%s: 0x%x\n", __func__, port_id);
 
 	mutex_lock(&this_ctrl.sp_lock);
 	msm_routing_crus_sp_usecase_get(&kcontrol,
@@ -1141,7 +1141,7 @@ int crus_afe_port_start(u16 port_id)
 EXPORT_SYMBOL(crus_afe_port_start);
 int crus_afe_port_close(u16 port_id)
 {
-	pr_info("%s: 0x%x\n", __func__, port_id);
+	pr_debug("%s: 0x%x\n", __func__, port_id);
 
 //CSPL do not be involved in AFE
 #if 0
@@ -1149,7 +1149,7 @@ int crus_afe_port_close(u16 port_id)
 		return 0;
 
 	this_ctrl.afe_start = false;
-	pr_info("%s: 0x%x\n", __func__, port_id);
+	pr_debug("%s: 0x%x\n", __func__, port_id);
 #endif
 	return 0;
 }
@@ -1161,7 +1161,7 @@ static long crus_sp_shared_ioctl(struct file *f, unsigned int cmd,
 	uint32_t bufsize = 0, size;
 	void *io_data = NULL;
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	if (copy_from_user(&size, arg, sizeof(size))) {
 		pr_err("CRUS_SP: copy_from_user (size) failed\n");
