@@ -190,13 +190,6 @@ static enum tfa_error tfa98xx_write_re25(struct tfa_device *tfa, int value)
 static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profile, int vstep)
 {
 	enum tfa_error err;
-	ktime_t start_time, stop_time;
-	u64 delta_time;
-
-	if (trace_level & 8) {
-		start_time = ktime_get_boottime();
-	}
-
 	/*[nxp34663] CR: support 16bit/24bit/32bit audio data. begin*/
 #ifdef __KERNEL__
 	err = tfa_dev_start(tfa98xx->tfa, next_profile, vstep, tfa98xx->pcm_format);
@@ -204,14 +197,6 @@ static enum tfa_error tfa98xx_tfa_start(struct tfa98xx *tfa98xx, int next_profil
 	err = tfa_dev_start(tfa98xx->tfa, next_profile, vstep);
 	#endif
 	/*[nxp34663] CR: support 16bit/24bit/32bit audio data. end*/
-
-	if (trace_level & 8) {
-		stop_time = ktime_get_boottime();
-		delta_time = ktime_to_ns(ktime_sub(stop_time, start_time));
-		do_div(delta_time, 1000);
-		dev_dbg(&tfa98xx->i2c->dev, "tfa_dev_start(%d,%d) time = %lld us\n",
-			next_profile, vstep, delta_time);
-	}
 
 	if ((err == tfa_error_ok) && (tfa98xx->set_mtp_cal)) {
 		enum tfa_error err_cal;
