@@ -5304,7 +5304,8 @@ static void ext4_umount_end(struct super_block *sb, int flags)
 	 * next boot.
 	 */
 	if ((flags & MNT_FORCE) || atomic_read(&sb->s_active) > 1) {
-		ext4_msg(sb, KERN_ERR,
+		if (0)
+			ext4_msg(sb, KERN_ERR,
 			"errors=remount-ro for active namespaces on umount %x",
 						flags);
 		clear_opt(sb, ERRORS_PANIC);
