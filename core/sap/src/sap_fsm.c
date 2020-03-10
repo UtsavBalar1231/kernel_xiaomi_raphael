@@ -528,15 +528,15 @@ void sap_dfs_set_current_channel(void *ctx)
 	else
 		ic_flags |= IEEE80211_CHAN_5GHZ;
 
-	if (wlan_reg_is_dfs_ch(pdev, sap_ctx->channel))
+	if (wlan_reg_is_dfs_ch(pdev, sap_ctx->channel)) {
 		ic_flagext |= IEEE80211_CHAN_DFS;
+		tgt_dfs_set_current_channel(pdev, ic_freq, ic_flags, ic_flagext,
+					    ic_ieee, vht_seg0, vht_seg1);
+	}
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 		  FL("freq=%d, channel=%d, seg0=%d, seg1=%d, flags=0x%x, ext flags=0x%x"),
 		  ic_freq, ic_ieee, vht_seg0, vht_seg1, ic_flags, ic_flagext);
-
-	tgt_dfs_set_current_channel(pdev, ic_freq, ic_flags,
-			ic_flagext, ic_ieee, vht_seg0, vht_seg1);
 
 	if (wlan_reg_is_dfs_ch(pdev, sap_ctx->channel)) {
 		if (policy_mgr_concurrent_beaconing_sessions_running(
