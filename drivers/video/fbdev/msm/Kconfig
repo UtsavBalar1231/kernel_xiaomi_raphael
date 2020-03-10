@@ -126,6 +126,11 @@ config FB_MSM_MDSS_DP_PANEL
         The MDSS DP Panel provides support for DP host controller driver
         which runs in Video mode only and is responsible for transmitting
         frame buffer from host SOC to DP display panel.
+	The MDSS DP Panel provides support for DP host controller driver
+	which runs in Video mode only and is responsible for transmitting
+	frame buffer from host SOC to DP display panel.
+
+	support for DP display panel.
 
 config FB_MSM_MDSS_EDP_PANEL
 	depends on FB_MSM_MDSS

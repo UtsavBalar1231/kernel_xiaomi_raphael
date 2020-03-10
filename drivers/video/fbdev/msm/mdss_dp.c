@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -137,9 +137,60 @@ static void mdss_dp_put_dt_clk_data(struct device *dev,
 	module_power->num_clk = 0;
 } /* mdss_dp_put_dt_clk_data */
 
-static int mdss_dp_is_clk_prefix(const char *clk_prefix, const char *clk_name)
+static int mdss_dp_is_ctrl_clk(const char *clk_name)
 {
-	return !strncmp(clk_name, clk_prefix, strlen(clk_prefix));
+	bool is_ctrl_clk = false;
+
+	pr_debug("%s+: clk-name=%s\n",
+		__func__, clk_name);
+
+	if (!strcmp(clk_name, "ctrl_link_clk"))
+		is_ctrl_clk = true;
+	else if (!strcmp(clk_name, "ctrl_link_iface_clk"))
+		is_ctrl_clk = true;
+	else if (!strcmp(clk_name, "ctrl_crypto_clk"))
+		is_ctrl_clk = true;
+	else if (!strcmp(clk_name, "ctrl_pixel_clk"))
+		is_ctrl_clk = true;
+	else
+		is_ctrl_clk = false;
+
+	pr_debug("%s-: is_ctrl_clk = %d", __func__, is_ctrl_clk);
+
+	return is_ctrl_clk;
+}
+
+static int mdss_dp_is_core_clk(const char *clk_name)
+{
+	bool is_core_clk = false;
+
+	pr_debug("%s+: clk-name=%s\n",
+		__func__, clk_name);
+
+	if (!strcmp(clk_name, "core_mnoc_clk"))
+		is_core_clk = true;
+	else if (!strcmp(clk_name, "core_iface_clk"))
+		is_core_clk = true;
+	else if (!strcmp(clk_name, "core_bus_clk"))
+		is_core_clk = true;
+	else if (!strcmp(clk_name, "core_mdp_core_clk"))
+		is_core_clk = true;
+	else if (!strcmp(clk_name, "core_alt_iface_clk"))
+		is_core_clk = true;
+	else if (!strcmp(clk_name, "core_aux_clk"))
+		is_core_clk = true;
+	else if (!strcmp(clk_name, "core_ref_clk"))
+		is_core_clk = true;
+	else if (!strcmp(clk_name, "core_ref_clk_src"))
+		is_core_clk = true;
+	else if (!strcmp(clk_name, "core_ahb_phy_clk"))
+		is_core_clk = true;
+	else
+		is_core_clk = false;
+
+	pr_debug("%s-: is_core_clk = %d", __func__, is_core_clk);
+
+	return is_core_clk;
 }
 
 static void mdss_dp_reset_phy_config_indices(struct mdss_dp_drv_pdata *dp)
@@ -241,8 +292,6 @@ static int mdss_dp_init_clk_power_data(struct device *dev,
 {
 	int num_clk = 0, i = 0, rc = 0;
 	int core_clk_count = 0, ctrl_clk_count = 0;
-	const char *core_clk = "core";
-	const char *ctrl_clk = "ctrl";
 	struct dss_module_power *core_power_data = NULL;
 	struct dss_module_power *ctrl_power_data = NULL;
 	const char *clk_name;
@@ -262,11 +311,14 @@ static int mdss_dp_init_clk_power_data(struct device *dev,
 		of_property_read_string_index(dev->of_node, "clock-names",
 				i, &clk_name);
 
-		if (mdss_dp_is_clk_prefix(core_clk, clk_name))
+		if (mdss_dp_is_core_clk(clk_name))
 			core_clk_count++;
-		if (mdss_dp_is_clk_prefix(ctrl_clk, clk_name))
+		if (mdss_dp_is_ctrl_clk(clk_name))
 			ctrl_clk_count++;
 	}
+
+	pr_debug("%s: core_clk_count = %d ctrl_clk_count=%d\n",
+			__func__, core_clk_count, ctrl_clk_count);
 
 	/* Initialize the CORE power module */
 	if (core_clk_count <= 0) {
@@ -344,14 +396,14 @@ static int mdss_dp_get_dt_clk_data(struct device *dev,
 		of_property_read_string_index(dev->of_node, "clock-names",
 				i, &clk_name);
 
-		if (mdss_dp_is_clk_prefix(core_clk, clk_name)
+		if (mdss_dp_is_core_clk(clk_name)
 				&& core_clk_index < core_clk_count) {
 			struct dss_clk *clk =
 				&core_power_data->clk_config[core_clk_index];
 			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
 			clk->type = DSS_CLK_AHB;
 			core_clk_index++;
-		} else if (mdss_dp_is_clk_prefix(ctrl_clk, clk_name)
+		} else if (mdss_dp_is_ctrl_clk(clk_name)
 				&& ctrl_clk_index < ctrl_clk_count) {
 			struct dss_clk *clk =
 				&ctrl_power_data->clk_config[ctrl_clk_index];
@@ -1965,6 +2017,7 @@ static int mdss_dp_send_audio_notification(
 		pr_err("invalid ext audio ops\n");
 		return -EINVAL;
 	}
+
 	if (mdss_dp_sink_audio_supp(dp) || dp->audio_test_req) {
 		dp->audio_test_req = false;
 

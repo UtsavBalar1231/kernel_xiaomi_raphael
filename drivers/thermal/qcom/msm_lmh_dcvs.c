@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -94,7 +94,7 @@ struct limits_dcvs_hw {
 	int irq_num;
 	void *osm_hw_reg;
 	void *int_clr_reg;
-	void *min_freq_reg;
+	void __iomem *min_freq_reg;
 	cpumask_t core_map;
 	cpumask_t online_mask;
 	struct delayed_work freq_poll_work;

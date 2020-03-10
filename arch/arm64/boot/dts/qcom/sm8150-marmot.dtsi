@@ -10,19 +10,9 @@
  * GNU General Public License for more details.
  */
 
-/dts-v1/;
-/plugin/;
 
-#include <dt-bindings/clock/qcom,camcc-sm8150.h>
-
-#include "sm8150-mtp.dtsi"
-
-#include "sdx5xm-external-soc.dtsi"
-#include "sm8150-sdxchitwan.dtsi"
-
-/ {
-	model = "SDXCHITWAN MTP";
-	compatible = "qcom,sm8150-mtp", "qcom,sm8150", "qcom,mtp";
-	qcom,board-id = <0x05010008 0x5>;
+&mdm3 {
+	compatible = "qcom,ext-marmot";
+	qcom,mdm-link-info = "0307_01.01.00";
 };
 
