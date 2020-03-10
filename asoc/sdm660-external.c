@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,6 +25,7 @@
 #include "codecs/wcd9335.h"
 #include "codecs/wcd934x/wcd934x.h"
 #include "codecs/wcd934x/wcd934x-mbhc.h"
+#include <soc/qcom/socinfo.h>
 
 #define SDM660_SPK_ON     1
 #define SDM660_SPK_OFF    0
@@ -53,7 +54,7 @@
 
 #define WSA8810_NAME_1 "wsa881x.20170211"
 #define WSA8810_NAME_2 "wsa881x.20170212"
-
+#define SDM660_SOC_MSM_ID 0x13D
 static int msm_ext_spk_control = 1;
 static struct wcd_mbhc_config *wcd_mbhc_cfg_ptr;
 
@@ -1294,7 +1295,9 @@ static int msm_adsp_power_up_config(struct snd_soc_codec *codec,
 		goto err_fail;
 	}
 
-	msm_snd_interrupt_config(pdata);
+	if (socinfo_get_id() == SDM660_SOC_MSM_ID) {
+		msm_snd_interrupt_config(pdata);
+	}
 
 	ret = msm_afe_set_config(codec);
 	if (ret)
