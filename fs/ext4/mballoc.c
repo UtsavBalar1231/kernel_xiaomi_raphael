@@ -349,7 +349,6 @@ MODULE_PARM_DESC(mballoc_debug, "Debugging level for ext4's mballoc");
  *
  */
 static struct kmem_cache *ext4_pspace_cachep;
-static struct kmem_cache *ext4_ac_cachep;
 static struct kmem_cache *ext4_free_data_cachep;
 
 /* We create slab caches for groupinfo data structures based on the
@@ -2953,7 +2952,6 @@ void ext4_exit_mballoc(void)
 	 */
 	rcu_barrier();
 	kmem_cache_destroy(ext4_pspace_cachep);
-	kmem_cache_destroy(ext4_ac_cachep);
 	kmem_cache_destroy(ext4_free_data_cachep);
 	ext4_groupinfo_destroy_slabs();
 }
