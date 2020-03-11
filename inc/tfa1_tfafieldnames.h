@@ -1,13 +1,20 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
  */
+
+
+/** Filename: Tfa1_TfaFieldnames.h
+ *  This file was generated automatically on 03/20/2015 at 01:55:46 PM. 
+ *  Source file: TFA9897N1B_I2C_list_URT_Source_v34.xls
+ */
 #define TFA9897_I2CVERSION 34
-typedef enum nxpTfa1BfEnumList {
+typedef enum Tfa1BfEnumList {
     TFA1_BF_VDDS  = 0x0000,    /*!< Power-on-reset flag                                */
     TFA1_BF_PLLS  = 0x0010,    /*!< PLL lock                                           */
     TFA1_BF_OTDS  = 0x0020,    /*!< Over Temperature Protection alarm                  */
@@ -188,7 +195,7 @@ typedef enum nxpTfa1BfEnumList {
     TFA1_BF_ACK   = 0x7387,    /*!< acknowledge of requests (8 channels)               */
     TFA1_BF_MTPOTC= 0x8000,    /*!< Calibration schedule (key2 protected)              */
     TFA1_BF_MTPEX = 0x8010,    /*!< (key2 protected)                                   */
-} nxpTfa1BfEnumList_t;
+} Tfa1BfEnumList_t;
 #define TFA1_NAMETABLE static tfaBfName_t Tfa1DatasheetNames[]= {\
    { 0x0, "VDDS"},    /* Power-on-reset flag                               , */\
    { 0x10, "PLLS"},    /* PLL lock                                          , */\

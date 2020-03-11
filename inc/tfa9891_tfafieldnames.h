@@ -1,5 +1,6 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -7,8 +8,21 @@
  *
  */
 
+
+/*
+ * tfa9891_tfafieldnames.h
+ *
+ *  Created on: Jul 16, 2015
+ *      Author: wim
+ */
+
 #ifndef TFA_INC_TFA9891_TFAFIELDNAMES_H_
 #define TFA_INC_TFA9891_TFAFIELDNAMES_H_
+
+/** Filename: Tfa9891_TfaFieldnames.h
+ *  This file was generated automatically on 07/16/15 at 15:00:02.
+ *  Source file: TFA9891_I2C_list_V13.xls
+ */
 
 #define TFA9891_I2CVERSION    13
 

@@ -1,11 +1,13 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
  */
+
 
 /**\file
  *
@@ -130,8 +132,8 @@ struct tfa_device {
 	int tfadsp_event; /**< enum tfadsp_event_en is for external registry */
 	int verbose; /**< verbosity level for debug print output */
 	enum tfa_state state;  /**< last known state or-ed with optional state_modifier */
-	struct nxpTfaContainer *cnt;/**< the loaded container file */
-	struct nxpTfaVolumeStepRegisterInfo *p_regInfo; /**< remember vstep for partial updates */
+	struct TfaContainer *cnt;/**< the loaded container file */
+	struct TfaVolumeStepRegisterInfo *p_regInfo; /**< remember vstep for partial updates */
 	int partial_enable; /**< enable partial updates */
 	void *data; /**< typically pointing to Linux driver structure owning this device */
 	int convert_dsp32; /**< convert 24 bit DSP messages to 32 bit */

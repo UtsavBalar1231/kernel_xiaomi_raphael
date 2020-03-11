@@ -1,10 +1,17 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
+ */
+
+
+/** Filename: tfa9912_tfaFieldnames.h
+ *  This file was generated automatically on 09/28/18 at 12:00:21. 
+ *  Source file: TFA9912_N1A_I2C_regmap_V1.43.xlsx
  */
 
 #ifndef _TFA9912_TFAFIELDNAMES_H
@@ -13,7 +20,7 @@
 
 #define TFA9912_I2CVERSION    1.43
 
-typedef enum nxpTfa9912BfEnumList {
+typedef enum Tfa9912BfEnumList {
     TFA9912_BF_PWDN  = 0x0000,    /*!< Powerdown selection                                */
     TFA9912_BF_I2CR  = 0x0010,    /*!< I2C Reset - Auto clear                             */
     TFA9912_BF_CFE   = 0x0020,    /*!< Enable CoolFlux                                    */
@@ -475,7 +482,7 @@ typedef enum nxpTfa9912BfEnumList {
     TFA9912_BF_DCMCCCL= 0xf042,    /*!< Calibration delta current limit DCDC               */
     TFA9912_BF_USERDEF= 0xf078,    /*!< Reserved space for allowing customer to store speaker information */
     TFA9912_BF_R25C  = 0xf40f,    /*!< Ron resistance of  speaker coil                    */
-} nxpTfa9912BfEnumList_t;
+} Tfa9912BfEnumList_t;
 #define TFA9912_NAMETABLE static tfaBfName_t Tfa9912DatasheetNames[]= {\
    { 0x0, "PWDN"},    /* Powerdown selection                               , */\
    { 0x10, "I2CR"},    /* I2C Reset - Auto clear                            , */\
