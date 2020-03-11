@@ -603,14 +603,6 @@ int rndis_ipa_init(struct ipa_usb_init_params *params)
 	}
 	RNDIS_IPA_DEBUG("Device Ethernet address set %pM\n", net->dev_addr);
 
-	if (ipa_is_vlan_mode(IPA_VLAN_IF_RNDIS,
-		&rndis_ipa_ctx->is_vlan_mode)) {
-		RNDIS_IPA_ERROR("couldn't acquire vlan mode, is ipa ready?\n");
-		goto fail_get_vlan_mode;
-	}
-
-	RNDIS_IPA_DEBUG("is_vlan_mode %d\n", rndis_ipa_ctx->is_vlan_mode);
-
 	result = rndis_ipa_hdrs_cfg
 			(rndis_ipa_ctx,
 			params->host_ethaddr,
@@ -659,7 +651,6 @@ fail_register_netdev:
 fail_register_tx:
 	rndis_ipa_hdrs_destroy(rndis_ipa_ctx);
 fail_hdrs_cfg:
-fail_get_vlan_mode:
 fail_set_device_ethernet:
 	rndis_ipa_debugfs_destroy(rndis_ipa_ctx);
 fail_netdev_priv:
