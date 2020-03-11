@@ -1,0 +1,3 @@
+[submodule "scripts/libufdt"]
+	path = scripts/libufdt
+	url = https://android.googlesource.com/platform/system/libufdt/
