@@ -2606,8 +2606,8 @@ int mdss_dp_link_train(struct mdss_dp_drv_pdata *dp)
 	if (ret < 0) {
 		if ((ret == -EAGAIN) && !dp_link_rate_down_shift(dp)) {
 			pr_debug("retry with lower rate\n");
-			dp_clear_training_pattern(dp);
-			return -EAGAIN;
+			ret = -EINVAL;
+			goto clear;
 		} else {
 			pr_err("Training 1 failed\n");
 			ret = -EINVAL;
@@ -2625,8 +2625,8 @@ int mdss_dp_link_train(struct mdss_dp_drv_pdata *dp)
 	if (ret < 0) {
 		if ((ret == -EAGAIN) && !dp_link_rate_down_shift(dp)) {
 			pr_debug("retry with lower rate\n");
-			dp_clear_training_pattern(dp);
-			return -EAGAIN;
+			ret = -EINVAL;
+			goto clear;
 		} else {
 			pr_err("Training 2 failed\n");
 			ret = -EINVAL;
