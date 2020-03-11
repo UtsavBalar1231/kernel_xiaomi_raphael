@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017,2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -162,7 +162,7 @@ static int dcc_xpu_lock(struct dcc_drvdata *drvdata)
 
 		ret = dcc_cfg_xpu(drvdata, 1);
 		if (ret)
-			dev_err(drvdata->dev, "Falied to lock DCC XPU.\n");
+			dev_err(drvdata->dev, "Failed to lock DCC XPU.\n");
 
 		clk_disable_unprepare(drvdata->clk);
 	}
@@ -189,7 +189,7 @@ static int dcc_xpu_unlock(struct dcc_drvdata *drvdata)
 
 		ret = dcc_cfg_xpu(drvdata, 0);
 		if (ret)
-			dev_err(drvdata->dev, "Falied to unlock DCC XPU.\n");
+			dev_err(drvdata->dev, "Failed to unlock DCC XPU.\n");
 
 		clk_disable_unprepare(drvdata->clk);
 	}
@@ -576,7 +576,7 @@ out:
 	mutex_unlock(&drvdata->mutex);
 	return ret;
 }
-static DEVICE_ATTR(func_type, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(func_type, 0644,
 		   dcc_show_func_type, dcc_store_func_type);
 
 static ssize_t dcc_show_data_sink(struct device *dev,
@@ -621,7 +621,7 @@ out:
 	mutex_unlock(&drvdata->mutex);
 	return ret;
 }
-static DEVICE_ATTR(data_sink, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(data_sink, 0644,
 		   dcc_show_data_sink, dcc_store_data_sink);
 
 static ssize_t dcc_store_trigger(struct device *dev,
@@ -648,7 +648,7 @@ static ssize_t dcc_store_trigger(struct device *dev,
 	dcc_xpu_lock(drvdata);
 	return ret;
 }
-static DEVICE_ATTR(trigger, S_IWUSR, NULL, dcc_store_trigger);
+static DEVICE_ATTR(trigger, 0200, NULL, dcc_store_trigger);
 
 static ssize_t dcc_show_enable(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -656,7 +656,7 @@ static ssize_t dcc_show_enable(struct device *dev,
 	struct dcc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 (unsigned)drvdata->enable);
+			 (unsigned int)drvdata->enable);
 }
 
 static ssize_t dcc_store_enable(struct device *dev,
@@ -686,7 +686,7 @@ static ssize_t dcc_store_enable(struct device *dev,
 	return ret;
 
 }
-static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, dcc_show_enable,
+static DEVICE_ATTR(enable, 0644, dcc_show_enable,
 		   dcc_store_enable);
 
 static ssize_t dcc_show_config(struct device *dev,
@@ -720,12 +720,12 @@ static ssize_t dcc_show_config(struct device *dev,
 	return count;
 }
 
-static int dcc_config_add(struct dcc_drvdata *drvdata, unsigned addr,
-			  unsigned len)
+static int dcc_config_add(struct dcc_drvdata *drvdata, unsigned int addr,
+			  unsigned int len)
 {
 	int ret;
 	struct dcc_config_entry *entry, *pentry;
-	unsigned base, offset;
+	unsigned int base, offset;
 
 	mutex_lock(&drvdata->mutex);
 
@@ -811,7 +811,7 @@ static ssize_t dcc_store_config(struct device *dev,
 				const char *buf, size_t size)
 {
 	int ret;
-	unsigned base, len;
+	unsigned int base, len;
 	struct dcc_drvdata *drvdata = dev_get_drvdata(dev);
 	int nval;
 
@@ -829,7 +829,7 @@ static ssize_t dcc_store_config(struct device *dev,
 	return size;
 
 }
-static DEVICE_ATTR(config, S_IRUGO | S_IWUSR, dcc_show_config,
+static DEVICE_ATTR(config, 0644, dcc_show_config,
 		   dcc_store_config);
 
 static void dcc_config_reset(struct dcc_drvdata *drvdata)
@@ -862,7 +862,7 @@ static ssize_t dcc_store_config_reset(struct device *dev,
 
 	return size;
 }
-static DEVICE_ATTR(config_reset, S_IWUSR, NULL, dcc_store_config_reset);
+static DEVICE_ATTR(config_reset, 0200, NULL, dcc_store_config_reset);
 
 static ssize_t dcc_show_crc_error(struct device *dev,
 				  struct device_attribute *attr, char *buf)
@@ -881,13 +881,13 @@ static ssize_t dcc_show_crc_error(struct device *dev,
 	}
 
 	ret = scnprintf(buf, PAGE_SIZE, "%u\n",
-			(unsigned)BVAL(dcc_readl(drvdata, DCC_STATUS), 0));
+			(unsigned int)BVAL(dcc_readl(drvdata, DCC_STATUS), 0));
 err:
 	mutex_unlock(&drvdata->mutex);
 	dcc_xpu_lock(drvdata);
 	return ret;
 }
-static DEVICE_ATTR(crc_error, S_IRUGO, dcc_show_crc_error, NULL);
+static DEVICE_ATTR(crc_error, 0444, dcc_show_crc_error, NULL);
 
 static ssize_t dcc_show_ready(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -906,13 +906,13 @@ static ssize_t dcc_show_ready(struct device *dev,
 	}
 
 	ret = scnprintf(buf, PAGE_SIZE, "%u\n",
-			(unsigned)BVAL(dcc_readl(drvdata, DCC_STATUS), 4));
+			(unsigned int)BVAL(dcc_readl(drvdata, DCC_STATUS), 4));
 err:
 	mutex_unlock(&drvdata->mutex);
 	dcc_xpu_lock(drvdata);
 	return ret;
 }
-static DEVICE_ATTR(ready, S_IRUGO, dcc_show_ready, NULL);
+static DEVICE_ATTR(ready, 0444, dcc_show_ready, NULL);
 
 static ssize_t dcc_show_interrupt_disable(struct device *dev,
 					  struct device_attribute *attr,
@@ -921,7 +921,7 @@ static ssize_t dcc_show_interrupt_disable(struct device *dev,
 	struct dcc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 (unsigned)drvdata->interrupt_disable);
+			 (unsigned int)drvdata->interrupt_disable);
 }
 
 static ssize_t dcc_store_interrupt_disable(struct device *dev,
@@ -939,7 +939,7 @@ static ssize_t dcc_store_interrupt_disable(struct device *dev,
 	mutex_unlock(&drvdata->mutex);
 	return size;
 }
-static DEVICE_ATTR(interrupt_disable, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(interrupt_disable, 0644,
 		   dcc_show_interrupt_disable, dcc_store_interrupt_disable);
 
 static ssize_t dcc_show_rpm_sw_trigger_on(struct device *dev,
@@ -949,7 +949,7 @@ static ssize_t dcc_show_rpm_sw_trigger_on(struct device *dev,
 	struct dcc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 (unsigned)drvdata->rpm_trig_req.enable);
+			 (unsigned int)drvdata->rpm_trig_req.enable);
 }
 
 static ssize_t dcc_store_rpm_sw_trigger_on(struct device *dev,
@@ -967,7 +967,7 @@ static ssize_t dcc_store_rpm_sw_trigger_on(struct device *dev,
 	mutex_unlock(&drvdata->mutex);
 	return size;
 }
-static DEVICE_ATTR(rpm_sw_trigger_on, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(rpm_sw_trigger_on, 0644,
 		   dcc_show_rpm_sw_trigger_on, dcc_store_rpm_sw_trigger_on);
 
 static ssize_t dcc_store_xpu_unlock(struct device *dev,
@@ -987,7 +987,7 @@ static ssize_t dcc_store_xpu_unlock(struct device *dev,
 
 	return ret;
 }
-static DEVICE_ATTR(xpu_unlock, S_IWUSR, NULL, dcc_store_xpu_unlock);
+static DEVICE_ATTR(xpu_unlock, 0200, NULL, dcc_store_xpu_unlock);
 
 static const struct device_attribute *dcc_attrs[] = {
 	&dev_attr_func_type,

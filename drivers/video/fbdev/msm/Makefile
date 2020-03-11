@@ -68,7 +68,7 @@ endif
 
 obj-$(CONFIG_FB_MSM_MDSS_DP_PANEL) += mdss_dp.o mdss_dp_util.o
 obj-$(CONFIG_FB_MSM_MDSS_DP_PANEL) += mdss_dp_aux.o
-#obj-$(CONFIG_FB_MSM_MDSS_DP_PANEL) += mdss_dp_hdcp2p2.o
+obj-$(CONFIG_FB_MSM_MDSS_DP_PANEL) += mdss_dp_hdcp2p2.o
 
 obj-$(CONFIG_FB_MSM_MDSS_SPI_PANEL) += mdss_spi_display.o
 obj-$(CONFIG_FB_MSM_MDSS_SPI_PANEL) += mdss_spi_client.o

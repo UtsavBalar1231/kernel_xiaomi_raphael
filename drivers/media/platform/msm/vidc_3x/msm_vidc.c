@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019,2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -500,7 +500,8 @@ int map_and_register_buf(struct msm_vidc_inst *inst, struct v4l2_buffer *b)
 			binfo->mapped[i] = false;
 			binfo->smem[i] = *same_fd_handle;
 		} else {
-			binfo->smem[i].buffer_type = get_hal_buffer_type(inst,b);
+			binfo->smem[i].buffer_type = get_hal_buffer_type(
+							inst, b);
 			binfo->smem[i].fd = binfo->fd[i];
 			binfo->smem[i].offset = binfo->buff_off[i];
 			binfo->smem[i].size = binfo->size[i];
@@ -656,7 +657,6 @@ int qbuf_cache_operations(struct msm_vidc_inst *inst,
 	enum smem_cache_ops cache_op;
 	bool skip;
 	int i = 0, rc = 0;
-	unsigned int rate;
 
 	skip = true;
 
@@ -679,9 +679,7 @@ int qbuf_cache_operations(struct msm_vidc_inst *inst,
 				}
 			}
 		} else if (inst->session_type == MSM_VIDC_ENCODER) {
-
-			rate = inst->prop.operating_rate >> 16;
-			if (binfo->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE && rate == 0) {
+			if (binfo->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 				if (!i) { /* yuv */
 					skip = false;
 					offset = binfo->buff_off[i];
