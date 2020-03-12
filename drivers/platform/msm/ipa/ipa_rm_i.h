@@ -53,6 +53,7 @@
 	(x < IPA_RM_RESOURCE_MAX && (x & 0x1) == 1)
 #define IPA_RM_INDEX_INVALID	(-1)
 #define IPA_RM_RELEASE_DELAY_IN_MSEC 1000
+#define IPA_RM_WAKELOCK 0
 
 int ipa_rm_prod_index(enum ipa_rm_resource_name resource_name);
 int ipa_rm_cons_index(enum ipa_rm_resource_name resource_name);
