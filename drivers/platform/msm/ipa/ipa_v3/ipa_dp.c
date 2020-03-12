@@ -781,7 +781,9 @@ static int ipa3_rx_switch_to_intr_mode(struct ipa3_sys_context *sys)
 	int ret;
 
 	atomic_set(&sys->curr_polling_state, 0);
+#if IPA_RM_WAKELOCK
 	ipa3_dec_release_wakelock();
+#endif
 	ret = gsi_config_channel_mode(sys->ep->gsi_chan_hdl,
 		GSI_CHAN_MODE_CALLBACK);
 	if ((ret != GSI_STATUS_SUCCESS) &&
@@ -4208,8 +4210,9 @@ void __ipa_gsi_irq_rx_scedule_poll(struct ipa3_sys_context *sys)
 	bool clk_off;
 
 	atomic_set(&sys->curr_polling_state, 1);
+#if IPA_RM_WAKELOCK
 	ipa3_inc_acquire_wakelock();
-
+#endif
 	/*
 	 * pm deactivate is done in wq context
 	 * or after NAPI poll
@@ -4296,7 +4299,9 @@ static void ipa_dma_gsi_irq_rx_notify_cb(struct gsi_chan_xfer_notify *notify)
 			/* put the gsi channel into polling mode */
 			gsi_config_channel_mode(sys->ep->gsi_chan_hdl,
 				GSI_CHAN_MODE_POLL);
+#if IPA_RM_WAKELOCK
 			ipa3_inc_acquire_wakelock();
+#endif
 			atomic_set(&sys->curr_polling_state, 1);
 			queue_work(sys->wq, &sys->work);
 		}
