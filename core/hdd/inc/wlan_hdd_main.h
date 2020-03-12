@@ -1978,6 +1978,7 @@ struct hdd_context {
 	qdf_mc_timer_t sar_safety_timer;
 	qdf_mc_timer_t sar_safety_unsolicited_timer;
 	qdf_event_t sar_safety_req_resp_event;
+	qdf_atomic_t sar_safety_req_resp_event_in_progress;
 #endif
 
 #ifdef CLD_PM_QOS
