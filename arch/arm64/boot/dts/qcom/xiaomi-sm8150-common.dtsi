@@ -439,3 +439,7 @@
 			reg = <0 0xaf000000 0 0x1000000>;
 		};
 };
+
+&mdss_dsi_phy0 {
+		qcom,dsi-phy-regulator-min-datarate-bps = <1200000000>;
+};
