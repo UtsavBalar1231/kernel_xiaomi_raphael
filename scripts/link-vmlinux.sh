@@ -125,7 +125,7 @@ modpost_link()
 		info LD vmlinux.o
 	fi
 
-	${LD} ${LDFLAGS} -r -o ${1} $(lto_lds) ${objects}
+	${LDFINAL} ${LDFLAGS} -r -o ${1} $(lto_lds) ${objects}
 }
 
 # If CONFIG_LTO_CLANG is selected, we postpone running recordmcount until
@@ -434,7 +434,7 @@ if [ ! -z ${RTIC_MP_O} ]; then
 	fi
 fi
 
-info LD vmlinux
+info LDFINAL vmlinux
 vmlinux_link "${kallsymso}" vmlinux
 
 if [ -n "${CONFIG_BUILDTIME_EXTABLE_SORT}" ]; then

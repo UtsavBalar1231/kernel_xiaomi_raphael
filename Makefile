@@ -701,6 +701,18 @@ export LLVM_AR LLVM_NM
 LDFLAGS		+= --plugin-opt=O3
 endif
 
+ifdef CONFIG_GCC_LTO
+LTO_CFLAGS    := -flto -flto=jobserver -ffat-lto-objects \
+                 -fuse-linker-plugin -fwhole-program
+KBUILD_CFLAGS += $(LTO_CFLAGS)
+LTO_LDFLAGS   := $(LTO_CFLAGS) -Wno-lto-type-mismatch -Wno-psabi
+LDFINAL       := $(CONFIG_SHELL) $(srctree)/scripts/gcc-ld $(LTO_LDFLAGS)
+AR            := $(CROSS_COMPILE)gcc-ar
+NM            := $(CROSS_COMPILE)gcc-nm
+DISABLE_LTO   := -fno-lto
+export DISABLE_LTO LDFINAL
+endif
+
 # The arch Makefile can set ARCH_{CPP,A,C}FLAGS to override the default
 # values of the respective KBUILD_* variables
 ARCH_CPPFLAGS :=
