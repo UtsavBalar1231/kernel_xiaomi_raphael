@@ -2665,6 +2665,19 @@
 		};
 
 		tert_tdm {
+			cs35l41_int_default: cs35l41_int_default {
+				mux {
+					pins = "gpio10";
+					function = "gpio";
+				};
+				config {
+					pins = "gpio10";
+					bias-pull-up;
+					drive-strength = <8>;
+					input-enable;
+				};
+			};
+
 			tert_tdm_sleep: tert_tdm_sleep {
 				mux {
 					pins = "gpio133", "gpio134";
