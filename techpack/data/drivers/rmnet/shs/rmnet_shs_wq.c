@@ -1905,19 +1905,30 @@ void rmnet_shs_update_cfg_mask(void)
 {
 	/* Start with most avaible mask all eps could share*/
 	u8 mask = UPDATE_MASK;
+	u8 rps_enabled = 0;
 	struct rmnet_shs_wq_ep_s *ep;
 
 	list_for_each_entry(ep, &rmnet_shs_wq_ep_tbl, ep_list_id) {
 
 		if (!ep->is_ep_active)
 			continue;
-		/* Bitwise and to get common mask  VNDs with different mask
-		 * will have UNDEFINED behavior
+		/* Bitwise and to get common mask from non-null masks.
+		 * VNDs with different mask  will have UNDEFINED behavior
 		 */
-		mask &= ep->rps_config_msk;
+		if (ep->rps_config_msk) {
+			mask &= ep->rps_config_msk;
+			rps_enabled = 1;
+		}
 	}
-	rmnet_shs_cfg.map_mask = mask;
-	rmnet_shs_cfg.map_len = rmnet_shs_get_mask_len(mask);
+
+	if (!rps_enabled) {
+		rmnet_shs_cfg.map_mask = 0;
+		rmnet_shs_cfg.map_len = 0;
+		return;
+        } else if (rmnet_shs_cfg.map_mask != mask) {
+		rmnet_shs_cfg.map_mask = mask;
+		rmnet_shs_cfg.map_len = rmnet_shs_get_mask_len(mask);
+	}
 }
 
 void rmnet_shs_wq_update_stats(void)

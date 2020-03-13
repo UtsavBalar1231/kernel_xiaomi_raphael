@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -2543,14 +2543,14 @@ static int fg_gen4_update_maint_soc(struct fg_dev *fg)
 		goto out;
 	}
 
-	if (msoc > fg->maint_soc) {
+	if (msoc >= fg->maint_soc) {
 		/*
 		 * When the monotonic SOC goes above maintenance SOC, we should
 		 * stop showing the maintenance SOC.
 		 */
 		fg->delta_soc = 0;
 		fg->maint_soc = 0;
-	} else if (fg->maint_soc && msoc <= fg->last_msoc) {
+	} else if (fg->maint_soc && msoc < fg->last_msoc) {
 		/* MSOC is decreasing. Decrease maintenance SOC as well */
 		fg->maint_soc -= 1;
 		if (!(msoc % 10)) {
@@ -4042,13 +4042,11 @@ static void status_change_work(struct work_struct *work)
 		fg->charge_status, fg->charge_done,
 		(input_present & (!input_suspend)));
 
-	if (fg->charge_status != fg->prev_charge_status) {
-		batt_soc_cp = div64_u64((u64)(u32)batt_soc * CENTI_FULL_SOC,
-					BATT_SOC_32BIT);
-		cap_learning_update(chip->cl, batt_temp, batt_soc_cp,
+	batt_soc_cp = div64_u64((u64)(u32)batt_soc * CENTI_FULL_SOC,
+				BATT_SOC_32BIT);
+	cap_learning_update(chip->cl, batt_temp, batt_soc_cp,
 			fg->charge_status, fg->charge_done, input_present,
 			qnovo_en);
-	}
 
 	rc = fg_gen4_charge_full_update(fg);
 	if (rc < 0)
@@ -4084,7 +4082,6 @@ static void status_change_work(struct work_struct *work)
 		pr_err("Failed to validate SOC scale mode, rc=%d\n", rc);
 
 	ttf_update(chip->ttf, input_present);
-	fg->prev_charge_status = fg->charge_status;
 out:
 	fg_dbg(fg, FG_STATUS, "charge_status:%d charge_type:%d charge_done:%d\n",
 		fg->charge_status, fg->charge_type, fg->charge_done);
@@ -5977,7 +5974,6 @@ static int fg_gen4_probe(struct platform_device *pdev)
 	fg->debug_mask = &fg_gen4_debug_mask;
 	fg->irqs = fg_irqs;
 	fg->charge_status = -EINVAL;
-	fg->prev_charge_status = -EINVAL;
 	fg->online_status = -EINVAL;
 	fg->batt_id_ohms = -EINVAL;
 	chip->ki_coeff_full_soc[0] = -EINVAL;

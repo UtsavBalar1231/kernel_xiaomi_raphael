@@ -1637,7 +1637,8 @@ struct DWC_ETH_QOS_prv_data {
 	/* Module parameter to check if PHY interrupt should be
 	enabled. Default value is true. */
 	bool enable_phy_intr;
-
+	bool en_ptp_pps_avb_class_a_irq;
+	bool en_ptp_pps_avb_class_b_irq;
 	struct msm_bus_scale_pdata *bus_scale_vec;
 	uint32_t bus_hdl;
 	u32 rgmii_clk_rate;
