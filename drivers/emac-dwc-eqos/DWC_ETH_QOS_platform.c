@@ -2247,13 +2247,15 @@ int DWC_ETH_QOS_remove(struct platform_device *pdev)
 	}
 
 	if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_1) {
-		if (dwc_eth_qos_res_data.ptp_pps_avb_class_a_irq != 0) {
+		if (dwc_eth_qos_res_data.ptp_pps_avb_class_a_irq != 0 && pdata->en_ptp_pps_avb_class_a_irq) {
 			free_irq(dwc_eth_qos_res_data.ptp_pps_avb_class_a_irq, pdata);
 			dwc_eth_qos_res_data.ptp_pps_avb_class_a_irq = 0;
+			pdata->en_ptp_pps_avb_class_a_irq = false;
 		}
-		if (dwc_eth_qos_res_data.ptp_pps_avb_class_b_irq != 0) {
+		if (dwc_eth_qos_res_data.ptp_pps_avb_class_b_irq != 0 && pdata->en_ptp_pps_avb_class_b_irq) {
 			free_irq(dwc_eth_qos_res_data.ptp_pps_avb_class_b_irq, pdata);
 			dwc_eth_qos_res_data.ptp_pps_avb_class_b_irq = 0;
+			pdata->en_ptp_pps_avb_class_b_irq = false;
 		}
 	}
 
