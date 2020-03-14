@@ -3110,8 +3110,6 @@ static QDF_STATUS send_scan_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_GET_STRUCT_TLVLEN
 			       (wmi_scan_chan_list_cmd_fixed_param));
 
-	WMI_LOGD("no of channels = %d, len = %d", chan_list->num_scan_chans, len);
-
 	cmd->num_scan_chans = chan_list->num_scan_chans;
 	if (chan_list->max_bw_support_present)
 		cmd->flags |= CHANNEL_MAX_BANDWIDTH_VALID;
@@ -3135,7 +3133,6 @@ static QDF_STATUS send_scan_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 		chan_info->info = tchan_info->info;
 		chan_info->reg_info_1 = tchan_info->reg_info_1;
 		chan_info->reg_info_2 = tchan_info->reg_info_2;
-		WMI_LOGD("chan[%d] = %u", i, chan_info->mhz);
 
 		/*TODO: Set WMI_SET_CHANNEL_MIN_POWER */
 		/*TODO: Set WMI_SET_CHANNEL_ANTENNA_MAX */
@@ -13736,17 +13733,13 @@ static QDF_STATUS send_pdev_set_pcl_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->pdev_id = wmi_handle->ops->convert_pdev_id_host_to_target(
 							WMI_HOST_PDEV_ID_SOC);
 	cmd->num_chan = chan_len;
-	WMI_LOGD("%s: Total chan (PCL) len:%d", __func__, cmd->num_chan);
-
 	buf_ptr += sizeof(wmi_pdev_set_pcl_cmd_fixed_param);
 	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_UINT32,
 			(chan_len * sizeof(uint32_t)));
 	cmd_args = (uint32_t *) (buf_ptr + WMI_TLV_HDR_SIZE);
-	for (i = 0; i < chan_len ; i++) {
+	for (i = 0; i < chan_len ; i++)
 		cmd_args[i] = msg->weighed_valid_list[i];
-		WMI_LOGD("%s: chan:%d weight:%d", __func__,
-			msg->saved_chan_list[i], cmd_args[i]);
-	}
+
 	wmi_mtrace(WMI_PDEV_SET_PCL_CMDID, NO_SESSION, 0);
 	if (wmi_unified_cmd_send(wmi_handle, buf, len,
 				WMI_PDEV_SET_PCL_CMDID)) {
@@ -15773,7 +15766,6 @@ static QDF_STATUS send_roam_invoke_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->flags |= (1 << WMI_ROAM_INVOKE_FLAG_REPORT_FAILURE);
 	if (roaminvoke->is_same_bssid)
 		cmd->flags |= (1 << WMI_ROAM_INVOKE_FLAG_NO_NULL_FRAME_TO_AP);
-	WMI_LOGD(FL("is_same_bssid flag: %d"), roaminvoke->is_same_bssid);
 
 	if (roaminvoke->frame_len) {
 		cmd->roam_scan_mode = WMI_ROAM_INVOKE_SCAN_MODE_SKIP;
@@ -15819,15 +15811,11 @@ static QDF_STATUS send_roam_invoke_cmd_tlv(wmi_unified_t wmi_handle,
 			roaminvoke->frame_buf,
 			roaminvoke->frame_len);
 
-	WMI_LOGD(FL("bcn/prb_rsp frame, length: %d"), roaminvoke->frame_len);
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
-			buf_ptr + WMI_TLV_HDR_SIZE,
-			roaminvoke->frame_len);
-	WMI_LOGD(FL("flag:%d, MODE scn:%d, ap:%d, dly:%d, n_ch:%d, n_bssid:%d"),
+	WMI_LOGD(FL("flag:%d, MODE scn:%d, ap:%d, dly:%d, n_ch:%d, n_bssid:%d is_same_bssid:%d BSSID: %pM, channel: %d"),
 			cmd->flags, cmd->roam_scan_mode,
-			cmd->roam_ap_sel_mode, cmd->roam_delay,
-			cmd->num_chan, cmd->num_bssid);
-	WMI_LOGD(FL("BSSID: %pM, channel: %d"), roaminvoke->bssid, ch_hz);
+			cmd->roam_ap_sel_mode, cmd->roam_delay, cmd->num_chan,
+			cmd->num_bssid, roaminvoke->is_same_bssid,
+			roaminvoke->bssid, ch_hz);
 
 	wmi_mtrace(WMI_ROAM_INVOKE_CMDID, cmd->vdev_id, 0);
 	if (wmi_unified_cmd_send(wmi_handle, wmi_buf, len,
@@ -19119,10 +19107,8 @@ static QDF_STATUS extract_swba_tim_info_tlv(wmi_unified_t wmi_handle,
 	wmi_tim_info *tim_info_ev;
 
 	param_buf = (WMI_HOST_SWBA_EVENTID_param_tlvs *) evt_buf;
-	if (!param_buf) {
-		WMI_LOGE("Invalid swba event buffer");
+	if (!param_buf)
 		return QDF_STATUS_E_INVAL;
-	}
 
 	tim_info_ev = &param_buf->tim_info[idx];
 
@@ -22277,6 +22263,7 @@ static QDF_STATUS send_btm_config_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->max_attempt_cnt = params->btm_max_attempt_cnt;
 	cmd->solicited_timeout_ms = params->btm_solicited_timeout;
 	cmd->stick_time_seconds = params->btm_sticky_time;
+	cmd->btm_bitmap = params->btm_query_bitmask;
 	cmd->disassoc_timer_threshold = params->disassoc_timer_threshold;
 	cmd->btm_candidate_min_score = params->btm_candidate_min_score;
 
@@ -22990,6 +22977,39 @@ static QDF_STATUS send_set_roam_trigger_cmd_tlv(wmi_unified_t wmi_handle,
 	return ret;
 }
 
+static QDF_STATUS send_roam_scan_get_ch_req_tlv(wmi_unified_t wmi_handle,
+						uint32_t vdev_id)
+{
+	wmi_buf_t buf;
+	wmi_roam_get_scan_channel_list_cmd_fixed_param *cmd;
+	uint16_t len = sizeof(*cmd);
+	int ret;
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("%s: Failed to allocate wmi buffer", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_roam_get_scan_channel_list_cmd_fixed_param *)
+					wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+	WMITLV_TAG_STRUC_wmi_roam_get_scan_channel_list_cmd_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN
+		      (wmi_roam_get_scan_channel_list_cmd_fixed_param));
+	cmd->vdev_id = vdev_id;
+	wmi_mtrace(WMI_ROAM_GET_SCAN_CHANNEL_LIST_CMDID, vdev_id, 0);
+	ret = wmi_unified_cmd_send(wmi_handle, buf, len,
+				   WMI_ROAM_GET_SCAN_CHANNEL_LIST_CMDID);
+	if (QDF_IS_STATUS_ERROR(ret)) {
+		WMI_LOGE("Failed to send get roam scan channels request = %d",
+			 ret);
+		wmi_buf_free(buf);
+	}
+
+	return ret;
+}
+
 /**
  * send_offload_11k_cmd_tlv() - send wmi cmd with 11k offload params
  * @wmi_handle: wmi handler
@@ -23610,6 +23630,36 @@ static QDF_STATUS extract_ani_level_tlv(uint8_t *evt_buf,
 	return QDF_STATUS_SUCCESS;
 }
 #endif /* FEATURE_ANI_LEVEL_REQUEST */
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+static QDF_STATUS
+extract_vdev_mgmt_offload_event_tlv(void *handle, void *evt_buf,
+				    struct mgmt_offload_event_params *params)
+{
+	WMI_VDEV_MGMT_OFFLOAD_EVENTID_param_tlvs *param_tlvs;
+	wmi_mgmt_hdr *hdr;
+
+	param_tlvs = (WMI_VDEV_MGMT_OFFLOAD_EVENTID_param_tlvs *)evt_buf;
+	if (!param_tlvs)
+		return QDF_STATUS_E_INVAL;
+
+	hdr = param_tlvs->fixed_param;
+	if (!hdr)
+		return QDF_STATUS_E_INVAL;
+
+	if (hdr->buf_len > param_tlvs->num_bufp)
+		return QDF_STATUS_E_INVAL;
+
+	params->tsf_l32 = hdr->tsf_l32;
+	params->chan_freq = hdr->chan_freq;
+	params->rate_kbps = hdr->rate_kbps;
+	params->rssi = hdr->rssi;
+	params->buf_len = hdr->buf_len;
+	params->tx_status = hdr->tx_status;
+	params->buf = param_tlvs->bufp;
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
 
 #ifdef FEATURE_WLAN_TIME_SYNC_FTM
 /**
@@ -24565,6 +24615,9 @@ struct wmi_ops tlv_ops =  {
 	.extract_ani_level = extract_ani_level_tlv,
 #endif /* FEATURE_ANI_LEVEL_REQUEST */
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+	.extract_vdev_mgmt_offload_event = extract_vdev_mgmt_offload_event_tlv,
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
 #ifdef FEATURE_WLAN_TIME_SYNC_FTM
 	.send_wlan_time_sync_ftm_trigger_cmd = send_wlan_ts_ftm_trigger_cmd_tlv,
 	.send_wlan_ts_qtime_cmd = send_wlan_ts_qtime_cmd_tlv,
@@ -24578,6 +24631,7 @@ struct wmi_ops tlv_ops =  {
 	.extract_roam_scan_stats = extract_roam_scan_stats_tlv,
 	.extract_roam_result_stats = extract_roam_result_stats_tlv,
 	.extract_roam_11kv_stats = extract_roam_11kv_stats_tlv,
+	.send_roam_scan_get_ch_req = send_roam_scan_get_ch_req_tlv,
 };
 
 /**
@@ -24911,6 +24965,9 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 			WMI_VDEV_AUDIO_SYNC_Q_MASTER_SLAVE_OFFSET_EVENTID;
 #endif
 	event_ids[wmi_roam_stats_event_id] = WMI_ROAM_STATS_EVENTID;
+	event_ids[wmi_roam_scan_chan_list_id] =
+		WMI_ROAM_SCAN_CHANNEL_LIST_EVENTID;
+
 }
 
 /**
@@ -25164,6 +25221,8 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_PACKET_CAPTURE_SUPPORT;
 	wmi_service[wmi_service_time_sync_ftm] =
 			WMI_SERVICE_AUDIO_SYNC_SUPPORT;
+	wmi_service[wmi_roam_scan_chan_list_to_host_support] =
+			WMI_SERVICE_ROAM_SCAN_CHANNEL_LIST_TO_HOST_SUPPORT;
 }
 
 #ifndef CONFIG_MCL
