@@ -1,4 +1,0 @@
-config VNSWAP
-	tristate "Fake device for swap"
-	depends on BLOCK && SYSFS
-	default n
