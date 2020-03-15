@@ -1217,6 +1217,7 @@ static void lim_set_rmf_enabled(struct mac_context *mac,
 	else
 		session->limRmfEnabled = 0;
 
+	session->mgmt_cipher_type = csr_join_req->MgmtEncryptionType;
 	pe_debug("mgmt encryption type %d limRmfEnabled %d",
 		 csr_join_req->MgmtEncryptionType, session->limRmfEnabled);
 }

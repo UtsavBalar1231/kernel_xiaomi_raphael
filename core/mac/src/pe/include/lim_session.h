@@ -316,6 +316,7 @@ struct pe_session {
 	uint8_t lim11dEnabled:1;
 #ifdef WLAN_FEATURE_11W
 	uint8_t limRmfEnabled:1;        /* 11W */
+	tAniEdType mgmt_cipher_type;
 #endif
 	uint32_t lim11hEnable;
 
