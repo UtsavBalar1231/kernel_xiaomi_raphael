@@ -802,6 +802,9 @@ static QDF_STATUS nan_handle_end_ind(
 		wlan_objmgr_vdev_release_ref(vdev_itr, WLAN_NAN_ID);
 	}
 
+	policy_mgr_decr_active_session(psoc, QDF_NDI_MODE,
+				       wlan_vdev_get_id(ind->vdev));
+
 	psoc_nan_obj->cb_obj.ndp_delete_peers(ind->ndp_map, ind->num_ndp_ids);
 	psoc_nan_obj->cb_obj.os_if_ndp_event_handler(psoc, ind->vdev,
 						     NDP_END_IND, ind);

@@ -1005,6 +1005,16 @@ ucfg_mlme_get_roaming_offload(struct wlan_objmgr_psoc *psoc,
 			      bool *val);
 
 /**
+ * ucfg_mlme_get_roam_disable_config() - Get sta roam disable value
+ * @psoc: pointer to psoc object
+ * @val: Pointer to bitmap of interfaces for those sta roaming is disabled
+ *
+ * Return: QDF Status
+ */
+QDF_STATUS ucfg_mlme_get_roam_disable_config(struct wlan_objmgr_psoc *psoc,
+					     uint32_t *val);
+
+/**
  * ucfg_mlme_set_roaming_offload() - Enable/disable roaming offload
  * @psoc: pointer to psoc object
  * @val:  enable/disable roaming offload
@@ -1028,6 +1038,13 @@ ucfg_mlme_get_roaming_triggers(struct wlan_objmgr_psoc *psoc)
 	return wlan_mlme_get_roaming_triggers(psoc);
 }
 #else
+static inline
+QDF_STATUS ucfg_mlme_get_roam_disable_config(struct wlan_objmgr_psoc *psoc,
+					     uint32_t *val)
+{
+	return QDF_STATUS_E_FAILURE;
+}
+
 static inline QDF_STATUS
 ucfg_mlme_get_roaming_offload(struct wlan_objmgr_psoc *psoc,
 			      bool *val)

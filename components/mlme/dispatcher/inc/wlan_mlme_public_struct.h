@@ -280,6 +280,7 @@ enum mlme_ts_info_ack_policy {
  * @RSO_CHANNEL_SWITCH: disable roaming due to STA channel switch
  * @RSO_CONNECT_START: disable roaming temporarily due to connect
  * @RSO_SAP_CHANNEL_CHANGE: disable roaming due to SAP channel change
+ * @RSO_NDP_CON_ON_NDI: disable roaming due to NDP connection on NDI
  */
 enum roam_control_requestor {
 	RSO_INVALID_REQUESTOR,
@@ -287,6 +288,7 @@ enum roam_control_requestor {
 	RSO_CHANNEL_SWITCH     = BIT(1),
 	RSO_CONNECT_START      = BIT(2),
 	RSO_SAP_CHANNEL_CHANGE = BIT(3),
+	RSO_NDP_CON_ON_NDI     = BIT(4),
 };
 
 /**
@@ -383,6 +385,9 @@ struct wlan_mlme_edca_params {
 
 #define MLME_NUM_WLM_LATENCY_LEVEL 4
 #define MLME_RMENABLEDCAP_MAX_LEN  5
+
+#define LFR3_STA_ROAM_DISABLE_BY_P2P BIT(0)
+#define LFR3_STA_ROAM_DISABLE_BY_NAN BIT(1)
 
 /**
  * struct mlme_ht_capabilities_info - HT Capabilities Info
@@ -1401,6 +1406,7 @@ struct bss_load_trigger {
  * @idle_roam_min_rssi: Minimum rssi of connected AP to be considered for
  * idle roam trigger.
  * @roam_trigger_bitmap:            Bitmap of roaming triggers.
+ * @sta_roam_disable                STA roaming disabled by interfaces
  * @early_stop_scan_enable:         Set early stop scan
  * @enable_5g_band_pref:            Enable preference for 5G from INI
  * @ese_enabled:                    Enable ESE feature
@@ -1504,6 +1510,7 @@ struct wlan_mlme_lfr_cfg {
 	uint32_t idle_roam_band;
 	int32_t idle_roam_min_rssi;
 	uint32_t roam_trigger_bitmap;
+	uint32_t sta_roam_disable;
 #endif
 	bool early_stop_scan_enable;
 	bool enable_5g_band_pref;

@@ -1622,11 +1622,18 @@ void policy_mgr_incr_active_session(struct wlan_objmgr_psoc *psoc,
 	case QDF_SAP_MODE:
 	case QDF_IBSS_MODE:
 	case QDF_NAN_DISC_MODE:
+	case QDF_NDI_MODE:
 		pm_ctx->no_of_active_sessions[mode]++;
 		break;
 	default:
 		break;
 	}
+
+	if (mode == QDF_NDI_MODE &&
+	    pm_ctx->hdd_cbacks.wlan_hdd_indicate_active_ndp_cnt)
+		pm_ctx->hdd_cbacks.wlan_hdd_indicate_active_ndp_cnt(
+				psoc, session_id,
+				pm_ctx->no_of_active_sessions[mode]);
 
 	if (mode != QDF_NAN_DISC_MODE && pm_ctx->dp_cbacks.hdd_v2_flow_pool_map)
 		pm_ctx->dp_cbacks.hdd_v2_flow_pool_map(session_id);
@@ -1707,12 +1714,19 @@ QDF_STATUS policy_mgr_decr_active_session(struct wlan_objmgr_psoc *psoc,
 	case QDF_SAP_MODE:
 	case QDF_IBSS_MODE:
 	case QDF_NAN_DISC_MODE:
+	case QDF_NDI_MODE:
 		if (pm_ctx->no_of_active_sessions[mode])
 			pm_ctx->no_of_active_sessions[mode]--;
 		break;
 	default:
 		break;
 	}
+
+	if (mode == QDF_NDI_MODE &&
+	    pm_ctx->hdd_cbacks.wlan_hdd_indicate_active_ndp_cnt)
+		pm_ctx->hdd_cbacks.wlan_hdd_indicate_active_ndp_cnt(
+				psoc, session_id,
+				pm_ctx->no_of_active_sessions[mode]);
 
 	if (mode != QDF_NAN_DISC_MODE &&
 	    pm_ctx->dp_cbacks.hdd_v2_flow_pool_unmap)
