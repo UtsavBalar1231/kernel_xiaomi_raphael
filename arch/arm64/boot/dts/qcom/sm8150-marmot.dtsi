@@ -11,6 +11,7 @@
  */
 
 #include <dt-bindings/msm/msm-bus-ids.h>
+#include "sm8150-audio-overlay.dtsi"
 
 &mdm3 {
 	compatible = "qcom,ext-marmot";
@@ -395,4 +396,9 @@
 		qcom,mhi-erdb-base = <0x40300700>;
 		qcom,iova-mapping = <0x10000000 0x0FFFFFFF>;
 	 };
+};
+
+&snd_934x {
+	compatible = "qcom,sm8150-asoc-snd-pcie";
+	qcom,model = "sm8150-pcie-snd-card";
 };

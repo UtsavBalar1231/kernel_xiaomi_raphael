@@ -2557,3 +2557,21 @@ sound-9330 {
 		asoc-codec = <&stub_codec>;
 		asoc-codec-names = "msm-stub-codec.1";
 	};
+
+* msm-pcm-pcie
+
+Required properties:
+ - compatible : "qcom,msm-pcm-pcie"
+
+* PCIE ASoC Machine driver
+
+Required properties:
+- compatible : "qcom,sm8150-asoc-snd-pcie".
+- qcom,model : The user-visible name of this sound card.
+
+Example:
+
+snd_934x {
+»       compatible = "qcom,sm8150-asoc-snd-pcie";
+»       qcom,model = "sm8150-pcie-snd-card";
+};
