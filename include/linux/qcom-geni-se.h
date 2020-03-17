@@ -94,6 +94,8 @@ struct se_rsc_ssr {
  * @geni_pinctrl:	Handle to the pinctrl configuration.
  * @geni_gpio_active:	Handle to the default/active pinctrl state.
  * @geni_gpi_sleep:	Handle to the sleep pinctrl state.
+ * @num_clk_levels:    Number of valid clock levels in clk_perf_tbl.
+ * @clk_perf_tbl:      Table of clock frequency input to Serial Engine clock
  */
 struct se_geni_rsc {
 	struct device *ctrl_dev;
@@ -114,6 +116,8 @@ struct se_geni_rsc {
 	struct pinctrl_state *geni_gpio_sleep;
 	int clk_freq_out;
 	struct se_rsc_ssr rsc_ssr;
+	unsigned int num_clk_levels;
+	unsigned long *clk_perf_tbl;
 };
 
 #define PINCTRL_DEFAULT	"default"
