@@ -148,10 +148,10 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 	}
 
 	if (*debug) {
-		pr_info("sdcardfs : options - debug:%d\n", *debug);
-		pr_info("sdcardfs : options - uid:%d\n",
+		pr_debug("sdcardfs : options - debug:%d\n", *debug);
+		pr_debug("sdcardfs : options - uid:%d\n",
 							opts->fs_low_uid);
-		pr_info("sdcardfs : options - gid:%d\n",
+		pr_debug("sdcardfs : options - gid:%d\n",
 							opts->fs_low_gid);
 	}
 
@@ -212,9 +212,9 @@ int parse_options_remount(struct super_block *sb, char *options, int silent,
 	}
 
 	if (debug) {
-		pr_info("sdcardfs : options - debug:%d\n", debug);
-		pr_info("sdcardfs : options - gid:%d\n", vfsopts->gid);
-		pr_info("sdcardfs : options - mask:%d\n", vfsopts->mask);
+		pr_debug("sdcardfs : options - debug:%d\n", debug);
+		pr_debug("sdcardfs : options - gid:%d\n", vfsopts->gid);
+		pr_debug("sdcardfs : options - mask:%d\n", vfsopts->mask);
 	}
 
 	return 0;
