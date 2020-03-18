@@ -1845,8 +1845,10 @@ int32_t npu_host_exec_network(struct npu_client *client,
 	mutex_lock(&host_ctx->lock);
 	if (!ret) {
 		pr_err_ratelimited("npu: NPU_IPC_CMD_EXECUTE time out\n");
+#ifdef CONFIG_MSM_NPU_DEBUG_FS
 		/* dump debug stats */
 		npu_dump_debug_timeout_stats(npu_dev);
+#endif
 		network->cmd_pending = false;
 		ret = -ETIMEDOUT;
 		goto exec_done;
@@ -1988,8 +1990,10 @@ int32_t npu_host_exec_network_v2(struct npu_client *client,
 	mutex_lock(&host_ctx->lock);
 	if (!ret) {
 		pr_err_ratelimited("npu: NPU_IPC_CMD_EXECUTE_V2 time out\n");
+#ifdef CONFIG_MSM_NPU_DEBUG_FS
 		/* dump debug stats */
 		npu_dump_debug_timeout_stats(npu_dev);
+#endif
 		network->cmd_pending = false;
 		ret = -ETIMEDOUT;
 		goto free_exec_packet;

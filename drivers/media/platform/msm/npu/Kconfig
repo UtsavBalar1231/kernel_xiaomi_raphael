@@ -8,3 +8,9 @@ config MSM_NPU
 	  This module serves as the common driver
 	  for npu which provides acceleration for neural
 	  network processing.
+
+config MSM_NPU_DEBUG_FS
+
+	bool "debugging framework of QTI MSM Neural Processing Unit"
+	depends on MSM_NPU || DEBUG_FS
+	default n

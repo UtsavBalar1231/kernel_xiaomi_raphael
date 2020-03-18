@@ -2989,6 +2989,7 @@ CONFIG_MSM_VIDC_GOVERNORS=y
 CONFIG_MSM_SDE_ROTATOR=y
 # CONFIG_MSM_SDE_ROTATOR_EVTLOG_DEBUG is not set
 CONFIG_MSM_NPU=y
+# CONFIG_MSM_NPU_DEBUG_FS is not set
 
 #
 # Qualcomm Technologies, Inc. Demux device config
