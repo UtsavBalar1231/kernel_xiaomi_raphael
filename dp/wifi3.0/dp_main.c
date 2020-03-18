@@ -2036,7 +2036,6 @@ static void dp_soc_interrupt_detach(void *txrx_soc)
 	int i;
 
 	if (soc->intr_mode == DP_INTR_POLL) {
-		qdf_timer_stop(&soc->int_timer);
 		qdf_timer_free(&soc->int_timer);
 	} else {
 		hif_deregister_exec_group(soc->hif_handle, "dp_intr");
@@ -5015,8 +5014,11 @@ static void dp_vdev_detach_wifi3(struct cdp_vdev *vdev_handle,
 	dp_rx_vdev_detach(vdev);
 
 free_vdev:
-	if (wlan_op_mode_monitor == vdev->opmode)
+	if (wlan_op_mode_monitor == vdev->opmode) {
+		if (soc->intr_mode == DP_INTR_POLL)
+			qdf_timer_sync_cancel(&soc->int_timer);
 		pdev->monitor_vdev = NULL;
+	}
 
 	dp_info("deleting vdev object %pK (%pM)", vdev, vdev->mac_addr.raw);
 	qdf_mem_free(vdev);
