@@ -3170,6 +3170,7 @@ fail_alloc:
 		kfree(new_entry);
 		new_entry = NULL;
 	}
+	put_task_struct(current);
 	mutex_unlock(&driver->dci_mutex);
 	put_task_struct(task_s);
 	put_task_struct(task_s);
