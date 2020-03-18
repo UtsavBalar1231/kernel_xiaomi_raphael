@@ -90,7 +90,13 @@
 #define wma_err(params...) QDF_TRACE_ERROR(QDF_MODULE_ID_WMA, params)
 #define wma_warn(params...) QDF_TRACE_WARN(QDF_MODULE_ID_WMA, params)
 #define wma_info(params...) QDF_TRACE_INFO(QDF_MODULE_ID_WMA, params)
+
+#ifdef WLAN_DEBUG
 #define wma_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_WMA, params)
+#else
+#define wma_debug(params...)
+#endif
+
 #define wma_err_rl(params...) QDF_TRACE_ERROR_RL(QDF_MODULE_ID_WMA, params)
 
 #define wma_nofl_alert(params...) \
