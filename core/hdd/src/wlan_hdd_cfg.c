@@ -3016,7 +3016,22 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ROAMING_OFFLOAD_DEFAULT,
 		     CFG_ROAMING_OFFLOAD_MIN,
 		     CFG_ROAMING_OFFLOAD_MAX),
+
+	REG_VARIABLE(CFG_ROAM_TRIGGER_BITMAP, WLAN_PARAM_HexInteger,
+		     struct hdd_config, roam_triggers,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
+		     CFG_ROAM_TRIGGER_BITMAP_DEFAULT,
+		     CFG_ROAM_TRIGGER_BITMAP_MIN,
+		     CFG_ROAM_TRIGGER_BITMAP_MAX),
 #endif
+
+	REG_VARIABLE(CFG_BMISS_SKIP_FULL_SCAN, WLAN_PARAM_Integer,
+		     struct hdd_config, bmiss_skip_full_scan,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_BMISS_SKIP_FULL_SCAN_DEFAULT,
+		     CFG_BMISS_SKIP_FULL_SCAN_MIN,
+		     CFG_BMISS_SKIP_FULL_SCAN_MAX),
+
 #ifdef MSM_PLATFORM
 	REG_VARIABLE(CFG_BUS_BANDWIDTH_HIGH_THRESHOLD, WLAN_PARAM_Integer,
 		     struct hdd_config, busBandwidthHighThreshold,
@@ -6133,6 +6148,16 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ADAPTIVE_11R_MIN,
 		     CFG_ADAPTIVE_11R_MAX),
 #endif
+
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+	REG_VARIABLE(CFG_SAE_SINGLE_PMK, WLAN_PARAM_Integer,
+		     struct hdd_config, sae_single_pmk_feature_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SAE_SINGLE_PMK_DEFAULT,
+		     CFG_SAE_SINGLE_PMK_MIN,
+		     CFG_SAE_SINGLE_PMK_MAX),
+#endif
+
 	REG_VARIABLE(CFG_BSS_LOAD_TRIG_5G_RSSI_THRES, WLAN_PARAM_SignedInteger,
 		     struct hdd_config, bss_load_trigger_rssi_threshold_5ghz,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -6304,6 +6329,56 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT,
 		     CFG_DISABLE_4WAY_HS_OFFLOAD_MIN,
 		     CFG_DISABLE_4WAY_HS_OFFLOAD_MAX),
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	REG_VARIABLE(CFG_ENABLE_TIME_SYNC_FTM, WLAN_PARAM_Integer,
+		     struct hdd_config, time_sync_ftm_enable,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_TIME_SYNC_FTM_DEFAULT,
+		     CFG_ENABLE_TIME_SYNC_FTM_MIN,
+		     CFG_ENABLE_TIME_SYNC_FTM_MAX),
+
+	REG_VARIABLE(CFG_TIME_SYNC_FTM_MODE, WLAN_PARAM_Integer,
+		     struct hdd_config, time_sync_ftm_mode,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TIME_SYNC_FTM_MODE_DEFAULT,
+		     CFG_TIME_SYNC_FTM_MODE_MIN,
+		     CFG_TIME_SYNC_FTM_MODE_MAX),
+
+	REG_VARIABLE(CFG_TIME_SYNC_FTM_ROLE, WLAN_PARAM_Integer,
+		     struct hdd_config, time_sync_ftm_role,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TIME_SYNC_FTM_ROLE_DEFAULT,
+		     CFG_TIME_SYNC_FTM_ROLE_MIN,
+		     CFG_TIME_SYNC_FTM_ROLE_MAX),
+#endif
+	REG_VARIABLE(CFG_P2P_DISABLE_ROAM, WLAN_PARAM_Integer,
+		     struct hdd_config, p2p_disable_roam,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_P2P_DISABLE_ROAM_DEFAULT,
+		     CFG_P2P_DISABLE_ROAM_MIN,
+		     CFG_P2P_DISABLE_ROAM_MAX),
+
+#ifdef WLAN_FEATURE_PERIODIC_STA_STATS
+	REG_VARIABLE(CFG_PERIODIC_STATS_TIMER_INTERVAL, WLAN_PARAM_Integer,
+		     struct hdd_config, periodic_stats_timer_interval,
+		     VAR_FLAGS_OPTIONAL,
+		     CFG_PERIODIC_STATS_TIMER_INTERVAL_DEFAULT,
+		     CFG_PERIODIC_STATS_TIMER_INTERVAL_MIN,
+		     CFG_PERIODIC_STATS_TIMER_INTERVAL_MAX),
+
+	REG_VARIABLE(CFG_PERIODIC_STATS_TIMER_DURATION, WLAN_PARAM_Integer,
+		     struct hdd_config, periodic_stats_timer_duration,
+		     VAR_FLAGS_OPTIONAL,
+		     CFG_PERIODIC_STATS_TIMER_DURATION_DEFAULT,
+		     CFG_PERIODIC_STATS_TIMER_DURATION_MIN,
+		     CFG_PERIODIC_STATS_TIMER_DURATION_MAX),
+#endif
+	REG_VARIABLE(CFG_DFS_CHAN_AGEOUT_TIME, WLAN_PARAM_Integer,
+		     struct hdd_config, dfs_chan_ageout_time,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DFS_CHAN_AGEOUT_TIME_DEFAULT,
+		     CFG_DFS_CHAN_AGEOUT_TIME_MIN,
+		     CFG_DFS_CHAN_AGEOUT_TIME_MAX),
 };
 
 /**
@@ -7780,6 +7855,8 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	hdd_debug("Name = [isRoamOffloadEnabled] Value = [%u]",
 		  hdd_ctx->config->isRoamOffloadEnabled);
+	hdd_debug("Name = [roam_triggers] Value = [%u]",
+		  hdd_ctx->config->roam_triggers);
 #endif
 
 #ifdef WLAN_FEATURE_LPSS
@@ -8372,6 +8449,23 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] value = [%d]",
 		  CFG_DISABLE_4WAY_HS_OFFLOAD,
 		  hdd_ctx->config->disable_4way_hs_offload);
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	hdd_debug("Name = [%s] Value =[%d]",
+		  CFG_ENABLE_TIME_SYNC_FTM,
+		  hdd_ctx->config->time_sync_ftm_enable);
+	hdd_debug("Name = [%s] Value =[%d]",
+		  CFG_TIME_SYNC_FTM_MODE,
+		  hdd_ctx->config->time_sync_ftm_mode);
+	hdd_debug("Name = [%s] Value =[%d]",
+		  CFG_TIME_SYNC_FTM_ROLE,
+		  hdd_ctx->config->time_sync_ftm_role);
+#endif
+	hdd_debug("Name = [%s] value = [%d]",
+		   CFG_P2P_DISABLE_ROAM,
+		   hdd_ctx->config->p2p_disable_roam);
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_DFS_CHAN_AGEOUT_TIME,
+		  hdd_ctx->config->dfs_chan_ageout_time);
 }
 
 /**
@@ -9731,6 +9825,22 @@ sme_update_adaptive_11r_cap(tSmeConfigParams *sme_config,
 }
 #endif
 
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+static void
+sme_update_sae_single_pmk_cfg(tSmeConfigParams *sme_config,
+			      struct hdd_config *ini_config)
+{
+	sme_config->csrConfig.sae_single_pmk_feature_enabled =
+		ini_config->sae_single_pmk_feature_enabled;
+}
+#else
+static inline void
+sme_update_sae_single_pmk_cfg(tSmeConfigParams *sme_config,
+			      struct hdd_config *ini_config)
+{
+}
+#endif
+
 /**
  * hdd_set_sme_config() -initializes the sme configuration parameters
  *
@@ -9998,6 +10108,8 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	smeConfig->csrConfig.isRoamOffloadEnabled =
 		hdd_ctx->config->isRoamOffloadEnabled;
+	smeConfig->csrConfig.roam_triggers =
+		hdd_ctx->config->roam_triggers;
 	smeConfig->csrConfig.enable_disconnect_roam_offload =
 		hdd_ctx->config->enable_disconnect_roam_offload;
 	smeConfig->csrConfig.enable_idle_roam =
@@ -10296,7 +10408,10 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 			pConfig->btm_trig_min_candidate_score;
 	smeConfig->csrConfig.enable_pending_list_req =
 			pConfig->enable_pending_list_req;
+	smeConfig->csrConfig.p2p_disable_roam =
+			pConfig->p2p_disable_roam;
 	sme_update_adaptive_11r_cap(smeConfig, pConfig);
+	sme_update_sae_single_pmk_cfg(smeConfig, pConfig);
 
 	sme_update_beacon_stats(mac_handle,
 				hdd_ctx->config->enable_beacon_reception_stats);

@@ -45,6 +45,7 @@
 #include "wlan_hdd_ftm.h"
 #include "wlan_hdd_power.h"
 #include "wlan_hdd_stats.h"
+#include "wlan_hdd_periodic_sta_stats.h"
 #include "wlan_hdd_scan.h"
 #include <wlan_osif_request_manager.h>
 #ifdef CONFIG_LEAK_DETECTION
@@ -4371,6 +4372,21 @@ int hdd_vdev_ready(struct hdd_adapter *adapter)
 	return qdf_status_to_os_return(status);
 }
 
+static void hdd_cleanup_cached_sta_info(struct hdd_adapter *adapter)
+{
+	uint16_t sta_id;
+	struct wlan_ies *ies;
+
+	for (sta_id = 0; sta_id < WLAN_MAX_STA_COUNT; sta_id++) {
+		ies = &adapter->cache_sta_info[sta_id].assoc_req_ies;
+		if (ies->data && ies->len) {
+			qdf_mem_free(ies->data);
+			ies->data = NULL;
+			ies->len = 0;
+		}
+	}
+}
+
 int hdd_vdev_destroy(struct hdd_adapter *adapter)
 {
 	QDF_STATUS status;
@@ -4395,6 +4411,8 @@ int hdd_vdev_destroy(struct hdd_adapter *adapter)
 	ucfg_pmo_del_wow_pattern(vdev);
 
 	status = ucfg_reg_11d_vdev_delete_update(vdev);
+
+	hdd_cleanup_cached_sta_info(adapter);
 
 	/* Disable Scan and abort any pending scans for this vdev */
 	ucfg_scan_set_vdev_del_in_progress(vdev);
@@ -4899,6 +4917,7 @@ static void hdd_cleanup_adapter(struct hdd_context *hdd_ctx,
 
 	hdd_nud_deinit_tracking(adapter);
 	qdf_mutex_destroy(&adapter->disconnection_status_lock);
+	hdd_periodic_sta_stats_mutex_destroy(adapter);
 	hdd_apf_context_destroy(adapter);
 	qdf_spinlock_destroy(&adapter->vdev_lock);
 
@@ -5397,6 +5416,16 @@ int hdd_set_fw_params(struct hdd_adapter *adapter)
 	}
 
 	ret = sme_cli_set_command(adapter->session_id,
+				  WMI_PDEV_PARAM_SET_DFS_CHAN_AGEOUT_TIME,
+				  hdd_ctx->config->dfs_chan_ageout_time,
+				  PDEV_CMD);
+	if (ret) {
+		hdd_err("WMI_PDEV_PARAM_SET_DFS_CHAN_AGEOUT_TIME set failed %d",
+			ret);
+		goto error;
+	}
+
+	ret = sme_cli_set_command(adapter->session_id,
 				  WMI_VDEV_PARAM_ENABLE_RTSCTS,
 				  hdd_ctx->config->rts_profile,
 				  VDEV_CMD);
@@ -5634,6 +5663,7 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 		    adapter->device_mode == QDF_P2P_DEVICE_MODE)
 			hdd_sysfs_create_adapter_root_obj(adapter);
 		qdf_mutex_create(&adapter->disconnection_status_lock);
+		hdd_periodic_sta_stats_mutex_create(adapter);
 
 		break;
 
@@ -5754,6 +5784,9 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 		wlan_hdd_debugfs_csr_init(adapter);
 
 	hdd_set_ethtool_ops(adapter->dev);
+
+	hdd_periodic_sta_stats_init(adapter);
+
 	return adapter;
 
 err_free_netdev:
@@ -5987,6 +6020,8 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 						(WLAN_WAIT_TIME_DISCONNECT));
 				if (!rc)
 					hdd_warn("disconn_comp_var wait fail");
+				if (adapter->device_mode == QDF_NDI_MODE)
+					hdd_cleanup_ndi(hdd_ctx, adapter);
 			}
 			if (qdf_ret_status != QDF_STATUS_SUCCESS)
 				hdd_warn("failed to post disconnect");
@@ -7689,8 +7724,6 @@ static QDF_STATUS hdd_abort_sched_scan_all_adapters(struct hdd_context *hdd_ctx)
 	struct hdd_adapter *adapter;
 	int err;
 
-	hdd_enter();
-
 	hdd_for_each_adapter(hdd_ctx, adapter) {
 		if (adapter->device_mode == QDF_STA_MODE ||
 		    adapter->device_mode == QDF_P2P_CLIENT_MODE ||
@@ -7703,8 +7736,6 @@ static QDF_STATUS hdd_abort_sched_scan_all_adapters(struct hdd_context *hdd_ctx)
 				hdd_err("Unable to stop scheduled scan");
 		}
 	}
-
-	hdd_exit();
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -8640,6 +8671,8 @@ static void hdd_pld_request_bus_bandwidth(struct hdd_context *hdd_ctx,
 	}
 
 	hdd_display_periodic_stats(hdd_ctx, (total_pkts > 0) ? true : false);
+
+	hdd_periodic_sta_stats_display(hdd_ctx);
 }
 
 #define HDD_BW_GET_DIFF(_x, _y) (unsigned long)((ULONG_MAX - (_y)) + (_x) + 1)
@@ -10770,6 +10803,7 @@ static int hdd_update_cds_config(struct hdd_context *hdd_ctx)
 	cds_cfg->num_vdevs = hdd_ctx->config->num_vdevs;
 	cds_cfg->enable_peer_unmap_conf_support =
 		hdd_ctx->config->enable_peer_unmap_conf_support;
+	cds_cfg->bmiss_skip_full_scan = hdd_ctx->config->bmiss_skip_full_scan;
 
 	hdd_ra_populate_cds_config(cds_cfg, hdd_ctx);
 	cds_cfg->enable_tx_compl_tsf64 =
@@ -13293,6 +13327,11 @@ static bool hdd_any_adapter_is_assoc(struct hdd_context *hdd_ctx)
 		    WLAN_HDD_GET_AP_CTX_PTR(adapter)->ap_active) {
 			return true;
 		}
+
+		if (adapter->device_mode == QDF_NDI_MODE &&
+		    WLAN_HDD_GET_STATION_CTX_PTR(adapter)->
+		    conn_info.connState == eConnectionState_NdiConnected)
+			return true;
 	}
 
 	return false;
@@ -13884,7 +13923,7 @@ static QDF_STATUS hdd_component_init(void)
 	if (QDF_IS_STATUS_ERROR(status))
 		goto mlme_deinit;
 
-	status = ucfg_ftm_timesync_init();
+	status = ucfg_ftm_time_sync_init();
 	if (QDF_IS_STATUS_ERROR(status))
 		goto pkt_capture_deinit;
 
@@ -13918,7 +13957,7 @@ dispatcher_deinit:
 static void hdd_component_deinit(void)
 {
 	/* deinitialize non-converged components */
-	ucfg_ftm_timesync_deinit();
+	ucfg_ftm_time_sync_deinit();
 	ucfg_pkt_capture_deinit();
 	ucfg_mlme_deinit();
 	ucfg_action_oui_deinit();
@@ -14056,7 +14095,10 @@ static void hdd_driver_unload(void)
 		hdd_psoc_idle_timer_stop(hdd_ctx);
 
 	wlan_hdd_unregister_driver();
-	hdd_context_destroy(hdd_ctx);
+
+	if (hdd_ctx)
+		hdd_context_destroy(hdd_ctx);
+
 	pld_deinit();
 	wlan_hdd_state_ctrl_param_destroy();
 	hdd_set_conparam(0);
@@ -14901,6 +14943,36 @@ static int hdd_update_pkt_capture_config(struct hdd_context *hdd_ctx)
 	return qdf_status_to_os_return(status);
 }
 
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+/**
+ * hdd_update_time_sync_ftm_config - Update time sync ftm config parameters
+ * @hdd_ctx: HDD context
+ *
+ * Return: 0 on success / error on failure
+ */
+static int hdd_update_time_sync_ftm_config(struct hdd_context *hdd_ctx)
+{
+	struct ftm_time_sync_cfg ftm_time_sync_cfg = {0};
+	QDF_STATUS status;
+
+	ftm_time_sync_cfg.enable = hdd_ctx->config->time_sync_ftm_enable;
+	ftm_time_sync_cfg.mode = hdd_ctx->config->time_sync_ftm_mode;
+	ftm_time_sync_cfg.role = hdd_ctx->config->time_sync_ftm_role;
+
+	status = ucfg_ftm_time_sync_psoc_config(hdd_ctx->psoc,
+						&ftm_time_sync_cfg);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("ftm time sync config failed");
+
+	return qdf_status_to_os_return(status);
+}
+#else
+static inline int hdd_update_time_sync_ftm_config(struct hdd_context *hdd_ctx)
+{
+	return 0;
+}
+#endif
+
 #ifdef FEATURE_WLAN_SCAN_PNO
 static inline void hdd_update_pno_config(struct pno_user_cfg *pno_cfg,
 	struct hdd_config *cfg)
@@ -15236,6 +15308,10 @@ int hdd_update_components_config(struct hdd_context *hdd_ctx)
 		return ret;
 
 	ret = hdd_update_pkt_capture_config(hdd_ctx);
+	if (ret)
+		return ret;
+
+	ret = hdd_update_time_sync_ftm_config(hdd_ctx);
 
 	return ret;
 }

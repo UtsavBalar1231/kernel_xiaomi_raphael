@@ -883,13 +883,9 @@ void hdd_enable_arp_offload(struct hdd_adapter *adapter,
 	struct pmo_arp_req *arp_req;
 	struct in_ifaddr *ifa;
 
-	hdd_enter();
-
 	arp_req = qdf_mem_malloc(sizeof(*arp_req));
-	if (!arp_req) {
-		hdd_err("cannot allocate arp_req");
-		goto out;
-	}
+	if (!arp_req)
+		return;
 
 	arp_req->psoc = psoc;
 	arp_req->vdev_id = adapter->session_id;
@@ -926,9 +922,6 @@ void hdd_enable_arp_offload(struct hdd_adapter *adapter,
 
 free_req:
 	qdf_mem_free(arp_req);
-
-out:
-	hdd_exit();
 }
 
 void hdd_disable_arp_offload(struct hdd_adapter *adapter,
@@ -1671,13 +1664,8 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 		goto exit_with_code;
 	}
 
-	exit_code = wlan_hdd_validate_context(hdd_ctx);
-	if (exit_code) {
-		hdd_err("Invalid HDD context");
-		goto exit_with_code;
-	}
-
 	mutex_lock(&hdd_ctx->iface_change_lock);
+
 	if (hdd_ctx->driver_status != DRIVER_MODULES_ENABLED) {
 		mutex_unlock(&hdd_ctx->iface_change_lock);
 		hdd_debug("Driver is not enabled; Skipping resume");
@@ -1698,6 +1686,14 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 		scheduler_resume();
 		hdd_ctx->is_scheduler_suspended = false;
 	}
+	/* Resume all components registered to pmo */
+	status = ucfg_pmo_resume_all_components(hdd_ctx->psoc,
+						QDF_SYSTEM_SUSPEND);
+	if (status != QDF_STATUS_SUCCESS) {
+		exit_code = 0;
+		goto exit_with_code;
+	}
+
 #ifdef QCA_CONFIG_SMP
 	/* Resume tlshim Rx thread */
 	if (hdd_ctx->is_ol_rx_thread_suspended) {
@@ -1837,13 +1833,19 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 
 	/* flush any pending powersave timers */
 	hdd_for_each_adapter(hdd_ctx, adapter) {
-		wlan_abort_scan(hdd_ctx->pdev, INVAL_PDEV_ID,
-				adapter->session_id, INVALID_SCAN_ID, false);
-
 		if (wlan_hdd_validate_session_id(adapter->session_id))
 			continue;
-
 		sme_ps_timer_flush_sync(mac_handle, adapter->session_id);
+	}
+
+	/*
+	 * Suspend all components registered to pmo, abort ongoing scan and
+	 * don't allow new scan any more before scheduler thread suspended.
+	 */
+	if (ucfg_pmo_suspend_all_components(hdd_ctx->psoc,
+					    QDF_SYSTEM_SUSPEND)) {
+		hdd_err("Some components not ready to suspend!");
+		return -EAGAIN;
 	}
 
 	/*
