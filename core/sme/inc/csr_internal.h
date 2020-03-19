@@ -701,6 +701,9 @@ struct csr_roam_session {
 	bool discon_in_progress;
 	bool is_adaptive_11r_connection;
 	struct csr_disconnect_stats disconnect_stats;
+#ifdef FEATURE_MONITOR_MODE_SUPPORT
+	csr_session_monitor_mode_cb session_monitor_mode_cb;
+#endif
 };
 
 struct csr_roamstruct {

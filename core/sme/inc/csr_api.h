@@ -1482,6 +1482,10 @@ QDF_STATUS csr_continue_lfr2_connect(struct mac_context *mac,
 }
 #endif
 
+#ifdef FEATURE_MONITOR_MODE_SUPPORT
+typedef void (*csr_session_monitor_mode_cb)(uint8_t vdev_id);
+#endif
+
 typedef void (*csr_readyToSuspendCallback)(void *pContext, bool suspended);
 #ifdef WLAN_FEATURE_EXTWOW_SUPPORT
 typedef void (*csr_readyToExtWoWCallback)(void *pContext, bool status);

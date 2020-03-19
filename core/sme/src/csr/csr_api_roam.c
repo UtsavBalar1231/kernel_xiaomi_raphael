@@ -17754,6 +17754,7 @@ QDF_STATUS csr_roam_open_session(struct mac_context *mac_ctx,
 	session->session_close_cb = session_param->session_close_cb;
 	session->callback = session_param->callback;
 	session->pContext = session_param->callback_ctx;
+	csr_monitor_mode_register_callback(session, session_param);
 
 	qdf_mem_copy(&session->self_mac_addr, session_param->self_mac_addr,
 		     sizeof(struct qdf_mac_addr));
@@ -23301,3 +23302,35 @@ csr_enable_roaming_on_connected_sta(struct mac_context *mac, uint8_t vdev_id)
 	return csr_post_roam_state_change(mac, sta_vdev_id, ROAM_RSO_STARTED,
 					  REASON_CTX_INIT);
 }
+
+#ifdef FEATURE_MONITOR_MODE_SUPPORT
+
+void csr_monitor_mode_register_callback(struct csr_roam_session *session,
+				struct sme_session_params *session_param)
+{
+	if (session_param->session_monitor_mode_cb)
+		session->session_monitor_mode_cb =
+					session_param->session_monitor_mode_cb;
+}
+
+QDF_STATUS csr_process_monitor_mode_vdev_up_evt(struct mac_context *mac,
+						uint8_t vdev_id)
+{
+	struct csr_roam_session *session;
+
+	if (!CSR_IS_SESSION_VALID(mac, vdev_id)) {
+		sme_err("vdev ID: %d is not valid", vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	session = CSR_GET_SESSION(mac, vdev_id);
+	if (session->session_monitor_mode_cb)
+		session->session_monitor_mode_cb(vdev_id);
+	else {
+		sme_warn_rl("session_monitor_mode_cb is not registered");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+#endif

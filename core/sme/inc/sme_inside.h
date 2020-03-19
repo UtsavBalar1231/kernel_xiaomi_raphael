@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -201,4 +201,23 @@ void csr_process_set_dual_mac_config(struct mac_context *mac, tSmeCmd *command);
 void csr_process_set_antenna_mode(struct mac_context *mac, tSmeCmd *command);
 void csr_process_set_hw_mode(struct mac_context *mac, tSmeCmd *command);
 void csr_process_nss_update_req(struct mac_context *mac, tSmeCmd *command);
+
+#ifdef FEATURE_MONITOR_MODE_SUPPORT
+QDF_STATUS csr_process_monitor_mode_vdev_up_evt(struct mac_context *mac,
+						uint8_t vdev_id);
+
+void csr_monitor_mode_register_callback(struct csr_roam_session *session,
+				struct sme_session_params *session_param);
+#else
+static inline QDF_STATUS
+csr_process_monitor_mode_vdev_up_evt(struct mac_context *mac, uint8_t vdev_id)
+{
+	return QDF_STATUS_E_FAILURE;
+}
+
+static inline void
+csr_monitor_mode_register_callback(struct csr_roam_session *session,
+				struct sme_session_params *session_param) {}
+#endif
+
 #endif /* #if !defined( __SMEINSIDE_H ) */

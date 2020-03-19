@@ -2382,6 +2382,10 @@ QDF_STATUS sme_process_msg(struct mac_context *mac, struct scheduler_msg *pMsg)
 		sme_process_roam_scan_ch_list_resp(mac, pMsg->bodyptr);
 		qdf_mem_free(pMsg->bodyptr);
 		break;
+	case eWNI_SME_MONITOR_MODE_VDEV_UP:
+		status = csr_process_monitor_mode_vdev_up_evt(mac,
+							      pMsg->bodyval);
+		break;
 	default:
 
 		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)

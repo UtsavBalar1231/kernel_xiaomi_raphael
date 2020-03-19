@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -223,6 +223,7 @@ struct sme_5g_band_pref_params {
  * @sme_session_id: SME session id
  * @type_of_persona: person type
  * @subtype_of_persona: sub type of persona
+ * @session_mon_mode_cb: callback registered with SME for monitor mode vdev up
  */
 struct sme_session_params {
 	csr_session_open_cb  session_open_cb;
@@ -233,6 +234,9 @@ struct sme_session_params {
 	uint8_t sme_session_id;
 	uint32_t type_of_persona;
 	uint32_t subtype_of_persona;
+#ifdef FEATURE_MONITOR_MODE_SUPPORT
+	csr_session_monitor_mode_cb session_monitor_mode_cb;
+#endif
 };
 
 #define MAX_CANDIDATE_INFO 10
