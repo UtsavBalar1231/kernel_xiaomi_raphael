@@ -758,9 +758,8 @@ static int goodix_ts_input_report(struct input_dev *dev,
 			input_report_abs(dev, ABS_MT_POSITION_Y, coords->y);
 
 			input_report_abs(dev, ABS_MT_TOUCH_MAJOR, coords->w);
-			/*input_report_abs(dev, ABS_MT_PRESSURE, coords->p);
+			/*input_report_abs(dev, ABS_MT_PRESSURE, coords->p);*/
 			input_report_abs(dev, ABS_MT_TOUCH_MINOR, coords->area);
-			*/
 
 			if ((core_data->event_status & 0x88) != 0x88 || !core_data->fod_status)
 				coords->overlapping_area = 0;
