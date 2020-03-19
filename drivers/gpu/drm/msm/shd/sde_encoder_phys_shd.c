@@ -295,6 +295,8 @@ static void sde_encoder_phys_shd_mode_set(
 
 	display = sde_connector_get_display(connector);
 	encoder = display->base->connector->encoder;
+	if (!encoder)
+		return;
 
 	if (_sde_encoder_phys_shd_rm_reserve(phys_enc, display))
 		return;
