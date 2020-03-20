@@ -764,6 +764,9 @@ struct fils_ind_elements {
 };
 #endif
 
+/* struct bss_description: bss information as per beacon/probe resp
+ * @sae_single_pmk_ap: flag to check if AP supports sae roaming with single pmk
+ */
 struct bss_description {
 	/* offset of the ieFields from bssId. */
 	uint16_t length;
@@ -805,6 +808,10 @@ struct bss_description {
 	uint8_t reservedPadding4;
 	uint32_t tsf_delta;
 	uint32_t adaptive_11r_ap;
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+	bool sae_single_pmk_ap;
+#endif
+
 #ifdef WLAN_FEATURE_FILS_SK
 	struct fils_ind_elements fils_info_element;
 #endif
@@ -3013,6 +3020,7 @@ typedef struct sSirRoamOffloadScanReq {
 	uint8_t RoamBeaconRssiWeight;
 	eSirDFSRoamScanMode allowDFSChannelRoam;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+	struct roam_triggers roam_triggers;
 	uint8_t RoamOffloadEnabled;
 	uint8_t PSK_PMK[SIR_ROAM_SCAN_PSK_SIZE];
 	uint32_t pmk_len;
@@ -3029,6 +3037,7 @@ typedef struct sSirRoamOffloadScanReq {
 	struct pmkid_mode_bits pmkid_modes;
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
+	bool is_sae_single_pmk;
 
 	/* Idle/Disconnect roam parameters */
 	struct wmi_idle_roam_params idle_roam_params;

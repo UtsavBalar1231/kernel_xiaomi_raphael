@@ -4256,6 +4256,21 @@ int8_t wma_get_mac_id_of_vdev(uint32_t vdev_id)
 	return -EINVAL;
 }
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+int wma_get_rmf_status(uint8_t vdev_id)
+{
+	struct wma_txrx_node *iface;
+
+	iface = wma_get_interface_by_vdev_id(vdev_id);
+	if (!iface) {
+		WMA_LOGE("Unable to get wma interface");
+		return -EINVAL;
+	}
+
+	return iface->rmfEnabled;
+}
+#endif
+
 /**
  * wma_update_intf_hw_mode_params() - Update WMA params
  * @vdev_id: VDEV id whose params needs to be updated
@@ -4636,6 +4651,14 @@ static void wma_set_roam_offload_flag(tp_wma_handle wma, uint8_t vdev_id,
 	if (is_set) {
 		flag = WMI_ROAM_FW_OFFLOAD_ENABLE_FLAG |
 		       WMI_ROAM_BMISS_FINAL_SCAN_ENABLE_FLAG;
+		/*
+		 * If WMI_ROAM_BMISS_FINAL_SCAN_ENABLE_FLAG is set, then
+		 * WMI_ROAM_BMISS_FINAL_SCAN_TYPE_FLAG decides whether firmware
+		 * does channel map based partial scan or partial scan followed
+		 * by full scan in case no candidate is found in partial scan.
+		 */
+		if (wma->bmiss_skip_full_scan)
+			flag |= WMI_ROAM_BMISS_FINAL_SCAN_TYPE_FLAG;
 
 		/*
 		 * If 4-way HS offload is disabled then let supplicant handle
@@ -4647,10 +4670,7 @@ static void wma_set_roam_offload_flag(tp_wma_handle wma, uint8_t vdev_id,
 			flag |= WMI_VDEV_PARAM_SKIP_ROAM_EAPOL_4WAY_HANDSHAKE;
 	}
 
-	WMA_LOGD("%s: vdev_id:%d, is_set:%d, flag:%d, roam_offload_enabled:%d",
-		 __func__, vdev_id, is_set, flag,
-		  wma->interfaces[vdev_id].roam_offload_enabled);
-
+	wma_debug("vdev_id:%d, is_set:%d, flag:%d", vdev_id, is_set, flag);
 	status = wma_vdev_set_param(wma->wmi_handle, vdev_id,
 				    WMI_VDEV_PARAM_ROAM_FW_OFFLOAD, flag);
 	if (QDF_IS_STATUS_ERROR(status))
@@ -4675,9 +4695,6 @@ static void wma_update_roam_offload_flag(tp_wma_handle wma, uint8_t vdev_id,
 	uint8_t roam_offload_vdev_id = WMA_INVALID_VDEV_ID;
 	uint32_t list[MAX_NUMBER_OF_CONC_CONNECTIONS];
 	uint8_t count;
-
-	WMA_LOGD("%s: vdev_id:%d, is_connected:%d", __func__,
-		 vdev_id, is_connected);
 
 	iface = &wma->interfaces[vdev_id];
 

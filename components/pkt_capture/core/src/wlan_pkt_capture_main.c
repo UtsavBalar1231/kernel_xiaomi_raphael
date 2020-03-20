@@ -25,6 +25,16 @@
 #include "wlan_pkt_capture_mon_thread.h"
 #include "wlan_pkt_capture_mgmt_txrx.h"
 #include "target_if_pkt_capture.h"
+#include "cdp_txrx_ctrl.h"
+#include "cds_utils.h"
+#include "cdp_txrx_mon.h"
+
+static struct wlan_objmgr_vdev *gp_pkt_capture_vdev;
+
+struct wlan_objmgr_vdev *pkt_capture_get_vdev(void)
+{
+	return gp_pkt_capture_vdev;
+}
 
 enum pkt_capture_mode pkt_capture_get_mode(struct wlan_objmgr_psoc *psoc)
 {
@@ -133,11 +143,20 @@ void pkt_capture_set_pktcap_mode(struct wlan_objmgr_psoc *psoc,
 }
 
 enum pkt_capture_mode
-pkt_capture_get_pktcap_mode(struct wlan_objmgr_psoc *psoc)
+pkt_capture_get_pktcap_mode(void)
 {
 	enum pkt_capture_mode mode = PACKET_CAPTURE_MODE_DISABLE;
 	struct pkt_capture_vdev_priv *vdev_priv;
 	struct wlan_objmgr_vdev *vdev;
+	struct wlan_objmgr_psoc *psoc;
+
+	if (!gp_pkt_capture_vdev) {
+		pkt_capture_err("gp_pkt_capture_vdev is NULL");
+		return PACKET_CAPTURE_MODE_DISABLE;
+	}
+
+	psoc = wlan_vdev_get_psoc(gp_pkt_capture_vdev);
+
 
 	if (!psoc) {
 		pkt_capture_err("psoc is NULL");
@@ -298,6 +317,7 @@ pkt_capture_vdev_create_notification(struct wlan_objmgr_vdev *vdev, void *arg)
 	}
 
 	vdev_priv->vdev = vdev;
+	gp_pkt_capture_vdev = vdev;
 
 	status = pkt_capture_callback_ctx_create(vdev_priv);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
@@ -368,6 +388,7 @@ pkt_capture_vdev_destroy_notification(struct wlan_objmgr_vdev *vdev, void *arg)
 	pkt_capture_mon_context_destroy(vdev_priv);
 	pkt_capture_callback_ctx_destroy(vdev_priv);
 	qdf_mem_free(vdev_priv);
+	gp_pkt_capture_vdev = NULL;
 	return status;
 }
 
@@ -420,4 +441,27 @@ pkt_capture_psoc_destroy_notification(struct wlan_objmgr_psoc *psoc, void *arg)
 
 	qdf_mem_free(psoc_priv);
 	return status;
+}
+
+void pkt_capture_record_channel(void)
+{
+	struct wlan_objmgr_pdev *pdev = wlan_vdev_get_pdev(gp_pkt_capture_vdev);
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	uint32_t chan;
+	uint32_t ch_freq;
+	struct wlan_objmgr_psoc *psoc;
+	struct wlan_channel *des_chan;
+
+	if (!gp_pkt_capture_vdev) {
+		pkt_capture_err("gp_pkt_capture_vdev is NULL");
+		return;
+	}
+
+	psoc = wlan_vdev_get_psoc(gp_pkt_capture_vdev);
+
+	des_chan = gp_pkt_capture_vdev->vdev_mlme.des_chan;
+	ch_freq = des_chan->ch_freq;
+	chan = cds_freq_to_chan(ch_freq);
+	cdp_pktcapture_record_channel(soc, wlan_objmgr_pdev_get_pdev_id(pdev),
+				      chan);
 }

@@ -7119,16 +7119,12 @@ void sme_free_join_rsp_fils_params(struct csr_roam_info *roam_info)
 {
 	struct fils_join_rsp_params *roam_fils_params;
 
-	if (!roam_info) {
-		sme_debug("FILS Roam Info NULL");
+	if (!roam_info)
 		return;
-	}
 
 	roam_fils_params = roam_info->fils_join_rsp;
-	if (!roam_fils_params) {
-		sme_debug("FILS Roam Param NULL");
+	if (!roam_fils_params)
 		return;
-	}
 
 	if (roam_fils_params->fils_pmk)
 		qdf_mem_free(roam_fils_params->fils_pmk);
@@ -8666,7 +8662,7 @@ void sme_dump_chan_list(tCsrChannelInfo *chan_info)
 		}
 	}
 
-	sme_debug("No.of frequencies: %u, frequency list: %s", i, channel_list);
+	sme_debug("frequency list [%u]: %s", i, channel_list);
 	qdf_mem_free(channel_list);
 }
 
@@ -17079,13 +17075,18 @@ QDF_STATUS sme_set_roam_triggers(mac_handle_t mac_handle,
 	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
 	struct scheduler_msg message = {0};
 	struct roam_triggers *roam_trigger_data;
+	tCsrNeighborRoamControlInfo *neighbor_roam_info;
 
 	/* per contract must make a copy of the params when messaging */
 	roam_trigger_data = qdf_mem_malloc(sizeof(*roam_trigger_data));
 	if (!roam_trigger_data)
 		return QDF_STATUS_E_NOMEM;
+
 	*roam_trigger_data = *triggers;
 
+	neighbor_roam_info = &mac->roam.neighborRoamInfo[triggers->vdev_id];
+	neighbor_roam_info->cfgParams.roam_trigger_bitmap =
+				roam_trigger_data->trigger_bitmap;
 	status = sme_acquire_global_lock(&mac->sme);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		qdf_mem_free(roam_trigger_data);
@@ -17196,3 +17197,46 @@ void sme_reset_oem_data_event_handler_cb(mac_handle_t  mac_handle)
 	}
 }
 #endif
+
+QDF_STATUS sme_get_prev_connected_bss_ies(mac_handle_t mac_handle,
+					  uint8_t vdev_id,
+					  uint8_t **ies, uint32_t *ie_len)
+{
+	struct csr_roam_session *session;
+	struct sAniSirGlobal *mac = MAC_CONTEXT(mac_handle);
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	uint32_t len;
+	uint8_t *beacon_ie;
+
+	session = CSR_GET_SESSION(mac, vdev_id);
+	if (!session) {
+		sme_err("session not found");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		sme_err("Failed to acquire sme lock; status: %d", status);
+		return status;
+	}
+
+	len = session->prev_assoc_ap_info.nBeaconLength;
+	if (!len) {
+		sme_debug("No IEs to return");
+		status = QDF_STATUS_E_INVAL;
+		goto end;
+	}
+	beacon_ie = qdf_mem_malloc(len);
+	if (!beacon_ie) {
+		sme_err("Failed to alloc mem for beacon IEs");
+		status = QDF_STATUS_E_NOMEM;
+		goto end;
+	}
+	qdf_mem_copy(beacon_ie, session->prev_assoc_ap_info.pbFrames, len);
+
+	*ie_len = len;
+	*ies = beacon_ie;
+end:
+	sme_release_global_lock(&mac->sme);
+	return status;
+}
