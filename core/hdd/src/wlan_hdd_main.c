@@ -9693,6 +9693,9 @@ static void hdd_init_channel_avoidance(struct hdd_context *hdd_ctx)
 
 	}
 
+	ucfg_policy_mgr_init_chan_avoidance(hdd_ctx->psoc,
+					    hdd_ctx->unsafe_channel_list,
+					    hdd_ctx->unsafe_channel_count);
 }
 
 static void hdd_lte_coex_restart_sap(struct hdd_adapter *adapter,
