@@ -20,8 +20,32 @@
  * DOC: Define internal APIs related to the packet capture component
  */
 
-#include "wlan_pkt_capture_priv.h"
+#include "wlan_pkt_capture_mon_thread.h"
 #include <linux/kthread.h>
+#include "cds_ieee80211_common.h"
+#include <sir_mac_prot_def.h>
+
+void pkt_capture_mon(struct pkt_capture_cb_context *cb_ctx,
+		     qdf_nbuf_t msdu)
+{
+	struct radiotap_header *rthdr;
+	uint8_t rtlen;
+	tSirMacFrameCtl *fc;
+
+	rthdr = (struct radiotap_header *)qdf_nbuf_data(msdu);
+	rtlen = rthdr->it_len;
+	fc = (tSirMacFrameCtl *)(qdf_nbuf_data(msdu) + rtlen);
+
+	if ((fc->type == SIR_MAC_DATA_FRAME) &&
+	    (fc->subType == SIR_MAC_DATA_QOS_NULL)) {
+		qdf_nbuf_free(msdu);
+		return;
+	}
+	if (cb_ctx->mon_cb(cb_ctx->mon_ctx, msdu) != QDF_STATUS_SUCCESS) {
+		pkt_capture_err("Frame Rx to HDD failed");
+		qdf_nbuf_free(msdu);
+	}
+}
 
 void pkt_capture_free_mon_pkt_freeq(struct pkt_capture_mon_context *mon_ctx)
 {
