@@ -2077,7 +2077,7 @@
 		interrupt-names = "qcom,wdog",
 				"qcom,err-fatal",
 				"qcom,proxy-unvote",
-				 "qcom,err-ready",
+				"qcom,err-ready",
 				"qcom,stop-ack";
 
 		/* GPIO output to lpass */
