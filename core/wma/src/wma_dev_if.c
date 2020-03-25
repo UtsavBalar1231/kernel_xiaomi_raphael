@@ -2799,7 +2799,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
 	uint32_t cfg_val;
-	uint8_t mcc_adapt_sch;
+	bool mcc_adapt_sch;
 	QDF_STATUS ret;
 	struct mlme_ht_capabilities_info *ht_cap_info;
 	struct scheduler_msg sme_msg = { 0 };
@@ -3164,8 +3164,8 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 		mac->mlme_cfg->lfr.roam_bmiss_final_bcnt,
 		self_sta_req->session_id);
 
-	if (policy_mgr_get_mcc_adaptive_sch(mac->psoc,
-					    &mcc_adapt_sch) ==
+	if (policy_mgr_get_dynamic_mcc_adaptive_sch(mac->psoc,
+						    &mcc_adapt_sch) ==
 	    QDF_STATUS_SUCCESS) {
 		WMA_LOGD("%s: setting ini value for WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED: %d",
 			__func__, mcc_adapt_sch);
