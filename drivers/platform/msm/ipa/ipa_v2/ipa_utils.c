@@ -1054,7 +1054,7 @@ void ipa_generate_mac_addr_hw_rule(u8 **buf, u8 hdr_mac_addr_offset,
 	*buf = ipa_write_8(mac_addr[4], *buf);
 	*buf = ipa_write_32(0, *buf);
 	*buf = ipa_write_32(0, *buf);
-	*buf = ipa_pad_to_32(*buf);
+	*buf = ipa2_pad_to_32(*buf);
 }
 
 /**
@@ -1089,7 +1089,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 		if (attrib->attrib_mask & IPA_FLT_TOS) {
 			*en_rule |= IPA_TOS_EQ;
 			*buf = ipa_write_8(attrib->u.v4.tos, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 		}
 
 		if (attrib->attrib_mask & IPA_FLT_TOS_MASKED) {
@@ -1102,14 +1102,14 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);
 			*buf = ipa_write_32((attrib->tos_mask << 16), *buf);
 			*buf = ipa_write_32((attrib->tos_value << 16), *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ofst_meq32++;
 		}
 
 		if (attrib->attrib_mask & IPA_FLT_PROTOCOL) {
 			*en_rule |= IPA_PROTOCOL_EQ;
 			*buf = ipa_write_8(attrib->u.v4.protocol, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 		}
 
 		if (attrib->attrib_mask & IPA_FLT_SRC_ADDR) {
@@ -1122,7 +1122,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(12, *buf);
 			*buf = ipa_write_32(attrib->u.v4.src_addr_mask, *buf);
 			*buf = ipa_write_32(attrib->u.v4.src_addr, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ofst_meq32++;
 		}
 
@@ -1136,7 +1136,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(16, *buf);
 			*buf = ipa_write_32(attrib->u.v4.dst_addr_mask, *buf);
 			*buf = ipa_write_32(attrib->u.v4.dst_addr, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ofst_meq32++;
 		}
 
@@ -1152,7 +1152,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_16(htons(attrib->ether_type), *buf);
 			*buf = ipa_write_16(0, *buf);
 			*buf = ipa_write_16(htons(attrib->ether_type), *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ofst_meq32++;
 		}
 
@@ -1170,7 +1170,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);
 			*buf = ipa_write_16(attrib->src_port_hi, *buf);
 			*buf = ipa_write_16(attrib->src_port_lo, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_rng16++;
 		}
 
@@ -1188,7 +1188,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(2, *buf);
 			*buf = ipa_write_16(attrib->dst_port_hi, *buf);
 			*buf = ipa_write_16(attrib->dst_port_lo, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_rng16++;
 		}
 
@@ -1202,7 +1202,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);
 			*buf = ipa_write_32(0xFF, *buf);
 			*buf = ipa_write_32(attrib->type, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_meq32++;
 		}
 
@@ -1216,7 +1216,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(1, *buf);
 			*buf = ipa_write_32(0xFF, *buf);
 			*buf = ipa_write_32(attrib->code, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_meq32++;
 		}
 
@@ -1230,7 +1230,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);
 			*buf = ipa_write_32(0xFFFFFFFF, *buf);
 			*buf = ipa_write_32(attrib->spi, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_meq32++;
 		}
 
@@ -1244,7 +1244,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);
 			*buf = ipa_write_16(attrib->src_port, *buf);
 			*buf = ipa_write_16(attrib->src_port, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_rng16++;
 		}
 
@@ -1258,7 +1258,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(2, *buf);
 			*buf = ipa_write_16(attrib->dst_port, *buf);
 			*buf = ipa_write_16(attrib->dst_port, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_rng16++;
 		}
 
@@ -1335,12 +1335,12 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);    /* offset, reserved */
 			*buf = ipa_write_32(attrib->meta_data_mask, *buf);
 			*buf = ipa_write_32(attrib->meta_data, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 		}
 
 		if (attrib->attrib_mask & IPA_FLT_FRAGMENT) {
 			*en_rule |= IPA_IS_FRAG;
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 		}
 	} else if (ip == IPA_IP_v6) {
 
@@ -1356,7 +1356,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 		if (attrib->attrib_mask & IPA_FLT_NEXT_HDR) {
 			*en_rule |= IPA_PROTOCOL_EQ;
 			*buf = ipa_write_8(attrib->u.v6.next_hdr, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 		}
 
 		if (attrib->attrib_mask & IPA_FLT_MAC_ETHER_TYPE) {
@@ -1371,7 +1371,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_16(htons(attrib->ether_type), *buf);
 			*buf = ipa_write_16(0, *buf);
 			*buf = ipa_write_16(htons(attrib->ether_type), *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ofst_meq32++;
 		}
 
@@ -1385,7 +1385,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);
 			*buf = ipa_write_32(0xFF, *buf);
 			*buf = ipa_write_32(attrib->type, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_meq32++;
 		}
 
@@ -1399,7 +1399,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(1, *buf);
 			*buf = ipa_write_32(0xFF, *buf);
 			*buf = ipa_write_32(attrib->code, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_meq32++;
 		}
 
@@ -1413,7 +1413,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);
 			*buf = ipa_write_32(0xFFFFFFFF, *buf);
 			*buf = ipa_write_32(attrib->spi, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_meq32++;
 		}
 
@@ -1435,7 +1435,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 				*buf = ipa_write_32(0x40000000, *buf);
 			else
 				*buf = ipa_write_32(0x60000000, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_meq32++;
 		}
 
@@ -1454,7 +1454,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(38, *buf);
 			*buf = ipa_write_32(attrib->u.v4.dst_addr_mask, *buf);
 			*buf = ipa_write_32(attrib->u.v4.dst_addr, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_meq32++;
 		}
 
@@ -1468,7 +1468,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);
 			*buf = ipa_write_16(attrib->src_port, *buf);
 			*buf = ipa_write_16(attrib->src_port, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_rng16++;
 		}
 
@@ -1482,7 +1482,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(2, *buf);
 			*buf = ipa_write_16(attrib->dst_port, *buf);
 			*buf = ipa_write_16(attrib->dst_port, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_rng16++;
 		}
 
@@ -1500,7 +1500,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);
 			*buf = ipa_write_16(attrib->src_port_hi, *buf);
 			*buf = ipa_write_16(attrib->src_port_lo, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_rng16++;
 		}
 
@@ -1518,7 +1518,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(2, *buf);
 			*buf = ipa_write_16(attrib->dst_port_hi, *buf);
 			*buf = ipa_write_16(attrib->dst_port_lo, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ihl_ofst_rng16++;
 		}
 
@@ -1542,7 +1542,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_32(attrib->u.v6.src_addr[1], *buf);
 			*buf = ipa_write_32(attrib->u.v6.src_addr[2], *buf);
 			*buf = ipa_write_32(attrib->u.v6.src_addr[3], *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ofst_meq128++;
 		}
 
@@ -1566,14 +1566,14 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_32(attrib->u.v6.dst_addr[1], *buf);
 			*buf = ipa_write_32(attrib->u.v6.dst_addr[2], *buf);
 			*buf = ipa_write_32(attrib->u.v6.dst_addr[3], *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ofst_meq128++;
 		}
 
 		if (attrib->attrib_mask & IPA_FLT_TC) {
 			*en_rule |= IPA_FLT_TC;
 			*buf = ipa_write_8(attrib->u.v6.tc, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 		}
 
 		if (attrib->attrib_mask & IPA_FLT_TOS_MASKED) {
@@ -1593,7 +1593,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_32(0, *buf);
 			*buf = ipa_write_32(0, *buf);
 			*buf = ipa_write_32(0, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 			ofst_meq128++;
 		}
 
@@ -1669,7 +1669,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*en_rule |= IPA_FLT_FLOW_LABEL;
 			 /* FIXME FL is only 20 bits */
 			*buf = ipa_write_32(attrib->u.v6.flow_label, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 		}
 
 		if (attrib->attrib_mask & IPA_FLT_META_DATA) {
@@ -1677,12 +1677,12 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 			*buf = ipa_write_8(0, *buf);    /* offset, reserved */
 			*buf = ipa_write_32(attrib->meta_data_mask, *buf);
 			*buf = ipa_write_32(attrib->meta_data, *buf);
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 		}
 
 		if (attrib->attrib_mask & IPA_FLT_FRAGMENT) {
 			*en_rule |= IPA_IS_FRAG;
-			*buf = ipa_pad_to_32(*buf);
+			*buf = ipa2_pad_to_32(*buf);
 		}
 	} else {
 		IPAERR("unsupported ip %d\n", ip);
@@ -1703,7 +1703,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 		*buf = ipa_write_8(0, *buf);    /* offset */
 		*buf = ipa_write_32(0, *buf);   /* mask */
 		*buf = ipa_write_32(0, *buf);   /* val */
-		*buf = ipa_pad_to_32(*buf);
+		*buf = ipa2_pad_to_32(*buf);
 		ofst_meq32++;
 	}
 
