@@ -1576,6 +1576,7 @@ struct DWC_ETH_QOS_res_data {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *rgmii_rxc_suspend_state;
 	struct pinctrl_state *rgmii_rxc_resume_state;
+	int phy_reset_delay_msecs[2];
 
 	/* Regulators */
 	struct regulator *gdsc_emac;

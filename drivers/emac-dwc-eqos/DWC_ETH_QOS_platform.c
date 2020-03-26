@@ -961,6 +961,15 @@ static int DWC_ETH_QOS_get_dts_config(struct platform_device *pdev)
 		EMACINFO("phy_addr = %d\n", dwc_eth_qos_res_data.phy_addr);
 	}
 
+	/*read qcom,phy-reset-delay-msecs value from dtsi */
+	if (of_property_read_u32_array(
+		pdev->dev.of_node,"qcom,phy-reset-delay-msecs",
+		dwc_eth_qos_res_data.phy_reset_delay_msecs,2)) {
+		//resource qcom,phy-reset-delay-msecs is not present, set delay to 1ms
+		dwc_eth_qos_res_data.phy_reset_delay_msecs[0] = 0;
+		dwc_eth_qos_res_data.phy_reset_delay_msecs[1] = 0;
+	}
+
 	return ret;
 
 err_out:
@@ -1533,12 +1542,19 @@ static int DWC_ETH_QOS_init_gpios(struct device *dev)
 					EMAC_GPIO_PHY_RESET_NAME);
 			goto gpio_error;
 		}
-		mdelay(1);
+		if (dwc_eth_qos_res_data.phy_reset_delay_msecs[0]) {
+			EMACDBG("phy Hw pre reset delay in msecs %d\n",dwc_eth_qos_res_data.phy_reset_delay_msecs[0]);
+			mdelay(dwc_eth_qos_res_data.phy_reset_delay_msecs[0]);
+		}
 
 		gpio_set_value(dwc_eth_qos_res_data.gpio_phy_reset, PHY_RESET_GPIO_HIGH);
 		EMACDBG("PHY is out of reset successfully\n");
-		/* Add delay of 50ms so that phy should get sufficient time*/
-		mdelay(50);
+
+		if (dwc_eth_qos_res_data.phy_reset_delay_msecs[1]) {
+			/* Add delay of 50ms so that phy should get sufficient time*/
+			EMACDBG("phy Hw post reset delay in msecs %d\n",dwc_eth_qos_res_data.phy_reset_delay_msecs[1]);
+			mdelay(dwc_eth_qos_res_data.phy_reset_delay_msecs[1]);
+		}
 	}
 
 	return ret;
