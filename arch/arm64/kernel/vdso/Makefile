@@ -19,6 +19,7 @@ ldflags-y := -shared -nostdlib -soname=linux-vdso.so.1  --hash-style=sysv \
 		--build-id -n -T
 ccflags-y += -DDISABLE_BRANCH_PROFILING -ffixed-x18 -fno-stack-protector
 ccflags-y += $(DISABLE_LTO)
+ccflags-y += $(call cc-option, -fno-whole-program)
 
 CFLAGS_REMOVE_vgettimeofday.o += $(CC_FLAGS_SCS)
 # Force -O2 to avoid libgcc dependencies
