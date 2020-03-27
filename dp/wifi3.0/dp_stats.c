@@ -4589,7 +4589,8 @@ dp_print_ring_stats(struct dp_pdev *pdev)
 	uint32_t i;
 	int mac_id;
 
-	if (hif_pm_runtime_get_sync(pdev->soc->hif_handle))
+	if (hif_pm_runtime_get_sync(pdev->soc->hif_handle,
+				    RTPM_ID_DP_PRINT_RING_STATS))
 		return;
 
 	dp_print_ring_stat_from_hal(pdev->soc,
@@ -4651,7 +4652,8 @@ dp_print_ring_stats(struct dp_pdev *pdev)
 					    &pdev->rxdma_err_dst_ring[i],
 					    RXDMA_DST);
 
-	hif_pm_runtime_put(pdev->soc->hif_handle);
+	hif_pm_runtime_put(pdev->soc->hif_handle,
+			   RTPM_ID_DP_PRINT_RING_STATS);
 }
 
 /**

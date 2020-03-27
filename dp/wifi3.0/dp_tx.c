@@ -1534,9 +1534,11 @@ static qdf_nbuf_t dp_tx_send_msdu_single(struct dp_vdev *vdev, qdf_nbuf_t nbuf,
 	nbuf = NULL;
 
 fail_return:
-	if (hif_pm_runtime_get(soc->hif_handle) == 0) {
+	if (hif_pm_runtime_get(soc->hif_handle,
+			       RTPM_ID_DW_TX_HW_ENQUEUE) == 0) {
 		hal_srng_access_end(soc->hal_soc, hal_srng);
-		hif_pm_runtime_put(soc->hif_handle);
+		hif_pm_runtime_put(soc->hif_handle,
+				   RTPM_ID_DW_TX_HW_ENQUEUE);
 	} else {
 		hal_srng_access_end_reap(soc->hal_soc, hal_srng);
 		hal_srng_set_event(hal_srng, HAL_SRNG_FLUSH_EVENT);
@@ -1707,9 +1709,11 @@ qdf_nbuf_t dp_tx_send_msdu_multiple(struct dp_vdev *vdev, qdf_nbuf_t nbuf,
 	nbuf = NULL;
 
 done:
-	if (hif_pm_runtime_get(soc->hif_handle) == 0) {
+	if (hif_pm_runtime_get(soc->hif_handle,
+			       RTPM_ID_DW_TX_HW_ENQUEUE) == 0) {
 		hal_srng_access_end(soc->hal_soc, hal_srng);
-		hif_pm_runtime_put(soc->hif_handle);
+		hif_pm_runtime_put(soc->hif_handle,
+				   RTPM_ID_DW_TX_HW_ENQUEUE);
 	} else {
 		hal_srng_access_end_reap(soc->hal_soc, hal_srng);
 		hal_srng_set_event(hal_srng, HAL_SRNG_FLUSH_EVENT);
