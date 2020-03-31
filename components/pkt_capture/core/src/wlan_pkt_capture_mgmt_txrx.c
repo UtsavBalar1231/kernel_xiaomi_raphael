@@ -59,7 +59,7 @@ pkt_capture_mgmt_status_map(uint8_t status)
  * @nbuf_list: netbuf list
  * @vdev_id: vdev id for which packet is captured
  * @tid:  tid number
- * @status: Tx status
+ * @chan_num: Channel number
  * @pkt_format: Frame format
  * @tx_retry_cnt: tx retry count
  *
@@ -67,7 +67,7 @@ pkt_capture_mgmt_status_map(uint8_t status)
  */
 static void
 pkt_capture_mgmtpkt_cb(void *context, void *ppdev, void *nbuf_list,
-		       uint8_t vdev_id, uint8_t tid, uint8_t status,
+		       uint8_t vdev_id, uint8_t tid, uint8_t chan_num,
 		       bool pkt_format, uint8_t *bssid, uint8_t tx_retry_cnt)
 {
 	struct pkt_capture_vdev_priv *vdev_priv;
@@ -101,7 +101,7 @@ pkt_capture_mgmtpkt_cb(void *context, void *ppdev, void *nbuf_list,
 	while (msdu) {
 		next_buf = qdf_nbuf_queue_next(msdu);
 		qdf_nbuf_set_next(msdu, NULL);   /* Add NULL terminator */
-		pkt_capture_mon(cb_ctx, msdu);
+		pkt_capture_mon(cb_ctx, msdu, vdev, chan_num);
 		msdu = next_buf;
 	}
 
@@ -159,7 +159,7 @@ pkt_capture_mgmtpkt_process(struct wlan_objmgr_psoc *psoc,
 	pkt->monpkt = nbuf;
 	pkt->vdev_id = WLAN_INVALID_VDEV_ID;
 	pkt->tid = WLAN_INVALID_TID;
-	pkt->status = status;
+	pkt->status = txrx_status->chan_num;
 	pkt->pkt_format = PKTCAPTURE_PKT_FORMAT_80211;
 	pkt_capture_indicate_monpkt(vdev, pkt);
 
