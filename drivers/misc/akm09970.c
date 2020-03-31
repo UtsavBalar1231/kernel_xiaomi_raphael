@@ -239,6 +239,7 @@ static int akm09970_active(struct akm09970_soc_ctrl *c_ctrl, bool on)
 			pr_err("Failed to set to POWERDOWN mode\n");
 
 		akm09970_power_down(c_ctrl);
+		hrtimer_cancel(&c_ctrl->timer);
 	} else {
 		pr_info("The same power state, do nothing!\n");
 	}
