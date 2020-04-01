@@ -953,36 +953,56 @@ static int stmmac_init_phy(struct net_device *dev)
 	char bus_id[MII_BUS_ID_SIZE];
 	int interface = priv->plat->interface;
 	int max_speed = priv->plat->max_speed;
+	int ret = 0;
 	priv->oldlink = false;
 	priv->boot_kpi = false;
 	priv->speed = SPEED_UNKNOWN;
 	priv->oldduplex = DUPLEX_UNKNOWN;
 
-	if (priv->plat->phy_node) {
-		phydev = of_phy_connect(dev, priv->plat->phy_node,
-					&stmmac_adjust_link, 0, interface);
+	if (priv->plat->early_eth && priv->phydev) {
+		phydev = priv->phydev;
+		phydev->skip_sw_reset = true;
+		ret = phy_connect_direct(dev, phydev,
+					 &stmmac_adjust_link, interface);
+		if (ret) {
+			pr_info("phy_connect_direct failed\n");
+			return ret;
+		}
 	} else {
-		snprintf(bus_id, MII_BUS_ID_SIZE, "stmmac-%x",
-			 priv->plat->bus_id);
+		if (priv->plat->phy_node) {
+			phydev = of_phy_connect(dev,
+						priv->plat->phy_node,
+						&stmmac_adjust_link,
+						0, interface);
+		} else {
+			snprintf(bus_id, MII_BUS_ID_SIZE, "stmmac-%x",
+				 priv->plat->bus_id);
 
-		snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
-			 priv->plat->phy_addr);
-		netdev_dbg(priv->dev, "%s: trying to attach to %s\n", __func__,
-			   phy_id_fmt);
+			snprintf(phy_id_fmt,
+				 MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
+				 priv->plat->phy_addr);
 
-		phydev = phy_connect(dev, phy_id_fmt, &stmmac_adjust_link,
-				     interface);
+			netdev_dbg(priv->dev,
+				   "%s: trying to attach to %s\n", __func__,
+				   phy_id_fmt);
+
+			phydev = phy_connect(dev,
+					     phy_id_fmt,
+					     &stmmac_adjust_link,
+					     interface);
+		}
+
+		if (IS_ERR_OR_NULL(phydev)) {
+			netdev_err(priv->dev, "Could not attach to PHY\n");
+			if (!phydev)
+				return -ENODEV;
+
+			return PTR_ERR(phydev);
+		}
 	}
 
-	if (IS_ERR_OR_NULL(phydev)) {
-		netdev_err(priv->dev, "Could not attach to PHY\n");
-		if (!phydev)
-			return -ENODEV;
-
-		return PTR_ERR(phydev);
-	}
 	pr_info(" qcom-ethqos: %s early eth setting stmmac init\n",
-		__func__);
+				 __func__);
 
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
 	if ((interface == PHY_INTERFACE_MODE_MII) ||
@@ -1003,7 +1023,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	/* Early ethernet settings to bring up link in 100M,
 	 * Auto neg Off with full duplex link.
 	 */
-	if (max_speed == SPEED_100 && priv->early_eth) {
+	if (max_speed == SPEED_100 && priv->plat->early_eth) {
 		phydev->autoneg = AUTONEG_DISABLE;
 		phydev->speed = SPEED_100;
 		phydev->duplex = DUPLEX_FULL;
@@ -3497,8 +3517,9 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 							   &priv->xstats,
 							   rx_q->dma_erx +
 							   entry);
-		if (unlikely(status == discard_frame)) {
-			priv->dev->stats.rx_errors++;
+		if (unlikely(status & discard_frame)) {
+			if (!(status & ctxt_desc))
+				priv->dev->stats.rx_errors++;
 			if (priv->hwts_rx_en && !priv->extend_desc) {
 				/* DESC2 & DESC3 will be overwritten by device
 				 * with timestamp value, hence reinitialize

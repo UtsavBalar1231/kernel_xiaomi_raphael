@@ -220,6 +220,10 @@ const char *ipa_clients_strings[IPA_CLIENT_MAX] = {
 	__stringify(IPA_CLIENT_MHI2_CONS),
 	__stringify(IPA_CLIENT_Q6_CV2X_PROD),
 	__stringify(IPA_CLIENT_Q6_CV2X_CONS),
+	__stringify(IPA_CLIENT_MHI_QMAP_PROD),
+	__stringify(IPA_CLIENT_MHI_QMAP_CONS),
+	__stringify(RESERVERD_PROD_110),
+	__stringify(IPA_CLIENT_MHI_QDSS_CONS),
 };
 
 /**
@@ -3161,6 +3165,10 @@ static int ipa_generic_plat_drv_probe(struct platform_device *pdev_p)
 
 	/* call probe based on IPA HW version */
 	switch (ipa_api_hw_type) {
+	case IPA_HW_v2_6L:
+		result = ipa_plat_drv_probe(pdev_p, ipa_api_ctrl,
+			ipa_plat_drv_match);
+		break;
 	case IPA_HW_v3_0:
 	case IPA_HW_v3_1:
 	case IPA_HW_v3_5:

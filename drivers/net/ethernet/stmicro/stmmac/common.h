@@ -263,6 +263,7 @@ enum rx_frame_status {
 	llc_snap = 0x4,
 	dma_own = 0x8,
 	rx_not_ls = 0x10,
+	ctxt_desc = 0x20,
 };
 
 /* Tx status */
@@ -336,6 +337,8 @@ struct dma_features {
 	/* TX and RX FIFO sizes */
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
+	/* Number of PPS outputs */
+	unsigned int pps_out_num;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */
