@@ -2248,6 +2248,7 @@ int DWC_ETH_QOS_remove(struct platform_device *pdev)
 	if (pdata->phy_irq != 0) {
 		free_irq(pdata->phy_irq, pdata);
 		pdata->phy_irq = 0;
+        pdata->phy_irq_enabled = false;
 	}
 
 	if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_1) {
@@ -2554,19 +2555,23 @@ static int DWC_ETH_QOS_hib_restore(struct device *dev) {
 	/* issue software reset to device */
 	pdata->hw_if.exit();
 
-	/* Bypass PHYLIB for TBI, RTBI and SGMII interface */
-	if (pdata->hw_feat.sma_sel == 1) {
-		ret = DWC_ETH_QOS_mdio_register(pdata->dev);
-		if (ret < 0) {
-			EMACERR("MDIO bus (id %d) registration failed\n",
-					  pdata->bus_id);
-			return ret;
-		}
-	}
-
 	if (!(pdata->dev->flags & IFF_UP)) {
 		pdata->dev->netdev_ops->ndo_open(pdata->dev);
 		pdata->dev->flags |= IFF_UP;
+	}
+
+	if (!(pdata->phydev->drv->config_intr &&
+		!pdata->phydev->drv->config_intr(pdata->phydev))){
+		EMACERR("Failed to configure PHY interrupts");
+		BUG();
+	}
+
+	if (pdata->phy_intr_en && pdata->phy_wol_supported ){
+		struct ethtool_wolinfo wol = {
+			.cmd = ETHTOOL_SWOL,
+			.wolopts=pdata->phy_wol_wolopts,
+		};
+		phy_ethtool_set_wol(pdata->phydev, &wol);
 	}
 
 	EMACINFO("end\n");
@@ -2586,9 +2591,6 @@ static int DWC_ETH_QOS_hib_freeze(struct device *dev) {
 		pdata->dev->netdev_ops->ndo_stop(pdata->dev);
 		pdata->dev->flags &= ~IFF_UP;
 	}
-
-	if (pdata->hw_feat.sma_sel == 1)
-		DWC_ETH_QOS_mdio_unregister(pdata->dev);
 
 #ifdef DWC_ETH_QOS_CONFIG_PTP
 	DWC_ETH_QOS_ptp_remove(pdata);

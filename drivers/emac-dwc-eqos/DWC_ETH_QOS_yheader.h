@@ -1650,7 +1650,7 @@ struct DWC_ETH_QOS_prv_data {
 	bool per_ch_intr_en;
 #endif
 
-
+	bool phy_irq_enabled;
 	struct mutex mlock;
 	spinlock_t lock;
 	spinlock_t tx_lock;
