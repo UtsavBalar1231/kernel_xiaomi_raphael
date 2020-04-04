@@ -341,6 +341,8 @@ static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
 		if (!down_read_trylock(&sbi->sb->s_umount))
 			return -EAGAIN;
 	}
+	if (!strcmp(a->attr.name, "cp_interval"))
+		return count;
 	ret = __sbi_store(a, sbi, buf, count);
 	if (gc_entry)
 		up_read(&sbi->sb->s_umount);
