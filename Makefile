@@ -520,7 +520,7 @@ CLANG_FLAGS	+= $(call cc-option, -Wno-misleading-indentation)
 CLANG_FLAGS	+= $(call cc-option, -Wno-bool-operation)
 CLANG_FLAGS	+= $(call cc-option, -Wno-unsequenced)
 KBUILD_CFLAGS	+= $(CLANG_FLAGS)
-KBUILD_AFLAGS	+= $(CLANG_FLAGS) -no-integrated-as
+KBUILD_AFLAGS	+= $(CLANG_FLAGS)
 export CLANG_FLAGS
 ifeq ($(ld-name),lld)
 KBUILD_CFLAGS += -fuse-ld=lld
