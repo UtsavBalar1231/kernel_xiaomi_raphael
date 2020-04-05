@@ -28,6 +28,8 @@ MODULE_LICENSE("GPL v2");
 #define RMNET_SHS_NSEC_TO_SEC(x) ((x)/1000000000)
 #define RMNET_SHS_BYTE_TO_BIT(x) ((x)*8)
 #define RMNET_SHS_MIN_HSTAT_NODES_REQD 16
+#define RMNET_SHS_FILTER_PKT_LIMIT 200
+#define RMNET_SHS_FILTER_FLOW_RATE 100
 
 #define PERIODIC_CLEAN 0
 /* FORCE_CLEAN should only used during module de-init.*/
@@ -83,6 +85,10 @@ MODULE_PARM_DESC(rmnet_shs_cpu_rx_min_pps_thresh, "Min pkts core can handle");
 unsigned int rmnet_shs_cpu_rx_flows[MAX_CPUS];
 module_param_array(rmnet_shs_cpu_rx_flows, uint, 0, 0444);
 MODULE_PARM_DESC(rmnet_shs_cpu_rx_flows, "Num flows processed per core");
+
+unsigned int rmnet_shs_cpu_rx_filter_flows[MAX_CPUS];
+module_param_array(rmnet_shs_cpu_rx_filter_flows, uint, 0, 0444);
+MODULE_PARM_DESC(rmnet_shs_cpu_rx_filter_flows, "Num filtered flows per core");
 
 unsigned long long rmnet_shs_cpu_rx_bytes[MAX_CPUS];
 module_param_array(rmnet_shs_cpu_rx_bytes, ullong, 0, 0444);
@@ -1931,6 +1937,41 @@ void rmnet_shs_update_cfg_mask(void)
 	}
 }
 
+void rmnet_shs_wq_filter(void)
+{
+	int cpu, cur_cpu;
+	int temp;
+	struct rmnet_shs_wq_hstat_s *hnode = NULL;
+
+	for (cpu = 0; cpu < MAX_CPUS; cpu++) {
+		rmnet_shs_cpu_rx_filter_flows[cpu] = 0;
+		rmnet_shs_cpu_node_tbl[cpu].seg = 0;
+	}
+
+	/* Filter out flows with low pkt count and
+	 * mark CPUS with slowstart flows
+	 */
+	list_for_each_entry(hnode, &rmnet_shs_wq_hstat_tbl, hstat_node_id) {
+
+		if (hnode->in_use == 0)
+			continue;
+		if (hnode->avg_pps > RMNET_SHS_FILTER_FLOW_RATE &&
+		    hnode->rx_skb > RMNET_SHS_FILTER_PKT_LIMIT)
+			if (hnode->current_cpu < MAX_CPUS){
+				temp = hnode->current_cpu;
+				rmnet_shs_cpu_rx_filter_flows[temp]++;
+			}
+		cur_cpu = hnode->current_cpu;
+		if (cur_cpu >= MAX_CPUS) {
+			continue;
+		}
+
+		if (hnode->node->hstats->segment_enable) {
+			rmnet_shs_cpu_node_tbl[cur_cpu].seg++;
+		}
+	}
+}
+
 void rmnet_shs_wq_update_stats(void)
 {
 	struct timespec time;
@@ -1982,6 +2023,7 @@ void rmnet_shs_wq_update_stats(void)
 	}
 
 	rmnet_shs_wq_refresh_new_flow_list();
+	rmnet_shs_wq_filter();
 }
 
 void rmnet_shs_wq_process_wq(struct work_struct *work)
@@ -2077,8 +2119,13 @@ void rmnet_shs_wq_init_cpu_rx_flow_tbl(void)
 
 void rmnet_shs_wq_pause(void)
 {
+	int cpu;
+
 	if (rmnet_shs_wq && rmnet_shs_delayed_wq)
 		cancel_delayed_work_sync(&rmnet_shs_delayed_wq->wq);
+
+	for (cpu = 0; cpu < MAX_CPUS; cpu++)
+		rmnet_shs_cpu_rx_filter_flows[cpu] = 0;
 }
 
 void rmnet_shs_wq_restart(void)
