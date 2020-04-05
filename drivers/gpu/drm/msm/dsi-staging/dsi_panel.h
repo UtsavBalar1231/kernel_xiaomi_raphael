@@ -53,6 +53,11 @@ enum dsi_backlight_type {
 	DSI_BACKLIGHT_MAX,
 };
 
+enum dsi_doze_mode_type {
+	DSI_DOZE_LPM = 0,
+	DSI_DOZE_HBM,
+};
+
 enum bl_update_flag {
 	BL_UPDATE_DELAY_UNTIL_FIRST_FRAME,
 	BL_UPDATE_NONE,
@@ -230,6 +235,9 @@ struct dsi_panel {
 
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;
+
+	bool doze_enabled;
+	enum dsi_doze_mode_type doze_mode;
 };
 
 /**
@@ -382,4 +390,8 @@ int dsi_panel_idle(struct dsi_panel *panel);
 int dsi_panel_wakeup(struct dsi_panel *panel);
 int dsi_panel_switch_init(struct dsi_panel *panel);
 void dsi_panel_switch_destroy(struct dsi_panel *panel);
+
+int dsi_panel_set_doze_status(struct dsi_panel *panel, bool status);
+int dsi_panel_set_doze_mode(struct dsi_panel *panel, enum dsi_doze_mode_type mode);
+
 #endif /* _DSI_PANEL_H_ */
