@@ -402,9 +402,15 @@ enum ipa_client_type {
 
 	IPA_CLIENT_Q6_CV2X_PROD	= 106,
 	IPA_CLIENT_Q6_CV2X_CONS	= 107,
+
+	IPA_CLIENT_MHI_QMAP_PROD = 108,
+	IPA_CLIENT_MHI_QMAP_CONS = 109,
+
+	/* RESERVERD PROD					= 110, */
+	IPA_CLIENT_MHI_QDSS_CONS = 111,
 };
 
-#define IPA_CLIENT_MAX (IPA_CLIENT_Q6_CV2X_CONS + 1)
+#define IPA_CLIENT_MAX (IPA_CLIENT_MHI_QDSS_CONS + 1)
 
 #define IPA_CLIENT_WLAN2_PROD IPA_CLIENT_A5_WLAN_AMPDU_PROD
 #define IPA_CLIENT_Q6_DL_NLO_DATA_PROD IPA_CLIENT_Q6_DL_NLO_DATA_PROD
@@ -425,6 +431,7 @@ enum ipa_client_type {
 #define IPA_CLIENT_MHI_PRIME_RMNET_PROD IPA_CLIENT_MHI_PRIME_RMNET_PROD
 #define IPA_CLIENT_MHI_PRIME_RMNET_CONS IPA_CLIENT_MHI_PRIME_RMNET_CONS
 #define IPA_CLIENT_MHI_PRIME_DPL_PROD IPA_CLIENT_MHI_PRIME_DPL_PROD
+#define IPA_CLIENT_MHI_QDSS_CONS IPA_CLIENT_MHI_QDSS_CONS
 
 #define IPA_CLIENT_IS_APPS_CONS(client) \
 	((client) == IPA_CLIENT_APPS_LAN_CONS || \
@@ -519,7 +526,10 @@ enum ipa_client_type {
 	(client) == IPA_CLIENT_MHI_PROD || \
 	(client) == IPA_CLIENT_MHI2_PROD || \
 	(client) == IPA_CLIENT_MHI2_CONS || \
-	(client) == IPA_CLIENT_MHI_DPL_CONS)
+	(client) == IPA_CLIENT_MHI_QMAP_PROD || \
+	(client) == IPA_CLIENT_MHI_QMAP_CONS || \
+	(client) == IPA_CLIENT_MHI_DPL_CONS || \
+	(client) == IPA_CLIENT_MHI_QDSS_CONS)
 
 #define IPA_CLIENT_IS_TEST_PROD(client) \
 	((client) == IPA_CLIENT_TEST_PROD || \
@@ -721,7 +731,14 @@ enum ipa_peripheral_event {
 #define WIGIG_FST_SWITCH (WIGIG_CLIENT_CONNECT + 1)
 #define WIGIG_EVENT_MAX (WIGIG_FST_SWITCH + 1)
 
-#define IPA_EVENT_MAX_NUM (WIGIG_EVENT_MAX)
+enum ipa_sockv5_event {
+	IPA_SOCKV5_ADD = WIGIG_EVENT_MAX,
+	IPA_SOCKV5_DEL,
+	IPA_SOCKV5_EVENT_MAX
+#define IPA_SOCKV5_EVENT_MAX IPA_SOCKV5_EVENT_MAX
+};
+
+#define IPA_EVENT_MAX_NUM (IPA_SOCKV5_EVENT_MAX)
 #define IPA_EVENT_MAX ((int)IPA_EVENT_MAX_NUM)
 
 /**
@@ -2459,6 +2476,56 @@ struct ipa_wan_msg {
 	enum ipa_ip_type ip;
 	uint32_t ipv4_addr_gw;
 	uint32_t ipv6_addr_gw[IPA_WAN_MSG_IPv6_ADDR_GW_LEN];
+};
+
+/**
+ * struct ipacm_socksv5_info - To hold information about socksv5 connections
+ * @ip_type: ip type
+ * @ipv4_src: ipv4 src address
+ * @ipv4_dst: ipv4 dst address
+ * @ipv6_src: ipv6 src address
+ * @ipv6_dst: ipv6 dst address
+ * @src_port: src port number
+ * @dst_port: dst port number
+ * @index: the uc activation tbl index
+ */
+
+struct ipacm_socksv5_info {
+	/* ip-type */
+	enum ipa_ip_type ip_type;
+
+	/* ipv4 */
+	uint32_t ipv4_src;
+	uint32_t ipv4_dst;
+
+	/* ipv6 */
+	uint32_t ipv6_src[4];
+	uint32_t ipv6_dst[4];
+
+	/* 2B src/dst port */
+	uint16_t src_port;
+	uint16_t dst_port;
+
+	/* uc-tbl index */
+	uint16_t index;
+};
+
+/**
+ * struct ipa_socksv5_msg - To hold information about socksv5 client
+ * @ul_in: uplink connection info
+ * @dl_in: downlink connection info
+ * @handle: used for ipacm to distinguish connections
+ *
+ * CnE need to pass the name of default wan iface when connected/disconnected.
+ * CNE need to pass the gw info in wlan AP+STA mode.
+ * netmgr need to pass the name of wan eMBMS iface when connected.
+ */
+struct ipa_socksv5_msg {
+	struct ipacm_socksv5_info ul_in;
+	struct ipacm_socksv5_info dl_in;
+
+	/* handle (index) */
+	uint16_t handle;
 };
 
 /**

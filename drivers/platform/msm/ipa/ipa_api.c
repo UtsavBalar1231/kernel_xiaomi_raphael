@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -220,6 +220,10 @@ const char *ipa_clients_strings[IPA_CLIENT_MAX] = {
 	__stringify(IPA_CLIENT_MHI2_CONS),
 	__stringify(IPA_CLIENT_Q6_CV2X_PROD),
 	__stringify(IPA_CLIENT_Q6_CV2X_CONS),
+	__stringify(IPA_CLIENT_MHI_QMAP_PROD),
+	__stringify(IPA_CLIENT_MHI_QMAP_CONS),
+	__stringify(RESERVERD_PROD_110),
+	__stringify(IPA_CLIENT_MHI_QDSS_CONS),
 };
 
 /**
@@ -3161,6 +3165,10 @@ static int ipa_generic_plat_drv_probe(struct platform_device *pdev_p)
 
 	/* call probe based on IPA HW version */
 	switch (ipa_api_hw_type) {
+	case IPA_HW_v2_6L:
+		result = ipa_plat_drv_probe(pdev_p, ipa_api_ctrl,
+			ipa_plat_drv_match);
+		break;
 	case IPA_HW_v3_0:
 	case IPA_HW_v3_1:
 	case IPA_HW_v3_5:
@@ -3535,6 +3543,39 @@ int ipa_disable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
 
 	return ret;
 }
+
+
+/**
+ * ipa_add_socksv5_conn()- Add socksv5 entry in IPA
+ *
+ * Return value: 0 on success, negative otherwise
+ */
+int ipa_add_socksv5_conn(struct ipa_socksv5_info *info)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_add_socksv5_conn, info);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_add_socksv5_conn);
+
+
+/**
+ * ipa_del_socksv5_conn()- Del socksv5 entry in IPA
+ *
+ * Return value: 0 on success, negative otherwise
+ */
+int ipa_del_socksv5_conn(uint32_t handle)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_del_socksv5_conn, handle);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_del_socksv5_conn);
+
 
 /**
  * ipa_get_lan_rx_napi() - returns if NAPI is enabled in LAN RX
