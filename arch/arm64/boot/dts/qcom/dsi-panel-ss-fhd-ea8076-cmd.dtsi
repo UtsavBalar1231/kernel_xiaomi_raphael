@@ -64,7 +64,8 @@
 		/* trig-flags: falling-0x0002 rasing-0x0001 */
 		qcom,esd-err-irq-gpio = <&tlmm 5 0x2002>;
 
-		qcom,disp-doze-backlight-threshold = <8>;
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
 		qcom,disp-fod-off-dimming-delay = <85>;
 
 		qcom,elvss_dimming_check_enable;
