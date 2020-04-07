@@ -318,6 +318,7 @@ void hdd_ndp_event_handler(struct hdd_adapter *adapter,
 {
 	bool success;
 	struct wlan_objmgr_psoc *psoc = wlan_vdev_get_psoc(adapter->vdev);
+	uint8_t sta_id;
 
 	if (roam_status == eCSR_ROAM_NDP_STATUS_UPDATE) {
 		switch (roam_result) {
@@ -326,8 +327,9 @@ void hdd_ndp_event_handler(struct hdd_adapter *adapter,
 					NAN_DATAPATH_RSP_STATUS_SUCCESS);
 			hdd_debug("posting ndi create status: %d (%s) to umac",
 				  success, success ? "Success" : "Failure");
+			sta_id = roam_info->ndp.ndi_create_params.sta_id;
 			os_if_nan_post_ndi_create_rsp(psoc, adapter->vdev_id,
-							success);
+						      success, sta_id);
 			return;
 		case eCSR_ROAM_RESULT_NDI_DELETE_RSP:
 			success = (roam_info->ndp.ndi_create_params.status ==
@@ -662,8 +664,11 @@ void hdd_ndi_drv_ndi_create_rsp_handler(uint8_t vdev_id,
 	struct hdd_adapter *adapter;
 	struct hdd_station_ctx *sta_ctx;
 	struct csr_roam_info *roam_info;
+	struct bss_description tmp_bss_descp = {0};
 	uint16_t ndp_inactivity_timeout = 0;
 	uint16_t ndp_keep_alive_period;
+	struct qdf_mac_addr bc_mac_addr = QDF_MAC_ADDR_BCAST_INIT;
+	uint8_t sta_id;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -680,6 +685,12 @@ void hdd_ndi_drv_ndi_create_rsp_handler(uint8_t vdev_id,
 	sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	if (!sta_ctx) {
 		hdd_err("sta_ctx is null");
+		return;
+	}
+
+	sta_id = ndi_rsp->sta_id;
+	if (sta_id >= HDD_MAX_ADAPTERS) {
+		hdd_err("Error: Invalid sta id %u", sta_id);
 		return;
 	}
 
@@ -716,6 +727,11 @@ void hdd_ndi_drv_ndi_create_rsp_handler(uint8_t vdev_id,
 			ndi_rsp->reason /* create_reason */);
 	}
 
+	sta_ctx->broadcast_sta_id = sta_id;
+	hdd_save_peer(sta_ctx, sta_id, &bc_mac_addr);
+	hdd_roam_register_sta(adapter, roam_info, sta_id, &tmp_bss_descp);
+	hdd_ctx->sta_to_adapter[sta_id] = adapter;
+
 	qdf_mem_free(roam_info);
 }
 
@@ -744,6 +760,7 @@ void hdd_ndi_drv_ndi_delete_rsp_handler(uint8_t vdev_id)
 	struct hdd_context *hdd_ctx;
 	struct hdd_adapter *adapter;
 	struct hdd_station_ctx *sta_ctx;
+	uint8_t sta_id;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
@@ -761,6 +778,14 @@ void hdd_ndi_drv_ndi_delete_rsp_handler(uint8_t vdev_id)
 	if (!sta_ctx) {
 		hdd_err("sta_ctx is null");
 		return;
+	}
+
+	sta_id = sta_ctx->broadcast_sta_id;
+	if (sta_id < HDD_MAX_ADAPTERS) {
+		hdd_ctx->sta_to_adapter[sta_id] = NULL;
+		hdd_roam_deregister_sta(adapter, sta_id);
+		hdd_delete_peer(sta_ctx, sta_id);
+		sta_ctx->broadcast_sta_id = HDD_WLAN_INVALID_STA_ID;
 	}
 
 	wlan_hdd_netif_queue_control(adapter,
