@@ -8128,7 +8128,7 @@ void DWC_ETH_QOS_dma_desc_stats_read(struct DWC_ETH_QOS_prv_data *pdata)
 void DWC_ETH_QOS_dma_desc_stats_init(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	int qinx;
-	EMACDBG("Enter\n");
+	IPC_LOW("Enter\n");
 
 	pdata->xstats.dma_ch_intr_status = 0;
 	pdata->xstats.dma_debug_status0 = 0;
@@ -8154,5 +8154,5 @@ void DWC_ETH_QOS_dma_desc_stats_init(struct DWC_ETH_QOS_prv_data *pdata)
 		pdata->xstats.dma_ch_curr_app_rxbuf[qinx] = 0;
 		pdata->xstats.dma_ch_miss_frame_count[qinx] = 0;
 	}
-	EMACDBG("Exit\n");
+	IPC_LOW("Exit\n");
 }

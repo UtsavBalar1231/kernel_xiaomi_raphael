@@ -50,6 +50,11 @@
 #include "DWC_ETH_QOS_ipa.h"
 
 void *ipc_emac_log_ctxt;
+void *ipc_emac_log_ctxt_low;
+int emac_enable_ipc_low;
+#define MAX_PROC_SIZE 1024
+char tmp_buff[MAX_PROC_SIZE];
+
 
 #define MAC_ADDR_CFG_FPATH "/data/emac_config.ini"
 static UCHAR dev_addr[ETH_ALEN] = {0, 0x55, 0x7b, 0xb5, 0x7d, 0xf7};
@@ -223,9 +228,48 @@ static const struct file_operations fops_phy_reg_dump = {
 	.llseek = default_llseek,
 };
 
+static ssize_t write_ipc_emac_log_ctxt_low(struct file *file,
+	const char __user *buf, size_t count, loff_t *data)
+{
+	int tmp = 0;
+	if(count > MAX_PROC_SIZE)
+		count = MAX_PROC_SIZE;
+	if(copy_from_user(tmp_buff, buf, count))
+		return -EFAULT;
+	if (sscanf(tmp_buff, "%du", &tmp) < 0)
+		pr_err("sscanf failed\n");
+	else {
+		if (tmp) {
+			if (!ipc_emac_log_ctxt_low) {
+				ipc_emac_log_ctxt_low = ipc_log_context_create(IPCLOG_STATE_PAGES, "emac_low", 0);
+			}
+			if (!ipc_emac_log_ctxt_low) {
+				pr_err("failed to create ipc emac low context\n");
+				return -EFAULT;
+			}
+		}
+		else {
+			if (ipc_emac_log_ctxt_low)
+				ipc_log_context_destroy(ipc_emac_log_ctxt_low);
+			ipc_emac_log_ctxt_low = NULL;
+		}
+	}
+	emac_enable_ipc_low = tmp;
+	return count;
+
+}
+
+static const struct file_operations fops_ipc_emac_log_ctxt_low = {
+	.write = write_ipc_emac_log_ctxt_low,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int DWC_ETH_QOS_create_debugfs(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	static struct dentry *phy_reg_dump = NULL;
+	static struct dentry *ipc_emac_log_low= NULL;
 
 	if(!pdata) {
 		EMACERR( "Null Param %s \n", __func__);
@@ -243,6 +287,13 @@ int DWC_ETH_QOS_create_debugfs(struct DWC_ETH_QOS_prv_data *pdata)
 				pdata, &fops_phy_reg_dump);
 	if (!phy_reg_dump || IS_ERR(phy_reg_dump)) {
 		EMACERR( "Cannot create debugfs phy_reg_dump %d \n", (int)phy_reg_dump);
+		goto fail;
+	}
+
+	ipc_emac_log_low = debugfs_create_file("ipc_emac_log_low", 0220, pdata->debugfs_dir,
+				pdata, &fops_ipc_emac_log_ctxt_low);
+	if (!ipc_emac_log_low || IS_ERR(ipc_emac_log_low)) {
+		EMACERR( "Cannot create debugfs ipc_emac_log_low %d \n", (int)ipc_emac_log_low);
 		goto fail;
 	}
 
@@ -2695,6 +2746,12 @@ static void __exit DWC_ETH_QOS_exit_module(void)
 
 	if (ipc_emac_log_ctxt != NULL)
 		ipc_log_context_destroy(ipc_emac_log_ctxt);
+
+	if (ipc_emac_log_ctxt_low != NULL)
+		ipc_log_context_destroy(ipc_emac_log_ctxt_low);
+
+	ipc_emac_log_ctxt = NULL;
+	ipc_emac_log_ctxt_low = NULL;
 
 	DBGPR("<--DWC_ETH_QOS_exit_module\n");
 }

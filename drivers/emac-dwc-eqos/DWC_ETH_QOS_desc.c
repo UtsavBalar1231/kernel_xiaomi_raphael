@@ -130,7 +130,7 @@ static int DWC_ETH_QOS_alloc_rx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 		kzalloc(sizeof(struct DWC_ETH_QOS_rx_queue) * pdata->rx_queue_cnt,
 		GFP_KERNEL);
 	if (pdata->rx_queue == NULL) {
-		EMACERR("ERROR: Unable to allocate Rx queue structure\n");
+		IPCERR_RL("ERROR: Unable to allocate Rx queue structure\n");
 		ret = -ENOMEM;
 		goto err_out_rx_q_alloc_failed;
 	}
@@ -147,7 +147,7 @@ static int DWC_ETH_QOS_alloc_rx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 			kzalloc(sizeof(struct s_RX_NORMAL_DESC *) * pdata->rx_queue[chInx].desc_cnt,
 					GFP_KERNEL);
 		if (rx_desc_data->rx_desc_ptrs == NULL) {
-			EMACERR("ERROR: Unable to allocate Rx Desc ptrs\n");
+			IPCERR_RL("ERROR: Unable to allocate Rx Desc ptrs\n");
 			ret = -ENOMEM;
 			goto err_out_rx_desc_ptrs_failed;
 		}
@@ -162,7 +162,7 @@ static int DWC_ETH_QOS_alloc_rx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 			kzalloc(sizeof(dma_addr_t) *pdata->rx_queue[chInx].desc_cnt,
 					GFP_KERNEL);
 		if (rx_desc_data->rx_desc_dma_addrs == NULL) {
-			EMACERR("ERROR: Unable to allocate Rx Desc dma addr\n");
+			IPCERR_RL("ERROR: Unable to allocate Rx Desc dma addr\n");
 			ret = -ENOMEM;
 			goto err_out_rx_desc_dma_addrs_failed;
 		}
@@ -177,7 +177,7 @@ static int DWC_ETH_QOS_alloc_rx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 			kzalloc(sizeof(struct DWC_ETH_QOS_rx_buffer *) * pdata->rx_queue[chInx].desc_cnt,
 					GFP_KERNEL);
 		if (rx_desc_data->rx_buf_ptrs == NULL) {
-			EMACERR("ERROR: Unable to allocate Rx Desc dma addr\n");
+			IPCERR_RL("ERROR: Unable to allocate Rx Desc dma addr\n");
 			ret = -ENOMEM;
 			goto err_out_rx_buf_ptrs_failed;
 		}
@@ -192,7 +192,7 @@ static int DWC_ETH_QOS_alloc_rx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 			rx_desc_data->ipa_rx_buff_pool_va_addrs_base =
 				kzalloc(sizeof(void *) * pdata->rx_queue[chInx].desc_cnt, GFP_KERNEL);
 			if (rx_desc_data->ipa_rx_buff_pool_va_addrs_base == NULL) {
-				EMACERR("ERROR: Unable to allocate Rx ipa buff addrs\n");
+				IPCERR_RL("ERROR: Unable to allocate Rx ipa buff addrs\n");
 				ret = -ENOMEM;
 				goto err_out_rx_ipa_buff_addrs_failed;
 			}
@@ -274,7 +274,7 @@ static int DWC_ETH_QOS_alloc_tx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 		kzalloc(sizeof(struct DWC_ETH_QOS_tx_queue) * pdata->tx_queue_cnt,
 		GFP_KERNEL);
 	if (pdata->tx_queue == NULL) {
-		EMACERR("ERROR: Unable to allocate Tx queue structure\n");
+		IPCERR_RL("ERROR: Unable to allocate Tx queue structure\n");
 		ret = -ENOMEM;
 		goto err_out_tx_q_alloc_failed;
 	}
@@ -291,7 +291,7 @@ static int DWC_ETH_QOS_alloc_tx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 			kzalloc(sizeof(struct s_TX_NORMAL_DESC *) * pdata->tx_queue[chInx].desc_cnt,
 					GFP_KERNEL);
 		if (tx_desc_data->tx_desc_ptrs == NULL) {
-			EMACERR("ERROR: Unable to allocate Tx Desc ptrs\n");
+			IPCERR_RL("ERROR: Unable to allocate Tx Desc ptrs\n");
 			ret = -ENOMEM;
 			goto err_out_tx_desc_ptrs_failed;
 		}
@@ -305,7 +305,7 @@ static int DWC_ETH_QOS_alloc_tx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 			kzalloc(sizeof(dma_addr_t) * pdata->tx_queue[chInx].desc_cnt,
 					GFP_KERNEL);
 		if (tx_desc_data->tx_desc_dma_addrs == NULL) {
-			EMACERR("ERROR: Unable to allocate Tx Desc dma addrs\n");
+			IPCERR_RL("ERROR: Unable to allocate Tx Desc dma addrs\n");
 			ret = -ENOMEM;
 			goto err_out_tx_desc_dma_addrs_failed;
 		}
@@ -319,7 +319,7 @@ static int DWC_ETH_QOS_alloc_tx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 			kzalloc(sizeof(struct DWC_ETH_QOS_tx_buffer *) * pdata->tx_queue[chInx].desc_cnt,
 					GFP_KERNEL);
 		if (tx_desc_data->tx_buf_ptrs == NULL) {
-			EMACERR("ERROR: Unable to allocate Tx buff ptrs\n");
+			IPCERR_RL("ERROR: Unable to allocate Tx buff ptrs\n");
 			ret = -ENOMEM;
 			goto err_out_tx_buf_ptrs_failed;
 		}
@@ -333,7 +333,7 @@ static int DWC_ETH_QOS_alloc_tx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 			tx_desc_data->ipa_tx_buff_pool_va_addrs_base =
 				kzalloc(sizeof(void *) * pdata->tx_queue[chInx].desc_cnt,GFP_KERNEL);
 			if (tx_desc_data->ipa_tx_buff_pool_va_addrs_base == NULL) {
-				EMACERR("ERROR: Unable to allocate Tx ipa buff addrs\n");
+				IPCERR_RL("ERROR: Unable to allocate Tx ipa buff addrs\n");
 				ret = -ENOMEM;
 				goto err_out_tx_ipa_buff_addrs_failed;
 			}
@@ -467,7 +467,7 @@ static int DWC_ETH_QOS_alloc_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 		   sizeof(struct DWC_ETH_QOS_tx_queue) * pdata->tx_queue_cnt,
 			GFP_KERNEL);
 	if (!pdata->tx_queue) {
-		EMACERR("ERROR: Unable to allocate Tx queue structure\n");
+		IPCERR_RL("ERROR: Unable to allocate Tx queue structure\n");
 		ret = -ENOMEM;
 		goto err_out_tx_q_alloc_failed;
 	}
@@ -476,7 +476,7 @@ static int DWC_ETH_QOS_alloc_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 		   sizeof(struct DWC_ETH_QOS_rx_queue) * pdata->rx_queue_cnt,
 			GFP_KERNEL);
 	if (!pdata->rx_queue) {
-		EMACERR("ERROR: Unable to allocate Rx queue structure\n");
+		IPCERR_RL("ERROR: Unable to allocate Rx queue structure\n");
 		ret = -ENOMEM;
 		goto err_out_rx_q_alloc_failed;
 	}
@@ -657,7 +657,7 @@ static void DWC_ETH_QOS_wrapper_tx_descriptor_init_single_q(
 				   sizeof(dma_addr_t) * pdata->tx_queue[qinx].desc_cnt,
 				   &GET_TX_BUFF_POOL_BASE_PADRR(qinx), GFP_KERNEL);
 			if (GET_TX_BUFF_POOL_BASE_ADRR(qinx) == NULL)
-				EMACERR("ERROR: Unable to allocate IPA \
+				IPCERR_RL("ERROR: Unable to allocate IPA \
 							  TX Buff structure for TXCH\n");
 			else
 				EMACDBG("IPA tx_dma_buff_addrs %p\n",
@@ -678,7 +678,7 @@ static void DWC_ETH_QOS_wrapper_tx_descriptor_init_single_q(
 				ipa_tx_buf_vaddr = dma_alloc_coherent(
 				   GET_MEM_PDEV_DEV, DWC_ETH_QOS_ETH_FRAME_LEN_IPA, &ipa_tx_buf_dma_addr, GFP_KERNEL);
 				if (ipa_tx_buf_vaddr == NULL) {
-					EMACERR("Failed to allocate TX buf for IPA\n");
+					IPCERR_RL("Failed to allocate TX buf for IPA\n");
 					return;
 				}
 				GET_TX_BUFF_LOGICAL_ADDR(qinx, i) = ipa_tx_buf_vaddr;
@@ -692,12 +692,12 @@ static void DWC_ETH_QOS_wrapper_tx_descriptor_init_single_q(
 							sg_phys(buff_sgt->sgl);
 						sg_free_table(buff_sgt);
 						} else {
-							EMACERR("Failed to get sgtable for allocated RX buffer.\n");
+							IPCERR_RL("Failed to get sgtable for allocated RX buffer.\n");
 						}
 						kfree(buff_sgt);
 						buff_sgt = NULL;
 				} else {
-					EMACERR("Failed to allocate memory for RX buff sgtable.\n");
+					IPCERR_RL("Failed to allocate memory for RX buff sgtable.\n");
 				}
 			}
 		}
@@ -771,7 +771,7 @@ static void DWC_ETH_QOS_wrapper_rx_descriptor_init_single_q(
 				   sizeof(dma_addr_t) * pdata->rx_queue[qinx].desc_cnt,
 				   &GET_RX_BUFF_POOL_BASE_PADRR(qinx), GFP_KERNEL);
 			if (GET_RX_BUFF_POOL_BASE_ADRR(qinx) == NULL)
-				EMACERR("ERROR: Unable to allocate IPA \
+				IPCERR_RL("ERROR: Unable to allocate IPA \
 						 RX Buff structure for RXCH0\n");
 			else
 				EMACDBG("IPA rx_buff_addrs %p \n",
@@ -1110,7 +1110,7 @@ static void DWC_ETH_QOS_tx_buf_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 									  GET_TX_BUFF_LOGICAL_ADDR(qinx, i),
 									  GET_TX_BUFF_DMA_ADDR(qinx, i));
 				}
-				EMACINFO("Freed the memory allocated for IPA_DMA_TX_CH for IPA \n");
+				IPC_LOW("Freed the memory allocated for IPA_DMA_TX_CH for IPA \n");
 				/* De-Allocate TX DMA Buffer Pool Structure */
 				if (GET_TX_BUFF_POOL_BASE_ADRR(qinx)) {
 					dma_free_coherent(GET_MEM_PDEV_DEV,
@@ -1119,9 +1119,9 @@ static void DWC_ETH_QOS_tx_buf_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 									  GET_TX_BUFF_POOL_BASE_PADRR(qinx));
 					GET_TX_BUFF_POOL_BASE_ADRR(qinx) = NULL;
 					GET_TX_BUFF_POOL_BASE_PADRR(qinx) = (dma_addr_t)NULL;
-					EMACINFO("Freed the TX Buffer Pool Structure for IPA_DMA_TX_CH for IPA \n");
+					IPC_LOW("Freed the TX Buffer Pool Structure for IPA_DMA_TX_CH for IPA \n");
 				} else {
-					EMACERR("Unable to DeAlloc TX Buff structure\n");
+					IPCERR_RL("Unable to DeAlloc TX Buff structure\n");
 				}
 			}
 		}
@@ -1163,9 +1163,9 @@ static void DWC_ETH_QOS_rx_buf_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 								  GET_RX_BUFF_POOL_BASE_PADRR(qinx));
 				GET_RX_BUFF_POOL_BASE_ADRR(qinx) = NULL;
 				GET_RX_BUFF_POOL_BASE_PADRR(qinx) = (dma_addr_t)NULL;
-				EMACINFO("Freed the RX Buffer Pool Structure for IPA_DMA_RX_CH for IPA \n");
+				IPC_LOW("Freed the RX Buffer Pool Structure for IPA_DMA_RX_CH for IPA \n");
 			} else {
-				EMACERR("Unable to DeAlloc RX Buff structure\n");
+				IPCERR_RL("Unable to DeAlloc RX Buff structure\n");
 			}
 		}
 	}
@@ -1335,7 +1335,7 @@ static int DWC_ETH_QOS_map_non_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 			   DWC_ETH_QOS_MAX_DATA_PER_TX_BUF, DMA_TO_DEVICE);
 			if (dma_mapping_error(
 			   GET_MEM_PDEV_DEV, prev_buffer->dma2)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			prev_buffer->len2 = DWC_ETH_QOS_MAX_DATA_PER_TX_BUF;
@@ -1350,7 +1350,7 @@ static int DWC_ETH_QOS_map_non_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 				DMA_TO_DEVICE);
 			if (dma_mapping_error(
 			   GET_MEM_PDEV_DEV, buffer->dma)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			buffer->len = (size - DWC_ETH_QOS_MAX_DATA_PER_TX_BUF);
@@ -1365,7 +1365,7 @@ static int DWC_ETH_QOS_map_non_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 					DMA_TO_DEVICE);
 			if (dma_mapping_error(
 			   GET_MEM_PDEV_DEV, buffer->dma)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			buffer->len = DWC_ETH_QOS_MAX_DATA_PER_TX_BUF;
@@ -1380,7 +1380,7 @@ static int DWC_ETH_QOS_map_non_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 			  DMA_TO_DEVICE);
 			if (dma_mapping_error(
 			   GET_MEM_PDEV_DEV, buffer->dma2)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			buffer->len2 = (size - DWC_ETH_QOS_MAX_DATA_PER_TX_BUF);
@@ -1394,7 +1394,7 @@ static int DWC_ETH_QOS_map_non_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 						size, DMA_TO_DEVICE);
 			if (dma_mapping_error(
 			   GET_MEM_PDEV_DEV, prev_buffer->dma2)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			prev_buffer->len2 = size;
@@ -1412,7 +1412,7 @@ static int DWC_ETH_QOS_map_non_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 						size, DMA_TO_DEVICE);
 			if (dma_mapping_error(
 			   GET_MEM_PDEV_DEV, buffer->dma)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			buffer->len = size;
@@ -1452,7 +1452,7 @@ static int DWC_ETH_QOS_map_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 					DMA_TO_DEVICE);
 			if (dma_mapping_error(GET_MEM_PDEV_DEV,
 					      prev_buffer->dma2)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			prev_buffer->len2 = DWC_ETH_QOS_MAX_DATA_PER_TX_BUF;
@@ -1467,7 +1467,7 @@ static int DWC_ETH_QOS_map_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 			 DMA_TO_DEVICE);
 			if (dma_mapping_error(GET_MEM_PDEV_DEV,
 					      buffer->dma)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			buffer->len = (size - DWC_ETH_QOS_MAX_DATA_PER_TX_BUF);
@@ -1483,7 +1483,7 @@ static int DWC_ETH_QOS_map_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 						DMA_TO_DEVICE);
 			if (dma_mapping_error(GET_MEM_PDEV_DEV,
 					      buffer->dma)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			buffer->len = DWC_ETH_QOS_MAX_DATA_PER_TX_BUF;
@@ -1498,7 +1498,7 @@ static int DWC_ETH_QOS_map_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 			   DMA_TO_DEVICE);
 			if (dma_mapping_error(GET_MEM_PDEV_DEV,
 					      buffer->dma2)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			buffer->len2 = (size - DWC_ETH_QOS_MAX_DATA_PER_TX_BUF);
@@ -1514,7 +1514,7 @@ static int DWC_ETH_QOS_map_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 						size, DMA_TO_DEVICE);
 			if (dma_mapping_error(GET_MEM_PDEV_DEV,
 					      prev_buffer->dma2)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			prev_buffer->len2 = size;
@@ -1533,7 +1533,7 @@ static int DWC_ETH_QOS_map_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 						size, DMA_TO_DEVICE);
 			if (dma_mapping_error(GET_MEM_PDEV_DEV,
 					      buffer->dma)) {
-				EMACERR("failed to do the dma map\n");
+				IPCERR_RL("failed to do the dma map\n");
 				return -ENOMEM;
 			}
 			buffer->len = size;
@@ -1703,7 +1703,7 @@ static unsigned int DWC_ETH_QOS_map_skb(struct net_device *dev,
 	return count;
 
  err_out_dma_map_fail:
-	EMACERR("Tx DMA map failed\n");
+	IPCERR_RL("Tx DMA map failed\n");
 
 	for (; count > 0; count--) {
 		DECR_TX_DESC_INDEX(index, pdata->tx_queue[qinx].desc_cnt);
@@ -1850,7 +1850,7 @@ static void DWC_ETH_QOS_re_alloc_skb(struct DWC_ETH_QOS_prv_data *pdata,
 	      __func__, desc_data->skb_realloc_idx, qinx);
 		  
 	if (pdata->ipa_enabled && qinx == IPA_DMA_RX_CH) {
-		EMACINFO("skb re-allocation is not required for RXCH0 for IPA \n");
+		IPC_LOW("skb re-allocation is not required for RXCH0 for IPA \n");
 		return;
 	}
 
@@ -1858,7 +1858,7 @@ static void DWC_ETH_QOS_re_alloc_skb(struct DWC_ETH_QOS_prv_data *pdata,
 		buffer = GET_RX_BUF_PTR(qinx, desc_data->skb_realloc_idx);
 		/* allocate skb & assign to each desc */
 		if (pdata->alloc_rx_buf(pdata, buffer, qinx, GFP_ATOMIC)) {
-			EMACERR("Failed to re allocate skb\n");
+			IPCERR_RL("Failed to re allocate skb\n");
 			pdata->xstats.q_re_alloc_rx_buf_failed[qinx]++;
 			break;
 		}

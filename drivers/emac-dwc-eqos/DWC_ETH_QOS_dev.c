@@ -4231,7 +4231,7 @@ static INT configure_tx_queue(UINT queue_index)
 	UINT desc_posted_write = 0x1;
 	volatile ULONG VARMTL_QTOMR;
 
-	EMACDBG("Enter\n");
+	IPC_LOW("Enter\n");
 
 	/*Flush Tx Queue */
 	MTL_QTOMR_FTQ_UDFWR(queue_index, 0x1);
@@ -4282,7 +4282,7 @@ static INT configure_tx_queue(UINT queue_index)
 	DMA_BMR_DSPW_UDFWR(desc_posted_write);
 
 	return Y_SUCCESS;
-	EMACDBG("Exit\n");
+	IPC_LOW("Exit\n");
 }
 
 static void configure_avb_ip_rx_filtering(void)
@@ -4353,7 +4353,7 @@ static INT configure_rx_queue(UINT queue_index)
 	UINT fep_config = 0x1;
 	UINT disable_csum_err_pkt_drop = 0x1;
 
-	EMACDBG("Enter\n");
+	IPC_LOW("Enter\n");
 
 	switch (queue_index) {
 	case 0:
@@ -4389,7 +4389,7 @@ static INT configure_rx_queue(UINT queue_index)
 	MTL_QRCR_RXQ_PKT_ARBIT_UDFWR(queue_index, 0x0);
 
 	return Y_SUCCESS;
-	EMACDBG("Exit\n");
+	IPC_LOW("Exit\n");
 }
 
 static INT configure_mtl_queue(UINT QINX, struct DWC_ETH_QOS_prv_data *pdata)
