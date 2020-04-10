@@ -80,6 +80,13 @@ cdp_dump_flow_pool_info(struct cdp_soc_t *soc)
 #define DEINIT_RX_HW_STATS_LOCK(_soc) /* no op */
 #endif
 
+#ifdef DP_PEER_EXTENDED_API
+#define SET_PEER_REF_CNT_ONE(_peer) \
+	qdf_atomic_set(&(_peer)->ref_cnt, 1)
+#else
+#define SET_PEER_REF_CNT_ONE(_peer)
+#endif
+
 #ifdef WLAN_FEATURE_DP_EVENT_HISTORY
 /*
  * If WLAN_CFG_INT_NUM_CONTEXTS is changed, HIF_NUM_INT_CONTEXTS
@@ -5004,6 +5011,12 @@ static void dp_vdev_flush_peers(struct cdp_vdev *vdev_handle, bool unmap_only)
 		if (!peer)
 			continue;
 
+		dp_info("peer ref cnt %d", qdf_atomic_read(&peer->ref_cnt));
+		/*
+		 * set ref count to one to force delete the peers
+		 * with ref count leak
+		 */
+		SET_PEER_REF_CNT_ONE(peer);
 		dp_info("peer: %pM is getting unmap",
 			peer->mac_addr.raw);
 		/* free AST entries of peer */
