@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -197,8 +197,6 @@ QDF_STATUS csr_scan_for_ssid(struct mac_context *mac, uint32_t sessionId,
  */
 QDF_STATUS csr_scan_abort_mac_scan(struct mac_context *mac, uint32_t vdev_id,
 				   uint32_t scan_id);
-QDF_STATUS csr_remove_nonscan_cmd_from_pending_list(struct mac_context *mac,
-			uint8_t sessionId, eSmeCommandType commandType);
 
 /* If fForce is true we will save the new String that is learn't. */
 /* Typically it will be true in case of Join or user initiated ioctl */
