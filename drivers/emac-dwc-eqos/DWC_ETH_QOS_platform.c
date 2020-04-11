@@ -965,9 +965,9 @@ static int DWC_ETH_QOS_get_dts_config(struct platform_device *pdev)
 	if (of_property_read_u32_array(
 		pdev->dev.of_node,"qcom,phy-reset-delay-msecs",
 		dwc_eth_qos_res_data.phy_reset_delay_msecs,2)) {
-		//resource qcom,phy-reset-delay-msecs is not present, set delay to 1ms
-		dwc_eth_qos_res_data.phy_reset_delay_msecs[0] = 0;
-		dwc_eth_qos_res_data.phy_reset_delay_msecs[1] = 0;
+		//resource qcom,phy-reset-delay-msecs is not present, set delay to 10ms and 50 ms
+		dwc_eth_qos_res_data.phy_reset_delay_msecs[0] = 10;
+		dwc_eth_qos_res_data.phy_reset_delay_msecs[1] = 50;
 	}
 
 	return ret;
