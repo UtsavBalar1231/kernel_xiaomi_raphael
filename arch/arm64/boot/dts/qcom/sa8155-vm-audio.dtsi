@@ -21,12 +21,11 @@
 		qcom,msm-cpudai-tdm-group-port-id = <36864 36866 36868 36870>;
 		qcom,msm-cpudai-tdm-clk-rate = <12288000>;
 		qcom,msm-cpudai-tdm-clk-internal = <1>;
-		qcom,msm-cpudai-tdm-sync-mode = <0>;
+		qcom,msm-cpudai-tdm-sync-mode = <1>;
 		qcom,msm-cpudai-tdm-sync-src = <1>;
 		qcom,msm-cpudai-tdm-data-out = <0>;
 		qcom,msm-cpudai-tdm-invert-sync = <0>;
-		qcom,msm-cpudai-tdm-data-delay = <1>;
-		qcom,msm-cpudai-tdm-clk-attribute = /bits/ 16 <1>;
+		qcom,msm-cpudai-tdm-data-delay = <0>;
 		dai_pri_tdm_rx_0: qcom,msm-dai-q6-tdm-pri-rx-0 {
 			compatible = "qcom,msm-dai-q6-tdm";
 			qcom,msm-cpudai-tdm-dev-id = <36864>;
@@ -59,12 +58,11 @@
 		qcom,msm-cpudai-tdm-group-port-id = <36865 36867 36869 36871>;
 		qcom,msm-cpudai-tdm-clk-rate = <12288000>;
 		qcom,msm-cpudai-tdm-clk-internal = <1>;
-		qcom,msm-cpudai-tdm-sync-mode = <0>;
+		qcom,msm-cpudai-tdm-sync-mode = <1>;
 		qcom,msm-cpudai-tdm-sync-src = <1>;
 		qcom,msm-cpudai-tdm-data-out = <0>;
 		qcom,msm-cpudai-tdm-invert-sync = <0>;
-		qcom,msm-cpudai-tdm-data-delay = <1>;
-		qcom,msm-cpudai-tdm-clk-attribute = /bits/ 16 <1>;
+		qcom,msm-cpudai-tdm-data-delay = <0>;
 		dai_pri_tdm_tx_0: qcom,msm-dai-q6-tdm-pri-tx-0 {
 			compatible = "qcom,msm-dai-q6-tdm";
 			qcom,msm-cpudai-tdm-dev-id = <36865>;
@@ -272,7 +270,7 @@
 		qcom,msm-cpudai-tdm-data-out = <0>;
 		qcom,msm-cpudai-tdm-invert-sync = <0>;
 		qcom,msm-cpudai-tdm-data-delay = <0>;
-		qcom,msm-cpudai-tdm-lane-mask = /bits/ 16 <3>;
+		qcom,msm-cpudai-tdm-lane-mask = /bits/ 16 <10>;
 		dai_quat_tdm_rx_0: qcom,msm-dai-q6-tdm-quat-rx-0 {
 			compatible = "qcom,msm-dai-q6-tdm";
 			qcom,msm-cpudai-tdm-dev-id = <36912>;
@@ -316,7 +314,7 @@
 		qcom,msm-cpudai-tdm-data-out = <0>;
 		qcom,msm-cpudai-tdm-invert-sync = <0>;
 		qcom,msm-cpudai-tdm-data-delay = <0>;
-		qcom,msm-cpudai-tdm-lane-mask = /bits/ 16 <12>;
+		qcom,msm-cpudai-tdm-lane-mask = /bits/ 16 <5>;
 		dai_quat_tdm_tx_0: qcom,msm-dai-q6-tdm-quat-tx-0 {
 			compatible = "qcom,msm-dai-q6-tdm";
 			qcom,msm-cpudai-tdm-dev-id = <36913>;
@@ -348,7 +346,7 @@
 		};
 	};
 
-	qcom,msm-dai-tdm-quin-rx {
+	tdm_quin_rx: qcom,msm-dai-tdm-quin-rx {
 		compatible = "qcom,msm-dai-tdm";
 		qcom,msm-cpudai-tdm-group-id = <37184>;
 		qcom,msm-cpudai-tdm-group-num-ports = <5>;
@@ -392,7 +390,7 @@
 		};
 	};
 
-	qcom,msm-dai-tdm-quin-tx {
+	tdm_quin_tx: qcom,msm-dai-tdm-quin-tx {
 		compatible = "qcom,msm-dai-tdm";
 		qcom,msm-cpudai-tdm-group-id = <37185>;
 		qcom,msm-cpudai-tdm-group-num-ports = <5>;

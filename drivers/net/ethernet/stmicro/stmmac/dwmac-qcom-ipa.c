@@ -45,6 +45,15 @@ static struct ethqos_prv_ipa_data eth_ipa_ctx;
 
 static void __ipa_eth_free_msg(void *buff, u32 len, u32 type) {}
 
+static inline void *ethqos_get_priv(struct qcom_ethqos *ethqos)
+{
+	struct platform_device *pdev = ethqos->pdev;
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	return priv;
+}
+
 static int eth_ipa_send_msg(struct qcom_ethqos *ethqos,
 			    enum ipa_peripheral_event event)
 {
@@ -981,10 +990,12 @@ static void ethqos_configure_ipa_rx_dma_channel(unsigned int QINX,
 
 static int ethqos_init_offload(struct qcom_ethqos *ethqos)
 {
+	struct stmmac_priv *priv = ethqos_get_priv(ethqos);
+
 	ETHQOSDBG("\n");
 
 	ethqos_configure_ipa_tx_dma_channel(IPA_DMA_TX_CH, ethqos);
-	MTL_RQDCM0R_RGWR(0x3020100);
+	priv->hw->mac->map_mtl_to_dma(priv->hw, 0, 0);
 	ethqos_configure_ipa_rx_dma_channel(IPA_DMA_RX_CH, ethqos);
 
 	ETHQOSDBG("\n");
@@ -1183,28 +1194,6 @@ static int ethqos_ipa_offload_cleanup(struct qcom_ethqos *ethqos)
 	return ret;
 }
 
-static inline void *ethqos_get_priv(struct qcom_ethqos *ethqos)
-{
-	struct platform_device *pdev = ethqos->pdev;
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(dev);
-
-	return priv;
-}
-
-static bool ethqos_is_phy_link_up(struct qcom_ethqos *ethqos)
-{
-	/* PHY driver initializes phydev->link=1.
-	 * So, phydev->link is 1 even on booup with no PHY connected.
-	 * phydev->link is valid only after adjust_link is called once.
-	 * Use (pdata->oldlink != -1) to indicate phy link is not up
-	 */
-	struct stmmac_priv *priv = ethqos_get_priv(ethqos);
-
-	return ethqos->always_on_phy ? 1 :
-	((priv->oldlink != -1) && priv->dev->phydev && priv->dev->phydev->link);
-}
-
 static ssize_t read_ipa_offload_status(struct file *file,
 				       char __user *user_buf, size_t count,
 				       loff_t *ppos)
@@ -1212,7 +1201,7 @@ static ssize_t read_ipa_offload_status(struct file *file,
 	unsigned int len = 0, buf_len = NTN_IPA_DBG_MAX_MSG_LEN;
 	struct qcom_ethqos *ethqos = file->private_data;
 
-	if (ethqos_is_phy_link_up(ethqos)) {
+	if (qcom_ethqos_is_phy_link_up(ethqos)) {
 		if (eth_ipa_ctx.ipa_offload_susp)
 			len += scnprintf(buf + len, buf_len - len,
 					 "IPA Offload suspended\n");
@@ -1265,7 +1254,7 @@ static ssize_t suspend_resume_ipa_offload(struct file *file,
 	if (kstrtos8(in_buf, 0, &option))
 		return -EFAULT;
 
-	if (ethqos_is_phy_link_up(ethqos)) {
+	if (qcom_ethqos_is_phy_link_up(ethqos)) {
 		if (option == 1)
 			ethqos_ipa_offload_event_handler(priv, EV_USR_SUSPEND);
 		else if (option == 0)
@@ -1687,7 +1676,7 @@ static int ethqos_ipa_offload_connect(struct qcom_ethqos *ethqos)
 	in.clnt_hndl = eth_ipa->ipa_client_hndl;
 
 	/* Uplink Setup */
-	if (emac_emb_smmu_ctx.valid)
+	if (stmmac_emb_smmu_ctx.valid)
 		rx_setup_info.smmu_enabled = true;
 	else
 		rx_setup_info.smmu_enabled = false;
@@ -1716,7 +1705,7 @@ static int ethqos_ipa_offload_connect(struct qcom_ethqos *ethqos)
 	(((unsigned long)(DMA_CR0_RGOFFADDR - BASE_ADDRESS))  +
 	 (unsigned long)ethqos->emac_mem_base);
 	/* Downlink Setup */
-	if (emac_emb_smmu_ctx.valid)
+	if (stmmac_emb_smmu_ctx.valid)
 		tx_setup_info.smmu_enabled = true;
 	else
 		tx_setup_info.smmu_enabled = false;
@@ -1784,7 +1773,7 @@ static int ethqos_ipa_offload_connect(struct qcom_ethqos *ethqos)
 			= eth_ipa_ctx.tx_queue->ipa_tx_buff_phy_addr[i];
 	}
 
-	if (emac_emb_smmu_ctx.valid) {
+	if (stmmac_emb_smmu_ctx.valid) {
 		ret = ethqos_set_ul_dl_smmu_ipa_params(ethqos, &rx_setup_info,
 						       &tx_setup_info);
 		if (ret) {
@@ -1834,7 +1823,7 @@ static int ethqos_ipa_offload_connect(struct qcom_ethqos *ethqos)
 	kfree(tx_setup_info.data_buff_list);
 	tx_setup_info.data_buff_list = NULL;
 
-	if (emac_emb_smmu_ctx.valid) {
+	if (stmmac_emb_smmu_ctx.valid) {
 		if (rx_setup_info.ring_base_sgt) {
 			sg_free_table(rx_setup_info.ring_base_sgt);
 			kfree(rx_setup_info.ring_base_sgt);
@@ -2233,7 +2222,7 @@ void ethqos_ipa_offload_event_handler(void *data,
 				ethqos_ipa_uc_ready(eth_ipa_ctx.ethqos);
 
 			if (eth_ipa_ctx.ipa_uc_ready &&
-			    ethqos_is_phy_link_up(eth_ipa_ctx.ethqos))
+			    qcom_ethqos_is_phy_link_up(eth_ipa_ctx.ethqos))
 				ethqos_enable_ipa_offload(eth_ipa_ctx.ethqos);
 		}
 		break;
@@ -2252,7 +2241,7 @@ void ethqos_ipa_offload_event_handler(void *data,
 						= true;
 					}
 				}
-			if (ethqos_is_phy_link_up(eth_ipa_ctx.ethqos))
+			if (qcom_ethqos_is_phy_link_up(eth_ipa_ctx.ethqos))
 				ethqos_enable_ipa_offload(eth_ipa_ctx.ethqos);
 		}
 		break;
@@ -2289,7 +2278,7 @@ void ethqos_ipa_offload_event_handler(void *data,
 		break;
 	case EV_DPM_RESUME:
 		{
-			if (ethqos_is_phy_link_up(eth_ipa_ctx.ethqos)) {
+			if (qcom_ethqos_is_phy_link_up(eth_ipa_ctx.ethqos)) {
 				if (!ethqos_ipa_offload_resume(
 						eth_ipa_ctx.ethqos))
 					eth_ipa_ctx.ipa_offload_susp

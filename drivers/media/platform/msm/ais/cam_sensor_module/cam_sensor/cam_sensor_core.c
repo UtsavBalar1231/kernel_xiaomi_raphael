@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -777,9 +777,10 @@ void cam_sensor_shutdown(struct cam_sensor_ctrl_t *s_ctrl)
 	s_ctrl->sensor_state = CAM_SENSOR_INIT;
 
 	for (idx = 0; idx < AIS_MAX_INTR_GPIO; idx++) {
-		if (s_ctrl->s_intr[idx].work_inited == 1){
+		if (s_ctrl->s_intr[idx].work_inited == 1) {
 			gpio_free(s_ctrl->s_intr[idx].gpio_array[0].gpio);
-			free_irq(gpio_to_irq(s_ctrl->s_intr[idx].gpio_array[0].gpio),
+			free_irq(gpio_to_irq(
+				s_ctrl->s_intr[idx].gpio_array[0].gpio),
 				&s_ctrl->s_intr[idx]);
 			s_ctrl->s_intr[idx].work_inited = 0;
 		}

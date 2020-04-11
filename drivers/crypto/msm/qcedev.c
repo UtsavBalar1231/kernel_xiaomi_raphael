@@ -1,7 +1,7 @@
 /*
  * QTI CE device driver.
  *
- * Copyright (c) 2010-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -65,13 +65,13 @@ static dev_t qcedev_device_no;
 static struct class *driver_class;
 static struct device *class_dev;
 
-MODULE_DEVICE_TABLE(of, qcedev_match);
-
 static const struct of_device_id qcedev_match[] = {
 	{	.compatible = "qcom,qcedev"},
 	{	.compatible = "qcom,qcedev,context-bank"},
 	{}
 };
+
+MODULE_DEVICE_TABLE(of, qcedev_match);
 
 static int qcedev_control_clocks(struct qcedev_control *podev, bool enable)
 {
@@ -1912,6 +1912,11 @@ static inline long qcedev_ioctl(struct file *file,
 			if (copy_from_user(&map_buf,
 					(void __user *)arg, sizeof(map_buf))) {
 				err = -EFAULT;
+				goto exit_free_qcedev_areq;
+			}
+
+			if (map_buf.num_fds > QCEDEV_MAX_BUFFERS) {
+				err = -EINVAL;
 				goto exit_free_qcedev_areq;
 			}
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -481,8 +481,10 @@ static int cam_ife_csid_global_reset(struct cam_ife_csid_hw *csid_hw)
 	csid_hw->error_irq_count = 0;
 
 
-	for (i = 0 ; i < CAM_IFE_PIX_PATH_RES_MAX; i++)
+	for (i = 0 ; i < CAM_IFE_PIX_PATH_RES_MAX; i++) {
 		csid_hw->res_sof_cnt[i] = 0;
+		csid_hw->prev_boot_timestamp[i] = 0;
+	}
 
 	return rc;
 }
@@ -805,7 +807,7 @@ static int cam_ife_csid_cid_reserve(struct cam_ife_csid_hw *csid_hw,
 		if (cid_reserv->in_port->res_type == CAM_ISP_IFE_IN_RES_TPG) {
 			csid_hw->csi2_rx_cfg.phy_sel = 0;
 			if (cid_reserv->in_port->format >
-			    CAM_FORMAT_MIPI_RAW_16) {
+				CAM_FORMAT_MIPI_RAW_16) {
 				CAM_ERR(CAM_ISP, " Wrong TPG format");
 				rc = -EINVAL;
 				goto end;
@@ -1078,6 +1080,8 @@ static int cam_ife_csid_enable_hw(struct cam_ife_csid_hw  *csid_hw)
 		goto err;
 	}
 
+	memset(csid_hw->vc_info, 0xff, sizeof(csid_hw->vc_info));
+
 	csid_hw->hw_info->hw_state = CAM_HW_STATE_POWER_UP;
 	/* Reset CSID top */
 	rc = cam_ife_csid_global_reset(csid_hw);
@@ -1169,8 +1173,10 @@ static int cam_ife_csid_disable_hw(struct cam_ife_csid_hw *csid_hw)
 	spin_lock_irqsave(&csid_hw->lock_state, flags);
 	csid_hw->device_enabled = 0;
 	spin_unlock_irqrestore(&csid_hw->lock_state, flags);
-	for (i = 0; i < CAM_IFE_PIX_PATH_RES_MAX; i++)
+	for (i = 0; i < CAM_IFE_PIX_PATH_RES_MAX; i++) {
 		csid_hw->res_sof_cnt[i] = 0;
+		csid_hw->prev_boot_timestamp[i] = 0;
+	}
 
 	csid_hw->ipp_path_config.measure_enabled = 0;
 	csid_hw->ppp_path_config.measure_enabled = 0;
@@ -1178,6 +1184,7 @@ static int cam_ife_csid_disable_hw(struct cam_ife_csid_hw *csid_hw)
 		csid_hw->prev_boot_timestamp[i] = 0;
 		csid_hw->rdi_path_config[i].measure_enabled = 0;
 		}
+
 
 	csid_hw->hw_info->hw_state = CAM_HW_STATE_POWER_DOWN;
 	csid_hw->error_irq_count = 0;
@@ -2062,10 +2069,11 @@ static int cam_ife_csid_init_config_rdi_path(
 	struct cam_ife_csid_path_cfg           *path_data;
 	const struct cam_ife_csid_reg_offset   *csid_reg;
 	struct cam_hw_soc_info                 *soc_info;
-	uint32_t path_format = 0, plain_fmt = 0, val = 0, id, in_bpp = 0;
+	uint32_t path_format = 0, plain_fmt = 0, val = 0, id, in_bpp = 0,
+		i = 0, tmp = 0;
 	uint32_t format_measure_addr;
 
-	path_data = (struct cam_ife_csid_path_cfg   *) res->res_priv;
+	path_data = (struct cam_ife_csid_path_cfg *) res->res_priv;
 	csid_reg = csid_hw->csid_info->csid_reg;
 	soc_info = &csid_hw->hw_info->soc_info;
 
@@ -2181,6 +2189,28 @@ static int cam_ife_csid_init_config_rdi_path(
 	/* Enable the RPP path */
 	val = cam_io_r_mb(soc_info->reg_map[0].mem_base +
 		csid_reg->rdi_reg[id]->csid_rdi_cfg0_addr);
+
+	/* program the IPP CFG0 for full IFE in case of crop*/
+	if ((csid_hw->hw_intf->hw_idx == 0 ||
+		csid_hw->hw_intf->hw_idx == 1) && path_data->crop_enable &&
+		csid_hw->ipp_cfg == false) {
+		for (i = 0; i < CAM_IFE_PIX_PATH_RES_RDI_3; i++) {
+			/*checking for multiple streams of same VC*/
+			if (csid_hw->vc_info[i] == path_data->vc) {
+				tmp = path_format <<
+					csid_reg->cmn_reg->fmt_shift_val;
+
+				cam_io_w_mb(tmp, soc_info->reg_map[0].mem_base +
+					csid_reg->ipp_reg->csid_pxl_cfg0_addr);
+
+				csid_hw->ipp_cfg = true;
+				break;
+			}
+		}
+	}
+
+	csid_hw->vc_info[id] = path_data->vc;
+
 	val |= (1 << csid_reg->cmn_reg->path_en_shift_val);
 
 	if (csid_hw->csid_debug & CSID_DEBUG_ENABLE_HBI_VBI_INFO)
@@ -2235,11 +2265,13 @@ static int cam_ife_csid_deinit_rdi_path(
 	struct cam_ife_csid_hw          *csid_hw,
 	struct cam_isp_resource_node    *res)
 {
-	int rc = 0;
+	int rc = 0, i = 0;
 	uint32_t id, val, format_measure_addr;
 	const struct cam_ife_csid_reg_offset      *csid_reg;
 	struct cam_hw_soc_info                    *soc_info;
+	struct cam_ife_csid_path_cfg              *path_data;
 
+	path_data = (struct cam_ife_csid_path_cfg *) res->res_priv;
 	csid_reg = csid_hw->csid_info->csid_reg;
 	soc_info = &csid_hw->hw_info->soc_info;
 	id = res->res_id;
@@ -2269,6 +2301,16 @@ static int cam_ife_csid_deinit_rdi_path(
 		val &= ~csid_reg->cmn_reg->measure_en_hbi_vbi_cnt_mask;
 		cam_io_w_mb(val, soc_info->reg_map[0].mem_base +
 			format_measure_addr);
+	}
+
+	csid_hw->vc_info[id] = 0xff;
+
+	for (i = 0; i < CAM_IFE_PIX_PATH_RES_RDI_3; i++) {
+		if (csid_hw->vc_info[i] == path_data->vc &&
+			csid_hw->ipp_cfg == true) {
+			csid_hw->ipp_cfg = false;
+			break;
+		}
 	}
 
 	res->res_state = CAM_ISP_RESOURCE_STATE_RESERVED;
@@ -2396,6 +2438,7 @@ static int cam_ife_csid_disable_rdi_path(
 	val |= stop_cmd;
 	cam_io_w_mb(val, soc_info->reg_map[0].mem_base +
 		csid_reg->rdi_reg[id]->csid_rdi_ctrl_addr);
+
 
 	return rc;
 }
@@ -2534,6 +2577,8 @@ static int cam_ife_csid_get_time_stamp(
 		return -EINVAL;
 	}
 
+	id = res->res_id;
+
 	if (res->res_id == CAM_IFE_PIX_PATH_RES_IPP) {
 		time_32 = cam_io_r_mb(soc_info->reg_map[0].mem_base +
 			csid_reg->ipp_reg->csid_pxl_timestamp_curr1_sof_addr);
@@ -2549,7 +2594,6 @@ static int cam_ife_csid_get_time_stamp(
 		time_32 = cam_io_r_mb(soc_info->reg_map[0].mem_base +
 			csid_reg->ppp_reg->csid_pxl_timestamp_curr0_sof_addr);
 	} else {
-		id = res->res_id;
 		rdi_reg = csid_reg->rdi_reg[id];
 		time_32 = cam_io_r_mb(soc_info->reg_map[0].mem_base +
 			rdi_reg->csid_rdi_timestamp_curr1_sof_addr);
@@ -4218,6 +4262,10 @@ int cam_ife_csid_hw_probe_init(struct cam_hw_intf  *csid_hw_intf,
 		ife_csid_hw->prev_boot_timestamp[i] = 0;
 		ife_csid_hw->rdi_path_config[i].measure_enabled = 0;
 		}
+
+
+	for (i = 0; i <= CAM_IFE_PIX_PATH_RES_MAX; i++)
+		ife_csid_hw->prev_boot_timestamp[i] = 0;
 
 	scnprintf(worker_name, sizeof(worker_name),
 		"csid%u_worker", ife_csid_hw->hw_intf->hw_idx);
