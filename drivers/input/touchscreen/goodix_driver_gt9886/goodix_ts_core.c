@@ -886,8 +886,8 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 	/* ts_err("enter %s\n", __func__);*/
 	touch_irq_boost();
 	if (core_data->tp_already_suspend) {
-		ts_info("device in suspend noirq, schedue to work");
-		pm_wakeup_event(&client->dev, msecs_to_jiffies(500));
+		ts_info("device in suspend, schedule to work");
+		pm_wakeup_event(&core_data->pdev->dev, msecs_to_jiffies(300));
 		queue_work(core_data->event_wq, &core_data->sleep_work);
 		return IRQ_HANDLED;
 	}
