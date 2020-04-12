@@ -188,12 +188,5 @@ cdp_pktcapture_record_channel(
 								 pdev_id,
 								 chan_num);
 }
-#else
-static inline void
-cdp_pktcapture_record_channel(ol_txrx_soc_handle soc,
-			      uint8_t pdev_id,
-			      int chan_num)
-{
-}
 #endif
 #endif
