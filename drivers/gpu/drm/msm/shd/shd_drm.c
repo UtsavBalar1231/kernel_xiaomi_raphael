@@ -1347,5 +1347,5 @@ static void __exit sde_shd_unregister(void)
 	platform_driver_unregister(&sde_shd_driver);
 }
 
-module_init(sde_shd_register);
+early_module_init(sde_shd_register, EARLY_SUBSYS_2, EARLY_INIT_LEVEL4);
 module_exit(sde_shd_unregister);

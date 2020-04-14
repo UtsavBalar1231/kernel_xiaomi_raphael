@@ -3198,7 +3198,7 @@ static int __init dp_display_init(void)
 
 	return ret;
 }
-late_initcall(dp_display_init);
+early_late_initcall(dp_display_init, EARLY_SUBSYS_2, EARLY_INIT_LEVEL6);
 
 static void __exit dp_display_cleanup(void)
 {
