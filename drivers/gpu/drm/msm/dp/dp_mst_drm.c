@@ -67,7 +67,6 @@ struct dp_drm_mst_fw_helper_ops {
 			struct drm_dp_mst_port *port);
 	void (*deallocate_vcpi)(struct drm_dp_mst_topology_mgr *mgr,
 			struct drm_dp_mst_port *port);
-	int (*get_avail_slots)(struct drm_dp_mst_topology_mgr *mgr);
 };
 
 struct dp_mst_bridge {
@@ -159,11 +158,6 @@ static struct dp_mst_bridge_state *dp_mst_get_bridge_atomic_state(
 
 	return to_dp_mst_bridge_priv_state(
 		drm_atomic_get_private_obj_state(state, &bridge->obj));
-}
-
-static int _dp_mst_get_avail_slots(struct drm_dp_mst_topology_mgr *mgr)
-{
-	return to_dp_mst_topology_state(mgr->base.state)->avail_slots;
 }
 
 static void _dp_mst_get_vcpi_info(
@@ -261,7 +255,6 @@ static const struct dp_drm_mst_fw_helper_ops drm_dp_mst_fw_helper_ops = {
 	.atomic_release_vcpi_slots = drm_dp_atomic_release_vcpi_slots,
 	.reset_vcpi_slots          = drm_dp_mst_reset_vcpi_slots,
 	.deallocate_vcpi           = drm_dp_mst_deallocate_vcpi,
-	.get_avail_slots           = _dp_mst_get_avail_slots,
 };
 
 /* DP MST Bridge OPs */

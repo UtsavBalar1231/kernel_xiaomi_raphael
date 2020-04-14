@@ -79,6 +79,15 @@ static enum drm_connector_status shd_display_base_detect(
 	return connector_status_disconnected;
 }
 
+static inline bool shd_display_check_enc_intf(
+		struct sde_encoder_hw_resources *hw_res, int intf_idx)
+{
+	if (intf_idx >= INTF_MAX - INTF_0)
+		return false;
+
+	return hw_res->intfs[intf_idx] != INTF_MODE_NONE;
+}
+
 static int shd_display_init_base_connector(struct drm_device *dev,
 						struct shd_display_base *base)
 {
@@ -93,6 +102,7 @@ static int shd_display_init_base_connector(struct drm_device *dev,
 		encoder = drm_atomic_helper_best_encoder(connector);
 		if (encoder == base->encoder) {
 			base->connector = connector;
+			base->connector->num_h_tile = base->tile_num;
 			break;
 		}
 	}
@@ -120,22 +130,17 @@ static int shd_display_init_base_encoder(struct drm_device *dev,
 	struct sde_encoder_hw_resources hw_res;
 	struct sde_connector_state conn_state = {};
 	bool has_mst;
-	int i, rc = 0;
+	int rc = 0;
 
 	drm_for_each_encoder(encoder, dev) {
 		sde_encoder_get_hw_resources(encoder,
 				&hw_res, &conn_state.base);
 		has_mst = (encoder->encoder_type == DRM_MODE_ENCODER_DPMST);
-		for (i = INTF_0; i < INTF_MAX; i++) {
-			if (hw_res.intfs[i - INTF_0] != INTF_MODE_NONE &&
-					base->intf_idx == (i - INTF_0) &&
-					base->mst_port == has_mst) {
-				base->encoder = encoder;
-				break;
-			}
-		}
-		if (base->encoder)
+		if (shd_display_check_enc_intf(&hw_res, base->intf_idx) &&
+				base->mst_port == has_mst) {
+			base->encoder = encoder;
 			break;
+		}
 	}
 
 	if (!base->encoder) {
@@ -170,6 +175,10 @@ static int shd_display_init_base_crtc(struct drm_device *dev,
 {
 	struct drm_crtc *crtc = NULL;
 	struct msm_drm_private *priv;
+	struct drm_plane *primary;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	int crtc_idx;
 	int i;
 
@@ -193,11 +202,23 @@ static int shd_display_init_base_crtc(struct drm_device *dev,
 			return -ENOENT;
 	}
 
-	/* disable crtc from other encoders */
-	for (i = 0; i < priv->num_encoders; i++) {
-		if (priv->encoders[i] != base->encoder)
-			priv->encoders[i]->possible_crtcs &= ~(1 << crtc_idx);
+	/* disable crtc from other connectors */
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector == base->connector)
+			continue;
+
+		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+			if (connector->encoder_ids[i]) {
+				encoder = drm_encoder_find(dev, NULL,
+						connector->encoder_ids[i]);
+				if (encoder)
+					encoder->possible_crtcs &=
+							~(1 << crtc_idx);
+			}
+		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	base->crtc = crtc;
 	SDE_DEBUG("found base crtc %d\n", crtc->base.id);
@@ -500,6 +521,26 @@ static int shd_connector_get_mode_info(struct drm_connector *connector,
 	mode_info->vtotal = drm_mode->vtotal;
 	mode_info->comp_info.comp_type = MSM_DISPLAY_COMPRESSION_NONE;
 
+	/*
+	 * When this function is called for resource allocation,
+	 * we return with zero topology as no h/w res is required. When
+	 * called for topology population, we return with base topology
+	 * as needed for user space pipe split.
+	 */
+	if (!(drm_mode->private_flags & MSM_MODE_FLAG_SHARED_DISPLAY)) {
+		struct sde_connector *base_conn;
+		struct msm_mode_info base_mode_info;
+
+		base_conn = to_sde_connector(shd_display->base->connector);
+		base_conn->ops.get_mode_info(shd_display->base->connector,
+			&shd_display->base->mode,
+			&base_mode_info,
+			max_mixer_width,
+			base_conn->display);
+
+		mode_info->topology = base_mode_info.topology;
+	}
+
 	if (shd_display->src.h != shd_display->roi.h)
 		mode_info->vpadding = shd_display->roi.h;
 
@@ -652,6 +693,7 @@ bool shd_bridge_mode_fixup(struct drm_bridge *drm_bridge,
 				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
+	adjusted_mode->private_flags |= MSM_MODE_FLAG_SHARED_DISPLAY;
 	return true;
 }
 
@@ -1043,6 +1085,17 @@ static int shd_parse_base(struct shd_display_base *base)
 		goto fail;
 	}
 
+	rc = of_property_read_u32(of_node, "qcom,shared-display-base-tile-num",
+					&base->tile_num);
+	if (!rc) {
+		if (base->tile_num &&
+				(base->tile_num < 2 || base->tile_num > 3)) {
+			SDE_ERROR("invalid tile num %d\n", base->tile_num);
+			rc = -EINVAL;
+			goto fail;
+		}
+	}
+
 	base->mst_port = of_property_read_bool(of_node,
 					"qcom,shared-display-base-mst");
 
@@ -1143,9 +1196,12 @@ static int shd_parse_base(struct shd_display_base *base)
 		flags |= DRM_MODE_FLAG_PVSYNC;
 	else
 		flags |= DRM_MODE_FLAG_NVSYNC;
+	if (base->tile_num)
+		flags |= DRM_MODE_FLAG_CLKDIV2;
 	mode->flags = flags;
+	drm_mode_set_name(mode);
 
-	SDE_DEBUG("base mode h[%d,%d,%d,%d] v[%d,%d,%d,%d] %d %xH %d\n",
+	SDE_DEBUG("base mode h[%d,%d,%d,%d] v[%d,%d,%d,%d] %d %x %d\n",
 		mode->hdisplay, mode->hsync_start,
 		mode->hsync_end, mode->htotal, mode->vdisplay,
 		mode->vsync_start, mode->vsync_end, mode->vtotal,
