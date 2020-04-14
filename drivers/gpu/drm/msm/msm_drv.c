@@ -2159,6 +2159,7 @@ static int __init msm_drm_register(void)
 	if (!modeset)
 		return -EINVAL;
 
+	place_marker("M - DISPLAY Driver Init");
 	DBG("init");
 	msm_smmu_driver_init();
 	msm_dsi_register();
