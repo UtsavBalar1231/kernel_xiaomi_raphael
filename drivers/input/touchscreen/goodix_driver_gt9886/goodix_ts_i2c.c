@@ -520,20 +520,22 @@ write_exit:
  * Between set_doze_false and set_doze_true, do not reset
  * IC!
 */
-int goodix_set_i2c_doze_mode(struct goodix_ts_device *dev, int enable)
+static int goodix_set_i2c_doze_mode(struct goodix_ts_device *dev, int enable)
 {
+	static DEFINE_MUTEX(doze_mode_lock);
+	static int doze_mode_set_count;
 	int result = -EINVAL;
 	int i;
 	u8 w_data, r_data;
 
 	if (dev->ic_type != IC_TYPE_NORMANDY)
 		return 0;
-	mutex_lock(&dev->doze_mode_lock);
+	mutex_lock(&doze_mode_lock);
 	if (enable) {
-		if (dev->doze_mode_set_count != 0)
-			dev->doze_mode_set_count--;
+		if (doze_mode_set_count != 0)
+			doze_mode_set_count--;
 		/*when count equal 0, allow ic enter doze mode*/
-		if (dev->doze_mode_set_count == 0) {
+		if (doze_mode_set_count == 0) {
 			w_data = TS_DOZE_ENABLE_DATA;
 			for (i = 0; i < TS_DOZE_ENABLE_RETRY_TIMES; i++) {
 				result = goodix_i2c_write_trans(dev, TS_REG_DOZE_CTRL, &w_data, 1);
@@ -551,8 +553,8 @@ int goodix_set_i2c_doze_mode(struct goodix_ts_device *dev, int enable)
 			goto exit;
 		}
 	} else {
-		dev->doze_mode_set_count++;
-		if (dev->doze_mode_set_count == 1) {
+		doze_mode_set_count++;
+		if (doze_mode_set_count == 1) {
 			w_data = TS_DOZE_DISABLE_DATA;
 			goodix_i2c_write_trans(dev, TS_REG_DOZE_CTRL, &w_data, 1);
 			usleep_range(1000, 1100);
@@ -575,7 +577,7 @@ int goodix_set_i2c_doze_mode(struct goodix_ts_device *dev, int enable)
 	}
 
 exit:
-	mutex_unlock(&dev->doze_mode_lock);
+	mutex_unlock(&doze_mode_lock);
 	return result;
 }
 
