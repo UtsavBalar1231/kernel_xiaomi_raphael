@@ -1374,7 +1374,8 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 	phymode = wma_peer_phymode(nw_type, params->staType,
 				   params->htCapable, params->ch_width,
 				   params->vhtCapable, is_he);
-	if ((intr->type == WMI_VDEV_TYPE_AP) && (phymode > intr->chanmode)) {
+	if ((phymode != MODE_11B) && (intr->type == WMI_VDEV_TYPE_AP) &&
+	    (phymode > intr->chanmode)) {
 		wma_nofl_debug("Peer phymode %d is not allowed. Set it equal to sap/go phymode %d",
 			       phymode, intr->chanmode);
 		phymode = intr->chanmode;
