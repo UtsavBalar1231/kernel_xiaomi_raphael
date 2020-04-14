@@ -3134,8 +3134,6 @@ static void dp_soc_cmn_cleanup(struct dp_soc *soc)
 	dp_tx_soc_detach(soc);
 
 	qdf_spinlock_destroy(&soc->rx.defrag.defrag_lock);
-
-	dp_reo_cmdlist_destroy(soc);
 	qdf_spinlock_destroy(&soc->rx.reo_cmd_lock);
 }
 
@@ -3748,8 +3746,10 @@ wdi_attach_fail:
 
 fail2:
 	dp_rx_pdev_detach(pdev);
+	dp_ipa_uc_detach(soc, pdev);
 
 fail1:
+	soc->pdev_count--;
 	if (pdev->invalid_peer)
 		qdf_mem_free(pdev->invalid_peer);
 	dp_pdev_detach((struct cdp_pdev *)pdev, 0);
@@ -4032,6 +4032,11 @@ static void dp_pdev_deinit(struct cdp_pdev *txrx_pdev, int force)
 	dp_cal_client_detach(&pdev->cal_client_ctx);
 
 	soc->pdev_count--;
+
+	/* only do soc common cleanup when last pdev do detach */
+	if (!(soc->pdev_count))
+		dp_reo_cmdlist_destroy(soc);
+
 	wlan_cfg_pdev_detach(pdev->wlan_cfg_ctx);
 	if (pdev->invalid_peer)
 		qdf_mem_free(pdev->invalid_peer);
@@ -4111,6 +4116,10 @@ static void dp_pdev_detach(struct cdp_pdev *txrx_pdev, int force)
 		dp_rx_desc_pool_free(soc, rx_desc_pool);
 	}
 
+	/* only do soc common cleanup when last pdev do detach */
+	if (!(soc->pdev_count))
+		dp_soc_cmn_cleanup(soc);
+
 	soc->pdev_list[pdev->pdev_id] = NULL;
 	qdf_mem_free(pdev);
 }
@@ -4133,11 +4142,6 @@ static void dp_pdev_detach_wifi3(struct cdp_pdev *txrx_pdev, int force)
 		dp_pdev_deinit(txrx_pdev, force);
 		dp_pdev_detach(txrx_pdev, force);
 	}
-
-	/* only do soc common cleanup when last pdev do detach */
-	if (!(soc->pdev_count))
-		dp_soc_cmn_cleanup(soc);
-
 }
 
 /*
