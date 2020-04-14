@@ -1013,7 +1013,7 @@ static int __init phy_core_init(void)
 
 	return 0;
 }
-module_init(phy_core_init);
+early_module_init(phy_core_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
 
 static void __exit phy_core_exit(void)
 {

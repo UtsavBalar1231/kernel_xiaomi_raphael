@@ -682,4 +682,4 @@ static int __init populate_rootfs(void)
 
 	return 0;
 }
-rootfs_initcall(populate_rootfs);
+early_rootfs_initcall(populate_rootfs, EARLY_SUBSYS_1, EARLY_INIT_LEVEL4);

@@ -288,6 +288,7 @@ static struct platform_driver devbw_driver = {
 	},
 };
 
-module_platform_driver(devbw_driver);
+early_module_platform_driver(devbw_driver, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL7);
 MODULE_DESCRIPTION("Device DDR bandwidth voting driver MSM SoCs");
 MODULE_LICENSE("GPL v2");

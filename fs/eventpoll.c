@@ -2339,4 +2339,4 @@ static int __init eventpoll_init(void)
 
 	return 0;
 }
-fs_initcall(eventpoll_init);
+early_fs_initcall(eventpoll_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);

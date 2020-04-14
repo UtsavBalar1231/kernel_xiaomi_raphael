@@ -257,7 +257,8 @@ static int __init devfreq_gpubw_init(void)
 {
 	return devfreq_add_governor(&devfreq_gpubw);
 }
-subsys_initcall(devfreq_gpubw_init);
+early_subsys_initcall(devfreq_gpubw_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL7);
 
 static void __exit devfreq_gpubw_exit(void)
 {

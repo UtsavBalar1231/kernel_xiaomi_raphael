@@ -640,61 +640,74 @@ void __init launch_early_services(void) { }
 void __init prepare_namespace(void)
 {
 	int is_floppy;
+	static int first_time = 1;
 
-	if (root_delay) {
-		printk(KERN_INFO "Waiting %d sec before mounting root device...\n",
-		       root_delay);
-		ssleep(root_delay);
-	}
-
-	/*
-	 * wait for the known devices to complete their probing
-	 *
-	 * Note: this is a potential source of long boot delays.
-	 * For example, it is not atypical to wait 5 seconds here
-	 * for the touchpad of a laptop to initialize.
-	 */
-	wait_for_device_probe();
-
-	md_run_setup();
-	dm_run_setup();
-	dm_verity_setup();
-
-	if (saved_root_name[0]) {
-		root_device_name = saved_root_name;
-		if (!strncmp(root_device_name, "mtd", 3) ||
-		    !strncmp(root_device_name, "ubi", 3)) {
-			mount_block_root(root_device_name, root_mountflags);
-			goto out;
+	if ((!is_early_userspace) || (is_early_userspace && (!first_time))) {
+		if (root_delay) {
+			pr_info(
+			"Waiting %d sec before mounting root device...\n",
+			root_delay);
+			ssleep(root_delay);
 		}
-		ROOT_DEV = name_to_dev_t(root_device_name);
-		if (strncmp(root_device_name, "/dev/", 5) == 0)
-			root_device_name += 5;
+
+		/*
+		 * wait for the known devices to complete their probing
+		 *
+		 * Note: this is a potential source of long boot delays.
+		 * For example, it is not atypical to wait 5 seconds here
+		 * for the touchpad of a laptop to initialize.
+		 */
+		if (!is_early_userspace)
+			wait_for_device_probe();
 	}
 
-	if (initrd_load())
-		goto out;
+	if ((!is_early_userspace) || (is_early_userspace && first_time)) {
+		md_run_setup();
+		dm_run_setup();
+		dm_verity_setup();
 
-	/* wait for any asynchronous scanning to complete */
-	if ((ROOT_DEV == 0) && root_wait) {
-		printk(KERN_INFO "Waiting for root device %s...\n",
-			saved_root_name);
-		while (driver_probe_done() != 0 ||
-			(ROOT_DEV = name_to_dev_t(saved_root_name)) == 0)
-			msleep(5);
-		async_synchronize_full();
+		if (saved_root_name[0]) {
+			root_device_name = saved_root_name;
+			if (!memcmp(root_device_name, "mtd", 3) ||
+				!memcmp(root_device_name, "ubi", 3)) {
+				mount_block_root(root_device_name,
+					root_mountflags);
+				goto out;
+			}
+			ROOT_DEV = name_to_dev_t(root_device_name);
+			if (memcmp(root_device_name, "/dev/", 5) == 0)
+				root_device_name += 5;
+		}
+
+		if (initrd_load())
+			goto out;
+
+		/* wait for any asynchronous scanning to complete */
+		if ((ROOT_DEV == 0) && root_wait) {
+			pr_info("Waiting for root device %s...\n",
+				saved_root_name);
+			while (driver_probe_done() != 0 ||
+				(ROOT_DEV = name_to_dev_t(saved_root_name))
+					== 0)
+				msleep(20);
+			async_synchronize_full();
+		}
+
+		is_floppy = MAJOR(ROOT_DEV) == FLOPPY_MAJOR;
+
+		if (is_floppy && rd_doload && rd_load_disk(0))
+			ROOT_DEV = Root_RAM0;
+
+		mount_root();
 	}
-
-	is_floppy = MAJOR(ROOT_DEV) == FLOPPY_MAJOR;
-
-	if (is_floppy && rd_doload && rd_load_disk(0))
-		ROOT_DEV = Root_RAM0;
-
-	mount_root();
 out:
-	devtmpfs_mount("dev");
-	sys_mount(".", "/", NULL, MS_MOVE, NULL);
-	sys_chroot(".");
+	if ((!is_early_userspace) || (is_early_userspace && first_time)) {
+		devtmpfs_mount("dev");
+		sys_mount((char __user *)".", (char __user *)"/",
+			NULL, MS_MOVE, NULL);
+		sys_chroot((char __user *)".");
+	}
+	first_time = 0;
 }
 
 static bool is_tmpfs;
@@ -739,3 +752,26 @@ int __init init_rootfs(void)
 
 	return err;
 }
+
+static int __init early_prepare_namespace(void)
+{
+	prepare_namespace();
+	return 0;
+}
+early_init(early_prepare_namespace, EARLY_SUBSYS_1, EARLY_INIT_LEVEL6);
+
+static char init_prog[128] = "/usr/sbin/early_init";
+static char *init_prog_argv[2] = { init_prog, NULL };
+
+static int __init early_userspace_start(void)
+{
+	int rc;
+
+	rc = call_usermodehelper(init_prog, init_prog_argv, NULL, 0);
+	if (!rc)
+		pr_info("early_init launched\n");
+	else
+		pr_err("early_init failed\n");
+	return rc;
+}
+early_init(early_userspace_start, EARLY_SUBSYS_1, EARLY_INIT_LEVEL8);

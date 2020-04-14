@@ -148,7 +148,8 @@ static int __init devfreq_simple_ondemand_init(void)
 {
 	return devfreq_add_governor(&devfreq_simple_ondemand);
 }
-subsys_initcall(devfreq_simple_ondemand_init);
+early_subsys_initcall(devfreq_simple_ondemand_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL7);
 
 static void __exit devfreq_simple_ondemand_exit(void)
 {

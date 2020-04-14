@@ -5314,7 +5314,7 @@ static void __exit arm_smmu_exit(void)
 	return platform_driver_unregister(&arm_smmu_driver);
 }
 
-subsys_initcall(arm_smmu_init);
+early_subsys_initcall(arm_smmu_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL2);
 module_exit(arm_smmu_exit);
 
 static int __init arm_smmu_of_init(struct device_node *np)

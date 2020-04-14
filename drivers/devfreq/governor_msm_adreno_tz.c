@@ -565,7 +565,8 @@ static int __init msm_adreno_tz_init(void)
 {
 	return devfreq_add_governor(&msm_adreno_tz);
 }
-subsys_initcall(msm_adreno_tz_init);
+early_subsys_initcall(msm_adreno_tz_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL7);
 
 static void __exit msm_adreno_tz_exit(void)
 {

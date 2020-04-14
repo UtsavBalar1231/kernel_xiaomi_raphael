@@ -673,7 +673,7 @@ static int __init clk_rpmh_init(void)
 {
 	return platform_driver_register(&clk_rpmh_driver);
 }
-subsys_initcall(clk_rpmh_init);
+early_subsys_initcall(clk_rpmh_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL0);
 
 static void __exit clk_rpmh_exit(void)
 {
