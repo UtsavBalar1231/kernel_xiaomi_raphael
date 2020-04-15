@@ -1046,6 +1046,8 @@ static int dsi_panel_parse_color_swap(struct dsi_host_common_cfg *host,
 			host->swap_mode = DSI_COLOR_SWAP_RGB;
 		} else if (!strcmp(swap_mode, "rgb_swap_rbg")) {
 			host->swap_mode = DSI_COLOR_SWAP_RBG;
+		} else if (!strcmp(swap_mode, "rgb_swap_bgr")) {
+			host->swap_mode = DSI_COLOR_SWAP_BGR;
 		} else if (!strcmp(swap_mode, "rgb_swap_brg")) {
 			host->swap_mode = DSI_COLOR_SWAP_BRG;
 		} else if (!strcmp(swap_mode, "rgb_swap_grb")) {
