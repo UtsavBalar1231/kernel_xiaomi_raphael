@@ -50,6 +50,7 @@
 
 #include "pci_api.h"
 #include "ahb_api.h"
+#include "qdf_platform.h"
 
 /* Maximum ms timeout for host to wake up target */
 #define PCIE_WAKE_TIMEOUT 1000
@@ -985,6 +986,11 @@ static void hif_pci_runtime_pm_warn(struct hif_pci_softc *sc, const char *msg)
 	list_for_each_entry(ctx, &sc->prevent_suspend_list, list) {
 		hif_nofl_debug("source %s; timeout %d ms",
 			       ctx->name, ctx->timeout);
+	}
+
+	if (qdf_is_fw_down()) {
+		hif_err("fw is down");
+		return;
 	}
 
 	QDF_DEBUG_PANIC("hif_pci_runtime_pm_warn");
