@@ -75,6 +75,7 @@
 #include "cfg_ucfg_api.h"
 #include "wlan_mlme_public_struct.h"
 #include "wlan_scan_utils_api.h"
+#include "wlan_pkt_capture_ucfg_api.h"
 
 static void __lim_init_bss_vars(struct mac_context *mac)
 {
@@ -1180,6 +1181,13 @@ static QDF_STATUS pe_handle_mgmt_frame(struct wlan_objmgr_psoc *psoc,
 	QDF_STATUS qdf_status;
 	uint8_t *pRxPacketInfo;
 	int ret;
+
+	/* skip offload packets */
+	if (ucfg_pkt_capture_get_mode(psoc) &&
+	    mgmt_rx_params->status & WMI_RX_OFFLOAD_MON_MODE) {
+		qdf_nbuf_free(buf);
+		return QDF_STATUS_SUCCESS;
+	}
 
 	mac = cds_get_context(QDF_MODULE_ID_PE);
 	if (!mac) {
