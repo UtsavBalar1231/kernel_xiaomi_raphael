@@ -281,14 +281,9 @@ int goodix_cfg_bin_proc(void *data)
 
 exit:
 	complete_all(&goodix_modules.core_comp);
-	if (cfg_bin->cfg_pkgs) {
-		kfree(cfg_bin->cfg_pkgs);
-		cfg_bin->cfg_pkgs = NULL;
-	}
-	if (cfg_bin->bin_data) {
-		kfree(cfg_bin->bin_data);
-		cfg_bin->bin_data = NULL;
-	}
+	kfree(cfg_bin->cfg_pkgs);
+	kfree(cfg_bin->bin_data);
+	kfree(cfg_bin);
 	return r;
 }
 
