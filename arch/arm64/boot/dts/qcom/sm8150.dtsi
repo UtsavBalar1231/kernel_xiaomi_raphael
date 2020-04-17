@@ -691,7 +691,8 @@
 
 		ramoops: ramoops@a1600000 {
 			compatible = "ramoops";
-			reg = <0 0xa1600000 0 0x800000>;
+			reg = <0x0 0xa1600000 0x0 0x800000>;
+			record-size = <0x80000>;
 			console-size = <0x400000>;
 			pmsg-size = <0x400000>;
 		};
