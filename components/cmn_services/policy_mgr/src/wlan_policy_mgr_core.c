@@ -2681,7 +2681,6 @@ static void policy_mgr_nss_update_cb(struct wlan_objmgr_psoc *psoc,
 		policy_mgr_next_actions(psoc, original_vdev_id, next_action,
 					reason);
 	else {
-		policy_mgr_debug("No action needed right now");
 		ret = policy_mgr_set_opportunistic_update(psoc);
 		if (!QDF_IS_STATUS_SUCCESS(ret))
 			policy_mgr_err("ERROR: set opportunistic_update event failed");
