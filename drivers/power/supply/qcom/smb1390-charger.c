@@ -1095,6 +1095,7 @@ static struct platform_driver smb1390_driver = {
 		.name		= "qcom,smb1390-charger",
 		.owner		= THIS_MODULE,
 		.of_match_table	= match_table,
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe	= smb1390_probe,
 	.remove	= smb1390_remove,
