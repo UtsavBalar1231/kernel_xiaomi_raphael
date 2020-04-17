@@ -772,6 +772,8 @@ static struct platform_driver sde_smmu_driver = {
 	.driver = {
 		.name = "sde_smmu",
 		.of_match_table = sde_smmu_dt_match,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+
 	},
 };
 
