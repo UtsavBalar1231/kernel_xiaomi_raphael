@@ -338,7 +338,7 @@ int mdss_dsi_bl_gpio_ctrl(struct mdss_panel_data *pdata, int enable)
 
 		if (ctrl_pdata->bklt_en_gpio_invert)
 			val = 0;
-		 else
+		else
 			val = 1;
 
 		rc = gpio_direction_output(ctrl_pdata->bklt_en_gpio, val);
@@ -356,7 +356,7 @@ int mdss_dsi_bl_gpio_ctrl(struct mdss_panel_data *pdata, int enable)
 		 */
 		if (ctrl_pdata->bklt_en_gpio_invert)
 			val = 1;
-		 else
+		else
 			val = 0;
 
 		rc = gpio_direction_output(ctrl_pdata->bklt_en_gpio, val);
@@ -444,7 +444,8 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				gpio_set_value((ctrl_pdata->rst_gpio),
 					pdata->panel_info.rst_seq[i]);
 				if (pdata->panel_info.rst_seq[++i])
-					usleep_range(pinfo->rst_seq[i] * 1000, pinfo->rst_seq[i] * 1000);
+					usleep_range(pinfo->rst_seq[i] * 1000,
+						pinfo->rst_seq[i] * 1000);
 			}
 
 			if (gpio_is_valid(ctrl_pdata->avdd_en_gpio)) {
@@ -2260,10 +2261,8 @@ static void mdss_dsi_parse_panel_horizintal_line_idle(struct device_node *np,
 	cnt = len / sizeof(u32);
 
 	kp = kzalloc(sizeof(*kp) * (cnt / 3), GFP_KERNEL);
-	if (kp == NULL) {
-		pr_err("%s: No memory\n", __func__);
+	if (kp == NULL)
 		return;
-	}
 
 	ctrl->line_idle = kp;
 	for (i = 0; i < cnt; i += 3) {

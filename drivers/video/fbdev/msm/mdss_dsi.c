@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -100,7 +100,7 @@ void mdss_dump_dsi_debug_bus(u32 bus_dump_flag,
 		if (dsi0_active) {
 			writel_relaxed(sdata->dbg_bus[i],
 					m_ctrl->ctrl_base + 0x124);
-			wmb(); /* ensure regsiter is committed */
+			wmb(); /* ensure register is committed */
 		}
 		if (dsi1_active) {
 			writel_relaxed(sdata->dbg_bus[i],
@@ -237,7 +237,7 @@ static void mdss_dsi_config_clk_src(struct platform_device *pdev)
 		 * For split-dsi and single-dsi use cases, map the PLL source
 		 * based on the pll source configuration. It is possible that
 		 * for split-dsi case, the only supported config is to source
-		 * the clocks from PLL0. This is not explictly checked here as
+		 * the clocks from PLL0. This is not explicitly checked here as
 		 * it should have been already enforced when validating the
 		 * board configuration.
 		 */
@@ -501,7 +501,7 @@ static int mdss_dsi_panel_power_ctrl(struct mdss_panel_data *pdata,
 	return ret;
 }
 
-static void mdss_dsi_put_dt_vreg_data(struct device *dev,
+void mdss_dsi_put_dt_vreg_data(struct device *dev,
 	struct dss_module_power *module_power)
 {
 	if (!module_power) {
@@ -516,7 +516,7 @@ static void mdss_dsi_put_dt_vreg_data(struct device *dev,
 	module_power->num_vreg = 0;
 }
 
-static int mdss_dsi_get_dt_vreg_data(struct device *dev,
+int mdss_dsi_get_dt_vreg_data(struct device *dev,
 	struct device_node *of_node, struct dss_module_power *mp,
 	enum dsi_pm_type module)
 {
@@ -562,7 +562,6 @@ static int mdss_dsi_get_dt_vreg_data(struct device *dev,
 	mp->vreg_config = devm_kzalloc(dev, sizeof(struct dss_vreg) *
 		mp->num_vreg, GFP_KERNEL);
 	if (!mp->vreg_config) {
-		pr_err("%s: can't alloc vreg mem\n", __func__);
 		rc = -ENOMEM;
 		goto error;
 	}
@@ -778,10 +777,8 @@ static ssize_t mdss_dsi_cmd_state_write(struct file *file,
 	}
 
 	input = kmalloc(count, GFP_KERNEL);
-	if (!input) {
-		pr_err("%s: Failed to allocate memory\n", __func__);
+	if (!input)
 		return -ENOMEM;
-	}
 
 	if (copy_from_user(input, p, count)) {
 		kfree(input);
@@ -836,7 +833,6 @@ static ssize_t mdss_dsi_cmd_read(struct file *file, char __user *buf,
 
 		buffer = kmalloc(bsize, GFP_KERNEL);
 		if (!buffer) {
-			pr_err("%s: Failed to allocate memory\n", __func__);
 			mutex_unlock(&pcmds->dbg_mutex);
 			return -ENOMEM;
 		}
@@ -887,7 +883,7 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 {
 	struct buf_data *pcmds = file->private_data;
 	ssize_t ret = 0;
-	int blen = 0;
+	unsigned int blen = 0;
 	char *string_buf;
 
 	mutex_lock(&pcmds->dbg_mutex);
@@ -899,6 +895,11 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 
 	/* Allocate memory for the received string */
 	blen = count + (pcmds->sblen);
+	if (blen > U32_MAX - 1) {
+		mutex_unlock(&pcmds->dbg_mutex);
+		return -EINVAL;
+	}
+
 	string_buf = krealloc(pcmds->string_buf, blen + 1, GFP_KERNEL);
 	if (!string_buf) {
 		pr_err("%s: Failed to allocate memory\n", __func__);
@@ -906,6 +907,7 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 		return -ENOMEM;
 	}
 
+	pcmds->string_buf = string_buf;
 	/* Writing in batches is possible */
 	ret = simple_write_to_buffer(string_buf, blen, ppos, p, count);
 	if (ret < 0) {
@@ -915,7 +917,6 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 	}
 
 	string_buf[ret] = '\0';
-	pcmds->string_buf = string_buf;
 	pcmds->sblen = count;
 	mutex_unlock(&pcmds->dbg_mutex);
 	return ret;
@@ -1036,11 +1037,8 @@ static int mdss_dsi_debugfs_setup(struct mdss_panel_data *pdata,
 				panel_data);
 
 	dfs = kzalloc(sizeof(*dfs), GFP_KERNEL);
-	if (!dfs) {
-		pr_err("%s: No memory to create dsi ctrl debugfs info",
-			__func__);
+	if (!dfs)
 		return -ENOMEM;
-	}
 
 	dfs->root = debugfs_create_dir("dsi_ctrl_pdata", parent);
 	if (IS_ERR_OR_NULL(dfs->root)) {
@@ -1103,7 +1101,7 @@ static int mdss_dsi_debugfs_init(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		return rc;
 	}
 
-	pr_debug("%s: Initialized mdss_dsi_debugfs_init\n", __func__);
+	pr_debug("%s: Init complete\n", __func__);
 	return 0;
 }
 
@@ -1158,10 +1156,8 @@ static int _mdss_dsi_refresh_cmd(struct buf_data *new_cmds,
 
 	/* Reallocate space for dcs commands */
 	cmds = kzalloc(cnt * sizeof(struct dsi_cmd_desc), GFP_KERNEL);
-	if (!cmds) {
-		pr_err("%s: Failed to allocate memory\n", __func__);
+	if (!cmds)
 		return -ENOMEM;
-	}
 	kfree(original_pcmds->buf);
 	kfree(original_pcmds->cmds);
 	original_pcmds->cmd_cnt = cnt;
@@ -1769,9 +1765,9 @@ static int mdss_dsi_blank(struct mdss_panel_data *pdata, int power_state)
 	if ((pdata->panel_info.type == MIPI_CMD_PANEL) &&
 		mipi->vsync_enable && mipi->hw_vsync_mode) {
 		if (mdss_dsi_is_te_based_esd(ctrl_pdata)) {
-				disable_irq(gpio_to_irq(
-					ctrl_pdata->disp_te_gpio));
-				atomic_dec(&ctrl_pdata->te_irq_ready);
+			disable_irq(gpio_to_irq(
+				ctrl_pdata->disp_te_gpio));
+			atomic_dec(&ctrl_pdata->te_irq_ready);
 		}
 		mdss_dsi_set_tear_off(ctrl_pdata);
 	}
@@ -2899,9 +2895,9 @@ static ssize_t dynamic_bitclk_sysfs_rda(struct device *dev,
 	return ret;
 } /* dynamic_bitclk_sysfs_rda */
 
-static DEVICE_ATTR(dynamic_bitclk, S_IRUGO | S_IWUSR | S_IWGRP,
+static DEVICE_ATTR(dynamic_bitclk, 0664,
 	dynamic_bitclk_sysfs_rda, dynamic_bitclk_sysfs_wta);
-static DEVICE_ATTR(supported_bitclk, S_IRUGO, supp_bitclk_list_sysfs_rda, NULL);
+static DEVICE_ATTR(supported_bitclk, 0444, supp_bitclk_list_sysfs_rda, NULL);
 
 static struct attribute *dynamic_bitclk_fs_attrs[] = {
 	&dev_attr_dynamic_bitclk.attr,
@@ -3089,8 +3085,8 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 
 		if (IS_ENABLED(CONFIG_MSM_DBA) &&
 			pdata->panel_info.is_dba_panel) {
-				queue_delayed_work(ctrl_pdata->workq,
-					&ctrl_pdata->dba_work, HZ);
+			queue_delayed_work(ctrl_pdata->workq,
+				&ctrl_pdata->dba_work, HZ);
 		}
 		break;
 	case MDSS_EVENT_DSI_TIMING_DB_CTRL:
@@ -3814,8 +3810,7 @@ static void mdss_dsi_res_deinit(struct platform_device *pdev)
 		if (dsi_res->ctrl_pdata[i]) {
 			if (dsi_res->ctrl_pdata[i]->ds_registered) {
 				struct mdss_panel_info *pinfo =
-					&dsi_res->ctrl_pdata[i]->
-						panel_data.panel_info;
+				&dsi_res->ctrl_pdata[i]->panel_data.panel_info;
 
 				if (pinfo)
 					mdss_dba_utils_deinit(pinfo->dba_data);
@@ -4307,10 +4302,8 @@ static int mdss_dsi_irq_init(struct device *dev, int irq_no,
 
 	disable_irq(irq_no);
 	ctrl->dsi_hw->irq_info = kzalloc(sizeof(struct irq_info), GFP_KERNEL);
-	if (!ctrl->dsi_hw->irq_info) {
-		pr_err("no mem to save irq info: kzalloc fail\n");
+	if (!ctrl->dsi_hw->irq_info)
 		return -ENOMEM;
-	}
 	ctrl->dsi_hw->irq_info->irq = irq_no;
 	ctrl->dsi_hw->irq_info->irq_ena = false;
 
@@ -4845,4 +4838,3 @@ module_exit(mdss_dsi_driver_cleanup);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DSI controller driver");
-MODULE_AUTHOR("Chandan Uddaraju <chandanu@codeaurora.org>");

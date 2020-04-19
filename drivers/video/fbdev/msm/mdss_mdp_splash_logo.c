@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2015, 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2015, 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -149,7 +149,7 @@ static int mdss_mdp_splash_iommu_attach(struct msm_fb_data_type *mfd)
 		!mdss_mdp_iommu_dyn_attach_supported(mdp5_data->mdata) ||
 		!mdp5_data->splash_mem_addr ||
 		!mdp5_data->splash_mem_size) {
-		pr_err("dynamic attach is not supported\n");
+		pr_debug("dynamic attach is not supported\n");
 		return -EPERM;
 	}
 

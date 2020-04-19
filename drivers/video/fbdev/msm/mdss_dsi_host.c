@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1164,7 +1164,7 @@ static int mdss_dsi_read_status(struct mdss_dsi_ctrl_pdata *ctrl)
 		if (rc <= 0) {
 			if (!mdss_dsi_sync_wait_enable(ctrl) ||
 				mdss_dsi_sync_wait_trigger(ctrl))
-			pr_err("%s: get status: fail\n", __func__);
+				pr_err("%s: get status: fail\n", __func__);
 			return rc;
 		}
 
@@ -1821,7 +1821,8 @@ static int mdss_dsi_cmds2buf_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 					__func__,  cm->payload[0], len);
 
 			if (!wait || dchdr->wait > VSYNC_PERIOD)
-				usleep_range(dchdr->wait * 1000, dchdr->wait * 1000);
+				usleep_range(dchdr->wait * 1000,
+						 dchdr->wait * 1000);
 
 			mdss_dsi_buf_init(tp);
 			len = 0;

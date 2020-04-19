@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1024,7 +1024,7 @@ static int mdss_debug_set_panic_signal(struct mdss_mdp_pipe *pipe_pool,
 			pr_debug("pnum:%d count:%d img:%dx%d ",
 				pipe->num, pipe->play_cnt, pipe->img_width,
 				pipe->img_height);
-			pr_cont("src[%d,%d,%d,%d] dst[%d,%d,%d,%d]\n",
+			pr_debug("src[%d,%d,%d,%d] dst[%d,%d,%d,%d]\n",
 				pipe->src.x, pipe->src.y, pipe->src.w,
 				pipe->src.h, pipe->dst.x, pipe->dst.y,
 				pipe->dst.w, pipe->dst.h);
@@ -1835,9 +1835,9 @@ void mdss_misr_crc_collect(struct mdss_data_type *mdata, int block_id,
 				}
 				pr_debug("USE BUFF %s\n", map->use_ping ?
 					"PING" : "PONG");
-				pr_debug("mdss_misr_crc_collect PING BUF %s\n",
+				pr_debug("%s: PING BUF %s\n", __func__,
 					map->is_ping_full ? "FULL" : "EMPTRY");
-				pr_debug("mdss_misr_crc_collect PONG BUF %s\n",
+				pr_debug("%s: PONG BUF %s\n", __func__,
 					map->is_pong_full ? "FULL" : "EMPTRY");
 			}
 		} else {

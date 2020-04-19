@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -57,6 +57,7 @@
 #define DFPS_DATA_MAX_FPS 0x7fffffff
 #define DFPS_DATA_MAX_CLK_RATE 250000
 
+struct mdp_overlay tmp;
 static int mdss_mdp_overlay_free_fb_pipe(struct msm_fb_data_type *mfd);
 static int mdss_mdp_overlay_fb_parse_dt(struct msm_fb_data_type *mfd);
 static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd);
@@ -193,7 +194,7 @@ static int mdss_mdp_ov_xres_check(struct msm_fb_data_type *mfd,
 			 * stopped sending MDSS_MDP_RIGHT_MIXER flag and
 			 * modified their xres relative to full panel
 			 * dimensions. In such cases, we need to deduct left
-			 * layer mixer width before we programm this HW.
+			 * layer mixer width before we program this HW.
 			 */
 			req->dst_rect.x -= left_lm_w;
 			req->flags |= MDSS_MDP_RIGHT_MIXER;
@@ -938,7 +939,7 @@ int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 		pipe->bwc_mode = 0;
 	} else {
 		pipe->bwc_mode = pipe->mixer_left->rotator_mode ?
-			0 : (bwc_enabled ? 1 : 0) ;
+			0 : (bwc_enabled ? 1 : 0);
 	}
 	pipe->img_width = req->src.width & 0x3fff;
 	pipe->img_height = req->src.height & 0x3fff;
@@ -973,7 +974,7 @@ int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 			if (req->dst_rect.x >= mixer->width) {
 				pr_err("%pS: err dst_x can't lie in right half",
 					__builtin_return_address(0));
-				pr_cont(" flags:0x%x dst x:%d w:%d lm_w:%d\n",
+				pr_err(" flags:0x%x dst x:%d w:%d lm_w:%d\n",
 					req->flags, req->dst_rect.x,
 					req->dst_rect.w, mixer->width);
 				ret = -EINVAL;
@@ -1169,10 +1170,8 @@ struct mdss_mdp_data *mdss_mdp_overlay_buf_alloc(struct msm_fb_data_type *mfd,
 					BUF_POOL_SIZE, mfd->index);
 
 		buf = kzalloc(sizeof(*buf) * BUF_POOL_SIZE, GFP_KERNEL);
-		if (!buf) {
-			pr_err("Unable to allocate buffer pool\n");
+		if (!buf)
 			return NULL;
-		}
 
 		list_add(&buf->chunk_list, &mdp5_data->bufs_chunks);
 		kmemleak_not_leak(buf);
@@ -1185,7 +1184,7 @@ struct mdss_mdp_data *mdss_mdp_overlay_buf_alloc(struct msm_fb_data_type *mfd,
 
 	buf = list_first_entry(&mdp5_data->bufs_pool,
 			struct mdss_mdp_data, buf_list);
-	BUG_ON(buf->state != MDP_BUF_STATE_UNUSED);
+	WARN_ON(buf->state != MDP_BUF_STATE_UNUSED);
 	buf->state = MDP_BUF_STATE_READY;
 	buf->last_alloc = local_clock();
 	buf->last_pipe = pipe;
@@ -1219,7 +1218,7 @@ static void mdss_mdp_overlay_buf_deinit(struct msm_fb_data_type *mfd)
 
 	pr_debug("performing cleanup of buffers pool on fb%d\n", mfd->index);
 
-	BUG_ON(!list_empty(&mdp5_data->bufs_used));
+	WARN_ON(!list_empty(&mdp5_data->bufs_used));
 
 	list_for_each_entry_safe(buf, t, &mdp5_data->bufs_pool, buf_list)
 		list_del(&buf->buf_list);
@@ -1640,7 +1639,7 @@ static int __overlay_queue_pipes(struct msm_fb_data_type *mfd)
 			if (ctl->mdata->mixer_switched) {
 				ret = mdss_mdp_overlay_pipe_setup(mfd,
 					&pipe->req_data, &pipe, NULL, false);
-				pr_debug("reseting DMA pipe for ctl=%d",
+				pr_debug("resetting DMA pipe for ctl=%d",
 					 ctl->num);
 			}
 			if (ret) {
@@ -1684,7 +1683,7 @@ static int __overlay_queue_pipes(struct msm_fb_data_type *mfd)
 			default:
 				pr_err("invalid state of buf %pK=%d\n",
 						buf, buf->state);
-				BUG();
+				WARN_ON(1);
 				break;
 			}
 		}
@@ -1705,7 +1704,7 @@ static int __overlay_queue_pipes(struct msm_fb_data_type *mfd)
 			 */
 			continue;
 		} else if (buf) {
-			BUG_ON(buf->state != MDP_BUF_STATE_ACTIVE);
+			WARN_ON(buf->state != MDP_BUF_STATE_ACTIVE);
 			pr_debug("requeueing active buffer on pnum=%d\n",
 					pipe->num);
 		} else if ((pipe->flags & MDP_SOLID_FILL) == 0) {
@@ -2094,7 +2093,7 @@ static void __restore_dest_scaler_roi(struct mdss_mdp_ctl *ctl)
 	}
 }
 
- /**
+/*
  * __adjust_pipe_rect() - Adjust pipe roi for dual partial update feature.
  * @pipe: pipe to check against.
  * @dual_roi: roi's for the dual partial roi.
@@ -2302,10 +2301,10 @@ set_roi:
 
 		if (pinfo->partial_update_enabled == PU_DUAL_ROI) {
 			if (dual_roi->enabled) {
-				/* we failed pu validation, restore pipes */
+			/* we failed pu validation, restore pipes */
 				list_for_each_entry(pipe,
 					&mdp5_data->pipes_used, list)
-				__restore_pipe(pipe);
+					__restore_pipe(pipe);
 			}
 			dual_roi->enabled = false;
 		}
@@ -2548,12 +2547,6 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 	}
 
 	mutex_lock(&mdp5_data->list_lock);
-
-	ret = __overlay_secure_ctrl(mfd);
-	if (IS_ERR_VALUE((unsigned long) ret)) {
-		pr_err("secure operation failed %d\n", ret);
-		goto commit_fail;
-	}
 
 	if (!ctl->shared_lock)
 		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_BEGIN);
@@ -2980,10 +2973,8 @@ static int mdss_mdp_overlay_get_fb_pipe(struct msm_fb_data_type *mfd,
 		}
 
 		req = kzalloc(sizeof(struct mdp_overlay), GFP_KERNEL);
-		if (!req) {
-			pr_err("not able to allocate memory for req\n");
+		if (!req)
 			return -ENOMEM;
-		}
 
 		bpp = fbi->var.bits_per_pixel / 8;
 		req->id = MSMFB_NEW_REQUEST;
@@ -3632,7 +3623,7 @@ static ssize_t dynamic_fps_sysfs_wta_dfps(struct device *dev,
 } /* dynamic_fps_sysfs_wta_dfps */
 
 
-static DEVICE_ATTR(dynamic_fps, S_IRUGO | S_IWUSR, dynamic_fps_sysfs_rda_dfps,
+static DEVICE_ATTR(dynamic_fps, 0644, dynamic_fps_sysfs_rda_dfps,
 	dynamic_fps_sysfs_wta_dfps);
 
 static struct attribute *dynamic_fps_fs_attrs[] = {
@@ -3804,7 +3795,7 @@ static inline int mdss_mdp_ad_is_supported(struct msm_fb_data_type *mfd)
 		if (!mixer)
 			pr_warn("there is no mixer attached to fb\n");
 		else
-			pr_debug("mixer attached (%d) doesnt support ad\n",
+			pr_debug("mixer attached (%d) doesn't support ad\n",
 				 mixer->num);
 		return 0;
 	}
@@ -3876,7 +3867,7 @@ static ssize_t mdss_mdp_dyn_pu_store(struct device *dev,
 
 	ret = kstrtoint(buf, 10, &dyn_pu);
 	if (ret) {
-		pr_err("Invalid input for partial udpate: ret = %d\n", ret);
+		pr_err("Invalid input for partial update: ret = %d\n", ret);
 		return ret;
 	}
 
@@ -3914,7 +3905,7 @@ static ssize_t mdss_mdp_panel_disable_show(struct device *dev,
 	return ret;
 }
 
-int mdss_mdp_enable_panel_disable_mode(struct msm_fb_data_type *mfd,
+static int mdss_mdp_enable_panel_disable_mode(struct msm_fb_data_type *mfd,
 	bool disable_panel)
 {
 	struct mdss_mdp_ctl *ctl;
@@ -3983,8 +3974,8 @@ static ssize_t mdss_mdp_panel_disable_store(struct device *dev,
 
 	pr_debug("disable panel: %d ++\n", disable_panel);
 	/* we only support disabling the panel from sysfs */
-	if (disable_panel)
-		mdss_mdp_enable_panel_disable_mode(mfd, true);
+	if (disable_panel && mfd->mdp.enable_panel_disable_mode)
+		mfd->mdp.enable_panel_disable_mode(mfd, true);
 
 	return len;
 }
@@ -4010,7 +4001,7 @@ static ssize_t mdss_mdp_cmd_autorefresh_show(struct device *dev,
 
 
 	if (mfd->panel_info->type != MIPI_CMD_PANEL) {
-		pr_err("Panel doesnt support autorefresh\n");
+		pr_err("Panel doesn't support autorefresh\n");
 		ret = -EINVAL;
 	} else {
 		ret = snprintf(buf, PAGE_SIZE, "%d\n",
@@ -4041,7 +4032,7 @@ static ssize_t mdss_mdp_cmd_autorefresh_store(struct device *dev,
 	}
 
 	if (mfd->panel_info->type != MIPI_CMD_PANEL) {
-		pr_err("Panel doesnt support autorefresh\n");
+		pr_err("Panel doesn't support autorefresh\n");
 		rc = -EINVAL;
 		return rc;
 	}
@@ -4161,16 +4152,16 @@ static ssize_t mdss_mdp_misr_store(struct device *dev,
 	}
 
 	if (enable_misr) {
-		mdss_misr_set(mdata, &req , ctl);
+		mdss_misr_set(mdata, &req, ctl);
 
 		if ((ctl->intf_type == MDSS_INTF_DSI) && is_panel_split(mfd))
-			mdss_misr_set(mdata, &sreq , ctl);
+			mdss_misr_set(mdata, &sreq, ctl);
 
 	} else {
 		mdss_misr_disable(mdata, &req, ctl);
 
 		if ((ctl->intf_type == MDSS_INTF_DSI) && is_panel_split(mfd))
-			mdss_misr_disable(mdata, &sreq , ctl);
+			mdss_misr_disable(mdata, &sreq, ctl);
 	}
 
 	pr_debug("misr %s\n", enable_misr ? "enabled" : "disabled");
@@ -4178,24 +4169,24 @@ static ssize_t mdss_mdp_misr_store(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(msm_misr_en, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(msm_misr_en, 0644,
 	mdss_mdp_misr_show, mdss_mdp_misr_store);
-static DEVICE_ATTR(msm_cmd_autorefresh_en, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(msm_cmd_autorefresh_en, 0644,
 	mdss_mdp_cmd_autorefresh_show, mdss_mdp_cmd_autorefresh_store);
-static DEVICE_ATTR(msm_disable_panel, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(msm_disable_panel, 0644,
 	mdss_mdp_panel_disable_show, mdss_mdp_panel_disable_store);
-static DEVICE_ATTR(vsync_event, S_IRUGO, mdss_mdp_vsync_show_event, NULL);
-static DEVICE_ATTR(lineptr_event, S_IRUGO, mdss_mdp_lineptr_show_event, NULL);
-static DEVICE_ATTR(lineptr_value, S_IRUGO | S_IWUSR | S_IWGRP,
+static DEVICE_ATTR(vsync_event, 0444, mdss_mdp_vsync_show_event, NULL);
+static DEVICE_ATTR(lineptr_event, 0444, mdss_mdp_lineptr_show_event, NULL);
+static DEVICE_ATTR(lineptr_value, 0664,
 		mdss_mdp_lineptr_show_value, mdss_mdp_lineptr_set_value);
-static DEVICE_ATTR(ad, S_IRUGO | S_IWUSR | S_IWGRP, mdss_mdp_ad_show,
+static DEVICE_ATTR(ad, 0664, mdss_mdp_ad_show,
 	mdss_mdp_ad_store);
-static DEVICE_ATTR(dyn_pu, S_IRUGO | S_IWUSR | S_IWGRP, mdss_mdp_dyn_pu_show,
+static DEVICE_ATTR(dyn_pu, 0664, mdss_mdp_dyn_pu_show,
 	mdss_mdp_dyn_pu_store);
-static DEVICE_ATTR(hist_event, S_IRUGO, mdss_mdp_hist_show_event, NULL);
-static DEVICE_ATTR(bl_event, S_IRUGO, mdss_mdp_bl_show_event, NULL);
-static DEVICE_ATTR(ad_event, S_IRUGO, mdss_mdp_ad_show_event, NULL);
-static DEVICE_ATTR(ad_bl_event, S_IRUGO, mdss_mdp_ad_bl_show_event, NULL);
+static DEVICE_ATTR(hist_event, 0444, mdss_mdp_hist_show_event, NULL);
+static DEVICE_ATTR(bl_event, 0444, mdss_mdp_bl_show_event, NULL);
+static DEVICE_ATTR(ad_event, 0444, mdss_mdp_ad_show_event, NULL);
+static DEVICE_ATTR(ad_bl_event, 0444, mdss_mdp_ad_bl_show_event, NULL);
 
 static struct attribute *mdp_overlay_sysfs_attrs[] = {
 	&dev_attr_vsync_event.attr,
@@ -4536,7 +4527,6 @@ static int mdss_mdp_hw_cursor_pipe_update(struct msm_fb_data_type *mfd,
 
 	req = kzalloc(sizeof(struct mdp_overlay), GFP_KERNEL);
 	if (!req) {
-		pr_err("not able to allocate memory for cursor req\n");
 		ret = -ENOMEM;
 		goto done;
 	}
@@ -4806,7 +4796,8 @@ static int mdss_mdp_pp_ioctl(struct msm_fb_data_type *mfd,
 		return ret;
 
 	/* Supprt only MDP register read/write and
-	exit_dcm in DCM state*/
+	 * exit_dcm in DCM state
+	 */
 	if (mfd->dcm_state == DCM_ENTER &&
 			(mdp_pp.op != mdp_op_calib_buffer &&
 			mdp_pp.op != mdp_op_calib_dcm_state))
@@ -4915,7 +4906,7 @@ static int mdss_mdp_pp_ioctl(struct msm_fb_data_type *mfd,
 static int mdss_mdp_histo_ioctl(struct msm_fb_data_type *mfd, u32 cmd,
 				void __user *argp)
 {
-	int ret = -ENOSYS;
+	int ret = -ENOTSUPP;
 	struct mdp_histogram_data hist;
 	struct mdp_histogram_start_req hist_req;
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
@@ -5173,7 +5164,9 @@ static int __mdss_overlay_map(struct mdp_overlay *ovs,
 
 static inline void __overlay_swap_func(void *a, void *b, int size)
 {
-	swap(*(struct mdp_overlay *)a, *(struct mdp_overlay *)b);
+	tmp = *(struct mdp_overlay *)a;
+	*(struct mdp_overlay *)a = *(struct mdp_overlay *)b;
+	*(struct mdp_overlay *)b = tmp;
 }
 
 static inline int __zorder_dstx_cmp_func(const void *a, const void *b)
@@ -5263,11 +5256,10 @@ static int __handle_overlay_prepare(struct msm_fb_data_type *mfd,
 	}
 
 	if (sort_needed) {
-		sorted_ovs = kzalloc(num_ovs * sizeof(*ip_ovs), GFP_KERNEL);
-		if (!sorted_ovs) {
-			pr_err("error allocating ovlist mem\n");
+		sorted_ovs = kcalloc(num_ovs, sizeof(*ip_ovs), GFP_KERNEL);
+		if (!sorted_ovs)
 			return -ENOMEM;
-		}
+
 		memcpy(sorted_ovs, ip_ovs, num_ovs * sizeof(*ip_ovs));
 		ret = __mdss_overlay_src_split_sort(mfd, sorted_ovs, num_ovs);
 		if (ret) {
@@ -5396,10 +5388,8 @@ static int __handle_ioctl_overlay_prepare(struct msm_fb_data_type *mfd,
 	}
 
 	overlays = kmalloc(ovlist.num_overlays * sizeof(*overlays), GFP_KERNEL);
-	if (!overlays) {
-		pr_err("Unable to allocate memory for overlays\n");
+	if (!overlays)
 		return -ENOMEM;
-	}
 
 	if (copy_from_user(req_list, ovlist.overlay_list,
 				sizeof(struct mdp_overlay *) *
@@ -5440,7 +5430,7 @@ static int mdss_mdp_overlay_ioctl_handler(struct msm_fb_data_type *mfd,
 					  u32 cmd, void __user *argp)
 {
 	struct mdp_overlay *req = NULL;
-	int val, ret = -ENOSYS;
+	int val, ret = -ENOTSUPP;
 	struct msmfb_metadata metadata;
 	struct mdp_pp_feature_version pp_feature_version;
 	struct msmfb_overlay_data data;
@@ -5508,7 +5498,8 @@ static int mdss_mdp_overlay_ioctl_handler(struct msm_fb_data_type *mfd,
 		break;
 
 	case MSMFB_OVERLAY_UNSET:
-		if (!IS_ERR_VALUE((unsigned long) copy_from_user(&val, argp, sizeof(val))))
+		if (!IS_ERR_VALUE(
+		(unsigned long) copy_from_user(&val, argp, sizeof(val))))
 			ret = mdss_mdp_overlay_unset(mfd, val);
 		break;
 
@@ -5578,11 +5569,11 @@ static int mdss_mdp_overlay_ioctl_handler(struct msm_fb_data_type *mfd,
 }
 
 /**
- * __mdss_mdp_overlay_ctl_init - Helper function to intialize control structure
+ * __mdss_mdp_overlay_ctl_init - Helper function to initialize control structure
  * @mfd: msm frame buffer data structure associated with the fb device.
  *
  * Helper function that allocates and initializes the mdp control structure
- * for a frame buffer device. Whenver applicable, this function will also setup
+ * for a frame buffer device. Whenever applicable, this function will also setup
  * the control for the split display path as well.
  *
  * Return: pointer to the newly allocated control structure.
@@ -6343,7 +6334,7 @@ static int mdss_mdp_update_panel_info(struct msm_fb_data_type *mfd,
 
 	if (dest_ctrl) {
 		/*
-		 * Destroy current ctrl sturcture as this is
+		 * Destroy current ctrl structure as this is
 		 * going to be re-initialized with the requested mode.
 		 */
 		mdss_mdp_ctl_destroy(mdp5_data->ctl);
@@ -6356,7 +6347,7 @@ static int mdss_mdp_update_panel_info(struct msm_fb_data_type *mfd,
 			mfd->split_mode = MDP_PINGPONG_SPLIT;
 		/*
 		 * Dynamic change so we need to reconfig instead of
-		 * destroying current ctrl sturcture.
+		 * destroying current ctrl structure.
 		 */
 		mdss_mdp_ctl_reconfig(ctl, pdata);
 
@@ -6440,10 +6431,9 @@ int mdss_mdp_overlay_init(struct msm_fb_data_type *mfd)
 	int rc;
 
 	mdp5_data = kzalloc(sizeof(struct mdss_overlay_private), GFP_KERNEL);
-	if (!mdp5_data) {
-		pr_err("fail to allocate mdp5 private data structure");
+	if (!mdp5_data)
 		return -ENOMEM;
-	}
+
 
 	mdp5_data->mdata = dev_get_drvdata(mfd->pdev->dev.parent);
 	if (!mdp5_data->mdata) {
@@ -6472,6 +6462,8 @@ int mdss_mdp_overlay_init(struct msm_fb_data_type *mfd)
 	mdp5_interface->configure_panel = mdss_mdp_update_panel_info;
 	mdp5_interface->input_event_handler = mdss_mdp_input_event_handler;
 	mdp5_interface->signal_retire_fence = mdss_mdp_signal_retire_fence;
+	mdp5_interface->enable_panel_disable_mode =
+		mdss_mdp_enable_panel_disable_mode;
 
 	/*
 	 * Register footswitch control only for primary fb pm
@@ -6529,7 +6521,7 @@ int mdss_mdp_overlay_init(struct msm_fb_data_type *mfd)
 	 * chipsets to workaround HW problem.
 	 */
 	if (mdss_has_quirk(mdp5_data->mdata, MDSS_QUIRK_BWCPANIC) &&
-	    mfd->panel_info->type == MIPI_VIDEO_PANEL && (0 == mfd->index))
+	    mfd->panel_info->type == MIPI_VIDEO_PANEL && (mfd->index == 0))
 		mdp5_data->mdata->has_bwc = false;
 
 	mfd->panel_orientation = mfd->panel_info->panel_orientation;
@@ -6730,22 +6722,22 @@ static int mdss_mdp_scaler_lut_init(struct mdss_data_type *mdata,
 	if (copy_from_user(qseed3_lut_tbl->dir_lut,
 				(void *)(unsigned long)lut_tbl->dir_lut,
 				lut_tbl->dir_lut_size)) {
-			ret = -EINVAL;
-			goto fail_free_sep_lut;
+		ret = -EINVAL;
+		goto fail_free_sep_lut;
 	}
 
 	if (copy_from_user(qseed3_lut_tbl->cir_lut,
 				(void *)(unsigned long)lut_tbl->cir_lut,
 				lut_tbl->cir_lut_size)) {
-			ret = -EINVAL;
-			goto fail_free_sep_lut;
+		ret = -EINVAL;
+		goto fail_free_sep_lut;
 	}
 
 	if (copy_from_user(qseed3_lut_tbl->sep_lut,
 				(void *)(unsigned long)lut_tbl->sep_lut,
 				lut_tbl->sep_lut_size)) {
-			ret = -EINVAL;
-			goto fail_free_sep_lut;
+		ret = -EINVAL;
+		goto fail_free_sep_lut;
 	}
 
 	qseed3_lut_tbl->valid = true;

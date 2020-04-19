@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -525,7 +525,7 @@ static int mdss_mdp_validate_destination_scaler(struct msm_fb_data_type *mfd,
 			break;
 		}
 	} else {
-		pr_err("NULL destionation scaler data\n");
+		pr_err("NULL destination scaler data\n");
 		return -EFAULT;
 	}
 

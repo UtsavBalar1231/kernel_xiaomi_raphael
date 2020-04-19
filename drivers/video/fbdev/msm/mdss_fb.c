@@ -1,8 +1,8 @@
 /*
  * Core MDSS framebuffer driver.
  *
- * Copyright (c) 2008-2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2007 Google Incorporated
+ * Copyright (c) 2008-2020, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -276,7 +276,7 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 				      enum led_brightness value)
 {
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
-	int bl_lvl;
+	u64 bl_lvl;
 
 	if (mfd->boot_notification_led) {
 		led_trigger_event(mfd->boot_notification_led, 0);
@@ -287,7 +287,8 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 		value = mfd->panel_info->brightness_max;
 
 	/* This maps android backlight level 0 to 255 into
-	   driver backlight level 0 to bl_max with rounding */
+	 * driver backlight level 0 to bl_max with rounding
+	 */
 	MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
 				mfd->panel_info->brightness_max);
 
@@ -307,7 +308,7 @@ static enum led_brightness mdss_fb_get_bl_brightness(
 	struct led_classdev *led_cdev)
 {
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
-	enum led_brightness value;
+	u64 value;
 
 	MDSS_BL_TO_BRIGHT(value, mfd->bl_level_usr, mfd->panel_info->bl_max,
 			  mfd->panel_info->brightness_max);
@@ -424,7 +425,7 @@ static ssize_t mdss_fb_store_split(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
 
-	if (2 != sscanf(buf, "%d %d", &data[0], &data[1]))
+	if (sscanf(buf, "%d %d", &data[0], &data[1]) != 2)
 		pr_debug("Not able to read split values\n");
 	else if (!mdss_fb_validate_split(data[0], data[1], mfd))
 		pr_debug("split left=%d right=%d\n", data[0], data[1]);
@@ -537,13 +538,13 @@ static ssize_t mdss_fb_get_fps_info(struct device *dev,
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct msm_fb_data_type *mfd = fbi->par;
-	unsigned int fps_int, fps_float;
+	u64 fps_int, fps_float;
 
 	if (mfd->panel_power_state != MDSS_PANEL_POWER_ON)
 		mfd->fps_info.measured_fps = 0;
-	fps_int = (unsigned int) mfd->fps_info.measured_fps;
+	fps_int = (u64) mfd->fps_info.measured_fps;
 	fps_float = do_div(fps_int, 10);
-	return scnprintf(buf, PAGE_SIZE, "%d.%d\n", fps_int, fps_float);
+	return scnprintf(buf, PAGE_SIZE, "%llu.%llu\n", fps_int, fps_float);
 
 }
 
@@ -921,27 +922,27 @@ static ssize_t mdss_fb_idle_pc_notify(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "idle power collapsed\n");
 }
 
-static DEVICE_ATTR(msm_fb_type, S_IRUGO, mdss_fb_get_type, NULL);
-static DEVICE_ATTR(msm_fb_split, S_IRUGO | S_IWUSR, mdss_fb_show_split,
+static DEVICE_ATTR(msm_fb_type, 0444, mdss_fb_get_type, NULL);
+static DEVICE_ATTR(msm_fb_split, 0644, mdss_fb_show_split,
 					mdss_fb_store_split);
-static DEVICE_ATTR(show_blank_event, S_IRUGO, mdss_mdp_show_blank_event, NULL);
-static DEVICE_ATTR(idle_time, S_IRUGO | S_IWUSR | S_IWGRP,
+static DEVICE_ATTR(show_blank_event, 0444, mdss_mdp_show_blank_event, NULL);
+static DEVICE_ATTR(idle_time, 0644,
 	mdss_fb_get_idle_time, mdss_fb_set_idle_time);
-static DEVICE_ATTR(idle_notify, S_IRUGO, mdss_fb_get_idle_notify, NULL);
-static DEVICE_ATTR(msm_fb_panel_info, S_IRUGO, mdss_fb_get_panel_info, NULL);
-static DEVICE_ATTR(msm_fb_src_split_info, S_IRUGO, mdss_fb_get_src_split_info,
+static DEVICE_ATTR(idle_notify, 0444, mdss_fb_get_idle_notify, NULL);
+static DEVICE_ATTR(msm_fb_panel_info, 0444, mdss_fb_get_panel_info, NULL);
+static DEVICE_ATTR(msm_fb_src_split_info, 0444, mdss_fb_get_src_split_info,
 	NULL);
-static DEVICE_ATTR(msm_fb_thermal_level, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(msm_fb_thermal_level, 0644,
 	mdss_fb_get_thermal_level, mdss_fb_set_thermal_level);
-static DEVICE_ATTR(msm_fb_panel_status, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(msm_fb_panel_status, 0644,
 	mdss_fb_get_panel_status, mdss_fb_force_panel_dead);
-static DEVICE_ATTR(msm_fb_dfps_mode, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(msm_fb_dfps_mode, 0644,
 	mdss_fb_get_dfps_mode, mdss_fb_change_dfps_mode);
-static DEVICE_ATTR(measured_fps, S_IRUGO | S_IWUSR | S_IWGRP,
+static DEVICE_ATTR(measured_fps, 0664,
 	mdss_fb_get_fps_info, NULL);
-static DEVICE_ATTR(msm_fb_persist_mode, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(msm_fb_persist_mode, 0644,
 	mdss_fb_get_persist_mode, mdss_fb_change_persist_mode);
-static DEVICE_ATTR(idle_power_collapse, S_IRUGO, mdss_fb_idle_pc_notify, NULL);
+static DEVICE_ATTR(idle_power_collapse, 0444, mdss_fb_idle_pc_notify, NULL);
 
 static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_msm_fb_type.attr,
@@ -1298,7 +1299,7 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	mfd->fb_imgType = MDP_RGBA_8888;
 	mfd->calib_mode_bl = 0;
 	mfd->unset_bl_level = U32_MAX;
-	mfd->bl_extn_level = -1;
+	mfd->bl_extn_level = U64_MAX;
 	mfd->bl_level_usr = backlight_led.brightness;
 
 	mfd->pdev = pdev;
@@ -2033,23 +2034,21 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	cur_power_state = mfd->panel_power_state;
 
 	/*
-	 * Low power (lp) and ultra low pwoer (ulp) modes are currently only
+	 * Low power (lp) and ultra low power (ulp) modes are currently only
 	 * supported for command mode panels. For all other panel, treat lp
 	 * mode as full unblank and ulp mode as full blank.
 	 */
 	if (mfd->panel_info->type != MIPI_CMD_PANEL) {
-		if (BLANK_FLAG_LP == blank_mode) {
+		if (blank_mode == BLANK_FLAG_LP) {
 			pr_debug("lp mode only valid for cmd mode panels\n");
 			if (mdss_fb_is_power_on_interactive(mfd))
 				return 0;
-			else
-				blank_mode = FB_BLANK_UNBLANK;
-		} else if (BLANK_FLAG_ULP == blank_mode) {
+			blank_mode = FB_BLANK_UNBLANK;
+		} else if (blank_mode == BLANK_FLAG_ULP) {
 			pr_debug("ulp mode valid for cmd mode panels\n");
 			if (mdss_fb_is_power_off(mfd))
 				return 0;
-			else
-				blank_mode = FB_BLANK_POWERDOWN;
+			blank_mode = FB_BLANK_POWERDOWN;
 		}
 	}
 
@@ -2142,8 +2141,8 @@ static int mdss_fb_blank(int blank_mode, struct fb_info *info)
 		pdata->panel_info.is_lpm_mode = false;
 	}
 
-	if (pdata->panel_disable_mode)
-		mdss_mdp_enable_panel_disable_mode(mfd, false);
+	if (pdata->panel_disable_mode && mfd->mdp.enable_panel_disable_mode)
+		mfd->mdp.enable_panel_disable_mode(mfd, false);
 
 	ret = mdss_fb_blank_sub(blank_mode, info, mfd->op_enable);
 	MDSS_XLOG(blank_mode);
@@ -2691,7 +2690,7 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 		break;
 
 	default:
-		pr_err("msm_fb_init: fb %d unkown image type!\n",
+		pr_err("msm_fb_init: fb %d unknown image type!\n",
 			    mfd->index);
 		return ret;
 	}
@@ -2791,10 +2790,8 @@ static int mdss_fb_open(struct fb_info *info, int user)
 	}
 
 	file_info = kmalloc(sizeof(*file_info), GFP_KERNEL);
-	if (!file_info) {
-		pr_err("unable to alloc file info\n");
+	if (!file_info)
 		return -ENOMEM;
-	}
 
 	file_info->file = info->file;
 	list_add(&file_info->list, &mfd->file_list);
@@ -2997,7 +2994,7 @@ static int __mdss_fb_wait_for_fence_sub(struct msm_sync_pt_data *sync_pt_data,
 
 		ret = mdss_wait_sync_fence(fences[i], wait_ms);
 
-		if (ret == -ETIMEDOUT) {
+		if (ret == -ETIME) {
 			wait_jf = timeout - jiffies;
 			wait_ms = jiffies_to_msecs(wait_jf);
 			if (wait_jf < 0)
@@ -3013,14 +3010,14 @@ static int __mdss_fb_wait_for_fence_sub(struct msm_sync_pt_data *sync_pt_data,
 			MDSS_XLOG_TOUT_HANDLER("mdp");
 			ret = mdss_wait_sync_fence(fences[i], wait_ms);
 
-			if (ret == -ETIMEDOUT)
+			if (ret == -ETIME)
 				break;
 		}
 		mdss_put_sync_fence(fences[i]);
 	}
 
 	if (ret < 0) {
-		pr_err("%s: sync_fence_wait failed! ret = %d\n",
+		pr_err("%s: sync_fence_wait failed! ret = %x\n",
 				sync_pt_data->fence_name, ret);
 		for (; i < fence_cnt; i++)
 			mdss_put_sync_fence(fences[i]);
@@ -3086,7 +3083,7 @@ void mdss_fb_signal_timeline(struct msm_sync_pt_data *sync_pt_data)
  * @mfd:	Framebuffer data structure for display
  *
  * Release all currently pending release fences, including those that are in
- * the process to be commited.
+ * the process to be committed.
  *
  * Note: this should only be called during close or suspend sequence.
  */
@@ -3506,7 +3503,7 @@ int mdss_fb_atomic_commit(struct fb_info *info,
 		if (!mfd->bl_extn_level && commit_v1->bl_level)
 			mfd->bl_extn_level = 1;
 	} else
-		mfd->bl_extn_level = -1;
+		mfd->bl_extn_level = U64_MAX;
 
 	mutex_lock(&mfd->mdp_sync_pt_data.sync_mutex);
 	atomic_inc(&mfd->mdp_sync_pt_data.commit_cnt);
@@ -3701,7 +3698,7 @@ void mdss_panelinfo_to_fb_var(struct mdss_panel_info *pinfo,
  * @mfd:	Framebuffer data structure for display
  *
  * Processes all layers and buffers programmed and ensures all pending release
- * fences are signaled once the buffer is transfered to display.
+ * fences are signaled once the buffer is transferred to display.
  */
 static int __mdss_fb_perform_commit(struct msm_fb_data_type *mfd)
 {
@@ -3869,8 +3866,10 @@ static int mdss_fb_check_var(struct fb_var_screeninfo *var,
 		break;
 
 	case 32:
-		/* Check user specified color format BGRA/ARGB/RGBA
-		   and verify the position of the RGB components */
+		/*
+		 * Check user specified color format BGRA/ARGB/RGBA
+		 * and verify the position of the RGB components
+		 */
 
 		if (!((var->transp.offset == 24) &&
 			(var->blue.offset == 0) &&
@@ -3884,7 +3883,7 @@ static int mdss_fb_check_var(struct fb_var_screeninfo *var,
 			(var->blue.offset == 16) &&
 			(var->green.offset == 8) &&
 			(var->red.offset == 0)))
-				return -EINVAL;
+			return -EINVAL;
 
 		/* Check the common values for both RGBA and ARGB */
 

@@ -55,8 +55,8 @@ struct panel_id {
 #define WRITEBACK_PANEL		10	/* Wifi display */
 #define LVDS_PANEL		11	/* LVDS */
 #define EDP_PANEL		12	/* EDP */
-#define SPI_PANEL       	13	/* SPI */
-#define RGB_PANEL       	14	/* RGB */
+#define SPI_PANEL               13	/* SPI */
+#define RGB_PANEL               14	/* RGB */
 #define DP_PANEL		15	/* DP */
 
 #define DSC_PPS_LEN		128

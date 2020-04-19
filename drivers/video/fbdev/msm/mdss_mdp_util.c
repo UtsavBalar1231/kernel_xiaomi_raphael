@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -968,7 +968,7 @@ static int mdss_mdp_put_img(struct mdss_mdp_img_data *data, bool rotator,
 		 * be filled due to map call which will be unmapped above.
 		 *
 		 */
-		pr_debug("skip memory unmapping for secure display/camera content\n");
+		pr_debug("free memory handle for secure display/camera content\n");
 	} else {
 		return -ENOMEM;
 	}

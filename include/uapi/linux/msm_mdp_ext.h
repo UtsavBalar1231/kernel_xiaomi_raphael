@@ -46,8 +46,8 @@
 #endif
 
 /**********************************************************************
-LAYER FLAG CONFIGURATION
-**********************************************************************/
+ * LAYER FLAG CONFIGURATION
+ **********************************************************************/
 /* left-right layer flip flag */
 #define MDP_LAYER_FLIP_LR		0x1
 
@@ -106,9 +106,9 @@ LAYER FLAG CONFIGURATION
 /* Flag indicates that layer is associated with secure camera session */
 #define MDP_LAYER_SECURE_CAMERA_SESSION		0x4000
 
-/*
+/**********************************************************************
  * DESTINATION SCALER FLAG CONFIGURATION
- */
+ **********************************************************************/
 
 /* Enable/disable Destination scaler */
 #define MDP_DESTSCALER_ENABLE		0x1
@@ -132,8 +132,8 @@ LAYER FLAG CONFIGURATION
 #define MDP_DESTSCALER_ROI_ENABLE	0x8
 
 /**********************************************************************
-VALIDATE/COMMIT FLAG CONFIGURATION
-**********************************************************************/
+ * VALIDATE/COMMIT FLAG CONFIGURATION
+ **********************************************************************/
 
 /*
  * Client enables it to inform that call is to validate layers before commit.
@@ -260,10 +260,10 @@ VALIDATE/COMMIT FLAG CONFIGURATION
 #define MDP_CONTENT_TYPE_GAME		0x4
 
 /**********************************************************************
-Configuration structures
-All parameters are input to driver unless mentioned output parameter
-explicitly.
-**********************************************************************/
+ * Configuration structures
+ * All parameters are input to driver unless mentioned output parameter
+ * explicitly.
+ **********************************************************************/
 struct mdp_layer_plane {
 	/* DMA buffer file descriptor information. */
 	int fd;
@@ -714,14 +714,16 @@ struct mdp_scale_data_v2 {
 	int32_t phase_step_y[MAX_PLANES];
 
 	/* This should be set to toal horizontal pixels
-	 * left + right +  width */
+	 * left + right +  width
+	 */
 	uint32_t num_ext_pxls_left[MAX_PLANES];
 
 	/* Unused param for backward compatibility */
 	uint32_t num_ext_pxls_right[MAX_PLANES];
 
 	/*  This should be set to vertical pixels
-	 *  top + bottom + height */
+	 *  top + bottom + height
+	 */
 	uint32_t num_ext_pxls_top[MAX_PLANES];
 
 	/* Unused param for backward compatibility */
@@ -742,7 +744,8 @@ struct mdp_scale_data_v2 {
 	uint32_t roi_w[MAX_PLANES];
 
 	/* alpha plane can only be scaled using bilinear or pixel
-	 * repeat/drop, specify these for Y and UV planes only */
+	 * repeat/drop, specify these for Y and UV planes only
+	 */
 	uint32_t preload_x[MAX_PLANES];
 	uint32_t preload_y[MAX_PLANES];
 	uint32_t src_width[MAX_PLANES];

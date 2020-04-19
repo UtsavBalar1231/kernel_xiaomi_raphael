@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -355,10 +355,8 @@ struct mdss_mdp_wb_data *mdss_mdp_wfd_add_data(
 	}
 
 	wfd_data = kzalloc(sizeof(struct mdss_mdp_wb_data), GFP_KERNEL);
-	if (!wfd_data) {
-		pr_err("fail to allocate wfd data\n");
+	if (!wfd_data)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	wfd_data->layer = *layer;
 	ret = mdss_mdp_wb_import_data(wfd->device, wfd_data);

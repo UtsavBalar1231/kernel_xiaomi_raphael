@@ -191,7 +191,7 @@ static DECLARE_DELAYED_WORK(ipa_sps_release_resource_work,
 
 static struct ipa_plat_drv_res ipa_res = {0, };
 
-struct msm_bus_scale_pdata *bus_scale_table;
+static struct msm_bus_scale_pdata *bus_scale_table;
 
 static struct clk *ipa_clk_src;
 static struct clk *ipa_clk;
@@ -202,7 +202,7 @@ static struct clk *ipa_inactivity_clk;
 
 struct ipa_context *ipa_ctx;
 static struct device *master_dev;
-struct platform_device *ipa_pdev;
+static struct platform_device *ipa_pdev;
 static struct {
 	bool present;
 	bool arm_smmu;
@@ -570,7 +570,7 @@ static int ipa_send_wan_msg(unsigned long usr_param, uint8_t msg_type,
 		return -ENOMEM;
 	}
 
-	if (copy_from_user((u8 *)wan_msg, (u8 *)usr_param,
+	if (copy_from_user(wan_msg, (const void __user *)usr_param,
 		sizeof(struct ipa_wan_msg))) {
 		kfree(wan_msg);
 		return -EFAULT;
@@ -633,7 +633,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case IPA_IOC_ALLOC_NAT_MEM:
-		if (copy_from_user((u8 *)&nat_mem, (u8 *)arg,
+		if (copy_from_user(&nat_mem, (const void __user *)arg,
 					sizeof(struct ipa_ioc_nat_alloc_mem))) {
 			retval = -EFAULT;
 			break;
@@ -645,14 +645,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, (u8 *)&nat_mem,
+		if (copy_to_user((void __user *)arg, &nat_mem,
 					sizeof(struct ipa_ioc_nat_alloc_mem))) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 	case IPA_IOC_V4_INIT_NAT:
-		if (copy_from_user((u8 *)&nat_init, (u8 *)arg,
+		if (copy_from_user(&nat_init, (const void __user *)arg,
 					sizeof(struct ipa_ioc_v4_nat_init))) {
 			retval = -EFAULT;
 			break;
@@ -664,7 +664,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case IPA_IOC_NAT_DMA:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_nat_dma_cmd))) {
 			retval = -EFAULT;
 			break;
@@ -680,7 +680,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -700,7 +700,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case IPA_IOC_V4_DEL_NAT:
-		if (copy_from_user((u8 *)&nat_del, (u8 *)arg,
+		if (copy_from_user(&nat_del, (const void __user *)arg,
 					sizeof(struct ipa_ioc_v4_nat_del))) {
 			retval = -EFAULT;
 			break;
@@ -712,7 +712,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case IPA_IOC_ADD_HDR:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_add_hdr))) {
 			retval = -EFAULT;
 			break;
@@ -727,7 +727,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -745,14 +745,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 
 	case IPA_IOC_DEL_HDR:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_del_hdr))) {
 			retval = -EFAULT;
 			break;
@@ -767,7 +767,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -785,14 +785,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 
 	case IPA_IOC_ADD_RT_RULE:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_add_rt_rule))) {
 			retval = -EFAULT;
 			break;
@@ -807,7 +807,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -826,14 +826,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 
 	case IPA_IOC_MDFY_RT_RULE:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_mdfy_rt_rule))) {
 			retval = -EFAULT;
 			break;
@@ -848,7 +848,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -866,14 +866,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 
 	case IPA_IOC_DEL_RT_RULE:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_del_rt_rule))) {
 			retval = -EFAULT;
 			break;
@@ -888,7 +888,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -905,14 +905,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 
 	case IPA_IOC_ADD_FLT_RULE:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_add_flt_rule))) {
 			retval = -EFAULT;
 			break;
@@ -927,7 +927,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -946,14 +946,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 
 	case IPA_IOC_DEL_FLT_RULE:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_del_flt_rule))) {
 			retval = -EFAULT;
 			break;
@@ -968,7 +968,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -986,14 +986,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 
 	case IPA_IOC_MDFY_FLT_RULE:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_mdfy_flt_rule))) {
 			retval = -EFAULT;
 			break;
@@ -1008,7 +1008,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1026,7 +1026,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1051,7 +1051,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		retval = ipa2_reset_flt(arg, false);
 		break;
 	case IPA_IOC_GET_RT_TBL:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_get_rt_tbl))) {
 			retval = -EFAULT;
 			break;
@@ -1060,7 +1060,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, header,
+		if (copy_to_user((void __user *)arg, header,
 					sizeof(struct ipa_ioc_get_rt_tbl))) {
 			retval = -EFAULT;
 			break;
@@ -1070,7 +1070,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		retval = ipa2_put_rt_tbl(arg);
 		break;
 	case IPA_IOC_GET_HDR:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_get_hdr))) {
 			retval = -EFAULT;
 			break;
@@ -1079,7 +1079,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, header,
+		if (copy_to_user((void __user *)arg, header,
 					sizeof(struct ipa_ioc_get_hdr))) {
 			retval = -EFAULT;
 			break;
@@ -1092,7 +1092,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		retval = ipa_cfg_filter(arg);
 		break;
 	case IPA_IOC_COPY_HDR:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_copy_hdr))) {
 			retval = -EFAULT;
 			break;
@@ -1101,14 +1101,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, header,
+		if (copy_to_user((void __user *)arg, header,
 					sizeof(struct ipa_ioc_copy_hdr))) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 	case IPA_IOC_QUERY_INTF:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_query_intf))) {
 			retval = -EFAULT;
 			break;
@@ -1117,7 +1117,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -1;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, header,
+		if (copy_to_user((void __user *)arg, header,
 					sizeof(struct ipa_ioc_query_intf))) {
 			retval = -EFAULT;
 			break;
@@ -1125,7 +1125,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	case IPA_IOC_QUERY_INTF_TX_PROPS:
 		sz = sizeof(struct ipa_ioc_query_intf_tx_props);
-		if (copy_from_user(header, (u8 *)arg, sz)) {
+		if (copy_from_user(header, (const void __user *)arg, sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1145,7 +1145,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1164,14 +1164,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -1;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 	case IPA_IOC_QUERY_INTF_RX_PROPS:
 		sz = sizeof(struct ipa_ioc_query_intf_rx_props);
-		if (copy_from_user(header, (u8 *)arg, sz)) {
+		if (copy_from_user(header, (const void __user *)arg, sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1191,7 +1191,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1209,14 +1209,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -1;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 	case IPA_IOC_QUERY_INTF_EXT_PROPS:
 		sz = sizeof(struct ipa_ioc_query_intf_ext_props);
-		if (copy_from_user(header, (u8 *)arg, sz)) {
+		if (copy_from_user(header, (const void __user *)arg, sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1236,7 +1236,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1254,13 +1254,13 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -1;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 	case IPA_IOC_PULL_MSG:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_msg_meta))) {
 			retval = -EFAULT;
 			break;
@@ -1274,7 +1274,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1294,13 +1294,13 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -1;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 	case IPA_IOC_RM_ADD_DEPENDENCY:
-		if (copy_from_user((u8 *)&rm_depend, (u8 *)arg,
+		if (copy_from_user(&rm_depend, (const void __user *)arg,
 				sizeof(struct ipa_ioc_rm_dependency))) {
 			retval = -EFAULT;
 			break;
@@ -1309,7 +1309,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			rm_depend.resource_name, rm_depend.depends_on_name);
 		break;
 	case IPA_IOC_RM_DEL_DEPENDENCY:
-		if (copy_from_user((u8 *)&rm_depend, (u8 *)arg,
+		if (copy_from_user(&rm_depend, (const void __user *)arg,
 				sizeof(struct ipa_ioc_rm_dependency))) {
 			retval = -EFAULT;
 			break;
@@ -1321,7 +1321,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		{
 			struct ipa_ioc_generate_flt_eq flt_eq;
 
-			if (copy_from_user(&flt_eq, (u8 *)arg,
+			if (copy_from_user(&flt_eq, (const void __user *)arg,
 				sizeof(struct ipa_ioc_generate_flt_eq))) {
 				retval = -EFAULT;
 				break;
@@ -1331,7 +1331,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				retval = -EFAULT;
 				break;
 			}
-			if (copy_to_user((u8 *)arg, &flt_eq,
+			if (copy_to_user((void __user *)arg, &flt_eq,
 				sizeof(struct ipa_ioc_generate_flt_eq))) {
 				retval = -EFAULT;
 				break;
@@ -1344,7 +1344,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 	case IPA_IOC_QUERY_RT_TBL_INDEX:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 				sizeof(struct ipa_ioc_get_rt_tbl_indx))) {
 			retval = -EFAULT;
 			break;
@@ -1354,14 +1354,14 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, header,
+		if (copy_to_user((void __user *)arg, header,
 				sizeof(struct ipa_ioc_get_rt_tbl_indx))) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 	case IPA_IOC_WRITE_QMAPID:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 					sizeof(struct ipa_ioc_write_qmapid))) {
 			retval = -EFAULT;
 			break;
@@ -1370,7 +1370,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, header,
+		if (copy_to_user((void __user *)arg, header,
 					sizeof(struct ipa_ioc_write_qmapid))) {
 			retval = -EFAULT;
 			break;
@@ -1398,7 +1398,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	case IPA_IOC_ADD_HDR_PROC_CTX:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 			sizeof(struct ipa_ioc_add_hdr_proc_ctx))) {
 			retval = -EFAULT;
 			break;
@@ -1414,7 +1414,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1432,13 +1432,13 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
 		break;
 	case IPA_IOC_DEL_HDR_PROC_CTX:
-		if (copy_from_user(header, (u8 *)arg,
+		if (copy_from_user(header, (const void __user *)arg,
 			sizeof(struct ipa_ioc_del_hdr_proc_ctx))) {
 			retval = -EFAULT;
 			break;
@@ -1453,7 +1453,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -ENOMEM;
 			break;
 		}
-		if (copy_from_user(param, (u8 *)arg, pyld_sz)) {
+		if (copy_from_user(param, (const void __user *)arg, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1472,7 +1472,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EFAULT;
 			break;
 		}
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1486,7 +1486,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		memcpy(param, &ipa_ctx->ipa_hw_type, pyld_sz);
-		if (copy_to_user((u8 *)arg, param, pyld_sz)) {
+		if (copy_to_user((void __user *)arg, param, pyld_sz)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1526,7 +1526,7 @@ static long ipa_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
  * -ENOMEM: failed to allocate memory
  * -EPERM: failed to add the tables
  */
-int ipa_setup_dflt_rt_tables(void)
+static int ipa_setup_dflt_rt_tables(void)
 {
 	struct ipa_ioc_add_rt_rule *rt_rule;
 	struct ipa_rt_rule_add *rt_rule_entry;
@@ -1761,39 +1761,6 @@ static void ipa_free_buffer(void *user1, int user2)
 	kfree(user1);
 }
 
-int ipa_q6_pipe_delay(bool zip_pipes)
-{
-	u32 reg_val = 0;
-	int client_idx;
-	int ep_idx;
-
-	/* For ZIP pipes, processing is done in AFTER_SHUTDOWN callback. */
-	for (client_idx = 0; client_idx < IPA_CLIENT_MAX; client_idx++) {
-		/* Skip the processing for non Q6 pipes. */
-		if (!IPA_CLIENT_IS_Q6_PROD(client_idx))
-			continue;
-		/* Skip the processing for NON-ZIP pipes. */
-		else if (zip_pipes && IPA_CLIENT_IS_Q6_NON_ZIP_PROD(client_idx))
-			continue;
-		/* Skip the processing for ZIP pipes. */
-		else if (!zip_pipes && IPA_CLIENT_IS_Q6_ZIP_PROD(client_idx))
-			continue;
-
-		ep_idx = ipa2_get_ep_mapping(client_idx);
-		if (ep_idx == -1)
-			continue;
-
-		IPA_SETFIELD_IN_REG(reg_val, 1,
-			IPA_ENDP_INIT_CTRL_N_ENDP_DELAY_SHFT,
-			IPA_ENDP_INIT_CTRL_N_ENDP_DELAY_BMSK);
-
-		ipa_write_reg(ipa_ctx->mmio,
-			IPA_ENDP_INIT_CTRL_N_OFST(ep_idx), reg_val);
-	}
-
-	return 0;
-}
-
 int ipa_q6_monitor_holb_mitigation(bool enable)
 {
 	int ep_idx;
@@ -1897,7 +1864,7 @@ static int ipa_q6_clean_q6_tables(void)
 	int num_cmds = 0;
 	int index;
 	int retval;
-	struct ipa_mem_buffer mem = { 0 };
+	struct ipa_mem_buffer mem = { NULL };
 	u32 *entry;
 	u32 max_cmds = ipa_get_max_flt_rt_cmds(ipa_ctx->ipa_num_pipes);
 	gfp_t flag = GFP_KERNEL | (ipa_ctx->use_dma_zone ? GFP_DMA : 0);
@@ -2228,7 +2195,7 @@ int ipa_q6_post_shutdown_cleanup(void)
 
 int _ipa_init_sram_v2(void)
 {
-	u32 *ipa_sram_mmio;
+	void __iomem *ipa_sram_mmio;
 	unsigned long phys_addr;
 	struct ipa_hw_imm_cmd_dma_shared_mem *cmd = NULL;
 	struct ipa_desc desc = {0};
@@ -2248,7 +2215,7 @@ int _ipa_init_sram_v2(void)
 		return -ENOMEM;
 	}
 
-#define IPA_SRAM_SET(ofst, val) (ipa_sram_mmio[(ofst - 4) / 4] = val)
+#define IPA_SRAM_SET(ofst, val) iowrite32(val, ipa_sram_mmio + (ofst - 4))
 
 	IPA_SRAM_SET(IPA_MEM_PART(v6_flt_ofst) - 4, IPA_MEM_CANARY_VAL);
 	IPA_SRAM_SET(IPA_MEM_PART(v6_flt_ofst), IPA_MEM_CANARY_VAL);
@@ -2259,6 +2226,7 @@ int _ipa_init_sram_v2(void)
 	IPA_SRAM_SET(IPA_MEM_PART(modem_ofst), IPA_MEM_CANARY_VAL);
 	IPA_SRAM_SET(IPA_MEM_PART(apps_v4_flt_ofst), IPA_MEM_CANARY_VAL);
 	IPA_SRAM_SET(IPA_MEM_PART(uc_info_ofst), IPA_MEM_CANARY_VAL);
+
 
 	iounmap(ipa_sram_mmio);
 
@@ -2299,7 +2267,7 @@ fail_send_cmd:
 
 int _ipa_init_sram_v2_5(void)
 {
-	u32 *ipa_sram_mmio;
+	void __iomem *ipa_sram_mmio;
 	unsigned long phys_addr;
 
 	phys_addr = ipa_ctx->ipa_wrapper_base +
@@ -2313,7 +2281,7 @@ int _ipa_init_sram_v2_5(void)
 		return -ENOMEM;
 	}
 
-#define IPA_SRAM_SET(ofst, val) (ipa_sram_mmio[(ofst - 4) / 4] = val)
+#define IPA_SRAM_SET(ofst, val) iowrite32(val, ipa_sram_mmio + (ofst - 4))
 
 	IPA_SRAM_SET(IPA_MEM_PART(v4_flt_ofst) - 4, IPA_MEM_CANARY_VAL);
 	IPA_SRAM_SET(IPA_MEM_PART(v4_flt_ofst), IPA_MEM_CANARY_VAL);
@@ -2334,15 +2302,15 @@ int _ipa_init_sram_v2_5(void)
 	return 0;
 }
 
-static inline void ipa_sram_set_canary(u32 *sram_mmio, int offset)
+static inline void ipa_sram_set_canary(void __iomem *sram_mmio, int offset)
 {
 	/* Set 4 bytes of CANARY before the offset */
-	sram_mmio[(offset - 4) / 4] = IPA_MEM_CANARY_VAL;
+	iowrite32(IPA_MEM_CANARY_VAL, sram_mmio + (offset - 4));
 }
 
 int _ipa_init_sram_v2_6L(void)
 {
-	u32 *ipa_sram_mmio;
+	void __iomem *ipa_sram_mmio;
 	unsigned long phys_addr;
 
 	phys_addr = ipa_ctx->ipa_wrapper_base +
@@ -2366,9 +2334,9 @@ int _ipa_init_sram_v2_6L(void)
 	ipa_sram_set_canary(ipa_sram_mmio, IPA_MEM_PART(v6_rt_ofst));
 	ipa_sram_set_canary(ipa_sram_mmio, IPA_MEM_PART(modem_hdr_ofst));
 	ipa_sram_set_canary(ipa_sram_mmio,
-			    IPA_MEM_PART(modem_comp_decomp_ofst) - 4);
+			IPA_MEM_PART(modem_comp_decomp_ofst) - 4);
 	ipa_sram_set_canary(ipa_sram_mmio,
-			    IPA_MEM_PART(modem_comp_decomp_ofst));
+			IPA_MEM_PART(modem_comp_decomp_ofst));
 	ipa_sram_set_canary(ipa_sram_mmio, IPA_MEM_PART(modem_ofst));
 	ipa_sram_set_canary(ipa_sram_mmio, IPA_MEM_PART(end_ofst));
 
@@ -2892,7 +2860,8 @@ static void ipa_teardown_apps_pipes(void)
 }
 
 #ifdef CONFIG_COMPAT
-long compat_ipa_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long compat_ipa_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
 {
 	int retval = 0;
 	struct ipa_ioc_nat_alloc_mem32 nat_mem32;
@@ -2939,7 +2908,7 @@ long compat_ipa_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		cmd = IPA_IOC_GET_HDR;
 		break;
 	case IPA_IOC_ALLOC_NAT_MEM32:
-		if (copy_from_user((u8 *)&nat_mem32, (u8 *)arg,
+		if (copy_from_user(&nat_mem32, (const void __user *)arg,
 			sizeof(struct ipa_ioc_nat_alloc_mem32))) {
 			retval = -EFAULT;
 			goto ret;
@@ -2957,7 +2926,7 @@ long compat_ipa_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			goto ret;
 		}
 		nat_mem32.offset = (compat_off_t)nat_mem.offset;
-		if (copy_to_user((u8 *)arg, (u8 *)&nat_mem32,
+		if (copy_to_user((void __user *)arg, (u8 *)&nat_mem32,
 			sizeof(struct ipa_ioc_nat_alloc_mem32))) {
 			retval = -EFAULT;
 		}
@@ -3312,7 +3281,8 @@ static void ipa_start_tag_process(struct work_struct *work)
  * - Remove and deallocate unneeded data structure
  * - Log the call in the circular history buffer (unless it is a simple call)
  */
-void ipa2_active_clients_log_mod(struct ipa_active_client_logging_info *id,
+static void ipa2_active_clients_log_mod(
+		struct ipa_active_client_logging_info *id,
 		bool inc, bool int_ctx)
 {
 	char temp_str[IPA2_ACTIVE_CLIENTS_LOG_LINE_LEN];
@@ -3527,7 +3497,7 @@ void ipa_dec_release_wakelock(enum ipa_wakelock_ref_client ref_client)
 
 static int ipa_setup_bam_cfg(const struct ipa_plat_drv_res *res)
 {
-	void *ipa_bam_mmio;
+	void __iomem *ipa_bam_mmio;
 	int reg_val;
 	int retval = 0;
 
@@ -3857,7 +3827,7 @@ static void ipa_sps_release_resource(struct work_struct *work)
 	mutex_unlock(&ipa_ctx->sps_pm.sps_pm_lock);
 }
 
-int ipa_create_apps_resource(void)
+static int ipa_create_apps_resource(void)
 {
 	struct ipa_rm_create_params apps_cons_create_params;
 	struct ipa_rm_perf_profile profile;

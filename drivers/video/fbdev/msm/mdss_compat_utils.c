@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, 2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 1994 Martin Schaller
  *
  * 2001 - Documented with DocBook
@@ -326,10 +326,8 @@ static int __compat_atomic_commit(struct fb_info *info, unsigned int cmd,
 	if (commit32.commit_v1.output_layer) {
 		int buffer_size = sizeof(struct mdp_output_layer);
 		output_layer = kzalloc(buffer_size, GFP_KERNEL);
-		if (!output_layer) {
-			pr_err("fail to allocate output layer\n");
+		if (!output_layer)
 			return -ENOMEM;
-		}
 		ret = copy_from_user(output_layer,
 				compat_ptr(commit32.commit_v1.output_layer),
 				buffer_size);

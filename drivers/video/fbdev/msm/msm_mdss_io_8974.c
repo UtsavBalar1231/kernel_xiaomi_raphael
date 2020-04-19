@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2151,7 +2151,7 @@ static int mdss_dsi_ulps_config(struct mdss_dsi_ctrl_pdata *ctrl,
 		 * Wait for a short duration before enabling
 		 * data transmission
 		 */
-		usleep_range(100, 100);
+		usleep_range(100, 110);
 
 		ctrl->ulps = false;
 	} else {

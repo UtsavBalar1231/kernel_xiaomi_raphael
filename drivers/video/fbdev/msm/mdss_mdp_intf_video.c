@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -570,7 +570,6 @@ static void mdss_mdp_video_avr_ctrl_setup(struct mdss_mdp_video_ctx *ctx,
 	pr_debug("intf:%d avr_mode:%x avr_ctrl:%x\n",
 		ctx->intf_num, avr_mode, avr_ctrl);
 }
-
 static int mdss_mdp_video_timegen_setup(struct mdss_mdp_ctl *ctl,
 					struct intf_timing_params *p,
 					struct mdss_mdp_video_ctx *ctx)
@@ -674,6 +673,9 @@ static int mdss_mdp_video_timegen_setup(struct mdss_mdp_ctl *ctl,
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_HSYNC_SKEW, p->hsync_skew);
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_POLARITY_CTL, polarity_ctl);
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_FRAME_LINE_COUNT_EN, 0x3);
+	if (mdata->pan_cfg.pan_intf == MDSS_PANEL_INTF_RGB)
+		mdp_video_write(ctx, MDSS_MDP_REG_INTF_RGB_INTF_CTRL, 0x1);
+
 	MDSS_XLOG(hsync_period, vsync_period);
 
 	/*
@@ -1622,7 +1624,7 @@ exit_dfps:
 			/* Disable interface timing double buffer */
 			rc = mdss_mdp_ctl_intf_event(ctl,
 				MDSS_EVENT_DSI_TIMING_DB_CTRL,
-				(void *) (unsigned long) 0,
+				NULL,
 				CTL_INTF_EVENT_FLAG_DEFAULT);
 		} else {
 			pr_err("intf %d panel, unknown FPS mode\n",

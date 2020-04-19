@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -237,6 +237,8 @@ struct msm_mdp_interface {
 	int (*pp_release_fnc)(struct msm_fb_data_type *mfd);
 	void (*signal_retire_fence)(struct msm_fb_data_type *mfd,
 					int retire_cnt);
+	int (*enable_panel_disable_mode)(struct msm_fb_data_type *mfd,
+		bool disable_panel);
 	void *private1;
 };
 
@@ -313,7 +315,7 @@ struct msm_fb_data_type {
 	u32 calib_mode_bl;
 	u32 ad_bl_level;
 	u32 bl_level;
-	int bl_extn_level;
+	u64 bl_extn_level;
 	u32 bl_scale;
 	u32 unset_bl_level;
 	bool allow_bl_update;

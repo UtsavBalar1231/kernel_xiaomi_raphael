@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1142,7 +1142,7 @@ static int pp_vig_pipe_setup(struct mdss_mdp_pipe *pipe, u32 *op)
 					  (1 << 1) |	/* SRC_DATA=YCBCR*/
 					  (1 << 0));	/* CSC_10_EN */
 		} else {
-				csc_op = 0; /* CSC_10_DISABLE */
+			csc_op = 0; /* CSC_10_DISABLE */
 		}
 		writel_relaxed(csc_op, pipe->base +
 		MDSS_MDP_REG_VIG_CSC_10_OP_MODE);
@@ -1373,10 +1373,10 @@ static int mdss_mdp_qseed2_setup(struct mdss_mdp_pipe *pipe)
 	if (dcm_state != DTM_ENTER &&
 		((pipe->src_fmt->is_yuv) &&
 		!((pipe->dst.w < src_w) || (pipe->dst.h < src_h)))) {
-			pp_sharp_config(pipe->base +
-			   MDSS_MDP_REG_VIG_QSEED2_SHARP,
-			   &pipe->pp_res.pp_sts,
-			   &pipe->pp_cfg.sharp_cfg);
+		pp_sharp_config(pipe->base +
+				MDSS_MDP_REG_VIG_QSEED2_SHARP,
+				&pipe->pp_res.pp_sts,
+				&pipe->pp_cfg.sharp_cfg);
 	}
 
 	if ((src_h != pipe->dst.h) ||
@@ -2555,7 +2555,6 @@ static int pp_dspp_setup(u32 disp_num, struct mdss_mdp_mixer *mixer,
 		}
 	}
 	if (flags & PP_FLAGS_DIRTY_PA_DITHER &&
-		(pp_program_mask & PP_PROGRAM_PA_DITHER) &&
 		pp_ops[PA_DITHER].pp_set_config) {
 		pp_ops[PA_DITHER].pp_set_config(base, pp_sts,
 					&mdss_pp_res->pa_dither_cfg[disp_num],
@@ -2735,7 +2734,8 @@ int mdss_mdp_pp_setup(struct mdss_mdp_ctl *ctl)
 		return -EINVAL;
 
 	/* TODO: have some sort of reader/writer lock to prevent unclocked
-	 * access while display power is toggled */
+	 * access while display power is toggled
+	 */
 	mutex_lock(&ctl->lock);
 	if (!mdss_mdp_ctl_is_power_on(ctl)) {
 		ret = -EPERM;
@@ -3174,7 +3174,6 @@ int mdss_mdp_pp_init(struct device *dev)
 		mdss_pp_res = devm_kzalloc(dev, sizeof(*mdss_pp_res),
 				GFP_KERNEL);
 		if (mdss_pp_res == NULL) {
-			pr_err("%s mdss_pp_res allocation failed!\n", __func__);
 			ret = -ENOMEM;
 		} else {
 			if (mdss_mdp_pp_dt_parse(dev))
@@ -4835,8 +4834,8 @@ int mdss_mdp_gamut_config(struct msm_fb_data_type *mfd,
 		addr = mdss_mdp_get_dspp_addr_off(dspp_num) +
 			  MDSS_MDP_REG_DSPP_GAMUT_BASE;
 		for (i = 0; i < MDP_GAMUT_TABLE_NUM; i++) {
-			r_tbl[i] = kzalloc(
-				sizeof(uint16_t) * config->tbl_size[i],
+			r_tbl[i] = kcalloc(config->tbl_size[i],
+				sizeof(uint16_t),
 				GFP_KERNEL);
 			if (!r_tbl[i]) {
 				pr_err("%s: alloc failed\n", __func__);
@@ -4859,8 +4858,8 @@ int mdss_mdp_gamut_config(struct msm_fb_data_type *mfd,
 			}
 		}
 		for (i = 0; i < MDP_GAMUT_TABLE_NUM; i++) {
-			g_tbl[i] = kzalloc(
-				sizeof(uint16_t) * config->tbl_size[i],
+			g_tbl[i] = kcalloc(config->tbl_size[i],
+				sizeof(uint16_t),
 				GFP_KERNEL);
 			if (!g_tbl[i]) {
 				pr_err("%s: alloc failed\n", __func__);
@@ -4883,8 +4882,8 @@ int mdss_mdp_gamut_config(struct msm_fb_data_type *mfd,
 			}
 		}
 		for (i = 0; i < MDP_GAMUT_TABLE_NUM; i++) {
-			b_tbl[i] = kzalloc(
-				sizeof(uint16_t) * config->tbl_size[i],
+			b_tbl[i] = kcalloc(config->tbl_size[i],
+				sizeof(uint16_t),
 				GFP_KERNEL);
 			if (!b_tbl[i]) {
 				pr_err("%s: alloc failed\n", __func__);
@@ -5285,10 +5284,10 @@ int mdss_mdp_hist_intr_req(struct mdss_intr *intr, u32 bits, bool en)
  * disabled ('en' and 'dis' respectively). The 4th state is not explicity
  * coded in the if/else chain, but is for MDSS_IRQ_REQ's when the interrupt
  * is in suspend, in which case, the only change required (intr->req being
- * updated) has already occured in the calling function.
+ * updated) has already occurred in the calling function.
  *
  * To control the clock, which can't be requested while holding the spinlock,
- * the inital state is compared with the exit state to detect when the
+ * the initial state is compared with the exit state to detect when the
  * interrupt needs a clock.
  *
  * The clock requests surrounding the majority of this function serve to
@@ -5390,8 +5389,8 @@ static int pp_hist_collect(struct mdp_histogram_data *hist,
 	spin_lock_irqsave(&hist_info->hist_lock, flag);
 	if ((hist_info->col_en == 0) ||
 		(hist_info->col_state != HIST_READY)) {
-			pr_err("invalid params for histogram hist_info->col_en %d hist_info->col_state %d",
-				   hist_info->col_en, hist_info->col_state);
+		pr_err("invalid params for histogram hist_info->col_en %d hist_info->col_state %d",
+			hist_info->col_en, hist_info->col_state);
 		ret = -ENODATA;
 		spin_unlock_irqrestore(&hist_info->hist_lock, flag);
 		goto hist_collect_exit;
@@ -5499,7 +5498,7 @@ int mdss_mdp_hist_collect(struct mdp_histogram_data *hist)
 		 * should be changed atomically to idle. This will ensure that
 		 * histogram interrupt will see consistent states for all dspp's
 		 * attached to logical display.
-		 * */
+		 */
 		for (i = 0; i < hist_cnt; i++) {
 			if (!i)
 				spin_lock_irqsave(&hists[i]->hist_lock, flag);
@@ -5747,7 +5746,7 @@ void mdss_mdp_hist_intr_done(u32 isr)
 	while (isr != 0) {
 		isr_tmp = isr;
 		hist_info = get_hist_info_from_isr(&isr);
-		if (NULL == hist_info) {
+		if (hist_info == NULL) {
 			pr_err("hist interrupt gave incorrect blk_idx\n");
 			continue;
 		}
@@ -6024,10 +6023,11 @@ int mdss_mdp_ad_bl_config(struct msm_fb_data_type *mfd,
 }
 
 int mdss_mdp_ad_input(struct msm_fb_data_type *mfd,
-			struct mdss_ad_input *input, int wait) {
+			struct mdss_ad_input *input, int wait)
+{
 	int ret = 0;
 	struct mdss_ad_info *ad;
-	u32 bl;
+	u64 bl;
 	struct mdss_overlay_private *mdp5_data;
 
 	ret = mdss_mdp_get_ad(mfd, &ad);
@@ -6485,7 +6485,7 @@ static int mdss_mdp_ad_setup(struct msm_fb_data_type *mfd)
 	if (ad->sts != last_sts || ad->state != last_state) {
 		last_sts = ad->sts;
 		last_state = ad->state;
-		pr_debug("begining: ad->sts = 0x%08x, state = 0x%08x\n",
+		pr_debug("beginning: ad->sts = 0x%08x, state = 0x%08x\n",
 							ad->sts, ad->state);
 	}
 

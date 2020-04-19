@@ -1,7 +1,7 @@
 /*
  * MDSS MDP Interface (used by framebuffer core)
  *
- * Copyright (c) 2007-2018,2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2007-2018, 2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 2007 Google Incorporated
  *
  * This software is licensed under the terms of the GNU General Public
@@ -51,8 +51,6 @@
 #include "soc/qcom/secure_buffer.h"
 #include <asm/cacheflush.h>
 #include <linux/soc/qcom/smd-rpm.h>
-#include "soc/qcom/secure_buffer.h"
-#include <asm/cacheflush.h>
 
 #include "mdss.h"
 #include "mdss_fb.h"
@@ -108,6 +106,7 @@ static struct mdss_panel_intf pan_types[] = {
 	{"dsi", MDSS_PANEL_INTF_DSI},
 	{"edp", MDSS_PANEL_INTF_EDP},
 	{"hdmi", MDSS_PANEL_INTF_HDMI},
+	{"rgb", MDSS_PANEL_INTF_RGB},
 };
 static char mdss_mdp_panel[MDSS_MAX_PANEL_LEN];
 
@@ -204,35 +203,64 @@ static struct mdss_mdp_intr_reg mdp_intr_reg[] = {
 };
 
 static struct mdss_mdp_irq mdp_irq_map[] =  {
-	{ MDSS_MDP_IRQ_TYPE_INTF_UNDER_RUN, 1, MDSS_MDP_INTR_INTF_0_UNDERRUN, 0},
-	{ MDSS_MDP_IRQ_TYPE_INTF_UNDER_RUN, 2, MDSS_MDP_INTR_INTF_1_UNDERRUN, 0},
-	{ MDSS_MDP_IRQ_TYPE_INTF_UNDER_RUN, 3, MDSS_MDP_INTR_INTF_2_UNDERRUN, 0},
-	{ MDSS_MDP_IRQ_TYPE_INTF_UNDER_RUN, 4, MDSS_MDP_INTR_INTF_3_UNDERRUN, 0},
-	{ MDSS_MDP_IRQ_TYPE_INTF_VSYNC, 1, MDSS_MDP_INTR_INTF_0_VSYNC, 0},
-	{ MDSS_MDP_IRQ_TYPE_INTF_VSYNC, 2, MDSS_MDP_INTR_INTF_1_VSYNC, 0},
-	{ MDSS_MDP_IRQ_TYPE_INTF_VSYNC, 3, MDSS_MDP_INTR_INTF_2_VSYNC, 0},
-	{ MDSS_MDP_IRQ_TYPE_INTF_VSYNC, 4, MDSS_MDP_INTR_INTF_3_VSYNC, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_COMP, 0, MDSS_MDP_INTR_PING_PONG_0_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_COMP, 1, MDSS_MDP_INTR_PING_PONG_1_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_COMP, 2, MDSS_MDP_INTR_PING_PONG_2_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_COMP, 3, MDSS_MDP_INTR_PING_PONG_3_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_RD_PTR, 0, MDSS_MDP_INTR_PING_PONG_0_RD_PTR, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_RD_PTR, 1, MDSS_MDP_INTR_PING_PONG_1_RD_PTR, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_RD_PTR, 2, MDSS_MDP_INTR_PING_PONG_2_RD_PTR, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_RD_PTR, 3, MDSS_MDP_INTR_PING_PONG_3_RD_PTR, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_WR_PTR, 0, MDSS_MDP_INTR_PING_PONG_0_WR_PTR, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_WR_PTR, 1, MDSS_MDP_INTR_PING_PONG_1_WR_PTR, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_WR_PTR, 2, MDSS_MDP_INTR_PING_PONG_2_WR_PTR, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_WR_PTR, 3, MDSS_MDP_INTR_PING_PONG_3_WR_PTR, 0},
-	{ MDSS_MDP_IRQ_TYPE_WB_ROT_COMP, 0, MDSS_MDP_INTR_WB_0_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_WB_ROT_COMP, 1, MDSS_MDP_INTR_WB_1_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_WB_WFD_COMP, 0, MDSS_MDP_INTR_WB_2_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_AUTO_REF, 0, MDSS_MDP_INTR_PING_PONG_0_AUTOREFRESH_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_AUTO_REF, 1, MDSS_MDP_INTR_PING_PONG_1_AUTOREFRESH_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_AUTO_REF, 2, MDSS_MDP_INTR_PING_PONG_2_AUTOREFRESH_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_PING_PONG_AUTO_REF, 3, MDSS_MDP_INTR_PING_PONG_3_AUTOREFRESH_DONE, 0},
-	{ MDSS_MDP_IRQ_TYPE_CWB_OVERFLOW, 2, MDSS_MDP_INTR2_PING_PONG_2_CWB_OVERFLOW, 1},
-	{ MDSS_MDP_IRQ_TYPE_CWB_OVERFLOW, 3, MDSS_MDP_INTR2_PING_PONG_3_CWB_OVERFLOW, 1}
+	{ MDSS_MDP_IRQ_TYPE_INTF_UNDER_RUN, 1,
+		MDSS_MDP_INTR_INTF_0_UNDERRUN, 0},
+	{ MDSS_MDP_IRQ_TYPE_INTF_UNDER_RUN, 2,
+		MDSS_MDP_INTR_INTF_1_UNDERRUN, 0},
+	{ MDSS_MDP_IRQ_TYPE_INTF_UNDER_RUN, 3,
+		MDSS_MDP_INTR_INTF_2_UNDERRUN, 0},
+	{ MDSS_MDP_IRQ_TYPE_INTF_UNDER_RUN, 4,
+		MDSS_MDP_INTR_INTF_3_UNDERRUN, 0},
+	{ MDSS_MDP_IRQ_TYPE_INTF_VSYNC, 1,
+		MDSS_MDP_INTR_INTF_0_VSYNC, 0},
+	{ MDSS_MDP_IRQ_TYPE_INTF_VSYNC, 2,
+		MDSS_MDP_INTR_INTF_1_VSYNC, 0},
+	{ MDSS_MDP_IRQ_TYPE_INTF_VSYNC, 3,
+		MDSS_MDP_INTR_INTF_2_VSYNC, 0},
+	{ MDSS_MDP_IRQ_TYPE_INTF_VSYNC, 4,
+		MDSS_MDP_INTR_INTF_3_VSYNC, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_COMP, 0,
+		MDSS_MDP_INTR_PING_PONG_0_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_COMP, 1,
+		MDSS_MDP_INTR_PING_PONG_1_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_COMP, 2,
+		MDSS_MDP_INTR_PING_PONG_2_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_COMP, 3,
+		MDSS_MDP_INTR_PING_PONG_3_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_RD_PTR, 0,
+		MDSS_MDP_INTR_PING_PONG_0_RD_PTR, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_RD_PTR, 1,
+		MDSS_MDP_INTR_PING_PONG_1_RD_PTR, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_RD_PTR, 2,
+		MDSS_MDP_INTR_PING_PONG_2_RD_PTR, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_RD_PTR, 3,
+		MDSS_MDP_INTR_PING_PONG_3_RD_PTR, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_WR_PTR, 0,
+		MDSS_MDP_INTR_PING_PONG_0_WR_PTR, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_WR_PTR, 1,
+		MDSS_MDP_INTR_PING_PONG_1_WR_PTR, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_WR_PTR, 2,
+		MDSS_MDP_INTR_PING_PONG_2_WR_PTR, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_WR_PTR, 3,
+		MDSS_MDP_INTR_PING_PONG_3_WR_PTR, 0},
+	{ MDSS_MDP_IRQ_TYPE_WB_ROT_COMP, 0,
+		MDSS_MDP_INTR_WB_0_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_WB_ROT_COMP, 1,
+		MDSS_MDP_INTR_WB_1_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_WB_WFD_COMP, 0,
+		MDSS_MDP_INTR_WB_2_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_AUTO_REF, 0,
+		MDSS_MDP_INTR_PING_PONG_0_AUTOREFRESH_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_AUTO_REF, 1,
+		MDSS_MDP_INTR_PING_PONG_1_AUTOREFRESH_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_AUTO_REF, 2,
+		MDSS_MDP_INTR_PING_PONG_2_AUTOREFRESH_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_PING_PONG_AUTO_REF, 3,
+		MDSS_MDP_INTR_PING_PONG_3_AUTOREFRESH_DONE, 0},
+	{ MDSS_MDP_IRQ_TYPE_CWB_OVERFLOW, 2,
+		MDSS_MDP_INTR2_PING_PONG_2_CWB_OVERFLOW, 1},
+	{ MDSS_MDP_IRQ_TYPE_CWB_OVERFLOW, 3,
+		MDSS_MDP_INTR2_PING_PONG_2_CWB_OVERFLOW, 1}
 };
 
 static struct intr_callback *mdp_intr_cb;
@@ -276,9 +304,10 @@ static inline u32 is_mdp_irq_enabled(void)
 u32 mdss_mdp_fb_stride(u32 fb_index, u32 xres, int bpp)
 {
 	/* The adreno GPU hardware requires that the pitch be aligned to
-	   32 pixels for color buffers, so for the cases where the GPU
-	   is writing directly to fb0, the framebuffer pitch
-	   also needs to be 32 pixel aligned */
+	 *  32 pixels for color buffers, so for the cases where the GPU
+	 *  is writing directly to fb0, the framebuffer pitch
+	 *  also needs to be 32 pixel aligned
+	 */
 
 	if (fb_index == 0)
 		return ALIGN(xres, 32) * bpp;
@@ -377,7 +406,7 @@ static int mdss_irq_domain_map(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops mdss_irq_domain_ops = {
+const struct irq_domain_ops mdss_irq_domain_ops = {
 	.map = mdss_irq_domain_map,
 	.xlate = irq_domain_xlate_onecell,
 };
@@ -1003,11 +1032,11 @@ void mdss_mdp_hist_irq_disable(u32 irq)
  * @intr_type:	mdp interface type
  * @intf_num:	mdp interface num
  *
- * This fucntion is called from interrupt context
+ * This function is called from interrupt context
  * mdp_lock is already held at up stream (mdss_irq_handler)
  * therefore spin_lock(&mdp_lock) is not allowed here
  *
-*/
+ */
 void mdss_mdp_irq_disable_nosync(u32 intr_type, u32 intf_num)
 {
 	int irq_idx;
@@ -1132,31 +1161,40 @@ irqreturn_t mdss_mdp_isr(int irq, void *ptr)
 				mdss_mdp_intr_done(j);
 		if (!i) {
 			if (isr & MDSS_MDP_INTR_PING_PONG_0_DONE)
-				mdss_misr_crc_collect(mdata, DISPLAY_MISR_DSI0, false);
+				mdss_misr_crc_collect(mdata, DISPLAY_MISR_DSI0,
+						      false);
 
 			if (isr & MDSS_MDP_INTR_PING_PONG_1_DONE)
-				mdss_misr_crc_collect(mdata, DISPLAY_MISR_DSI1, false);
+				mdss_misr_crc_collect(mdata, DISPLAY_MISR_DSI1,
+						      false);
 
 			if (isr & MDSS_MDP_INTR_INTF_0_VSYNC)
-				mdss_misr_crc_collect(mdata, DISPLAY_MISR_EDP, true);
+				mdss_misr_crc_collect(mdata, DISPLAY_MISR_EDP,
+						      true);
 
 			if (isr & MDSS_MDP_INTR_INTF_1_VSYNC)
-				mdss_misr_crc_collect(mdata, DISPLAY_MISR_DSI0, true);
+				mdss_misr_crc_collect(mdata, DISPLAY_MISR_DSI0,
+						      true);
 
 			if (isr & MDSS_MDP_INTR_INTF_2_VSYNC)
-				mdss_misr_crc_collect(mdata, DISPLAY_MISR_DSI1, true);
+				mdss_misr_crc_collect(mdata, DISPLAY_MISR_DSI1,
+						      true);
 
 			if (isr & MDSS_MDP_INTR_INTF_3_VSYNC)
-				mdss_misr_crc_collect(mdata, DISPLAY_MISR_HDMI, true);
+				mdss_misr_crc_collect(mdata, DISPLAY_MISR_HDMI,
+						      true);
 
 			if (isr & MDSS_MDP_INTR_WB_0_DONE)
-				mdss_misr_crc_collect(mdata, DISPLAY_MISR_MDP, true);
+				mdss_misr_crc_collect(mdata, DISPLAY_MISR_MDP,
+						      true);
 
 			if (isr & MDSS_MDP_INTR_WB_1_DONE)
-				mdss_misr_crc_collect(mdata, DISPLAY_MISR_MDP, true);
+				mdss_misr_crc_collect(mdata, DISPLAY_MISR_MDP,
+						      true);
 
 			if (isr &  MDSS_MDP_INTR_WB_2_DONE)
-				mdss_misr_crc_collect(mdata, DISPLAY_MISR_MDP, true);
+				mdss_misr_crc_collect(mdata, DISPLAY_MISR_MDP,
+						      true);
 		}
 	}
 
@@ -1281,7 +1319,8 @@ void mdss_mdp_set_clk_rate(unsigned long rate, bool locked)
 		} else if (clk_rate != curr_clk_rate) {
 			mdss_mdp_cxipeak_vote(true, clk_rate, curr_clk_rate);
 			mdata->mdp_clk_rate = clk_rate;
-			if (IS_ERR_VALUE((unsigned long) clk_set_rate(clk, clk_rate))) {
+			if (IS_ERR_VALUE(
+				(unsigned long)clk_set_rate(clk, clk_rate))) {
 				pr_err("clk_set_rate failed\n");
 			} else {
 				mdss_mdp_cxipeak_vote(false, clk_rate,
@@ -1528,7 +1567,7 @@ int mdss_iommu_ctrl(int enable)
 
 	if (enable) {
 		/*
-		 * delay iommu attach until continous splash screen has
+		 * delay iommu attach until continuous splash screen has
 		 * finished handoff, as it may still be working with phys addr
 		 */
 		if (!mdata->iommu_attached && !mdata->handoff_pending) {
@@ -2396,9 +2435,9 @@ static u32 mdss_mdp_scaler_init(struct mdss_data_type *mdata,
 			devm_kzalloc(dev, sizeof(u32) *
 					mdata->scaler_off->ndest_scalers,
 					GFP_KERNEL);
-		if  (!mdata->scaler_off->dest_scaler_off) {
+		if  (!mdata->scaler_off->dest_scaler_off)
 			return -ENOMEM;
-		}
+
 		ret = of_property_read_u32_array(node,
 				"qcom,mdss-dest-scaler-off",
 				mdata->scaler_off->dest_scaler_off,
@@ -2410,9 +2449,9 @@ static u32 mdss_mdp_scaler_init(struct mdss_data_type *mdata,
 			devm_kzalloc(dev, sizeof(u32) *
 					mdata->scaler_off->ndest_scalers,
 					GFP_KERNEL);
-		if  (!mdata->scaler_off->dest_scaler_lut_off) {
+		if  (!mdata->scaler_off->dest_scaler_lut_off)
 			return -ENOMEM;
-		}
+
 		ret = of_property_read_u32_array(node,
 				"qcom,mdss-dest-scaler-lut-off",
 				mdata->scaler_off->dest_scaler_lut_off,
@@ -2450,9 +2489,9 @@ static u32 mdss_mdp_scaler_init(struct mdss_data_type *mdata,
  * mdss_mdp_footswitch_ctrl_splash() - clocks handoff for cont. splash screen
  * @on: 1 to start handoff, 0 to complete the handoff after first frame update
  *
- * MDSS Clocks and GDSC are already on during continous splash screen, but
+ * MDSS Clocks and GDSC are already on during continuous splash screen, but
  * increasing ref count will keep clocks from being turned off until handoff
- * has properly happend after frame update.
+ * has properly happened after frame update.
  */
 void mdss_mdp_footswitch_ctrl_splash(int on)
 {
@@ -2850,8 +2889,8 @@ static ssize_t mdss_mdp_store_max_limit_bw(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(caps, S_IRUGO, mdss_mdp_show_capabilities, NULL);
-static DEVICE_ATTR(bw_mode_bitmap, S_IRUGO | S_IWUSR | S_IWGRP,
+static DEVICE_ATTR(caps, 0444, mdss_mdp_show_capabilities, NULL);
+static DEVICE_ATTR(bw_mode_bitmap, 0664,
 		mdss_mdp_read_max_limit_bw, mdss_mdp_store_max_limit_bw);
 
 static struct attribute *mdp_fs_attrs[] = {
@@ -2894,6 +2933,8 @@ int mdss_panel_get_intf_status(u32 disp_num, u32 intf_type)
 				rc = (intf_status & MDSS_MDP_INTF_DSI1_SEL);
 			else
 				rc = 0;
+		} else if (intf_type == MDSS_PANEL_INTF_RGB) {
+			rc = (intf_status & MDSS_MDP_INTF_DSI0_SEL);
 		} else if (intf_type == MDSS_PANEL_INTF_EDP) {
 			intf_status &= MDSS_MDP_INTF_EDP_SEL;
 			rc = (intf_status == MDSS_MDP_INTF_EDP_SEL);
@@ -2996,10 +3037,9 @@ static int mdss_mdp_probe(struct platform_device *pdev)
 	}
 
 	mdss_mdp_hw.irq_info = kzalloc(sizeof(struct irq_info), GFP_KERNEL);
-	if (!mdss_mdp_hw.irq_info) {
-		pr_err("no mem to save irq info: kzalloc fail\n");
+	if (!mdss_mdp_hw.irq_info)
 		return -ENOMEM;
-	}
+
 	mdss_mdp_hw.irq_info->irq = res->start;
 	mdss_mdp_hw.ptr = mdata;
 
@@ -3735,20 +3775,16 @@ static int mdss_mdp_parse_dt_mixer(struct platform_device *pdev)
 	}
 
 	mixer_offsets = kzalloc(sizeof(u32) * nmixers, GFP_KERNEL);
-	if (!mixer_offsets) {
-		pr_err("no mem assigned: kzalloc fail\n");
+	if (!mixer_offsets)
 		return -ENOMEM;
-	}
 
-	dspp_offsets = kzalloc(sizeof(u32) * mdata->ndspp, GFP_KERNEL);
+	dspp_offsets = kcalloc(mdata->ndspp, sizeof(u32), GFP_KERNEL);
 	if (!dspp_offsets) {
-		pr_err("no mem assigned: kzalloc fail\n");
 		rc = -ENOMEM;
 		goto dspp_alloc_fail;
 	}
 	pingpong_offsets = kzalloc(sizeof(u32) * npingpong, GFP_KERNEL);
 	if (!pingpong_offsets) {
-		pr_err("no mem assigned: kzalloc fail\n");
 		rc = -ENOMEM;
 		goto pingpong_alloc_fail;
 	}
@@ -3866,9 +3902,8 @@ static int mdss_mdp_parse_dt_cdm(struct platform_device *pdev)
 		goto end;
 	}
 	pr_debug("%s: cdm len == %d\n", __func__, mdata->ncdm);
-	cdm_offsets = kzalloc(sizeof(u32) * mdata->ncdm, GFP_KERNEL);
+	cdm_offsets = kcalloc(mdata->ncdm, sizeof(u32), GFP_KERNEL);
 	if (!cdm_offsets) {
-		pr_err("no more memory for cdm offsets\n");
 		rc = -ENOMEM;
 		mdata->ncdm = 0;
 		goto end;
@@ -3903,10 +3938,8 @@ static int mdss_mdp_dsc_addr_setup(struct mdss_data_type *mdata,
 
 	head = devm_kzalloc(&mdata->pdev->dev, sizeof(struct mdss_mdp_dsc) *
 				len, GFP_KERNEL);
-	if (!head) {
-		pr_err("no memory for DSC info\n");
+	if (!head)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < len; i++) {
 		head[i].num = i;
@@ -3932,9 +3965,8 @@ static int mdss_mdp_parse_dt_dsc(struct platform_device *pdev)
 	}
 	pr_debug("dsc len == %d\n", mdata->ndsc);
 
-	dsc_offsets = kzalloc(sizeof(u32) * mdata->ndsc, GFP_KERNEL);
+	dsc_offsets = kcalloc(mdata->ndsc, sizeof(u32), GFP_KERNEL);
 	if (!dsc_offsets) {
-		pr_err("no more memory for dsc offsets\n");
 		rc = -ENOMEM;
 		mdata->ndsc = 0;
 		goto end;
@@ -3981,11 +4013,9 @@ static int mdss_mdp_parse_dt_wb(struct platform_device *pdev)
 	nwb_offsets =  mdss_mdp_parse_dt_prop_len(pdev,
 			"qcom,mdss-wb-off");
 
-	wb_offsets = kzalloc(sizeof(u32) * nwb_offsets, GFP_KERNEL);
-	if (!wb_offsets) {
-		pr_err("no more mem for writeback offsets\n");
+	wb_offsets = kcalloc(nwb_offsets, sizeof(u32), GFP_KERNEL);
+	if (!wb_offsets)
 		return -ENOMEM;
-	}
 
 	rc = mdss_mdp_parse_dt_handler(pdev, "qcom,mdss-wb-off",
 		wb_offsets, nwb_offsets);
@@ -4023,10 +4053,8 @@ static int mdss_mdp_parse_dt_ctl(struct platform_device *pdev)
 	}
 
 	ctl_offsets = kzalloc(sizeof(u32) * mdata->nctl, GFP_KERNEL);
-	if (!ctl_offsets) {
-		pr_err("no more mem for ctl offsets\n");
+	if (!ctl_offsets)
 		return -ENOMEM;
-	}
 
 	rc = mdss_mdp_parse_dt_handler(pdev, "qcom,mdss-ctl-off",
 		ctl_offsets, mdata->nctl);
@@ -4055,11 +4083,9 @@ static int mdss_mdp_parse_dt_video_intf(struct platform_device *pdev)
 	if (count == 0)
 		return -EINVAL;
 
-	offsets = kzalloc(sizeof(u32) * count, GFP_KERNEL);
-	if (!offsets) {
-		pr_err("no mem assigned for video intf\n");
+	offsets = kcalloc(count, sizeof(u32), GFP_KERNEL);
+	if (!offsets)
 		return -ENOMEM;
-	}
 
 	rc = mdss_mdp_parse_dt_handler(pdev, "qcom,mdss-intf-off",
 			offsets, count);
@@ -4261,12 +4287,10 @@ static void mdss_mdp_parse_vbif_qos(struct platform_device *pdev)
 	mdata->npriority_lvl = mdss_mdp_parse_dt_prop_len(pdev,
 			"qcom,mdss-vbif-qos-rt-setting");
 	if (mdata->npriority_lvl == MDSS_VBIF_QOS_REMAP_ENTRIES) {
-		mdata->vbif_rt_qos = kzalloc(sizeof(u32) *
-				mdata->npriority_lvl, GFP_KERNEL);
-		if (!mdata->vbif_rt_qos) {
-			pr_err("no memory for real time qos_priority\n");
+		mdata->vbif_rt_qos = kcalloc(mdata->npriority_lvl,
+					    sizeof(u32), GFP_KERNEL);
+		if (!mdata->vbif_rt_qos)
 			return;
-		}
 
 		rc = mdss_mdp_parse_dt_handler(pdev,
 			"qcom,mdss-vbif-qos-rt-setting",
@@ -4296,12 +4320,10 @@ static void mdss_mdp_parse_vbif_qos(struct platform_device *pdev)
 	}
 
 	if (mdata->npriority_lvl == MDSS_VBIF_QOS_REMAP_ENTRIES) {
-		mdata->vbif_nrt_qos = kzalloc(sizeof(u32) *
-				mdata->npriority_lvl, GFP_KERNEL);
-		if (!mdata->vbif_nrt_qos) {
-			pr_err("no memory for non real time qos_priority\n");
+		mdata->vbif_nrt_qos = kcalloc(mdata->npriority_lvl,
+					      sizeof(u32), GFP_KERNEL);
+		if (!mdata->vbif_nrt_qos)
 			return;
-		}
 
 		rc = mdss_mdp_parse_dt_handler(pdev,
 			"qcom,mdss-vbif-qos-nrt-setting", mdata->vbif_nrt_qos,
@@ -4565,12 +4587,10 @@ static int mdss_mdp_parse_dt_misc(struct platform_device *pdev)
 					"qcom,mdss-clk-levels");
 
 	if (mdata->nclk_lvl) {
-		mdata->clock_levels = kzalloc(sizeof(u32) * mdata->nclk_lvl,
+		mdata->clock_levels = kcalloc(mdata->nclk_lvl, sizeof(u32),
 							GFP_KERNEL);
-		if (!mdata->clock_levels) {
-			pr_err("no mem assigned for mdata clock_levels\n");
+		if (!mdata->clock_levels)
 			return -ENOMEM;
-		}
 
 		rc = mdss_mdp_parse_dt_handler(pdev, "qcom,mdss-clk-levels",
 			mdata->clock_levels, mdata->nclk_lvl);
@@ -4622,11 +4642,9 @@ static int mdss_mdp_parse_dt_ad_cfg(struct platform_device *pdev)
 	mdata->has_wb_ad = of_property_read_bool(pdev->dev.of_node,
 		"qcom,mdss-has-wb-ad");
 
-	ad_offsets = kzalloc(sizeof(u32) * mdata->nad_cfgs, GFP_KERNEL);
-	if (!ad_offsets) {
-		pr_err("no mem assigned: kzalloc fail\n");
+	ad_offsets = kcalloc(mdata->nad_cfgs, sizeof(u32), GFP_KERNEL);
+	if (!ad_offsets)
 		return -ENOMEM;
-	}
 
 	rc = mdss_mdp_parse_dt_handler(pdev, "qcom,mdss-ad-off", ad_offsets,
 					mdata->nad_cfgs);
@@ -5277,6 +5295,7 @@ int mdss_mdp_secure_session_ctrl(unsigned int enable, u64 flags)
 		desc.args[1] = SCM_BUFFER_PHYS(sid_info);
 		desc.args[2] = sizeof(uint32_t);
 
+
 		pr_debug("Enable/Disable: %d, Flags %llx\n", enable, flags);
 		if (enable) {
 			if (flags & MDP_SECURE_DISPLAY_OVERLAY_SESSION) {
@@ -5572,19 +5591,22 @@ static int __init mdss_mdp_driver_init(void)
 
 }
 
-module_param_string(panel, mdss_mdp_panel, MDSS_MAX_PANEL_LEN, 0);
+module_param_string(panel, mdss_mdp_panel, MDSS_MAX_PANEL_LEN, 0600);
+/*
+ * panel=<lk_cfg>:<pan_intf>:<pan_intf_cfg>:<panel_topology_cfg>
+ * where <lk_cfg> is "1"-lk/gcdb config or "0" non-lk/non-gcdb
+ * config; <pan_intf> is dsi:<ctrl_id> or hdmi or edp
+ * <pan_intf_cfg> is panel interface specific string
+ * Ex: This string is panel's device node name from DT
+ * for DSI interface
+ * hdmi/edp interface does not use this string
+ * <panel_topology_cfg> is an optional string. Currently it is
+ * only valid for DSI panels. In dual-DSI case, it needs to be
+ * used on both panels or none. When used, format is config%d
+ * where %d is one of the configuration found in device node of
+ * panel selected by <pan_intf_cfg>
+ */
+MODULE_PARM_DESC(panel, "lk supplied panel selection string");
 MODULE_PARM_DESC(panel,
-		"panel=<lk_cfg>:<pan_intf>:<pan_intf_cfg>:<panel_topology_cfg> "
-		"where <lk_cfg> is "1"-lk/gcdb config or "0" non-lk/non-gcdb "
-		"config; <pan_intf> is dsi:<ctrl_id> or hdmi or edp "
-		"<pan_intf_cfg> is panel interface specific string "
-		"Ex: This string is panel's device node name from DT "
-		"for DSI interface "
-		"hdmi/edp interface does not use this string "
-		"<panel_topology_cfg> is an optional string. Currently it is "
-		"only valid for DSI panels. In dual-DSI case, it needs to be"
-		"used on both panels or none. When used, format is config%d "
-		"where %d is one of the configuration found in device node of "
-		"panel selected by <pan_intf_cfg>");
-
+	"panel=<lk_cfg>:<pan_intf>:<pan_intf_cfg>:<panel_topology_cfg>");
 module_init(mdss_mdp_driver_init);

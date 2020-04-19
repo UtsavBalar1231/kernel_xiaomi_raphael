@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -3876,7 +3876,6 @@ int mdss_mdp_ctl_reconfig(struct mdss_mdp_ctl *ctl,
 		ctl->ops.start_fnc = mdss_mdp_cmd_start;
 		break;
 	}
-
 	ctl->is_secure = false;
 	ctl->split_flush_en = false;
 	ctl->perf_release_ctl_bw = false;
@@ -4022,6 +4021,19 @@ struct mdss_mdp_ctl *mdss_mdp_ctl_init(struct mdss_panel_data *pdata,
 		ctl->intf_num = MDSS_MDP_NO_INTF;
 		ctl->ops.start_fnc = mdss_mdp_writeback_start;
 		break;
+	case RGB_PANEL:
+		ctl->is_video_mode = true;
+		if (pdata->panel_info.pdest == DISPLAY_1)
+			ctl->intf_num = mdp5_data->mixer_swap ? MDSS_MDP_INTF2 :
+					MDSS_MDP_INTF1;
+		else
+			ctl->intf_num = mdp5_data->mixer_swap ? MDSS_MDP_INTF1 :
+					MDSS_MDP_INTF2;
+					ctl->intf_type = MDSS_INTF_DSI;
+		ctl->pack_align_msb = false;
+		ctl->opmode = MDSS_MDP_CTL_OP_VIDEO_MODE;
+		ctl->ops.start_fnc = mdss_mdp_video_start;
+		break;
 	default:
 		pr_err("unsupported panel type (%d)\n", pdata->panel_info.type);
 		ret = -EINVAL;
@@ -4035,7 +4047,15 @@ struct mdss_mdp_ctl *mdss_mdp_ctl_init(struct mdss_panel_data *pdata,
 	} else {
 		switch (pdata->panel_info.bpp) {
 		case 18:
-			if (ctl->intf_type == MDSS_INTF_DSI)
+			/*
+			 * Both DSI and RGB Panels share same MDSS_INTF_DSI
+			 * interface type. In case of 18 bpp, DSI Panels need
+			 * pack alignment and RGB Panels doesn't need pack
+			 * alignment. Enable pack alignment based on ctl's
+			 * pack_align_msb support.
+			 */
+			if (ctl->intf_type == MDSS_INTF_DSI &&
+					ctl->pack_align_msb)
 				ctl->dst_format = MDSS_MDP_PANEL_FORMAT_RGB666 |
 					MDSS_MDP_PANEL_FORMAT_PACK_ALIGN_MSB;
 			else
@@ -6119,7 +6139,8 @@ int mdss_mdp_display_commit(struct mdss_mdp_ctl *ctl, void *arg,
 
 	/* update backlight in commit */
 	if (ctl->intf_type == MDSS_INTF_DSI && !ctl->is_video_mode &&
-	    ctl->mfd && ctl->mfd->bl_extn_level >= 0) {
+	    ctl->mfd && ((ctl->mfd->bl_extn_level >= 0) &&
+		(ctl->mfd->bl_extn_level < U64_MAX))) {
 		if (!IS_CALIB_MODE_BL(ctl->mfd) && (!ctl->mfd->ext_bl_ctrl ||
 						!ctl->mfd->bl_level)) {
 			mutex_lock(&ctl->mfd->bl_lock);

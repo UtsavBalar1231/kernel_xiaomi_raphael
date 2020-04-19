@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018,2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -136,8 +136,6 @@
 #define PANIC_LUT_NRT_READ	0x0
 #define ROBUST_LUT_NRT_READ	0xFFFF
 
-/* Pipe flag to indicate this pipe contains secure camera buffer */
-#define MDP_SECURE_CAMERA_OVERLAY_SESSION 0x100000000
 /* hw cursor can only be setup in highest mixer stage */
 #define HW_CURSOR_STAGE(mdata) \
 	(((mdata)->max_target_zorder + MDSS_MDP_STAGE_0) - 1)
@@ -589,6 +587,8 @@ struct mdss_mdp_ctl {
 	bool commit_in_progress;
 	struct mutex ds_lock;
 	bool need_vsync_on;
+	/* pack alignment for DSI or RGB Panels */
+	bool pack_align_msb;
 };
 
 struct mdss_mdp_mixer {
@@ -1019,7 +1019,7 @@ struct mdss_mdp_set_ot_params {
 
 struct mdss_mdp_commit_cb {
 	void *data;
-	int (*commit_cb_fnc) (enum mdp_commit_stage_type commit_state,
+	int (*commit_cb_fnc)(enum mdp_commit_stage_type commit_state,
 		void *data);
 };
 
@@ -1997,8 +1997,6 @@ int mdss_mdp_cmd_set_autorefresh_mode(struct mdss_mdp_ctl *ctl, int frame_cnt);
 int mdss_mdp_cmd_get_autorefresh_mode(struct mdss_mdp_ctl *ctl);
 int mdss_mdp_ctl_cmd_set_autorefresh(struct mdss_mdp_ctl *ctl, int frame_cnt);
 int mdss_mdp_ctl_cmd_get_autorefresh(struct mdss_mdp_ctl *ctl);
-int mdss_mdp_enable_panel_disable_mode(struct msm_fb_data_type *mfd,
-	bool disable_panel);
 void mdss_mdp_ctl_event_timer(void *data);
 int mdss_mdp_pp_get_version(struct mdp_pp_feature_version *version);
 int mdss_mdp_layer_pre_commit_cwb(struct msm_fb_data_type *mfd,

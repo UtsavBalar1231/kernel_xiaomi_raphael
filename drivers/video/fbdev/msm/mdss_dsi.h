@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,7 +60,7 @@
 #define MDSS_DSI_HW_REV_104             0x10040000      /* 8996   */
 #define MDSS_DSI_HW_REV_104_1           0x10040001      /* 8996   */
 #define MDSS_DSI_HW_REV_104_2           0x10040002      /* 8937   */
-#define MDSS_DSI_HW_REV_200		0x20000000	/* cobalt */
+#define MDSS_DSI_HW_REV_200		0x20000000	/* 8998 */
 #define MDSS_DSI_HW_REV_201		0x20010000	/* 660 */
 
 #define MDSS_DSI_HW_REV_STEP_0		0x0
@@ -370,7 +370,7 @@ struct dsi_panel_timing {
 
 struct dsi_kickoff_action {
 	struct list_head act_entry;
-	void (*action) (void *);
+	void (*action)(void *);
 	void *data;
 };
 
@@ -419,15 +419,15 @@ struct dsi_err_container {
 
 struct mdss_dsi_ctrl_pdata {
 	int ndx;	/* panel_num */
-	int (*on) (struct mdss_panel_data *pdata);
+	int (*on)(struct mdss_panel_data *pdata);
 	int (*post_panel_on)(struct mdss_panel_data *pdata);
-	int (*off) (struct mdss_panel_data *pdata);
-	int (*low_power_config) (struct mdss_panel_data *pdata, int enable);
+	int (*off)(struct mdss_panel_data *pdata);
+	int (*low_power_config)(struct mdss_panel_data *pdata, int enable);
 	int (*set_col_page_addr)(struct mdss_panel_data *pdata, bool force);
-	int (*check_status) (struct mdss_dsi_ctrl_pdata *pdata);
-	int (*check_read_status) (struct mdss_dsi_ctrl_pdata *pdata);
+	int (*check_status)(struct mdss_dsi_ctrl_pdata *pdata);
+	int (*check_read_status)(struct mdss_dsi_ctrl_pdata *pdata);
 	int (*cmdlist_commit)(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp);
-	void (*switch_mode) (struct mdss_panel_data *pdata, int mode);
+	void (*switch_mode)(struct mdss_panel_data *pdata, int mode);
 	struct mdss_panel_data panel_data;
 	unsigned char *ctrl_base;
 	struct dss_io_data ctrl_io;
@@ -721,6 +721,11 @@ int mdss_dsi_phy_pll_reset_status(struct mdss_dsi_ctrl_pdata *ctrl);
 int mdss_dsi_check_panel_status(struct mdss_dsi_ctrl_pdata *ctrl, void *arg);
 
 void mdss_dsi_debug_bus_init(struct mdss_dsi_data *sdata);
+int mdss_dsi_get_dt_vreg_data(struct device *dev,
+	struct device_node *of_node, struct dss_module_power *mp,
+	enum dsi_pm_type module);
+void mdss_dsi_put_dt_vreg_data(struct device *dev,
+	struct dss_module_power *module_power);
 
 static inline const char *__mdss_dsi_pm_name(enum dsi_pm_type module)
 {

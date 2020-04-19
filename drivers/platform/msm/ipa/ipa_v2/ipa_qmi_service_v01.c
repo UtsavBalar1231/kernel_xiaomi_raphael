@@ -14,6 +14,9 @@
 #include <linux/ipa_qmi_service_v01.h>
 
 #include <linux/soc/qcom/qmi.h>
+
+#include "ipa_qmi_service.h"
+
 /* Type Definitions  */
 static struct qmi_elem_info ipa_hdr_tbl_info_type_data_v01_ei[] = {
 	{

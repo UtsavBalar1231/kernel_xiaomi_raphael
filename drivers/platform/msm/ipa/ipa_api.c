@@ -220,6 +220,10 @@ const char *ipa_clients_strings[IPA_CLIENT_MAX] = {
 	__stringify(IPA_CLIENT_MHI2_CONS),
 	__stringify(IPA_CLIENT_Q6_CV2X_PROD),
 	__stringify(IPA_CLIENT_Q6_CV2X_CONS),
+	__stringify(IPA_CLIENT_MHI_LOW_LAT_PROD),
+	__stringify(IPA_CLIENT_MHI_LOW_LAT_CONS),
+	__stringify(RESERVERD_PROD_110),
+	__stringify(IPA_CLIENT_MHI_QDSS_CONS),
 };
 
 /**
@@ -346,7 +350,7 @@ u8 *ipa_pad_to_32(u8 *dest)
 		return dest;
 	}
 
-	i = (long)dest & 0x7;
+	i = (long)dest & 0x3;
 
 	if (i)
 		for (j = 0; j < (4 - i); j++)
