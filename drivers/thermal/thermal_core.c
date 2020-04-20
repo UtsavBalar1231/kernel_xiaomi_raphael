@@ -42,6 +42,7 @@ MODULE_DESCRIPTION("Generic thermal management sysfs support");
 MODULE_LICENSE("GPL v2");
 
 #define THERMAL_MAX_ACTIVE	16
+#define THERMAL_MI_DEFAULT 10 // dynamic
 
 #define CPU_LIMITS_PARAM_NUM	2
 
@@ -72,7 +73,7 @@ struct screen_monitor {
 struct screen_monitor sm;
 #endif
 
-static atomic_t switch_mode = ATOMIC_INIT(-1);
+static atomic_t switch_mode = ATOMIC_INIT(THERMAL_MI_DEFAULT);
 static atomic_t temp_state = ATOMIC_INIT(0);
 static char boost_buf[128];
 
@@ -1655,6 +1656,33 @@ static DEVICE_ATTR(screen_state, 0644,
 		thermal_screen_state_show, NULL);
 #endif
 
+static unsigned int thermal_sconfig_filter(int mode)
+{
+	unsigned int i;
+	unsigned int valid[] = {
+		2,  // extreme
+		8,  // in-call
+		9,  // game
+		10, // dynamic
+		11, // class-0
+		12, // camera
+		13, // PUBG
+		14, // YouTube
+		15, // AR-VR
+		16, // Game v2
+	};
+
+	for (i=0; i < sizeof(valid); i++) {
+		if (mode == valid[i])
+			return mode;
+	}
+
+	pr_debug("mode=%d is unsupported, falling back to default (%d)",
+		mode, THERMAL_MI_DEFAULT);
+
+	return THERMAL_MI_DEFAULT;
+}
+
 static ssize_t
 thermal_sconfig_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
@@ -1668,9 +1696,9 @@ thermal_sconfig_store(struct device *dev,
 {
 	int val = -1;
 
-	val = simple_strtol(buf, NULL, 10);
+	val = simple_strtol(buf, NULL, THERMAL_MI_DEFAULT);
 
-	atomic_set(&switch_mode, val);
+	atomic_set(&switch_mode, thermal_sconfig_filter(val));
 
 	return len;
 }
