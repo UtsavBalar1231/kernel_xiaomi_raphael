@@ -1231,7 +1231,6 @@ static int _sde_crtc_set_roi_misr(struct drm_crtc_state *state,
 	struct sde_crtc *sde_crtc;
 	struct sde_crtc_state *cstate;
 	struct sde_drm_roi_misr_v1 roi_misr_info;
-	int max_rois;
 
 	if (!state) {
 		SDE_ERROR("crtc%d: invalid args\n", DRMID(crtc));
@@ -1253,24 +1252,22 @@ static int _sde_crtc_set_roi_misr(struct drm_crtc_state *state,
 		return -EINVAL;
 	}
 
-	max_rois = cstate->misr_state.num_misrs * ROI_MISR_MAX_ROIS_PER_MISR;
-	if (roi_misr_info.roi_rect_num > max_rois) {
-		SDE_ERROR("crtc%d: failed to set roi_rect_num(%d)\n",
-				roi_misr_info.roi_rect_num, DRMID(crtc));
-		return -EINVAL;
-	}
-
 	/* if roi count is zero, we only disable misr irq */
 	if (roi_misr_info.roi_rect_num == 0)
 		return 0;
 
-	cstate->roi_misr_cfg.user_fence_fd_addr = roi_misr_info.fence_fd_ptr;
-	cstate->roi_misr_cfg.roi_rect_num = roi_misr_info.roi_rect_num;
+	if (roi_misr_info.roi_rect_num > ROI_MISR_MAX_ROIS_PER_CRTC) {
+		SDE_ERROR("roi_rect_num greater then maximum roi number\n");
+		return -EINVAL;
+	}
 
 	if (!roi_misr_info.roi_ids || !roi_misr_info.roi_rects) {
 		SDE_ERROR("crtc%d: misr data pointer is NULL\n", DRMID(crtc));
 		return -EINVAL;
 	}
+
+	cstate->roi_misr_cfg.user_fence_fd_addr = roi_misr_info.fence_fd_ptr;
+	cstate->roi_misr_cfg.roi_rect_num = roi_misr_info.roi_rect_num;
 
 	if (copy_from_user(cstate->roi_misr_cfg.roi_ids,
 		(void __user *)roi_misr_info.roi_ids,
@@ -1844,6 +1841,13 @@ static int _sde_crtc_misr_roi_check(struct sde_crtc_state *cstate)
 
 	roi_misr_cfg = &cstate->roi_misr_cfg;
 
+	if (roi_misr_cfg->roi_rect_num
+	    > cstate->misr_state.num_misrs * ROI_MISR_MAX_ROIS_PER_MISR) {
+		SDE_ERROR("roi_rect_num(%d) is invalid\n",
+				roi_misr_cfg->roi_rect_num);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < roi_misr_cfg->roi_rect_num; ++i) {
 		roi_id = roi_misr_cfg->roi_ids[i];
 		roi_range = cstate->misr_state.roi_range[roi_id];
@@ -1878,6 +1882,9 @@ static void _sde_crtc_calc_roi_range(struct drm_crtc_state *state)
 	cstate = to_sde_crtc_state(state);
 	sde_kms = _sde_crtc_get_kms(cstate->base.crtc);
 
+	memset(cstate->misr_state.roi_range, 0,
+			sizeof(cstate->misr_state.roi_range));
+
 	if (cstate->num_ds_enabled) {
 		SDE_ERROR("can't support roi misr with scaler enabled\n");
 		cstate->misr_state.num_misrs = 0;
@@ -1888,17 +1895,13 @@ static void _sde_crtc_calc_roi_range(struct drm_crtc_state *state)
 	cstate->misr_state.num_misrs =
 			sde_rm_get_roi_misr_num(&sde_kms->rm,
 			cstate->topology_name);
-
-	if (!cstate->misr_state.num_misrs)
-		SDE_ERROR("roi misr is not supported on this topology\n");
+	if (cstate->misr_state.num_misrs == 0)
+		return;
 
 	drm_mode = state->adjusted_mode;
 	misr_width = drm_mode.hdisplay / cstate->misr_state.num_misrs;
 	cstate->misr_state.mixer_width =
 			drm_mode.hdisplay / cstate->num_mixers;
-
-	memset(cstate->misr_state.roi_range, 0,
-			sizeof(cstate->misr_state.roi_range));
 
 	all_roi_num = cstate->misr_state.num_misrs
 			* ROI_MISR_MAX_ROIS_PER_MISR;
@@ -1937,6 +1940,16 @@ static int _sde_crtc_check_misr_rois(struct drm_crtc *crtc,
 	 */
 	if (!roi_misr_cfg->user_fence_fd_addr)
 		return 0;
+
+	/**
+	 * user can't get roi range through mode_properties
+	 * if no available roi misr in current topology,
+	 * so user shouldn't set ROI_MISR info
+	 */
+	if (!crtc_state->misr_state.num_misrs) {
+		SDE_ERROR("roi misr is not supported on this topology\n");
+		return -EINVAL;
+	}
 
 	ret = _sde_crtc_misr_roi_check(crtc_state);
 
@@ -3403,8 +3416,8 @@ static void sde_crtc_prepare_roi_misr_fence(struct sde_crtc *sde_crtc,
 	 * if user_fence_fd_addr value equal NULL,
 	 * that means user has not set the ROI_MISR property
 	 *
-	 * if roi_rect_num are zero, we should disable all
-	 * misr irqs, so don't need to create fence
+	 * if roi_rect_num equal to zero, we should disable all
+	 * misr irqs, so don't need to create fence instance
 	 */
 	if (!cstate->roi_misr_cfg.user_fence_fd_addr
 		|| !cstate->roi_misr_cfg.roi_rect_num)
