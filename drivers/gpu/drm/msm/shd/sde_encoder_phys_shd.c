@@ -671,7 +671,7 @@ static void sde_encoder_phys_shd_disable(struct sde_encoder_phys *phys_enc)
 
 		for(j = 0; j < ROI_MISR_MAX_ROIS_PER_MISR; j++)
 			sde_encoder_helper_roi_misr_irq_enable(phys_enc,
-				i, j, false);
+				base_irq_idx, j, false);
 
 		if (hw_roi_misr->ops.reset_roi_misr)
 			hw_roi_misr->ops.reset_roi_misr(hw_roi_misr);
