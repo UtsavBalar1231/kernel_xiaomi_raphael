@@ -1,6 +1,6 @@
-/* 
+/*
  * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
- * Copyright 2020 GOODIX 
+ * Copyright 2020 GOODIX
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,7 +27,7 @@
 #define TFA9891_I2CVERSION    13
 
 
-#define TFA9891_NAMETABLE static tfaBfName_t Tfa9891DatasheetNames[]= {\
+#define TFA9891_NAMETABLE static tfaBfName_t Tfa9891DatasheetNames[] = {\
    { 0x0, "VDDS"},    /* POR                                               , */\
    { 0x10, "PLLS"},    /* PLL                                               , */\
    { 0x20, "OTDS"},    /* OTP                                               , */\
@@ -137,10 +137,10 @@
    { 0x8010, "MTPEX"},    /* (key2 protected) calibration of Ron has been executed, */\
    { 0x8045, "SWPROFIL" },\
    { 0x80a5, "SWVSTEP" },\
-   { 0xffff,"Unknown bitfield enum" }   /* not found */\
+   { 0xffff, "Unknown bitfield enum" }   /* not found */\
 };
 
-#define TFA9891_BITNAMETABLE static tfaBfName_t Tfa9891BitNames[]= {\
+#define TFA9891_BITNAMETABLE static tfaBfName_t Tfa9891BitNames[] = {\
    { 0x0, "POR"},    /* POR                                               , */\
    { 0x10, "PLL_LOCK"},    /* PLL                                               , */\
    { 0x20, "flag_otpok"},    /* OTP                                               , */\
@@ -519,7 +519,7 @@
    { 0x8d0f, "production_data4"},    /* (key1 protected)                                  , */\
    { 0x8e0f, "production_data5"},    /* (key1 protected)                                  , */\
    { 0x8f0f, "production_data6"},    /* (key1 protected)                                  , */\
-   { 0xffff,"Unknown bitfield enum" }    /* not found */\
+   { 0xffff, "Unknown bitfield enum" }    /* not found */\
 };
 
 

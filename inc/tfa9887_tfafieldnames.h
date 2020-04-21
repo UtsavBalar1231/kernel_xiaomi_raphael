@@ -1,6 +1,6 @@
-/* 
+/*
  * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
- * Copyright 2020 GOODIX 
+ * Copyright 2020 GOODIX
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -10,12 +10,12 @@
 
 
 /** Filename: Tfa9887_TfaFieldnames.h
- *  This file was generated automatically on 04/14/15 at 10:23:40. 
+ *  This file was generated automatically on 04/14/15 at 10:23:40.
  *  Source file: TFA9897N1B_I2C_list_URT_source_v34_87Only.xls
  */
 #define TFA9887_I2CVERSION		34
 #define TFA9895_I2CVERSION		34
-#define TFA9887_NAMETABLE static tfaBfName_t Tfa9887DatasheetNames[]= {\
+#define TFA9887_NAMETABLE static tfaBfName_t Tfa9887DatasheetNames[] = {\
    { 0x402, "I2SF"},    /* I2SFormat data 1 input:                           , */\
    { 0x431, "CHS12"},    /* ChannelSelection data1 input  (In CoolFlux)       , */\
    { 0x450, "CHS3"},    /* ChannelSelection data 2 input (coolflux input, the DCDC converter gets the other signal), */\
@@ -35,10 +35,10 @@
    { 0x4180, "PWMSH"},    /* PWM Shape                                         , */\
    { 0x4190, "PWMRE"},    /* PWM Bitlength in noise shaper                     , */\
    { 0x48e1, "TCC"},    /* sample & hold track time:                         , */\
-   { 0xffff,"Unknown bitfield enum" }   /* not found */\
+   { 0xffff, "Unknown bitfield enum" }   /* not found */\
 };
 
-#define TFA9887_BITNAMETABLE static tfaBfName_t Tfa9887BitNames[]= {\
+#define TFA9887_BITNAMETABLE static tfaBfName_t Tfa9887BitNames[] = {\
    { 0x402, "i2s_seti"},    /* I2SFormat data 1 input:                           , */\
    { 0x431, "chan_sel1"},    /* ChannelSelection data1 input  (In CoolFlux)       , */\
    { 0x450, "lr_sw_i2si2"},    /* ChannelSelection data 2 input (coolflux input, the DCDC converter gets the other signal), */\
@@ -67,6 +67,6 @@
    { 0x4820, "ctrl_coincidencecs"},    /* HIGH => Prevent dcdc switching during clk_cs_clksh, */\
    { 0x4876, "delay_se_neg[6:0]"},    /* delayshiftse2                                     , */\
    { 0x48e1, "ctrl_cs_ttrack[1:0]"},    /* sample & hold track time:                         , */\
-   { 0xffff,"Unknown bitfield enum" }    /* not found */\
+   { 0xffff, "Unknown bitfield enum" }    /* not found */\
 };
 

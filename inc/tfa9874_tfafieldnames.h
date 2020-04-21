@@ -1,6 +1,6 @@
-/* 
+/*
  * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
- * Copyright 2020 GOODIX 
+ * Copyright 2020 GOODIX
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -10,7 +10,7 @@
 
 
 /** Filename: tfa9874_tfaFieldnames_last.h
- *  This file was generated automatically on 09/28/18 at 11:20:52. 
+ *  This file was generated automatically on 09/28/18 at 11:20:52.
  *  Source file: TFA9874N1C0_DefaultI2CSettings.xlsx
  */
 
@@ -26,175 +26,175 @@ typedef enum Tfa9874BfEnumList {
     TFA9874_BF_AMPE  = 0x0030,    /*!< Activate Amplifier                                 */
     TFA9874_BF_DCA   = 0x0040,    /*!< Activate DC-to-DC converter                        */
     TFA9874_BF_INTP  = 0x0071,    /*!< Interrupt config                                   */
-    TFA9874_BF_BYPOCP= 0x00b0,    /*!< Bypass OCP                                         */
-    TFA9874_BF_TSTOCP= 0x00c0,    /*!< OCP testing control                                */
-    TFA9874_BF_MANSCONF= 0x0120,    /*!< I2C configured                                     */
-    TFA9874_BF_MANAOOSC= 0x0140,    /*!< Internal osc off at PWDN                           */
-    TFA9874_BF_MUTETO= 0x01d0,    /*!< Time out SB mute sequence                          */
-    TFA9874_BF_OPENMTP= 0x01e0,    /*!< Control for FAIM protection                        */
+    TFA9874_BF_BYPOCP = 0x00b0,    /*!< Bypass OCP                                         */
+    TFA9874_BF_TSTOCP = 0x00c0,    /*!< OCP testing control                                */
+    TFA9874_BF_MANSCONF = 0x0120,    /*!< I2C configured                                     */
+    TFA9874_BF_MANAOOSC = 0x0140,    /*!< Internal osc off at PWDN                           */
+    TFA9874_BF_MUTETO = 0x01d0,    /*!< Time out SB mute sequence                          */
+    TFA9874_BF_OPENMTP = 0x01e0,    /*!< Control for FAIM protection                        */
     TFA9874_BF_AUDFS = 0x0203,    /*!< Sample rate (fs)                                   */
-    TFA9874_BF_INPLEV= 0x0240,    /*!< TDM output attenuation                             */
-    TFA9874_BF_FRACTDEL= 0x0255,    /*!< V/I Fractional delay                               */
+    TFA9874_BF_INPLEV = 0x0240,    /*!< TDM output attenuation                             */
+    TFA9874_BF_FRACTDEL = 0x0255,    /*!< V/I Fractional delay                               */
     TFA9874_BF_REV   = 0x030f,    /*!< Revision info                                      */
-    TFA9874_BF_REFCKEXT= 0x0401,    /*!< PLL external ref clock                             */
-    TFA9874_BF_REFCKSEL= 0x0420,    /*!< PLL internal ref clock                             */
-    TFA9874_BF_SSFAIME= 0x05c0,    /*!< Sub-system FAIM                                    */
-    TFA9874_BF_AMPOCRT= 0x0802,    /*!< Amplifier on-off criteria for shutdown             */
+    TFA9874_BF_REFCKEXT = 0x0401,    /*!< PLL external ref clock                             */
+    TFA9874_BF_REFCKSEL = 0x0420,    /*!< PLL internal ref clock                             */
+    TFA9874_BF_SSFAIME = 0x05c0,    /*!< Sub-system FAIM                                    */
+    TFA9874_BF_AMPOCRT = 0x0802,    /*!< Amplifier on-off criteria for shutdown             */
     TFA9874_BF_VDDS  = 0x1000,    /*!< POR                                                */
-    TFA9874_BF_DCOCPOK= 0x1010,    /*!< DCDC OCP nmos   (sticky register , clear on read)  */
+    TFA9874_BF_DCOCPOK = 0x1010,    /*!< DCDC OCP nmos   (sticky register , clear on read)  */
     TFA9874_BF_OTDS  = 0x1020,    /*!< OTP alarm   (sticky register , clear on read)      */
     TFA9874_BF_OCDS  = 0x1030,    /*!< OCP  amplifier   (sticky register , clear on read) */
     TFA9874_BF_UVDS  = 0x1040,    /*!< UVP alarm  (sticky register , clear on read)       */
-    TFA9874_BF_MANALARM= 0x1050,    /*!< Alarm state                                        */
-    TFA9874_BF_TDMERR= 0x1060,    /*!< TDM error                                          */
+    TFA9874_BF_MANALARM = 0x1050,    /*!< Alarm state                                        */
+    TFA9874_BF_TDMERR = 0x1060,    /*!< TDM error                                          */
     TFA9874_BF_NOCLK = 0x1070,    /*!< Lost clock  (sticky register , clear on read)      */
     TFA9874_BF_DCIL  = 0x1100,    /*!< DCDC current limiting                              */
     TFA9874_BF_DCDCA = 0x1110,    /*!< DCDC active  (sticky register , clear on read)     */
-    TFA9874_BF_DCHVBAT= 0x1130,    /*!< DCDC level 1x                                      */
-    TFA9874_BF_DCH114= 0x1140,    /*!< DCDC level 1.14x                                   */
-    TFA9874_BF_DCH107= 0x1150,    /*!< DCDC level 1.07x                                   */
+    TFA9874_BF_DCHVBAT = 0x1130,    /*!< DCDC level 1x                                      */
+    TFA9874_BF_DCH114 = 0x1140,    /*!< DCDC level 1.14x                                   */
+    TFA9874_BF_DCH107 = 0x1150,    /*!< DCDC level 1.07x                                   */
     TFA9874_BF_PLLS  = 0x1160,    /*!< PLL lock                                           */
     TFA9874_BF_CLKS  = 0x1170,    /*!< Clocks stable                                      */
-    TFA9874_BF_TDMLUTER= 0x1180,    /*!< TDM LUT error                                      */
-    TFA9874_BF_TDMSTAT= 0x1192,    /*!< TDM status bits                                    */
+    TFA9874_BF_TDMLUTER = 0x1180,    /*!< TDM LUT error                                      */
+    TFA9874_BF_TDMSTAT = 0x1192,    /*!< TDM status bits                                    */
     TFA9874_BF_MTPB  = 0x11c0,    /*!< MTP busy                                           */
     TFA9874_BF_SWS   = 0x11d0,    /*!< Amplifier engage                                   */
     TFA9874_BF_AMPS  = 0x11e0,    /*!< Amplifier enable                                   */
     TFA9874_BF_AREFS = 0x11f0,    /*!< References enable                                  */
-    TFA9874_BF_OCPOAP= 0x1300,    /*!< OCPOK pmos A                                       */
-    TFA9874_BF_OCPOAN= 0x1310,    /*!< OCPOK nmos A                                       */
-    TFA9874_BF_OCPOBP= 0x1320,    /*!< OCPOK pmos B                                       */
-    TFA9874_BF_OCPOBN= 0x1330,    /*!< OCPOK nmos B                                       */
+    TFA9874_BF_OCPOAP = 0x1300,    /*!< OCPOK pmos A                                       */
+    TFA9874_BF_OCPOAN = 0x1310,    /*!< OCPOK nmos A                                       */
+    TFA9874_BF_OCPOBP = 0x1320,    /*!< OCPOK pmos B                                       */
+    TFA9874_BF_OCPOBN = 0x1330,    /*!< OCPOK nmos B                                       */
     TFA9874_BF_OVDS  = 0x1380,    /*!< OVP alarm                                          */
     TFA9874_BF_CLIPS = 0x1390,    /*!< Amplifier  clipping                                */
     TFA9874_BF_ADCCR = 0x13a0,    /*!< Control ADC                                        */
-    TFA9874_BF_MANWAIT1= 0x13c0,    /*!< Wait HW I2C settings                               */
-    TFA9874_BF_MANMUTE= 0x13e0,    /*!< Audio mute sequence                                */
-    TFA9874_BF_MANOPER= 0x13f0,    /*!< Operating state                                    */
-    TFA9874_BF_CLKOOR= 0x1420,    /*!< External clock status                              */
-    TFA9874_BF_MANSTATE= 0x1433,    /*!< Device manager status                              */
-    TFA9874_BF_DCMODE= 0x1471,    /*!< DCDC mode status bits                              */
+    TFA9874_BF_MANWAIT1 = 0x13c0,    /*!< Wait HW I2C settings                               */
+    TFA9874_BF_MANMUTE = 0x13e0,    /*!< Audio mute sequence                                */
+    TFA9874_BF_MANOPER = 0x13f0,    /*!< Operating state                                    */
+    TFA9874_BF_CLKOOR = 0x1420,    /*!< External clock status                              */
+    TFA9874_BF_MANSTATE = 0x1433,    /*!< Device manager status                              */
+    TFA9874_BF_DCMODE = 0x1471,    /*!< DCDC mode status bits                              */
     TFA9874_BF_BATS  = 0x1509,    /*!< Battery voltage (V)                                */
     TFA9874_BF_TEMPS = 0x1608,    /*!< IC Temperature (C)                                 */
     TFA9874_BF_VDDPS = 0x1709,    /*!< IC VDDP voltage ( 1023*VDDP/13 V)                  */
     TFA9874_BF_TDME  = 0x2040,    /*!< Enable interface                                   */
-    TFA9874_BF_TDMMODE= 0x2050,    /*!< Slave/master                                       */
-    TFA9874_BF_TDMCLINV= 0x2060,    /*!< Reception data to BCK clock                        */
-    TFA9874_BF_TDMFSLN= 0x2073,    /*!< FS length (master mode only)                       */
-    TFA9874_BF_TDMFSPOL= 0x20b0,    /*!< FS polarity                                        */
-    TFA9874_BF_TDMNBCK= 0x20c3,    /*!< N-BCK's in FS                                      */
-    TFA9874_BF_TDMSLOTS= 0x2103,    /*!< N-slots in Frame                                   */
-    TFA9874_BF_TDMSLLN= 0x2144,    /*!< N-bits in slot                                     */
-    TFA9874_BF_TDMBRMG= 0x2194,    /*!< N-bits remaining                                   */
-    TFA9874_BF_TDMDEL= 0x21e0,    /*!< data delay to FS                                   */
-    TFA9874_BF_TDMADJ= 0x21f0,    /*!< data adjustment                                    */
-    TFA9874_BF_TDMOOMP= 0x2201,    /*!< Received audio compression                         */
-    TFA9874_BF_TDMSSIZE= 0x2224,    /*!< Sample size per slot                               */
-    TFA9874_BF_TDMTXDFO= 0x2271,    /*!< Format unused bits                                 */
-    TFA9874_BF_TDMTXUS0= 0x2291,    /*!< Format unused slots DATAO                          */
-    TFA9874_BF_TDMSPKE= 0x2300,    /*!< Control audio tdm channel in 0 (spkr + dcdc)       */
-    TFA9874_BF_TDMDCE= 0x2310,    /*!< Control audio  tdm channel in 1  (dcdc)            */
-    TFA9874_BF_TDMCSE= 0x2330,    /*!< current sense vbat temperature and vddp feedback   */
-    TFA9874_BF_TDMVSE= 0x2340,    /*!< Voltage sense vbat temperature and vddp feedback   */
-    TFA9874_BF_TDMSPKS= 0x2603,    /*!< tdm slot for sink 0 (speaker + dcdc)               */
-    TFA9874_BF_TDMDCS= 0x2643,    /*!< tdm slot for  sink 1  (dcdc)                       */
-    TFA9874_BF_TDMCSS= 0x26c3,    /*!< Slot Position of current sense vbat temperature and vddp feedback */
-    TFA9874_BF_TDMVSS= 0x2703,    /*!< Slot Position of Voltage sense vbat temperature and vddp feedback */
-    TFA9874_BF_ISTVDDS= 0x4000,    /*!< Status POR                                         */
-    TFA9874_BF_ISTBSTOC= 0x4010,    /*!< Status DCDC OCP                                    */
-    TFA9874_BF_ISTOTDS= 0x4020,    /*!< Status OTP alarm                                   */
-    TFA9874_BF_ISTOCPR= 0x4030,    /*!< Status ocp alarm                                   */
-    TFA9874_BF_ISTUVDS= 0x4040,    /*!< Status UVP alarm                                   */
-    TFA9874_BF_ISTMANALARM= 0x4050,    /*!< Status  nanager Alarm state                        */
-    TFA9874_BF_ISTTDMER= 0x4060,    /*!< Status tdm error                                   */
-    TFA9874_BF_ISTNOCLK= 0x4070,    /*!< Status lost clock                                  */
-    TFA9874_BF_ICLVDDS= 0x4400,    /*!< Clear POR                                          */
-    TFA9874_BF_ICLBSTOC= 0x4410,    /*!< Clear DCDC OCP                                     */
-    TFA9874_BF_ICLOTDS= 0x4420,    /*!< Clear OTP alarm                                    */
-    TFA9874_BF_ICLOCPR= 0x4430,    /*!< Clear ocp alarm                                    */
-    TFA9874_BF_ICLUVDS= 0x4440,    /*!< Clear UVP alarm                                    */
-    TFA9874_BF_ICLMANALARM= 0x4450,    /*!< clear  nanager Alarm state                         */
-    TFA9874_BF_ICLTDMER= 0x4460,    /*!< Clear tdm error                                    */
-    TFA9874_BF_ICLNOCLK= 0x4470,    /*!< Clear lost clk                                     */
-    TFA9874_BF_IEVDDS= 0x4800,    /*!< Enable por                                         */
-    TFA9874_BF_IEBSTOC= 0x4810,    /*!< Enable DCDC OCP                                    */
-    TFA9874_BF_IEOTDS= 0x4820,    /*!< Enable OTP alarm                                   */
-    TFA9874_BF_IEOCPR= 0x4830,    /*!< Enable ocp alarm                                   */
-    TFA9874_BF_IEUVDS= 0x4840,    /*!< Enable UVP alarm                                   */
-    TFA9874_BF_IEMANALARM= 0x4850,    /*!< Enable  nanager Alarm state                        */
-    TFA9874_BF_IETDMER= 0x4860,    /*!< Enable tdm error                                   */
-    TFA9874_BF_IENOCLK= 0x4870,    /*!< Enable lost clk                                    */
-    TFA9874_BF_IPOVDDS= 0x4c00,    /*!< Polarity por                                       */
-    TFA9874_BF_IPOBSTOC= 0x4c10,    /*!< Polarity DCDC OCP                                  */
-    TFA9874_BF_IPOOTDS= 0x4c20,    /*!< Polarity OTP alarm                                 */
-    TFA9874_BF_IPOOCPR= 0x4c30,    /*!< Polarity ocp alarm                                 */
-    TFA9874_BF_IPOUVDS= 0x4c40,    /*!< Polarity UVP alarm                                 */
-    TFA9874_BF_IPOMANALARM= 0x4c50,    /*!< Polarity  nanager Alarm state                      */
-    TFA9874_BF_IPOTDMER= 0x4c60,    /*!< Polarity tdm error                                 */
-    TFA9874_BF_IPONOCLK= 0x4c70,    /*!< Polarity lost clk                                  */
+    TFA9874_BF_TDMMODE = 0x2050,    /*!< Slave/master                                       */
+    TFA9874_BF_TDMCLINV = 0x2060,    /*!< Reception data to BCK clock                        */
+    TFA9874_BF_TDMFSLN = 0x2073,    /*!< FS length (master mode only)                       */
+    TFA9874_BF_TDMFSPOL = 0x20b0,    /*!< FS polarity                                        */
+    TFA9874_BF_TDMNBCK = 0x20c3,    /*!< N-BCK's in FS                                      */
+    TFA9874_BF_TDMSLOTS = 0x2103,    /*!< N-slots in Frame                                   */
+    TFA9874_BF_TDMSLLN = 0x2144,    /*!< N-bits in slot                                     */
+    TFA9874_BF_TDMBRMG = 0x2194,    /*!< N-bits remaining                                   */
+    TFA9874_BF_TDMDEL = 0x21e0,    /*!< data delay to FS                                   */
+    TFA9874_BF_TDMADJ = 0x21f0,    /*!< data adjustment                                    */
+    TFA9874_BF_TDMOOMP = 0x2201,    /*!< Received audio compression                         */
+    TFA9874_BF_TDMSSIZE = 0x2224,    /*!< Sample size per slot                               */
+    TFA9874_BF_TDMTXDFO = 0x2271,    /*!< Format unused bits                                 */
+    TFA9874_BF_TDMTXUS0 = 0x2291,    /*!< Format unused slots DATAO                          */
+    TFA9874_BF_TDMSPKE = 0x2300,    /*!< Control audio tdm channel in 0 (spkr + dcdc)       */
+    TFA9874_BF_TDMDCE = 0x2310,    /*!< Control audio  tdm channel in 1  (dcdc)            */
+    TFA9874_BF_TDMCSE = 0x2330,    /*!< current sense vbat temperature and vddp feedback   */
+    TFA9874_BF_TDMVSE = 0x2340,    /*!< Voltage sense vbat temperature and vddp feedback   */
+    TFA9874_BF_TDMSPKS = 0x2603,    /*!< tdm slot for sink 0 (speaker + dcdc)               */
+    TFA9874_BF_TDMDCS = 0x2643,    /*!< tdm slot for  sink 1  (dcdc)                       */
+    TFA9874_BF_TDMCSS = 0x26c3,    /*!< Slot Position of current sense vbat temperature and vddp feedback */
+    TFA9874_BF_TDMVSS = 0x2703,    /*!< Slot Position of Voltage sense vbat temperature and vddp feedback */
+    TFA9874_BF_ISTVDDS = 0x4000,    /*!< Status POR                                         */
+    TFA9874_BF_ISTBSTOC = 0x4010,    /*!< Status DCDC OCP                                    */
+    TFA9874_BF_ISTOTDS = 0x4020,    /*!< Status OTP alarm                                   */
+    TFA9874_BF_ISTOCPR = 0x4030,    /*!< Status ocp alarm                                   */
+    TFA9874_BF_ISTUVDS = 0x4040,    /*!< Status UVP alarm                                   */
+    TFA9874_BF_ISTMANALARM = 0x4050,    /*!< Status  nanager Alarm state                        */
+    TFA9874_BF_ISTTDMER = 0x4060,    /*!< Status tdm error                                   */
+    TFA9874_BF_ISTNOCLK = 0x4070,    /*!< Status lost clock                                  */
+    TFA9874_BF_ICLVDDS = 0x4400,    /*!< Clear POR                                          */
+    TFA9874_BF_ICLBSTOC = 0x4410,    /*!< Clear DCDC OCP                                     */
+    TFA9874_BF_ICLOTDS = 0x4420,    /*!< Clear OTP alarm                                    */
+    TFA9874_BF_ICLOCPR = 0x4430,    /*!< Clear ocp alarm                                    */
+    TFA9874_BF_ICLUVDS = 0x4440,    /*!< Clear UVP alarm                                    */
+    TFA9874_BF_ICLMANALARM = 0x4450,    /*!< clear  nanager Alarm state                         */
+    TFA9874_BF_ICLTDMER = 0x4460,    /*!< Clear tdm error                                    */
+    TFA9874_BF_ICLNOCLK = 0x4470,    /*!< Clear lost clk                                     */
+    TFA9874_BF_IEVDDS = 0x4800,    /*!< Enable por                                         */
+    TFA9874_BF_IEBSTOC = 0x4810,    /*!< Enable DCDC OCP                                    */
+    TFA9874_BF_IEOTDS = 0x4820,    /*!< Enable OTP alarm                                   */
+    TFA9874_BF_IEOCPR = 0x4830,    /*!< Enable ocp alarm                                   */
+    TFA9874_BF_IEUVDS = 0x4840,    /*!< Enable UVP alarm                                   */
+    TFA9874_BF_IEMANALARM = 0x4850,    /*!< Enable  nanager Alarm state                        */
+    TFA9874_BF_IETDMER = 0x4860,    /*!< Enable tdm error                                   */
+    TFA9874_BF_IENOCLK = 0x4870,    /*!< Enable lost clk                                    */
+    TFA9874_BF_IPOVDDS = 0x4c00,    /*!< Polarity por                                       */
+    TFA9874_BF_IPOBSTOC = 0x4c10,    /*!< Polarity DCDC OCP                                  */
+    TFA9874_BF_IPOOTDS = 0x4c20,    /*!< Polarity OTP alarm                                 */
+    TFA9874_BF_IPOOCPR = 0x4c30,    /*!< Polarity ocp alarm                                 */
+    TFA9874_BF_IPOUVDS = 0x4c40,    /*!< Polarity UVP alarm                                 */
+    TFA9874_BF_IPOMANALARM = 0x4c50,    /*!< Polarity  nanager Alarm state                      */
+    TFA9874_BF_IPOTDMER = 0x4c60,    /*!< Polarity tdm error                                 */
+    TFA9874_BF_IPONOCLK = 0x4c70,    /*!< Polarity lost clk                                  */
     TFA9874_BF_BSSCR = 0x5001,    /*!< Battery Safeguard attack time                      */
     TFA9874_BF_BSST  = 0x5023,    /*!< Battery Safeguard threshold voltage level          */
     TFA9874_BF_BSSRL = 0x5061,    /*!< Battery Safeguard maximum reduction                */
-    TFA9874_BF_VBATFLTL= 0x5080,    /*!< vbat filter limit                                  */
+    TFA9874_BF_VBATFLTL = 0x5080,    /*!< vbat filter limit                                  */
     TFA9874_BF_BSSR  = 0x50e0,    /*!< Battery voltage read out                           */
     TFA9874_BF_BSSBY = 0x50f0,    /*!< Bypass battery safeguard                           */
     TFA9874_BF_BSSS  = 0x5100,    /*!< Vbat prot steepness                                */
-    TFA9874_BF_HPFBYP= 0x5150,    /*!< Bypass HPF                                         */
+    TFA9874_BF_HPFBYP = 0x5150,    /*!< Bypass HPF                                         */
     TFA9874_BF_DPSA  = 0x5170,    /*!< Enable DPSA                                        */
-    TFA9874_BF_CLIPCTRL= 0x5222,    /*!< Clip control setting                               */
-    TFA9874_BF_AMPGAIN= 0x5257,    /*!< Amplifier gain                                     */
-    TFA9874_BF_SLOPEE= 0x52d0,    /*!< Enables slope control                              */
-    TFA9874_BF_SLOPESET= 0x52e0,    /*!< Slope speed setting (bin. coded)                   */
-    TFA9874_BF_TDMDCG= 0x6123,    /*!< Second channel gain in case of stereo using a single coil. (Total gain depending on INPLEV). (In case of mono OR stereo using 2 separate DCDC channel 1 should be disabled using TDMDCE) */
-    TFA9874_BF_TDMSPKG= 0x6163,    /*!< Total gain depending on INPLEV setting (channel 0) */
-    TFA9874_BF_LNMODE= 0x62e1,    /*!< ctrl select mode                                   */
-    TFA9874_BF_LPM1MODE= 0x64e1,    /*!< low power mode control                             */
-    TFA9874_BF_TDMSRCMAP= 0x6802,    /*!< tdm source mapping                                 */
-    TFA9874_BF_TDMSRCAS= 0x6831,    /*!< Sensed value  A                                    */
-    TFA9874_BF_TDMSRCBS= 0x6851,    /*!< Sensed value  B                                    */
-    TFA9874_BF_TDMSRCACLIP= 0x6871,    /*!< clip information  (analog /digital) for source0    */
-    TFA9874_BF_TDMSRCBCLIP= 0x6891,    /*!< clip information  (analog /digital) for source1    */
+    TFA9874_BF_CLIPCTRL = 0x5222,    /*!< Clip control setting                               */
+    TFA9874_BF_AMPGAIN = 0x5257,    /*!< Amplifier gain                                     */
+    TFA9874_BF_SLOPEE = 0x52d0,    /*!< Enables slope control                              */
+    TFA9874_BF_SLOPESET = 0x52e0,    /*!< Slope speed setting (bin. coded)                   */
+    TFA9874_BF_TDMDCG = 0x6123,    /*!< Second channel gain in case of stereo using a single coil. (Total gain depending on INPLEV). (In case of mono OR stereo using 2 separate DCDC channel 1 should be disabled using TDMDCE) */
+    TFA9874_BF_TDMSPKG = 0x6163,    /*!< Total gain depending on INPLEV setting (channel 0) */
+    TFA9874_BF_LNMODE = 0x62e1,    /*!< ctrl select mode                                   */
+    TFA9874_BF_LPM1MODE = 0x64e1,    /*!< low power mode control                             */
+    TFA9874_BF_TDMSRCMAP = 0x6802,    /*!< tdm source mapping                                 */
+    TFA9874_BF_TDMSRCAS = 0x6831,    /*!< Sensed value  A                                    */
+    TFA9874_BF_TDMSRCBS = 0x6851,    /*!< Sensed value  B                                    */
+    TFA9874_BF_TDMSRCACLIP = 0x6871,    /*!< clip information  (analog /digital) for source0    */
+    TFA9874_BF_TDMSRCBCLIP = 0x6891,    /*!< clip information  (analog /digital) for source1    */
     TFA9874_BF_LP1   = 0x6e10,    /*!< low power mode 1 detection                         */
     TFA9874_BF_LA    = 0x6e20,    /*!< low amplitude detection                            */
     TFA9874_BF_VDDPH = 0x6e30,    /*!< vddp greater than vbat                             */
-    TFA9874_BF_DELCURCOMP= 0x6f02,    /*!< delay to allign compensation signal with current sense signal */
-    TFA9874_BF_SIGCURCOMP= 0x6f40,    /*!< polarity of compensation for current sense         */
-    TFA9874_BF_ENCURCOMP= 0x6f50,    /*!< enable current sense compensation                  */
-    TFA9874_BF_LVLCLPPWM= 0x6f72,    /*!< set the amount of pwm pulse that may be skipped before clip-flag is triggered */
+    TFA9874_BF_DELCURCOMP = 0x6f02,    /*!< delay to allign compensation signal with current sense signal */
+    TFA9874_BF_SIGCURCOMP = 0x6f40,    /*!< polarity of compensation for current sense         */
+    TFA9874_BF_ENCURCOMP = 0x6f50,    /*!< enable current sense compensation                  */
+    TFA9874_BF_LVLCLPPWM = 0x6f72,    /*!< set the amount of pwm pulse that may be skipped before clip-flag is triggered */
     TFA9874_BF_DCMCC = 0x7033,    /*!< Max coil current                                   */
     TFA9874_BF_DCCV  = 0x7071,    /*!< Slope compensation current, represents LxF (inductance x frequency) value  */
     TFA9874_BF_DCIE  = 0x7090,    /*!< Adaptive boost mode                                */
     TFA9874_BF_DCSR  = 0x70a0,    /*!< Soft ramp up/down                                  */
     TFA9874_BF_DCDIS = 0x70e0,    /*!< DCDC on/off                                        */
     TFA9874_BF_DCPWM = 0x70f0,    /*!< DCDC PWM only mode                                 */
-    TFA9874_BF_DCTRACK= 0x7430,    /*!< Boost algorithm selection, effective only when boost_intelligent is set to 1 */
-    TFA9874_BF_DCTRIP= 0x7444,    /*!< 1st Adaptive boost trip levels, effective only when DCIE is set to 1 */
-    TFA9874_BF_DCHOLD= 0x7494,    /*!< Hold time for DCDC booster, effective only when boost_intelligent is set to 1 */
+    TFA9874_BF_DCTRACK = 0x7430,    /*!< Boost algorithm selection, effective only when boost_intelligent is set to 1 */
+    TFA9874_BF_DCTRIP = 0x7444,    /*!< 1st Adaptive boost trip levels, effective only when DCIE is set to 1 */
+    TFA9874_BF_DCHOLD = 0x7494,    /*!< Hold time for DCDC booster, effective only when boost_intelligent is set to 1 */
     TFA9874_BF_DCINT = 0x74e0,    /*!< Selection of data for adaptive boost algorithm, effective only when boost_intelligent is set to 1 */
-    TFA9874_BF_DCTRIP2= 0x7534,    /*!< 2nd Adaptive boost trip levels, effective only when DCIE is set to 1 */
-    TFA9874_BF_DCTRIPT= 0x7584,    /*!< Track Adaptive boost trip levels, effective only when boost_intelligent is set to 1 */
-    TFA9874_BF_DCTRIPHYSTE= 0x75f0,    /*!< Enable hysteresis on booster trip levels           */
+    TFA9874_BF_DCTRIP2 = 0x7534,    /*!< 2nd Adaptive boost trip levels, effective only when DCIE is set to 1 */
+    TFA9874_BF_DCTRIPT = 0x7584,    /*!< Track Adaptive boost trip levels, effective only when boost_intelligent is set to 1 */
+    TFA9874_BF_DCTRIPHYSTE = 0x75f0,    /*!< Enable hysteresis on booster trip levels           */
     TFA9874_BF_DCVOF = 0x7635,    /*!< First boost voltage level                          */
     TFA9874_BF_DCVOS = 0x7695,    /*!< Second boost voltage level                         */
     TFA9874_BF_MTPK  = 0xa107,    /*!< MTP KEY2 register                                  */
-    TFA9874_BF_KEY1LOCKED= 0xa200,    /*!< Indicates KEY1 is locked                           */
-    TFA9874_BF_KEY2LOCKED= 0xa210,    /*!< Indicates KEY2 is locked                           */
+    TFA9874_BF_KEY1LOCKED = 0xa200,    /*!< Indicates KEY1 is locked                           */
+    TFA9874_BF_KEY2LOCKED = 0xa210,    /*!< Indicates KEY2 is locked                           */
     TFA9874_BF_CIMTP = 0xa360,    /*!< Start copying data from I2C mtp registers to mtp   */
-    TFA9874_BF_MTPRDMSB= 0xa50f,    /*!< MSB word of MTP manual read data                   */
-    TFA9874_BF_MTPRDLSB= 0xa60f,    /*!< LSB word of MTP manual read data                   */
+    TFA9874_BF_MTPRDMSB = 0xa50f,    /*!< MSB word of MTP manual read data                   */
+    TFA9874_BF_MTPRDLSB = 0xa60f,    /*!< LSB word of MTP manual read data                   */
     TFA9874_BF_EXTTS = 0xb108,    /*!< External temperature (C)                           */
     TFA9874_BF_TROS  = 0xb190,    /*!< Select temp Speaker calibration                    */
-    TFA9874_BF_SWPROFIL= 0xee0f,    /*!< Software profile data                              */
-    TFA9874_BF_SWVSTEP= 0xef0f,    /*!< Software vstep information                         */
-    TFA9874_BF_MTPOTC= 0xf000,    /*!< Calibration schedule                               */
+    TFA9874_BF_SWPROFIL = 0xee0f,    /*!< Software profile data                              */
+    TFA9874_BF_SWVSTEP = 0xef0f,    /*!< Software vstep information                         */
+    TFA9874_BF_MTPOTC = 0xf000,    /*!< Calibration schedule                               */
     TFA9874_BF_MTPEX = 0xf010,    /*!< Calibration Ron executed                           */
-    TFA9874_BF_DCMCCAPI= 0xf020,    /*!< Calibration current limit DCDC                     */
-    TFA9874_BF_DCMCCSB= 0xf030,    /*!< Sign bit for delta calibration current limit DCDC  */
-    TFA9874_BF_USERDEF= 0xf042,    /*!< Calibration delta current limit DCDC               */
-    TFA9874_BF_CUSTINFO= 0xf078,    /*!< Reserved space for allowing customer to store speaker information */
+    TFA9874_BF_DCMCCAPI = 0xf020,    /*!< Calibration current limit DCDC                     */
+    TFA9874_BF_DCMCCSB = 0xf030,    /*!< Sign bit for delta calibration current limit DCDC  */
+    TFA9874_BF_USERDEF = 0xf042,    /*!< Calibration delta current limit DCDC               */
+    TFA9874_BF_CUSTINFO = 0xf078,    /*!< Reserved space for allowing customer to store speaker information */
     TFA9874_BF_R25C  = 0xf50f,    /*!< Ron resistance of  speaker coil                    */
 } Tfa9874BfEnumList_t;
-#define TFA9874_NAMETABLE static tfaBfName_t Tfa9874DatasheetNames[]= {\
+#define TFA9874_NAMETABLE static tfaBfName_t Tfa9874DatasheetNames[] = {\
    { 0x0, "PWDN"},    /* Powerdown selection                               , */\
    { 0x10, "I2CR"},    /* I2C Reset - Auto clear                            , */\
    { 0x30, "AMPE"},    /* Activate Amplifier                                , */\
@@ -367,10 +367,10 @@ typedef enum Tfa9874BfEnumList {
    { 0xf042, "USERDEF"},    /* Calibration delta current limit DCDC              , */\
    { 0xf078, "CUSTINFO"},    /* Reserved space for allowing customer to store speaker information, */\
    { 0xf50f, "R25C"},    /* Ron resistance of  speaker coil                   , */\
-   { 0xffff,"Unknown bitfield enum" }   /* not found */\
+   { 0xffff, "Unknown bitfield enum" }   /* not found */\
 };
 
-#define TFA9874_BITNAMETABLE static tfaBfName_t Tfa9874BitNames[]= {\
+#define TFA9874_BITNAMETABLE static tfaBfName_t Tfa9874BitNames[] = {\
    { 0x0, "powerdown"},    /* Powerdown selection                               , */\
    { 0x10, "reset"},    /* I2C Reset - Auto clear                            , */\
    { 0x30, "enbl_amplifier"},    /* Activate Amplifier                                , */\
@@ -814,7 +814,7 @@ typedef enum Tfa9874BfEnumList {
    { 0xfe0f, "mtpdataE"},    /* MTPdataE (key1 protected)                         , */\
    { 0xff07, "calibr_osc_delta_ndiv"},    /* Calibration data for OSC1M, signed number representation, */\
    { 0xff87, "spare_mtp7_15_08"},    /* SPARE                                             , */\
-   { 0xffff,"Unknown bitfield enum" }    /* not found */\
+   { 0xffff, "Unknown bitfield enum" }    /* not found */\
 };
 
 enum tfa9874_irq {
@@ -829,7 +829,7 @@ enum tfa9874_irq {
 	tfa9874_irq_max = 8,
 	tfa9874_irq_all = -1 /* all irqs */};
 
-#define TFA9874_IRQ_NAMETABLE static tfaIrqName_t Tfa9874IrqNames[]= {\
+#define TFA9874_IRQ_NAMETABLE static tfaIrqName_t Tfa9874IrqNames[] = {\
 	{ 0, "STVDDS"},\
 	{ 1, "STBSTOC"},\
 	{ 2, "STOTDS"},\
