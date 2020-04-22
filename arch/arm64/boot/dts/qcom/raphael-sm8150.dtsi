@@ -115,6 +115,7 @@ And public attribution of xiaomi platforms(like F1 and so and)
 	qcom,sw-jeita-enable;
 	qcom,step-charging-enable;
 	qcom,wd-bark-time-secs = <16>;
+	google,wdog_snarl_disable;
 };
 
 &qupv3_se1_i2c {
