@@ -110,4 +110,38 @@ static inline void pd_phy_close(void)
 {
 }
 #endif
+
+enum uvdm_state {
+	USBPD_UVDM_DISCONNECT,
+	USBPD_UVDM_CHARGER_VERSION,
+	USBPD_UVDM_CHARGER_VOLTAGE,
+	USBPD_UVDM_CHARGER_TEMP,
+	USBPD_UVDM_SESSION_SEED,
+	USBPD_UVDM_AUTHENTICATION,
+	USBPD_UVDM_VERIFIED,
+	USBPD_UVDM_CONNECT,
+	USBPD_UVDM_NAN_ACK,
+};
+
+#define USB_PD_MI_SVID			0x2717
+#define USBPD_UVDM_SS_LEN		4
+#define USBPD_UVDM_VERIFIED_LEN		1
+
+#define VDM_HDR(svid, cmd0, cmd1) \
+       (((svid) << 16) | (0 << 15) | ((cmd0) << 8) \
+       | (cmd1))
+#define UVDM_HDR_CMD(hdr)	((hdr) & 0xFF)
+
+#define USBPD_VDM_RANDOM_NUM		4
+#define USBPD_VDM_REQUEST		0x1
+#define USBPD_ACK			0x2
+
+struct usbpd_vdm_data {
+	int ta_version;
+	int ta_temp;
+	int ta_voltage;
+	unsigned long s_secert[USBPD_UVDM_SS_LEN];
+	unsigned long digest[USBPD_UVDM_SS_LEN];
+};
+
 #endif /* _USBPD_H */
