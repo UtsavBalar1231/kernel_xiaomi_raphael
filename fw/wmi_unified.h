@@ -1186,6 +1186,7 @@ typedef enum {
     WMI_MDNS_SET_FQDN_CMDID,
     WMI_MDNS_SET_RESPONSE_CMDID,
     WMI_MDNS_GET_STATS_CMDID,
+    WMI_MDNS_SET_STAIP_CMDID,
 
     /* enable/disable AP Authentication offload */
     WMI_SAP_OFL_ENABLE_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_SAP_OFL),
@@ -2614,6 +2615,20 @@ typedef struct {
      */
     A_UINT32 wmi_service_segment_offset;
     A_UINT32 wmi_service_segment_bitmap[WMI_SERVICE_SEGMENT_BM_SIZE32];
+/*
+ * This TLV is followed by the below TLVs:
+ * A_UINT32 wmi_service_ext_bitmap[]
+ *     The wmi_service_ext_bitmap covers WMI service flags at the offset where
+ *     wmi_service_available_event_fixed_param.wmi_service_segment_bitmap
+ *     leaves off.
+ *     For example, if
+ *         wmi_service_available_event_fixed_param.wmi_service_segment_offset
+ *     is 128, then
+ *         wmi_service_available_event_fixed_param.wmi_service_segment_bitmap
+ *     will cover WMI service flags
+ *         128 to (128 + WMI_SERVICE_SEGMENT_BM_SIZE32 * 32) = 128 to 256
+ *     and wmi_service_ext_bitmap will cover WMI service flags starting at 256.
+ */
 } wmi_service_available_event_fixed_param;
 
 typedef struct {
@@ -2659,7 +2674,7 @@ typedef struct {
     A_UINT32 he_cap_info_ext;
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -4559,9 +4574,19 @@ typedef struct {
 } wmi_roam_fils_synch_tlv_param;
 
 /*
-* If FW has multiple active channels due to MCC(multi channel concurrency),
-* then these stats are combined stats for all the active channels.
-*/
+ * FW sends PMK cache of roamed candidate to host to sync pmk cache with host
+ */
+typedef struct {
+    A_UINT32  tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_roam_pmk_cache_synch_tlv_param */
+    A_UINT32  pmk_len;
+    A_UINT8  pmk[WMI_MAX_PMK_LEN];
+    A_UINT8  pmkid[WMI_MAX_PMKID_LEN];
+} wmi_roam_pmk_cache_synch_tlv_param;
+
+/*
+ * If FW has multiple active channels due to MCC(multi channel concurrency),
+ * then these stats are combined stats for all the active channels.
+ */
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_update_whal_mib_stats_event_fixed_param */
     /** ack count, it is an incremental number, not accumulated number */
@@ -7962,6 +7987,8 @@ typedef struct {
     /** peer MAC address */
     wmi_mac_addr peer_macaddr;
     A_UINT32 key_type; /* use standard cipher types - see WMI_CIPHER_ defs */
+    /** key index **/
+    A_UINT32 key_ix;
 } wmi_peer_tx_pn_request_cmd_fixed_param;
 
 typedef struct {
@@ -7978,6 +8005,8 @@ typedef struct {
     * how many bytes within pn[] are filled with valid data.
     */
     A_UINT8 pn[16];
+    /** key index **/
+    A_UINT32 key_ix;
 } wmi_peer_tx_pn_response_event_fixed_param;
 
 typedef struct {
@@ -11115,7 +11144,7 @@ typedef struct {
     WMI_SET_BITS(param, WMI_BEACON_PROTECTION_BIT_POS, 1, value)
 
 #define WMI_BEACON_PROTECTION_EN_GET(param) \
-    WMI_GET_BITS(param, WMI_BEACON_PROTECTION_EN_BIT_POS, 1)
+    WMI_GET_BITS(param, WMI_BEACON_PROTECTION_BIT_POS, 1)
 
 typedef struct {
     A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_prb_tmpl_cmd_fixed_param */
@@ -13331,6 +13360,11 @@ typedef struct {
      * by at least candidate_min_roam_score_delta.
      */
     A_UINT32 candidate_min_roam_score_delta;
+    /*
+     * For OCE Release 2, give weightage to roam candidate tx power if
+     * oce_ap_tx_pwr_weightage_pcnt != 0.
+     */
+    A_UINT32 oce_ap_tx_pwr_weightage_pcnt;
 } wmi_roam_cnd_scoring_param;
 
 typedef struct {
@@ -13622,6 +13656,7 @@ typedef struct {
     A_UINT32 max_mlme_sw_retries; /* maximum number of software retries for preauth and reassoc req */
     A_UINT32 no_ack_timeout; /* In msec. duration to wait before another SW retry made if no ack seen for previous frame */
     A_UINT32 roam_candidate_validity_time; /* In msec. validity duration of each entry in roam cache.  If the value is 0x0, this field should be disregarded. */
+    A_UINT32 roam_to_current_bss_disable; /* Disable roaming to current bss */
 } wmi_roam_offload_tlv_param;
 
 
@@ -20641,6 +20676,12 @@ typedef struct {
 } wmi_mdns_set_resp_cmd_fixed_param;
 
 typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_mdns_set_staIP_cmd_fixed_param */
+    A_UINT32 vdev_id;
+    A_UINT32 staIP; /* IPv4 address for STA mode */
+} wmi_mdns_set_staIP_cmd_fixed_param;
+
+typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_mdns_get_stats_cmd_fixed_param */
     A_UINT32 vdev_id;
 } wmi_mdns_get_stats_cmd_fixed_param;
@@ -24588,11 +24629,26 @@ typedef struct {
      */
     A_UINT32 nss_ratio;
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
 } WMI_MAC_PHY_CAPABILITIES;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_WMI_MAC_PHY_CAPABILITIES_EXT */
+    /* hw_mode_id - identify a particular set of HW characteristics, as specified
+     * by the subsequent fields. WMI_MAC_PHY_CAPABILITIES element must be mapped
+     * to its parent WMI_HW_MODE_CAPABILITIES element using hw_mode_id.
+     * No particular ordering of WMI_MAC_PHY_CAPABILITIES elements should be assumed,
+     * though in practice the elements may always be ordered by hw_mode_id */
+    A_UINT32 hw_mode_id;
+    /* pdev_id starts with 1. pdev_id 1 => phy_id 0, pdev_id 2 => phy_id 1 */
+    A_UINT32 pdev_id;
+    /* phy id. Starts with 0 */
+    A_UINT32 phy_id;
+    A_UINT32 wireless_modes_ext; /* REGDMN MODE EXT, see REGDMN_MODE_ enum */
+} WMI_MAC_PHY_CAPABILITIES_EXT;
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_WMI_HW_MODE_CAPABILITIES */
@@ -24612,7 +24668,7 @@ typedef struct {
     A_UINT32 hw_mode_config_type;
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -24689,7 +24745,7 @@ typedef struct {
     A_UINT32 chainmask;
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -24702,7 +24758,7 @@ typedef struct {
     A_UINT32 num_valid_chainmask;
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -24720,7 +24776,7 @@ typedef struct {
     A_UINT32 num_chainmask_tables;
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -24763,11 +24819,19 @@ typedef struct {
     A_UINT32 low_5ghz_chan;  /* freq in MHz */
     A_UINT32 high_5ghz_chan; /* freq in MHz */
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
 } WMI_HAL_REG_CAPABILITIES_EXT;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_WMI_HAL_REG_CAPABILITIES_EXT2 */
+    /* phy id */
+    A_UINT32 phy_id;
+    /* regdomain value specified in EEPROM */
+    A_UINT32 wireless_modes_ext;
+} WMI_HAL_REG_CAPABILITIES_EXT2;
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_WMI_SOC_HAL_REG_CAPABILITIES */
@@ -24775,7 +24839,7 @@ typedef struct {
     /* num_phy WMI_HAL_REG_CAPABILITIES_EXT TLV's */
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -24792,7 +24856,7 @@ typedef struct {
     /* Minimum alignment in bytes of each buffer in the OEM DMA ring */
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -24804,7 +24868,7 @@ typedef struct {
     A_UINT32 active_version;
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -25440,6 +25504,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_MDNS_SET_FQDN_CMDID);
         WMI_RETURN_STRING(WMI_MDNS_SET_RESPONSE_CMDID);
         WMI_RETURN_STRING(WMI_MDNS_GET_STATS_CMDID);
+        WMI_RETURN_STRING(WMI_MDNS_SET_STAIP_CMDID);
         WMI_RETURN_STRING(WMI_ROAM_INVOKE_CMDID);
         WMI_RETURN_STRING(WMI_SET_ANTENNA_DIVERSITY_CMDID);
         WMI_RETURN_STRING(WMI_SAP_OFL_ENABLE_CMDID);
@@ -26240,6 +26305,8 @@ typedef enum {
 #define WLM_FLAGS_SCAN_SET_SKIP_DFS(flag, val)            WMI_SET_BITS(flag, 1, 1, val)
 #define WLM_FLAGS_SCAN_GET_DWELL_TIME_POLICY(flag)        WMI_GET_BITS(flag, 2, 2)
 #define WLM_FLAGS_SCAN_SET_DWELL_TIME_POLICY(flag, val)   WMI_SET_BITS(flag, 2, 2, val)
+#define WLM_FLAGS_TSF_LATENCY_COMPENSATE_ENABLED_GET(flag) WMI_GET_BITS(flag, 4, 1)
+#define WLM_FLAGS_TSF_LATENCY_COMPENSATE_ENABLED_SET(flag) WMI_SET_BITS(flag, 4, 1, val)
 #define WLM_FLAGS_ROAM_GET_POLICY(flag)                   WMI_GET_BITS(flag, 6, 2)
 #define WLM_FLAGS_ROAM_SET_POLICY(flag, val)              WMI_SET_BITS(flag, 6, 2, val)
 #define WLM_FLAGS_PS_IS_BMPS_DISABLED(flag)               WMI_GET_BITS(flag, 9, 1)
@@ -26607,7 +26674,7 @@ typedef struct {
     A_UINT32 min_buf_align; /* minimum alignment in bytes of each buffer in the DMA ring */
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -26628,7 +26695,7 @@ typedef struct {
     A_UINT32 freq_info;
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
@@ -26814,7 +26881,7 @@ typedef struct {
     A_UINT32 default_agc_max_gain;/* DEFAULT AGC MAX GAIN used. Fetched from register RXTD_RADAR_SBS_CTRL_1_L bits20:13 */
 
     /**************************************************************************
-     * DON'T ADD ANY FURTHER FIELDS HERE - 
+     * DON'T ADD ANY FURTHER FIELDS HERE -
      * It would cause the size of the READY_EXT message within some targets
      * to exceed the size of the buffer used for the message.
      **************************************************************************/
