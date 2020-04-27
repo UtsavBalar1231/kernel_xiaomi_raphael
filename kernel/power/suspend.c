@@ -153,11 +153,11 @@ static int suspend_monitor_kthread(void *arg)
 			if (suspend_mon_toggle == TOGGLE_START) {
 				timeout = msecs_to_jiffies(
 					SUSPEND_TIMER_TIMEOUT_MS);
-				pr_info("Start suspend monitor\n");
+				pr_debug("Start suspend monitor\n");
 			} else if (suspend_mon_toggle == TOGGLE_STOP) {
 				timeout = MAX_SCHEDULE_TIMEOUT;
 				timeout_count = 0;
-				pr_info("Stop suspend monitor\n");
+				pr_debug("Stop suspend monitor\n");
 			}
 			suspend_mon_toggle = TOGGLE_NONE;
 			mutex_unlock(&suspend_mon_lock);
