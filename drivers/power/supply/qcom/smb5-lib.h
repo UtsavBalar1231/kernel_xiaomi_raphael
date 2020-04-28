@@ -179,6 +179,8 @@ enum hvdcp3_type {
 
 #define ROLE_REVERSAL_DELAY_MS		2000
 
+#define SUSPEND_ICL_MAX USBIN_25MA
+
 enum smb_mode {
 	PARALLEL_MASTER = 0,
 	PARALLEL_SLAVE,
