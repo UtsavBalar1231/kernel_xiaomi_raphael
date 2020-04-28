@@ -3485,8 +3485,8 @@ static struct ipa3_mem_partition ipa_4_5_mem_part = {
 	.uc_descriptor_ram_ofst	= 0x3800,
 	.uc_descriptor_ram_size	= 0x1000,
 	.pdn_config_ofst	= 0x4800,
-	.pdn_config_size	= 0x70,
-	.end_ofst		= 0x4870,
+	.pdn_config_size	= 0x100,
+	.end_ofst		= 0x4900,
 };
 
 
@@ -9814,7 +9814,8 @@ error:
 
 int ipa3_get_max_pdn(void)
 {
-	if (ipa3_get_hw_type_index() == IPA_4_5_AUTO)
+	if ((ipa3_get_hw_type_index() == IPA_4_5_AUTO) ||
+		(ipa3_get_hw_type_index() == IPA_4_5))
 		return IPA_MAX_PDN_NUM;
 	else
 		return IPA_MAX_PDN_NUM_v4;
