@@ -124,7 +124,6 @@
 #include <linux/mailbox_client.h>
 #include <linux/mailbox/qmp.h>
 #include <linux/mailbox_controller.h>
-#include <linux/ipc_logging.h>
 #include <linux/inetdevice.h>
 #include <net/inet_common.h>
 #include <net/ipv6.h>
@@ -133,6 +132,8 @@
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER
 #include <soc/qcom/boot_stats.h>
 #endif
+#include "DWC_ETH_QOS_ipc.h"
+
 /* QOS Version Control Macros */
 /* #define DWC_ETH_QOS_VER_4_0 */
 /* Default Configuration is for QOS version 4.1 and above */
@@ -141,12 +142,8 @@
 
 #include <asm-generic/errno.h>
 
-extern void *ipc_emac_log_ctxt;
-
-#define IPCLOG_STATE_PAGES 50
-#define __FILENAME__ (strrchr(__FILE__, '/') ? \
-	strrchr(__FILE__, '/') + 1 : __FILE__)
-
+/* Defining wake up timer of 500ms */
+#define EMAC_PM_WAKE_TIMER 500
 
 #ifdef CONFIG_PGTEST_OBJ
 #define DWC_ETH_QOS_CONFIG_PGTEST
@@ -728,6 +725,13 @@ extern void *ipc_emac_log_ctxt;
 #define EMAC_HW_v2_3_1 7
 #define EMAC_HW_v2_3_2 8
 #define EMAC_HW_vMAX 9
+
+
+#define DWC_ETH_QOS_AXI_CLK_INDEX 0
+#define DWC_ETH_QOS_PTP_CLK_INDEX 1
+#define DWC_ETH_QOS_RGMII_CLK_INDEX 2
+#define DWC_ETH_QOS_SLAVE_AHB_CLK_INDEX 3
+#define DWC_ETH_QOS_CLKS_MAX 4
 
 /* C data types typedefs */
 typedef unsigned short BOOL;
@@ -1650,7 +1654,7 @@ struct DWC_ETH_QOS_prv_data {
 	bool per_ch_intr_en;
 #endif
 
-
+	bool phy_irq_enabled;
 	struct mutex mlock;
 	spinlock_t lock;
 	spinlock_t tx_lock;
@@ -2097,20 +2101,6 @@ do {\
 	PRINT_MAC(eth->h_source,5);\
 	printk("Dump of next 4B of skb->data from %s:  ",dev_name_##_hw##_##_dir );\
 	PRINT_MAC((unsigned char*)(skb->data)+ETH_HLEN,3 );\
-}while(0)
-
-#define EMACDBG(fmt, args...) \
-	pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args)
-#define EMACINFO(fmt, args...) \
-	pr_info(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args)
-#define EMACERR(fmt, args...) \
-do {\
-	pr_err(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
-	if (ipc_emac_log_ctxt) { \
-		ipc_log_string(ipc_emac_log_ctxt, \
-		"%s: %s[%u]:[emac] ERROR:" fmt, __FILENAME__ , \
-		__func__, __LINE__, ## args); \
-	} \
 }while(0)
 
 #ifdef YDEBUG

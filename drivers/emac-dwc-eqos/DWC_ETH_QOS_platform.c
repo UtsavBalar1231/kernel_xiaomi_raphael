@@ -50,6 +50,11 @@
 #include "DWC_ETH_QOS_ipa.h"
 
 void *ipc_emac_log_ctxt;
+void *ipc_emac_log_ctxt_low;
+int emac_enable_ipc_low;
+#define MAX_PROC_SIZE 1024
+char tmp_buff[MAX_PROC_SIZE];
+
 
 #define MAC_ADDR_CFG_FPATH "/data/emac_config.ini"
 static UCHAR dev_addr[ETH_ALEN] = {0, 0x55, 0x7b, 0xb5, 0x7d, 0xf7};
@@ -223,9 +228,48 @@ static const struct file_operations fops_phy_reg_dump = {
 	.llseek = default_llseek,
 };
 
+static ssize_t write_ipc_emac_log_ctxt_low(struct file *file,
+	const char __user *buf, size_t count, loff_t *data)
+{
+	int tmp = 0;
+	if(count > MAX_PROC_SIZE)
+		count = MAX_PROC_SIZE;
+	if(copy_from_user(tmp_buff, buf, count))
+		return -EFAULT;
+	if (sscanf(tmp_buff, "%du", &tmp) < 0)
+		pr_err("sscanf failed\n");
+	else {
+		if (tmp) {
+			if (!ipc_emac_log_ctxt_low) {
+				ipc_emac_log_ctxt_low = ipc_log_context_create(IPCLOG_STATE_PAGES, "emac_low", 0);
+			}
+			if (!ipc_emac_log_ctxt_low) {
+				pr_err("failed to create ipc emac low context\n");
+				return -EFAULT;
+			}
+		}
+		else {
+			if (ipc_emac_log_ctxt_low)
+				ipc_log_context_destroy(ipc_emac_log_ctxt_low);
+			ipc_emac_log_ctxt_low = NULL;
+		}
+	}
+	emac_enable_ipc_low = tmp;
+	return count;
+
+}
+
+static const struct file_operations fops_ipc_emac_log_ctxt_low = {
+	.write = write_ipc_emac_log_ctxt_low,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int DWC_ETH_QOS_create_debugfs(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	static struct dentry *phy_reg_dump = NULL;
+	static struct dentry *ipc_emac_log_low= NULL;
 
 	if(!pdata) {
 		EMACERR( "Null Param %s \n", __func__);
@@ -243,6 +287,13 @@ int DWC_ETH_QOS_create_debugfs(struct DWC_ETH_QOS_prv_data *pdata)
 				pdata, &fops_phy_reg_dump);
 	if (!phy_reg_dump || IS_ERR(phy_reg_dump)) {
 		EMACERR( "Cannot create debugfs phy_reg_dump %d \n", (int)phy_reg_dump);
+		goto fail;
+	}
+
+	ipc_emac_log_low = debugfs_create_file("ipc_emac_log_low", 0220, pdata->debugfs_dir,
+				pdata, &fops_ipc_emac_log_ctxt_low);
+	if (!ipc_emac_log_low || IS_ERR(ipc_emac_log_low)) {
+		EMACERR( "Cannot create debugfs ipc_emac_log_low %d \n", (int)ipc_emac_log_low);
 		goto fail;
 	}
 
@@ -1026,12 +1077,12 @@ int DWC_ETH_QOS_enable_ptp_clk(struct device *dev)
 	int ret;
 	const char* ptp_clock_name;
 
-	if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_1_0
-	    || dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_1_2
-	    || dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_1_1)
-		ptp_clock_name = "emac_ptp_clk";
-	else
-		ptp_clock_name = "eth_ptp_clk";
+        ret = of_property_read_string_index(dev->of_node, "clock-names", DWC_ETH_QOS_PTP_CLK_INDEX, &ptp_clock_name);
+
+        if (ret){
+           EMACERR("unable get ptp clk name\n");
+           return ret;
+        }
 
 	/* valid value of dwc_eth_qos_res_data.ptp_clk indicates that clock is enabled */
 	if (!dwc_eth_qos_res_data.ptp_clk) {
@@ -1170,25 +1221,31 @@ static int DWC_ETH_QOS_get_clks(struct device *dev)
 	const char* axi_clock_name;
 	const char* ahb_clock_name;
 	const char* rgmii_clock_name;
-
 	dwc_eth_qos_res_data.axi_clk = NULL;
 	dwc_eth_qos_res_data.ahb_clk = NULL;
 	dwc_eth_qos_res_data.rgmii_clk = NULL;
 	dwc_eth_qos_res_data.ptp_clk = NULL;
 
-	if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_1_0
-	    || dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_1_2
-	    || dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_1_1) {
-		/* EMAC core version 2.1.0 clocks */
-		axi_clock_name = "emac_axi_clk";
-		ahb_clock_name = "emac_slv_ahb_clk";
-		rgmii_clock_name = "emac_rgmii_clk";
-	} else {
-		/* Default values are for EMAC core version 2.0.0 clocks */
-		axi_clock_name = "eth_axi_clk";
-		ahb_clock_name = "eth_slave_ahb_clk";
-		rgmii_clock_name = "eth_rgmii_clk";
-	}
+        ret = of_property_read_string_index(dev->of_node, "clock-names", DWC_ETH_QOS_AXI_CLK_INDEX, &axi_clock_name);
+
+        if (ret){
+           EMACERR("unable get axi clk name\n");
+           return ret;
+        }
+
+        ret = of_property_read_string_index(dev->of_node, "clock-names", DWC_ETH_QOS_SLAVE_AHB_CLK_INDEX, &ahb_clock_name);
+
+        if (ret){
+           EMACERR("unable get ahb clk name\n");
+           return ret;
+        }
+
+        ret = of_property_read_string_index(dev->of_node, "clock-names", DWC_ETH_QOS_RGMII_CLK_INDEX, &rgmii_clock_name);
+
+        if (ret){
+           EMACERR("unable get rgmii clk name\n");
+           return ret;
+        }
 
 	dwc_eth_qos_res_data.axi_clk = devm_clk_get(dev, axi_clock_name);
 	if (IS_ERR(dwc_eth_qos_res_data.axi_clk)) {
@@ -1674,6 +1731,10 @@ static int DWC_ETH_QOS_configure_netdevice(struct platform_device *pdev)
 	dev->dev_addr[3] = dev_addr[3];
 	dev->dev_addr[4] = dev_addr[4];
 	dev->dev_addr[5] = dev_addr[5];
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+	dev->max_mtu = DWC_ETH_QOS_MAX_SUPPORTED_MTU;
+#endif
 
 	/* IEMAC TODO: Register base address
 	 * dev->base_addr = dwc_eth_qos_base_addr;
@@ -2248,6 +2309,7 @@ int DWC_ETH_QOS_remove(struct platform_device *pdev)
 	if (pdata->phy_irq != 0) {
 		free_irq(pdata->phy_irq, pdata);
 		pdata->phy_irq = 0;
+        pdata->phy_irq_enabled = false;
 	}
 
 	if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_1) {
@@ -2554,19 +2616,23 @@ static int DWC_ETH_QOS_hib_restore(struct device *dev) {
 	/* issue software reset to device */
 	pdata->hw_if.exit();
 
-	/* Bypass PHYLIB for TBI, RTBI and SGMII interface */
-	if (pdata->hw_feat.sma_sel == 1) {
-		ret = DWC_ETH_QOS_mdio_register(pdata->dev);
-		if (ret < 0) {
-			EMACERR("MDIO bus (id %d) registration failed\n",
-					  pdata->bus_id);
-			return ret;
-		}
-	}
-
 	if (!(pdata->dev->flags & IFF_UP)) {
 		pdata->dev->netdev_ops->ndo_open(pdata->dev);
 		pdata->dev->flags |= IFF_UP;
+	}
+
+	if (!(pdata->phydev->drv->config_intr &&
+		!pdata->phydev->drv->config_intr(pdata->phydev))){
+		EMACERR("Failed to configure PHY interrupts");
+		BUG();
+	}
+
+	if (pdata->phy_intr_en && pdata->phy_wol_supported ){
+		struct ethtool_wolinfo wol = {
+			.cmd = ETHTOOL_SWOL,
+			.wolopts=pdata->phy_wol_wolopts,
+		};
+		phy_ethtool_set_wol(pdata->phydev, &wol);
 	}
 
 	EMACINFO("end\n");
@@ -2586,9 +2652,6 @@ static int DWC_ETH_QOS_hib_freeze(struct device *dev) {
 		pdata->dev->netdev_ops->ndo_stop(pdata->dev);
 		pdata->dev->flags &= ~IFF_UP;
 	}
-
-	if (pdata->hw_feat.sma_sel == 1)
-		DWC_ETH_QOS_mdio_unregister(pdata->dev);
 
 #ifdef DWC_ETH_QOS_CONFIG_PTP
 	DWC_ETH_QOS_ptp_remove(pdata);
@@ -2687,6 +2750,12 @@ static void __exit DWC_ETH_QOS_exit_module(void)
 
 	if (ipc_emac_log_ctxt != NULL)
 		ipc_log_context_destroy(ipc_emac_log_ctxt);
+
+	if (ipc_emac_log_ctxt_low != NULL)
+		ipc_log_context_destroy(ipc_emac_log_ctxt_low);
+
+	ipc_emac_log_ctxt = NULL;
+	ipc_emac_log_ctxt_low = NULL;
 
 	DBGPR("<--DWC_ETH_QOS_exit_module\n");
 }
