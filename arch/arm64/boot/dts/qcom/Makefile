@@ -12,9 +12,12 @@ dtb-$(CONFIG_ARCH_QCS403) += qcs403-iot-sku1.dtb \
 			qcs403-iot-sku3.dtb \
 			qcs403-iot-sku5.dtb \
 			qcs401-iot-sku5.dtb \
+			qcs404-iot-sku2.dtb \
 			qcs404-iot-sku3.dtb \
 			qcs404-iot-sku5.dtb \
-			qcs404-iot-sku6.dtb
+			qcs404-iot-sku6.dtb \
+			qcs405-iot-sku1.dtb \
+			qcs407-iot-sku1.dtb
 
 dtb-$(CONFIG_ARCH_QCS405) += qcs405-iot-sku1.dtb \
 		qcs407-iot-sku1.dtb \

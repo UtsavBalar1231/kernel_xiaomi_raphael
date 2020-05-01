@@ -57,7 +57,7 @@
 };
 
 &blsp1_uart2b_hs {
-	status = "ok";
+	status = "disabled";
 };
 
 &vbus_detect {
@@ -102,4 +102,8 @@
 	sound-tavil {
 		status = "disabled";
 	};
+};
+
+&mhi_device {
+	qcom,no-m0-timeout;
 };

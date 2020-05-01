@@ -542,6 +542,68 @@ static void ipa3_vlan_l2tp_msg_free_cb(void *buff, u32 len, u32 type)
 	kfree(buff);
 }
 
+static void ipa3_pdn_config_msg_free_cb(void *buff, u32 len, u32 type)
+{
+	if (!buff) {
+		IPAERR("Null buffer\n");
+		return;
+	}
+
+	kfree(buff);
+}
+
+static int ipa3_send_pdn_config_msg(unsigned long usr_param)
+{
+	int retval;
+	struct ipa_ioc_pdn_config *pdn_info;
+	struct ipa_msg_meta msg_meta;
+	void *buff;
+
+	memset(&msg_meta, 0, sizeof(msg_meta));
+
+	pdn_info = kzalloc(sizeof(struct ipa_ioc_pdn_config),
+		GFP_KERNEL);
+	if (!pdn_info)
+		return -ENOMEM;
+
+	if (copy_from_user((u8 *)pdn_info, (void __user *)usr_param,
+		sizeof(struct ipa_ioc_pdn_config))) {
+		kfree(pdn_info);
+		return -EFAULT;
+	}
+
+	msg_meta.msg_len = sizeof(struct ipa_ioc_pdn_config);
+	buff = pdn_info;
+
+	msg_meta.msg_type = pdn_info->pdn_cfg_type;
+
+	IPADBG("type %d, interface name: %s, enable:%d\n", msg_meta.msg_type,
+		pdn_info->dev_name, pdn_info->enable);
+
+	if (pdn_info->pdn_cfg_type == IPA_PDN_IP_PASSTHROUGH_MODE_CONFIG) {
+		IPADBG("Client MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+			pdn_info->u.passthrough_cfg.client_mac_addr[0],
+			pdn_info->u.passthrough_cfg.client_mac_addr[1],
+			pdn_info->u.passthrough_cfg.client_mac_addr[2],
+			pdn_info->u.passthrough_cfg.client_mac_addr[3],
+			pdn_info->u.passthrough_cfg.client_mac_addr[4],
+			pdn_info->u.passthrough_cfg.client_mac_addr[5]);
+	}
+
+	retval = ipa3_send_msg(&msg_meta, buff,
+		ipa3_pdn_config_msg_free_cb);
+	if (retval) {
+		IPAERR("ipa3_send_msg failed: %d, msg_type %d\n",
+			retval,
+			msg_meta.msg_type);
+		kfree(buff);
+		return retval;
+	}
+	IPADBG("exit\n");
+
+	return 0;
+}
+
 static int ipa3_send_vlan_l2tp_msg(unsigned long usr_param, uint8_t msg_type)
 {
 	int retval;
@@ -625,6 +687,7 @@ static int ipa3_send_vlan_l2tp_msg(unsigned long usr_param, uint8_t msg_type)
 
 	return 0;
 }
+
 
 static void ipa3_gsb_msg_free_cb(void *buff, u32 len, u32 type)
 {
@@ -2680,6 +2743,13 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case IPA_IOC_APP_CLOCK_VOTE:
 		retval = ipa3_app_clk_vote(
 			(enum ipa_app_clock_vote_type) arg);
+		break;
+
+	case IPA_IOC_PDN_CONFIG:
+		if (ipa3_send_pdn_config_msg(arg)) {
+			retval = -EFAULT;
+			break;
+		}
 		break;
 
 	default:
@@ -5997,9 +6067,6 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 
 	IPADBG("user input string %s\n", dbg_buff);
 
-	/* Prevent consequent calls from trying to load the FW again. */
-	if (ipa3_is_ready())
-		return count;
 
 	/*Ignore empty ipa_config file*/
 	for (i = 0 ; i < count ; ++i) {
@@ -6052,6 +6119,10 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 		pr_info("IPA is loading with %sMHI configuration\n",
 			ipa3_ctx->ipa_config_is_mhi ? "" : "non ");
 	}
+
+	/* Prevent consequent calls from trying to load the FW again. */
+	if (ipa3_is_ready())
+		return count;
 
 	/* Prevent multiple calls from trying to load the FW again. */
 	if (ipa3_ctx->fw_loaded) {
@@ -6278,6 +6349,7 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 	ipa3_ctx->ipa_wdi2_over_gsi = resource_p->ipa_wdi2_over_gsi;
 	ipa3_ctx->ipa_wdi3_over_gsi = resource_p->ipa_wdi3_over_gsi;
 	ipa3_ctx->ipa_fltrt_not_hashable = resource_p->ipa_fltrt_not_hashable;
+	ipa3_ctx->use_xbl_boot = resource_p->use_xbl_boot;
 	ipa3_ctx->use_64_bit_dma_mask = resource_p->use_64_bit_dma_mask;
 	ipa3_ctx->wan_rx_ring_size = resource_p->wan_rx_ring_size;
 	ipa3_ctx->lan_rx_ring_size = resource_p->lan_rx_ring_size;
@@ -6953,6 +7025,7 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	ipa_drv_res->ipa_wan_skb_page = false;
 	ipa_drv_res->ipa_wdi2_over_gsi = false;
 	ipa_drv_res->ipa_wdi3_over_gsi = false;
+	ipa_drv_res->use_xbl_boot = false;
 	ipa_drv_res->ipa_mhi_dynamic_config = false;
 	ipa_drv_res->use_64_bit_dma_mask = false;
 	ipa_drv_res->use_bw_vote = false;
@@ -7085,6 +7158,12 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	IPADBG(": IPA filter/route rule hashable = %s\n",
 			ipa_drv_res->ipa_fltrt_not_hashable
 			? "True" : "False");
+
+	ipa_drv_res->use_xbl_boot =
+		of_property_read_bool(pdev->dev.of_node,
+		"qcom,use-xbl-boot");
+	IPADBG("Is xbl loading used ? (%s)\n",
+		ipa_drv_res->use_xbl_boot ? "Yes":"No");
 
 	ipa_drv_res->use_64_bit_dma_mask =
 			of_property_read_bool(pdev->dev.of_node,
@@ -7942,6 +8021,31 @@ int ipa3_plat_drv_probe(struct platform_device *pdev_p,
 		cb =  ipa3_get_smmu_ctx(IPA_SMMU_CB_UC);
 		cb->dev = dev;
 		smmu_info.present[IPA_SMMU_CB_UC] = true;
+
+		if (ipa3_ctx->use_xbl_boot && (gsi_is_mcs_enabled() == 1)) {
+			/* Ensure uC probe is the last. */
+			if (!smmu_info.present[IPA_SMMU_CB_AP] ||
+				!smmu_info.present[IPA_SMMU_CB_WLAN]) {
+				IPAERR("AP or WLAN CB probe not done. Defer");
+				return -EPROBE_DEFER;
+			}
+
+			pr_info("Using XBL boot load for IPA FW\n");
+			ipa3_ctx->fw_loaded = true;
+
+			result = ipa3_attach_to_smmu();
+			if (result) {
+				IPAERR("IPA attach to smmu failed %d\n",
+				result);
+				return result;
+			}
+
+			result = ipa3_post_init(&ipa3_res, ipa3_ctx->cdev.dev);
+			if (result) {
+				IPAERR("IPA post init failed %d\n", result);
+				return result;
+			}
+		}
 
 		return 0;
 	}
