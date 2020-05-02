@@ -851,6 +851,7 @@ static struct i2c_driver akm09970_driver = {
 		.name   = AKM09970_DRV_NAME,
 		.owner  = THIS_MODULE,
 		.of_match_table = akm09970_match_table,
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe		= akm09970_probe,
 	.remove		= akm09970_remove,
