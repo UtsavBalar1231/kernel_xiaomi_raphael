@@ -717,6 +717,7 @@ static struct platform_driver drv8846_driver = {
 		.owner		= THIS_MODULE,
 		.of_match_table	= drv8846_match_table,
 		.pm		= &drv8846_pm_ops,
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe	= drv8846_probe,
 	.remove = drv8846_remove,
