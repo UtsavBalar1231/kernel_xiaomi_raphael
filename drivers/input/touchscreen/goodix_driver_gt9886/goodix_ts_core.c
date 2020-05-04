@@ -67,6 +67,7 @@
 extern int goodix_start_cfg_bin(struct goodix_ts_core *ts_core);
 extern int goodix_i2c_write(struct goodix_ts_device *dev, unsigned int reg, unsigned char *data, unsigned int len);
 
+extern void touch_irq_boost(void);
 
 struct goodix_module goodix_modules;
 struct goodix_ts_core *goodix_core_data;
@@ -883,6 +884,7 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 	core_data->irq_trig_cnt++;
 	/* inform external module */
 	/* ts_err("enter %s\n", __func__);*/
+	touch_irq_boost();
 	if (core_data->tp_already_suspend) {
 		ts_info("device in suspend noirq, schedue to work");
 		pm_wakeup_event(&client->dev, msecs_to_jiffies(500));
