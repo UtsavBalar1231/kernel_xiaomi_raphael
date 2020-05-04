@@ -10,19 +10,26 @@
  * GNU General Public License for more details.
  */
 
-/dts-v1/;
-/plugin/;
+#include <linux/kernel.h>
+#include "board-dt.h"
+#include <asm/mach/map.h>
+#include <asm/mach/arch.h>
 
-#include <dt-bindings/clock/qcom,camcc-sm8150.h>
-
-#include "sm8150-mtp.dtsi"
-
-#include "sdx5xm-external-soc.dtsi"
-#include "sm8150-sdxchitwan.dtsi"
-
-/ {
-	model = "SDXCHITWAN MTP";
-	compatible = "qcom,sm8150-mtp", "qcom,sm8150", "qcom,mtp";
-	qcom,board-id = <0x05010008 0x5>;
+static const char *sdm429w_dt_match[] __initconst = {
+	"qcom,sdm429",
+	"qcom,sda429",
+	"qcom,sdm429w",
+	"qcom,sda429w",
+	NULL
 };
 
+static void __init sdm429w_init(void)
+{
+	board_dt_populate(NULL);
+}
+
+DT_MACHINE_START(SDM429W_DT,
+	"Qualcomm Technologies, Inc. QCS403 (Flattened Device Tree)")
+	.init_machine           = sdm429w_init,
+	.dt_compat              = sdm429w_dt_match,
+MACHINE_END

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -3590,7 +3590,12 @@ static int msm_nand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	data.cfg.cmd = MSM_NAND_CMD_BLOCK_ERASE;
 	data.cfg.addr0 = page;
 	data.cfg.addr1 = 0;
-	data.cfg.cfg0 = chip->cfg0 & (~(7 << CW_PER_PAGE));
+	data.cfg.cfg0 = chip->cfg0 & (~((7 << CW_PER_PAGE)
+					| (7 << NUM_ADDR_CYCLES)));
+	if (mtd->size >= SZ_256M)
+		data.cfg.cfg0 = data.cfg.cfg0 | (3 << NUM_ADDR_CYCLES);
+	else
+		data.cfg.cfg0 = data.cfg.cfg0 | (2 << NUM_ADDR_CYCLES);
 	data.cfg.cfg1 = chip->cfg1;
 	data.exec = 1;
 	dma_buffer->flash_status = 0xeeeeeeee;
@@ -4640,7 +4645,6 @@ static int msm_nand_probe(struct platform_device *pdev)
 	}
 	info->nand_chip.qpic_version = qpic_version.qpic_major;
 	if (info->nand_chip.qpic_version >= 2) {
-		info->nand_chip.caps = MSM_NAND_CAP_PAGE_SCOPE_READ;
 		mutex_lock(&info->lock);
 		err = msm_nand_get_device(info->nand_chip.dev);
 		if (err) {

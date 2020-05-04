@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -116,6 +116,7 @@
 #define PCIE20_LINK_CONTROL2_LINK_STATUS2 0xA0
 #define PCIE20_L1SUB_CAPABILITY        0x154
 #define PCIE20_L1SUB_CONTROL1          0x158
+#define PCIE20_BUS_DISCONNECT_STATUS   0x68c
 #define PCIE20_ACK_F_ASPM_CTRL_REG     0x70C
 #define PCIE20_MASK_ACK_N_FTS          0xff00
 #define PCIE20_MISC_CONTROL_1          0x8BC
@@ -367,10 +368,12 @@ struct ep_pcie_dev_t {
 	bool                         pcie_edma;
 	bool                         tcsr_not_supported;
 	bool			     m2_autonomous;
+	bool			     mhi_soc_reset_en;
 	u32                          dbi_base_reg;
 	u32                          slv_space_reg;
 	u32                          phy_status_reg;
 	u32                          phy_init_len;
+	u32			     mhi_soc_reset_offset;
 	struct ep_pcie_phy_info_t    *phy_init;
 	bool                         perst_enum;
 
@@ -419,15 +422,6 @@ struct ep_pcie_dev_t {
 
 extern struct ep_pcie_dev_t ep_pcie_dev;
 extern struct ep_pcie_hw hw_drv;
-
-#if IS_ENABLED(CONFIG_QCOM_PCI_EDMA)
-int qcom_edma_init(struct device *dev);
-#else
-static inline int qcom_edma_init(struct device *dev)
-{
-	return 0;
-}
-#endif
 
 static inline void ep_pcie_write_mask(void __iomem *addr,
 				u32 clear_mask, u32 set_mask)

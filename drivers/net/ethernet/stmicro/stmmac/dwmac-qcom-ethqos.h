@@ -18,7 +18,19 @@
 #include <linux/mailbox/qmp.h>
 #include <linux/mailbox_controller.h>
 
-extern void *ipc_emac_log_ctxt;
+#include <linux/inetdevice.h>
+#include <linux/inet.h>
+
+#include <net/addrconf.h>
+#include <net/ipv6.h>
+#include <net/inet_common.h>
+
+#include <linux/uaccess.h>
+
+extern void *ipc_stmmac_log_ctxt;
+
+#define QCOM_ETH_QOS_MAC_ADDR_LEN 6
+#define QCOM_ETH_QOS_MAC_ADDR_STR_LEN 18
 
 #define IPCLOG_STATE_PAGES 50
 #define MAX_QMP_MSG_SIZE 96
@@ -31,8 +43,8 @@ extern void *ipc_emac_log_ctxt;
 #define ETHQOSERR(fmt, args...) \
 do {\
 	pr_err(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
-	if (ipc_emac_log_ctxt) { \
-		ipc_log_string(ipc_emac_log_ctxt, \
+	if (ipc_stmmac_log_ctxt) { \
+		ipc_log_string(ipc_stmmac_log_ctxt, \
 		"%s: %s[%u]:[emac] ERROR:" fmt, __FILENAME__,\
 		__func__, __LINE__, ## args); \
 	} \
@@ -62,6 +74,12 @@ do {\
 #define MAC_PPSX_INTERVAL(x)		(0x00000b88 + ((x) * 0x10))
 #define MAC_PPSX_WIDTH(x)		(0x00000b8c + ((x) * 0x10))
 
+#define PPS_START_DELAY 100000000
+#define ONE_NS 1000000000
+#define PPS_ADJUST_NS 32
+
+#define DWC_ETH_QOS_PPS_CH_0 0
+#define DWC_ETH_QOS_PPS_CH_1 1
 #define DWC_ETH_QOS_PPS_CH_2 2
 #define DWC_ETH_QOS_PPS_CH_3 3
 
@@ -397,12 +415,20 @@ struct qcom_ethqos {
 	struct mbox_chan *qmp_mbox_chan;
 	struct mbox_client *qmp_mbox_client;
 	struct work_struct qmp_mailbox_work;
+	/* early ethernet parameters */
+	struct work_struct early_eth;
+	struct delayed_work ipv4_addr_assign_wq;
+	struct delayed_work ipv6_addr_assign_wq;
+	bool early_eth_enabled;
+
 	int disable_ctile_pc;
 
 	u32 emac_mem_base;
 	u32 emac_mem_size;
 
 	bool ipa_enabled;
+	/* Key Performance Indicators */
+	bool print_kpi;
 };
 
 struct pps_cfg {
@@ -411,6 +437,8 @@ struct pps_cfg {
 	unsigned int ppsout_ch;
 	unsigned int ppsout_duty;
 	unsigned int ppsout_start;
+	unsigned int ppsout_align;
+	unsigned int ppsout_align_ns;
 };
 
 struct ifr_data_struct {
@@ -430,6 +458,19 @@ struct pps_info {
 	int channel_no;
 };
 
+struct ip_params {
+	unsigned char mac_addr[QCOM_ETH_QOS_MAC_ADDR_LEN];
+	bool is_valid_mac_addr;
+	char link_speed[32];
+	bool is_valid_link_speed;
+	char ipv4_addr_str[32];
+	struct in_addr ipv4_addr;
+	bool is_valid_ipv4_addr;
+	char ipv6_addr_str[48];
+	struct in6_ifreq ipv6_addr;
+	bool is_valid_ipv6_addr;
+};
+
 int ethqos_init_reqgulators(struct qcom_ethqos *ethqos);
 void ethqos_disable_regulators(struct qcom_ethqos *ethqos);
 int ethqos_init_gpio(struct qcom_ethqos *ethqos);
@@ -442,7 +483,7 @@ void qcom_ethqos_request_phy_wol(struct plat_stmmacenet_data *plat);
 bool qcom_ethqos_is_phy_link_up(struct qcom_ethqos *ethqos);
 void *qcom_ethqos_get_priv(struct qcom_ethqos *ethqos);
 
-int ppsout_config(struct stmmac_priv *priv, struct ifr_data_struct *req);
+int ppsout_config(struct stmmac_priv *priv, struct pps_cfg *eth_pps_cfg);
 
 u16 dwmac_qcom_select_queue(
 	struct net_device *dev,
@@ -474,6 +515,8 @@ u16 dwmac_qcom_select_queue(
 #define AVB_INT_MOD 8
 #define IP_PKT_INT_MOD 32
 #define PTP_INT_MOD 1
+
+#define PPS_19_2_FREQ 19200000
 
 enum dwmac_qcom_queue_operating_mode {
 	DWMAC_QCOM_QDISABLED = 0X0,

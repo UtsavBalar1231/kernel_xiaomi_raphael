@@ -629,14 +629,19 @@
 			size = <0 0x8c00000>;
 		};
 
-		cont_splash_memory: cont_splash_region@9bc00000 {
-			reg = <0x0 0x9bc00000 0x0 0x02300000>;
+		cont_splash_memory: cont_splash_region@9c000000 {
+			reg = <0x0 0x9c000000 0x0 0x01700000>;
 			label = "cont_splash_region";
 		};
 
 		dfps_data_memory: dfps_data_region@9d700000 {
 			reg = <0x0 0x9d700000 0x0 0x0100000>;
 			label = "dfps_data_region";
+		};
+
+		disp_rdump_memory: disp_rdump_region@9c000000 {
+			reg = <0x0 0x9c000000 0x0 0x01700000>;
+			label = "disp_rdump_region";
 		};
 
 		adsp_mem: adsp_region {
@@ -649,6 +654,7 @@
 
 		dump_mem: mem_dump_region {
 			compatible = "shared-dma-pool";
+			alloc-ranges = <0x0 0x00000000 0x0 0xffffffff>;
 			reusable;
 			size = <0 0x2400000>;
 		};
@@ -3010,6 +3016,7 @@
 			     <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH /* CE10 */ >,
 			     <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH /* CE11 */ >;
 		qcom,wlan-msa-fixed-region = <&wlan_fw_mem>;
+		qcom,hyp_disabled;
 		vdd-cx-mx-supply = <&L9A>;
 		vdd-1.8-xo-supply = <&L1C>;
 		vdd-1.3-rfa-supply = <&L2C>;

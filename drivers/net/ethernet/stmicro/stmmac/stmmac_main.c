@@ -50,7 +50,7 @@
 #include <linux/reset.h>
 #include <linux/of_mdio.h>
 #include "dwmac1000.h"
-#include "dwmac-qcom-ipa-offload.h"
+
 
 #define	STMMAC_ALIGN(x)		__ALIGN_KERNEL(x, SMP_CACHE_BYTES)
 #define	TSO_MAX_BUFF_SIZE	(SZ_16K - 1)
@@ -868,6 +868,12 @@ static void stmmac_adjust_link(struct net_device *dev)
 			ethqos_ipa_offload_event_handler(priv,
 							 EV_PHY_LINK_DOWN);
 	}
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+if (phydev->link == 1 && !priv->boot_kpi) {
+	place_marker("M - Ethernet is Ready.Link is UP");
+	priv->boot_kpi = true;
+}
+#endif
 
 	if (phydev->is_pseudo_fixed_link)
 		/* Stop PHY layer to call the hook to adjust the link in case
@@ -906,6 +912,30 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 	}
 }
 
+static void stmmac_set_speed100(struct phy_device *phydev)
+{
+	u16 bmcr_val, ctrl1000_val, adv_val;
+
+	/* Disable 1000M mode */
+	ctrl1000_val = phy_read(phydev, MII_CTRL1000);
+	ctrl1000_val &= ~(ADVERTISE_1000HALF | ADVERTISE_1000FULL);
+	phy_write(phydev, MII_CTRL1000, ctrl1000_val);
+
+	/* Disable 100M mode */
+	adv_val = phy_read(phydev, MII_ADVERTISE);
+	adv_val &= ~(ADVERTISE_100HALF);
+	phy_write(phydev, MII_ADVERTISE, adv_val);
+
+	/* Disable autoneg */
+	bmcr_val = phy_read(phydev, MII_BMCR);
+	bmcr_val &= ~(BMCR_ANENABLE);
+	phy_write(phydev, MII_BMCR, bmcr_val);
+
+	bmcr_val = phy_read(phydev, MII_BMCR);
+	bmcr_val |= BMCR_ANRESTART;
+	phy_write(phydev, MII_BMCR, bmcr_val);
+}
+
 /**
  * stmmac_init_phy - PHY initialization
  * @dev: net device structure
@@ -923,33 +953,56 @@ static int stmmac_init_phy(struct net_device *dev)
 	char bus_id[MII_BUS_ID_SIZE];
 	int interface = priv->plat->interface;
 	int max_speed = priv->plat->max_speed;
+	int ret = 0;
 	priv->oldlink = false;
+	priv->boot_kpi = false;
 	priv->speed = SPEED_UNKNOWN;
 	priv->oldduplex = DUPLEX_UNKNOWN;
 
-	if (priv->plat->phy_node) {
-		phydev = of_phy_connect(dev, priv->plat->phy_node,
-					&stmmac_adjust_link, 0, interface);
+	if (priv->plat->early_eth && priv->phydev) {
+		phydev = priv->phydev;
+		phydev->skip_sw_reset = true;
+		ret = phy_connect_direct(dev, phydev,
+					 &stmmac_adjust_link, interface);
+		if (ret) {
+			pr_info("phy_connect_direct failed\n");
+			return ret;
+		}
 	} else {
-		snprintf(bus_id, MII_BUS_ID_SIZE, "stmmac-%x",
-			 priv->plat->bus_id);
+		if (priv->plat->phy_node) {
+			phydev = of_phy_connect(dev,
+						priv->plat->phy_node,
+						&stmmac_adjust_link,
+						0, interface);
+		} else {
+			snprintf(bus_id, MII_BUS_ID_SIZE, "stmmac-%x",
+				 priv->plat->bus_id);
 
-		snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
-			 priv->plat->phy_addr);
-		netdev_dbg(priv->dev, "%s: trying to attach to %s\n", __func__,
-			   phy_id_fmt);
+			snprintf(phy_id_fmt,
+				 MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
+				 priv->plat->phy_addr);
 
-		phydev = phy_connect(dev, phy_id_fmt, &stmmac_adjust_link,
-				     interface);
+			netdev_dbg(priv->dev,
+				   "%s: trying to attach to %s\n", __func__,
+				   phy_id_fmt);
+
+			phydev = phy_connect(dev,
+					     phy_id_fmt,
+					     &stmmac_adjust_link,
+					     interface);
+		}
+
+		if (IS_ERR_OR_NULL(phydev)) {
+			netdev_err(priv->dev, "Could not attach to PHY\n");
+			if (!phydev)
+				return -ENODEV;
+
+			return PTR_ERR(phydev);
+		}
 	}
 
-	if (IS_ERR_OR_NULL(phydev)) {
-		netdev_err(priv->dev, "Could not attach to PHY\n");
-		if (!phydev)
-			return -ENODEV;
-
-		return PTR_ERR(phydev);
-	}
+	pr_info(" qcom-ethqos: %s early eth setting stmmac init\n",
+				 __func__);
 
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
 	if ((interface == PHY_INTERFACE_MODE_MII) ||
@@ -966,6 +1019,29 @@ static int stmmac_init_phy(struct net_device *dev)
 		phydev->supported &= ~(SUPPORTED_1000baseT_Half |
 				       SUPPORTED_100baseT_Half |
 				       SUPPORTED_10baseT_Half);
+
+	/* Early ethernet settings to bring up link in 100M,
+	 * Auto neg Off with full duplex link.
+	 */
+	if (max_speed == SPEED_100 && priv->plat->early_eth) {
+		phydev->autoneg = AUTONEG_DISABLE;
+		phydev->speed = SPEED_100;
+		phydev->duplex = DUPLEX_FULL;
+
+		phydev->supported =
+			SUPPORTED_100baseT_Full | SUPPORTED_TP | SUPPORTED_MII |
+			SUPPORTED_10baseT_Full;
+		phydev->supported &= ~SUPPORTED_Autoneg;
+
+		phydev->advertising = phydev->supported;
+		phydev->advertising &= ~ADVERTISED_Autoneg;
+
+		phy_set_max_speed(phydev, SPEED_100);
+		pr_info(" qcom-ethqos: %s early eth setting successful\n",
+			__func__);
+
+		stmmac_set_speed100(phydev);
+	}
 
 	/*
 	 * Broken HW is sometimes missing the pull-up resistor on the
@@ -987,15 +1063,17 @@ static int stmmac_init_phy(struct net_device *dev)
 		phydev->irq = PHY_POLL;
 
 	if (phy_intr_en) {
-		phydev->irq = PHY_IGNORE_INTERRUPT;
-		phydev->interrupts =  PHY_INTERRUPT_ENABLED;
-
 		if (phydev->drv->config_intr &&
 		    !phydev->drv->config_intr(phydev)) {
 			pr_debug(" qcom-ethqos: %s config_phy_intr successful\n",
 				 __func__);
+			qcom_ethqos_request_phy_wol(priv->plat);
+			phydev->irq = PHY_IGNORE_INTERRUPT;
+			phydev->interrupts =  PHY_INTERRUPT_ENABLED;
+		} else {
+			pr_alert("Unable to register PHY IRQ\n");
+			phydev->irq = PHY_POLL;
 		}
-		qcom_ethqos_request_phy_wol(priv->plat);
 	}
 	phy_attached_info(phydev);
 	return 0;
@@ -1894,6 +1972,10 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 			} else {
 				priv->dev->stats.tx_packets++;
 				priv->xstats.tx_pkt_n++;
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+if (priv->dev->stats.tx_packets == 1)
+	place_marker("M - Ethernet first packet transmitted");
+#endif
 			}
 			stmmac_get_tx_hwtstamp(priv, p, skb);
 		}
@@ -1933,8 +2015,10 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 	}
 	tx_q->dirty_tx = entry;
 
-	netdev_tx_completed_queue(netdev_get_tx_queue(priv->dev, queue),
-				  pkts_compl, bytes_compl);
+	if (!priv->tx_coal_timer_disable)
+		netdev_tx_completed_queue(
+			netdev_get_tx_queue(priv->dev, queue),
+			pkts_compl, bytes_compl);
 
 	if (unlikely(netif_tx_queue_stopped(netdev_get_tx_queue(priv->dev,
 								queue))) &&
@@ -2670,7 +2754,8 @@ static int stmmac_open(struct net_device *dev)
 		goto init_error;
 	}
 
-	stmmac_init_tx_coalesce(priv);
+	if (!priv->tx_coal_timer_disable)
+		stmmac_init_tx_coalesce(priv);
 
 	if (dev->phydev)
 		phy_start(dev->phydev);
@@ -2724,8 +2809,8 @@ wolirq_error:
 irq_error:
 	if (dev->phydev)
 		phy_stop(dev->phydev);
-
-	del_timer_sync(&priv->txtimer);
+	if (!priv->tx_coal_timer_disable)
+		del_timer_sync(&priv->txtimer);
 	stmmac_hw_teardown(dev);
 init_error:
 	free_dma_desc_resources(priv);
@@ -2759,7 +2844,8 @@ static int stmmac_release(struct net_device *dev)
 
 	stmmac_disable_all_queues(priv);
 
-	del_timer_sync(&priv->txtimer);
+	if (!priv->tx_coal_timer_disable)
+		del_timer_sync(&priv->txtimer);
 
 	/* Free the IRQ lines */
 	free_irq(dev->irq, dev);
@@ -2970,13 +3056,21 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Manage tx mitigation */
 	priv->tx_count_frames += nfrags + 1;
-	if (likely(priv->tx_coal_frames > priv->tx_count_frames)) {
-		mod_timer(&priv->txtimer,
-			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
-	} else {
+
+	if (likely(priv->tx_coal_timer_disable)) {
 		priv->tx_count_frames = 0;
 		priv->hw->desc->set_tx_ic(desc);
 		priv->xstats.tx_set_ic_bit++;
+	} else {
+		if (likely(priv->tx_coal_frames > priv->tx_count_frames)) {
+			mod_timer(
+				&priv->txtimer,
+				STMMAC_COAL_TIMER(priv->tx_coal_timer));
+		} else {
+			priv->tx_count_frames = 0;
+			priv->hw->desc->set_tx_ic(desc);
+			priv->xstats.tx_set_ic_bit++;
+		}
 	}
 
 	skb_tx_timestamp(skb);
@@ -3024,7 +3118,8 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 		print_pkt(skb->data, skb_headlen(skb));
 	}
 
-	netdev_tx_sent_queue(netdev_get_tx_queue(dev, queue), skb->len);
+	if (!priv->tx_coal_timer_disable)
+		netdev_tx_sent_queue(netdev_get_tx_queue(dev, queue), skb->len);
 
 	tx_q->tx_tail_addr = tx_q->dma_tx_phy + (tx_q->cur_tx * sizeof(*desc));
 	priv->hw->dma->set_tx_tail_ptr(priv->ioaddr, tx_q->tx_tail_addr,
@@ -3059,7 +3154,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct dma_desc *desc, *first;
 	struct stmmac_tx_queue *tx_q;
 	unsigned int enh_desc;
-	unsigned int des;
+	unsigned int des, int_mod;
 
 	tx_q = &priv->tx_queue[queue];
 
@@ -3201,13 +3296,26 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * This approach takes care about the fragments: desc is the first
 	 * element in case of no SG.
 	 */
-	if (likely(priv->tx_coal_frames > priv->tx_count_frames)) {
-		mod_timer(&priv->txtimer,
-			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
+	if (likely(priv->tx_coal_timer_disable)) {
+		if (priv->plat->get_plat_tx_coal_frames) {
+			int_mod = priv->plat->get_plat_tx_coal_frames(skb);
+
+			if (!(tx_q->cur_tx % int_mod)) {
+				priv->tx_count_frames = 0;
+				priv->hw->desc->set_tx_ic(desc);
+				priv->xstats.tx_set_ic_bit++;
+			}
+		}
 	} else {
-		priv->tx_count_frames = 0;
-		priv->hw->desc->set_tx_ic(desc);
-		priv->xstats.tx_set_ic_bit++;
+		if (likely(priv->tx_coal_frames > priv->tx_count_frames)) {
+			mod_timer(
+				&priv->txtimer,
+				STMMAC_COAL_TIMER(priv->tx_coal_timer));
+		} else {
+			priv->tx_count_frames = 0;
+			priv->hw->desc->set_tx_ic(desc);
+			priv->xstats.tx_set_ic_bit++;
+		}
 	}
 
 	if (!priv->hwts_tx_en)
@@ -3253,8 +3361,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		dma_wmb();
 	}
 
-	netdev_tx_sent_queue(netdev_get_tx_queue(dev, queue), skb->len);
-
+	if (!priv->tx_coal_timer_disable)
+		netdev_tx_sent_queue(netdev_get_tx_queue(dev, queue), skb->len);
 	if (priv->synopsys_id < DWMAC_CORE_4_00)
 		priv->hw->dma->enable_dma_transmission(priv->ioaddr);
 	else {
@@ -3435,8 +3543,9 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 							   &priv->xstats,
 							   rx_q->dma_erx +
 							   entry);
-		if (unlikely(status == discard_frame)) {
-			priv->dev->stats.rx_errors++;
+		if (unlikely(status & discard_frame)) {
+			if (!(status & ctxt_desc))
+				priv->dev->stats.rx_errors++;
 			if (priv->hwts_rx_en && !priv->extend_desc) {
 				/* DESC2 & DESC3 will be overwritten by device
 				 * with timestamp value, hence reinitialize
@@ -3566,6 +3675,11 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			napi_gro_receive(&rx_q->napi, skb);
 
 			priv->dev->stats.rx_packets++;
+
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+	if (priv->dev->stats.rx_packets == 1)
+		place_marker("M - Ethernet first packet received");
+#endif
 			priv->dev->stats.rx_bytes += frame_len;
 		}
 		entry = next_entry;
@@ -4393,6 +4507,10 @@ int stmmac_dvr_probe(struct device *device,
 		goto error_netdev_register;
 	}
 
+	/* Disable tx_coal_timer if plat provides callback */
+	priv->tx_coal_timer_disable =
+		plat_dat->get_plat_tx_coal_frames ? true : false;
+
 #ifdef CONFIG_DEBUG_FS
 	ret = stmmac_init_fs(ndev);
 	if (ret < 0)
@@ -4582,7 +4700,10 @@ int stmmac_resume(struct device *dev)
 	stmmac_clear_descriptors(priv);
 
 	stmmac_hw_setup(ndev, false);
-	stmmac_init_tx_coalesce(priv);
+
+	if (!priv->tx_coal_timer_disable)
+		stmmac_init_tx_coalesce(priv);
+
 	stmmac_set_rx_mode(ndev);
 
 	stmmac_enable_all_queues(priv);

@@ -349,6 +349,8 @@ static int rmnet_usb_bind(struct usbnet *dev, struct usb_interface *iface)
 	rmnet_usb_manage_power(dev, 1);
 	rmnet_usb_change_dtr(dev, true);
 
+	dev->hard_mtu = 2048;
+
 out:
 	return status;
 }
@@ -476,6 +478,14 @@ static const struct usb_device_id rmnet_usb_ids[] = {
 	{
 		USB_DEVICE_INTERFACE_NUMBER(RMNET_VENDOR_ID, 0x9107, 2),
 		.driver_info = (unsigned long)&rmnet_usb1_info,
+	},
+	{
+		USB_DEVICE_INTERFACE_NUMBER(RMNET_VENDOR_ID, 0x910A, 1),
+		.driver_info = (unsigned long)&rmnet_usb0_info,
+	},
+	{
+		USB_DEVICE_INTERFACE_NUMBER(RMNET_VENDOR_ID, 0x910B, 1),
+		.driver_info = (unsigned long)&rmnet_usb0_info,
 	},
 	{ } /* Terminating entry */
 };

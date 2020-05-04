@@ -43,7 +43,7 @@
 		mpss_adsp_mem: mpss_adsp_region@90800000 {
 			compatible = "removed-dma-pool";
 			no-map;
-			reg = <0x90800000 0xf800000>;
+			reg = <0x90800000 0xd800000>;
 			label = "mpss_adsp_mem";
 		};
 
@@ -69,12 +69,6 @@
 			no-map;
 			reg = <0x8fd00000 0x140000>;
 			label = "peripheral2_mem";
-		};
-
-		ipa_fw_mem: ipa_fw_region@8fced000 {
-			no-map;
-			reg = <0x8fced000 0x10000>;
-			label = "ipa_fw_mem";
 		};
 
 		secdata_mem: secdata_region@8fcfd000 {
@@ -467,19 +461,21 @@
 		qcom,pas-id = <4>;
 		qcom,smem-id = <421>;
 		qcom,sysmon-id = <0>;
-		qcom,ssctl-instance-id = <0x12>;
+		qcom,ssctl-instance-id = <0x22>;
 
 		interrupts-extended = <&intc 0 250 1>,
 				<&modem_smp2p_in 0 0>,
 				<&modem_smp2p_in 2 0>,
 				<&modem_smp2p_in 1 0>,
-				<&modem_smp2p_in 3 0>;
+				<&modem_smp2p_in 3 0>,
+				<&modem_smp2p_in 7 0>;
 
 		interrupt-names = "qcom,wdog",
 				"qcom,err-fatal",
 				"qcom,proxy-unvote",
 				"qcom,err-ready",
-				"qcom,stop-ack";
+				"qcom,stop-ack",
+				"qcom,shutdown-ack";
 
 		qcom,smem-states = <&modem_smp2p_out 0>;
 		qcom,smem-state-names = "qcom,force-stop";
@@ -546,7 +542,7 @@
 		qcom,ipa-hw-mode = <0>;
 		qcom,ee = <0>;
 		qcom,use-ipa-tethering-bridge;
-		qcom,mhi-event-ring-id-limits = <9 11>; /* start and end */
+		qcom,mhi-event-ring-id-limits = <9 14>; /* start and end */
 		qcom,modem-cfg-emb-pipe-flt;
 		qcom,use-ipa-pm;
 		qcom,arm-smmu;
@@ -1063,6 +1059,7 @@
 		qcom,wlan-rc-num = <0>;
 		qcom,wlan-ramdump-dynamic = <0x400000>;
 		qcom,smmu-s1-enable;
+		qcom,set-wlaon-pwr-ctrl;
 
 		mhi,max-channels = <30>;
 		mhi,buffer-len = <0x8000>;
@@ -1237,6 +1234,7 @@
 		qcom,pcie-aggregated-irq;
 		qcom,pcie-mhi-a7-irq;
 		qcom,phy-status-reg = <0x814>;
+		qcom,mhi-soc-reset-offset = <0xb01b8>;
 
 		qcom,phy-init = <0x1240 0x001 0x0 0x1
 				0x100c 0x002 0x0 0x1
@@ -1499,6 +1497,7 @@
 		qcom,bus-vector-names = "0", "10", "100", "1000";
 		snps,tso;
 		snps,pbl = <32>;
+		mac-address = [00 55 7B B5 7D f7];
 		rx-fifo-depth = <16384>;
 		tx-fifo-depth = <20480>;
 		snps,mtl-rx-config = <&mtl_rx_setup>;
@@ -1517,7 +1516,7 @@
 		snps,reset-gpio = <&tlmm 91 GPIO_ACTIVE_LOW>;
 
 		snps,reset-active-low;
-		snps,reset-delays-us = <0 10000 100000>;
+		snps,reset-delays-us = <0 11000 70000>;
 		phy-mode = "rgmii";
 
 		ethqos_emb_smmu: ethqos_emb_smmu {
@@ -1530,6 +1529,7 @@
 	emac_hw: qcom,emac@00020000 {
 		compatible = "qcom,emac-dwc-eqos";
 		qcom,arm-smmu;
+		emac-phy-addr = <7>;
 		reg = <0x20000 0x10000>,
 		   <0x36000 0x100>,
 		   <0xf100000 0x300000>;
@@ -1566,7 +1566,7 @@
 			"eth_rgmii_clk", "eth_slave_ahb_clk";
 		qcom,phy-intr-redirect = <&tlmm 90 GPIO_ACTIVE_LOW>;
 		qcom,phy-reset = <&tlmm 91 GPIO_ACTIVE_LOW>;
-		qcom,phy-reset-delay-msecs = <10>;
+		qcom,phy-reset-delay-msecs = <10 50>;
 		qcom,emac-pps0-test-intr = <&tlmm 31 GPIO_ACTIVE_LOW>;
 		vreg_rgmii-supply = <&pmxprairie_vref_rgmii>;
 		vreg_emac_phy-supply =  <&vreg_emac_phy>;

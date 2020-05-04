@@ -45,6 +45,15 @@ static struct ethqos_prv_ipa_data eth_ipa_ctx;
 
 static void __ipa_eth_free_msg(void *buff, u32 len, u32 type) {}
 
+static inline void *ethqos_get_priv(struct qcom_ethqos *ethqos)
+{
+	struct platform_device *pdev = ethqos->pdev;
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	return priv;
+}
+
 static int eth_ipa_send_msg(struct qcom_ethqos *ethqos,
 			    enum ipa_peripheral_event event)
 {
@@ -887,13 +896,12 @@ static int enable_tx_dma_interrupts(unsigned int QINX,
 	/* NIE - Normal Interrupt Summary Enable */
 	/* AIE - Abnormal Interrupt Summary Enable */
 	/* FBE - Fatal Bus Error Enable */
-	/* TXSE - Transmit Stopped Enable */
 	DMA_IER_RGRD(QINX, VARDMA_IER);
 	/* Reset all Tx interrupt bits */
 	VARDMA_IER = VARDMA_IER & DMA_TX_INT_RESET_MASK;
 
-	VARDMA_IER = VARDMA_IER | ((0x1) << 1) |
-	     ((0x1) << 12) | ((0x1) << 14) | ((0x1) << 15);
+	VARDMA_IER = VARDMA_IER | ((0x1) << 12) | ((0x1) << 14) |
+		     ((0x1) << 15);
 
 	DMA_IER_RGWR(QINX, VARDMA_IER);
 
@@ -981,10 +989,12 @@ static void ethqos_configure_ipa_rx_dma_channel(unsigned int QINX,
 
 static int ethqos_init_offload(struct qcom_ethqos *ethqos)
 {
+	struct stmmac_priv *priv = ethqos_get_priv(ethqos);
+
 	ETHQOSDBG("\n");
 
 	ethqos_configure_ipa_tx_dma_channel(IPA_DMA_TX_CH, ethqos);
-	MTL_RQDCM0R_RGWR(0x3020100);
+	priv->hw->mac->map_mtl_to_dma(priv->hw, 0, 0);
 	ethqos_configure_ipa_rx_dma_channel(IPA_DMA_RX_CH, ethqos);
 
 	ETHQOSDBG("\n");
@@ -1104,13 +1114,14 @@ static int ethqos_ipa_offload_init(struct qcom_ethqos *pdata)
 		eth_l2_hdr_v6.h_proto = htons(ETH_P_IPV6);
 		in.hdr_info[0].hdr = (u8 *)&eth_l2_hdr_v4;
 		in.hdr_info[0].hdr_len = ETH_HLEN;
+		in.hdr_info[0].hdr_type = IPA_HDR_L2_ETHERNET_II;
 		in.hdr_info[1].hdr = (u8 *)&eth_l2_hdr_v6;
 		in.hdr_info[1].hdr_len = ETH_HLEN;
+		in.hdr_info[1].hdr_type = IPA_HDR_L2_ETHERNET_II;
 	}
 
 #ifdef ETHQOS_IPA_OFFLOAD_VLAN
-	if ((eth_ipa_ctx.vlan_id > MIN_VLAN_ID && eth_ipa_ctx.vlan_id <=
-	    MAX_VLAN_ID) || ipa_vlan_mode) {
+	if (ipa_vlan_mode) {
 		memset(&eth_vlan_hdr_v4, 0, sizeof(eth_vlan_hdr_v4));
 		memset(&eth_vlan_hdr_v6, 0, sizeof(eth_vlan_hdr_v6));
 		memcpy(&eth_vlan_hdr_v4.h_source, ndev->dev_addr, ETH_ALEN);
@@ -1134,9 +1145,7 @@ static int ethqos_ipa_offload_init(struct qcom_ethqos *pdata)
 	in.notify = ntn_ipa_notify_cb;
 	in.proto = IPA_UC_NTN;
 	in.hdr_info[0].dst_mac_addr_offset = 0;
-	in.hdr_info[0].hdr_type = IPA_HDR_L2_ETHERNET_II;
 	in.hdr_info[1].dst_mac_addr_offset = 0;
-	in.hdr_info[1].hdr_type = IPA_HDR_L2_ETHERNET_II;
 
 	ret = ipa_uc_offload_reg_intf(&in, &out);
 	if (ret) {
@@ -1665,7 +1674,7 @@ static int ethqos_ipa_offload_connect(struct qcom_ethqos *ethqos)
 	in.clnt_hndl = eth_ipa->ipa_client_hndl;
 
 	/* Uplink Setup */
-	if (emac_emb_smmu_ctx.valid)
+	if (stmmac_emb_smmu_ctx.valid)
 		rx_setup_info.smmu_enabled = true;
 	else
 		rx_setup_info.smmu_enabled = false;
@@ -1694,7 +1703,7 @@ static int ethqos_ipa_offload_connect(struct qcom_ethqos *ethqos)
 	(((unsigned long)(DMA_CR0_RGOFFADDR - BASE_ADDRESS))  +
 	 (unsigned long)ethqos->emac_mem_base);
 	/* Downlink Setup */
-	if (emac_emb_smmu_ctx.valid)
+	if (stmmac_emb_smmu_ctx.valid)
 		tx_setup_info.smmu_enabled = true;
 	else
 		tx_setup_info.smmu_enabled = false;
@@ -1762,7 +1771,7 @@ static int ethqos_ipa_offload_connect(struct qcom_ethqos *ethqos)
 			= eth_ipa_ctx.tx_queue->ipa_tx_buff_phy_addr[i];
 	}
 
-	if (emac_emb_smmu_ctx.valid) {
+	if (stmmac_emb_smmu_ctx.valid) {
 		ret = ethqos_set_ul_dl_smmu_ipa_params(ethqos, &rx_setup_info,
 						       &tx_setup_info);
 		if (ret) {
@@ -1812,7 +1821,7 @@ static int ethqos_ipa_offload_connect(struct qcom_ethqos *ethqos)
 	kfree(tx_setup_info.data_buff_list);
 	tx_setup_info.data_buff_list = NULL;
 
-	if (emac_emb_smmu_ctx.valid) {
+	if (stmmac_emb_smmu_ctx.valid) {
 		if (rx_setup_info.ring_base_sgt) {
 			sg_free_table(rx_setup_info.ring_base_sgt);
 			kfree(rx_setup_info.ring_base_sgt);
