@@ -18,6 +18,7 @@
 #include <linux/msm_gsi.h>
 #include <net/sock.h>
 #include "ipa_i.h"
+#include "../ipa_rm_i.h"
 #include "ipa_trace.h"
 #include "ipahal/ipahal.h"
 #include "ipahal/ipahal_fltrt.h"

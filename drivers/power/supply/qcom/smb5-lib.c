@@ -4315,9 +4315,9 @@ restore_adc_config:
 	 /* Restore ADC channel config */
 	if (chg->wa_flags & USBIN_ADC_WA)
 		rc = smblib_write(chg, BATIF_ADC_CHANNEL_EN_REG, reg);
-		if (rc < 0)
-			smblib_err(chg, "Couldn't write ADC config rc=%d\n",
-						rc);
+	if (rc < 0)
+		smblib_err(chg, "Couldn't write ADC config rc=%d\n",
+					rc);
 
 unlock:
 	mutex_unlock(&chg->adc_lock);
