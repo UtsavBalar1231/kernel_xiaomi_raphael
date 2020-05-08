@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -144,15 +144,7 @@ static int mdss_pll_resource_parse(struct platform_device *pdev,
 		pll_res->pll_interface_type = MDSS_DP_PLL_14NM;
 	else if (!strcmp(compatible_stream, "qcom,mdss_hdmi_pll_28lpm"))
 		pll_res->pll_interface_type = MDSS_HDMI_PLL_28LPM;
-	else if (!strcmp(compatible_stream, "qcom,mdss_dsi_pll_sdm660")) {
-		pll_res->pll_interface_type = MDSS_DSI_PLL_14NM;
-		pll_res->target_id = MDSS_PLL_TARGET_SDM660;
-		pll_res->revision = 2;
-	} else if (!strcmp(compatible_stream, "qcom,mdss_dp_pll_sdm660")) {
-		pll_res->pll_interface_type = MDSS_DP_PLL_14NM;
-		pll_res->target_id = MDSS_PLL_TARGET_SDM660;
-		pll_res->revision = 2;
-	} else
+	else
 		goto err;
 
 	return rc;
