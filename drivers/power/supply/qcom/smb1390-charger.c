@@ -699,9 +699,6 @@ static void smb1390_status_change_work(struct work_struct *work)
 		}
 		charge_type = pval.intval;
 
-		pr_info("capacity:%d, batt_temp:%d, charge_type:%d\n",
-				capacity, batt_temp, charge_type);
-
 		if ((capacity < TAPER_CAPACITY_THR)
 			&& (batt_temp >= BATT_COOL_THR)
 			&& (charge_type == POWER_SUPPLY_CHARGE_TYPE_FAST)

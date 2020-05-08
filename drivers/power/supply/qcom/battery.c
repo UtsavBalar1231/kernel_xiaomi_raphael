@@ -1330,10 +1330,7 @@ static int usb_icl_vote_callback(struct votable *votable, void *data,
 	}
 
 	if (chip->cp_ilim_votable) {
-		if (pval.intval != POWER_SUPPLY_CP_WIRELESS)
-			vote(chip->cp_ilim_votable, ICL_CHANGE_VOTER, true, icl_ua);
-		else
-			vote(chip->cp_ilim_votable, ICL_CHANGE_VOTER, false, 0);
+		vote(chip->cp_ilim_votable, ICL_CHANGE_VOTER, false, 0);
 	}
 
 	/* Configure ILIM based on AICL result only if input mode is USBMID */

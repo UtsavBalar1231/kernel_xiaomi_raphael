@@ -163,21 +163,6 @@ static ssize_t power_supply_show_property(struct device *dev,
 
 	if (off == POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT)
 		return sprintf(buf, "%lld\n", value.int64val);
-	else if (off == POWER_SUPPLY_PROP_WIRELESS_VERSION)
-		return scnprintf(buf, PAGE_SIZE, "0x%x\n",
-				value.intval);
-	else if (off == POWER_SUPPLY_PROP_WIRELESS_WAKELOCK)
-		return scnprintf(buf, PAGE_SIZE, "%d\n",
-				value.intval);
-	else if (off == POWER_SUPPLY_PROP_SIGNAL_STRENGTH)
-		return scnprintf(buf, PAGE_SIZE, "%d\n",
-				value.intval);
-	else if (off == POWER_SUPPLY_PROP_WIRELESS_CP_EN)
-		return scnprintf(buf, PAGE_SIZE, "%d\n",
-				value.intval);
-	else if (off == POWER_SUPPLY_PROP_TYPE_RECHECK)
-		return scnprintf(buf, PAGE_SIZE, "0x%x\n",
-				value.intval);
 	else
 		return sprintf(buf, "%d\n", value.intval);
 }
@@ -393,12 +378,6 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(connector_type),
 	POWER_SUPPLY_ATTR(parallel_batfet_mode),
 	POWER_SUPPLY_ATTR(parallel_fcc_max),
-	POWER_SUPPLY_ATTR(wireless_version),
-	POWER_SUPPLY_ATTR(signal_strength),
-	POWER_SUPPLY_ATTR(wireless_cp_en),
-	POWER_SUPPLY_ATTR(wireless_power_good_en),
-	POWER_SUPPLY_ATTR(wireless_wakelock),
-	POWER_SUPPLY_ATTR(tx_adapter),
 	POWER_SUPPLY_ATTR(min_icl),
 	POWER_SUPPLY_ATTR(moisture_detected),
 	POWER_SUPPLY_ATTR(batt_profile_version),

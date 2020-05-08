@@ -168,7 +168,7 @@ static struct smb_params smb5_pm8150b_params = {
 		.name   = "DC input current limit",
 		.reg    = DCDC_CFG_REF_MAX_PSNS_REG,
 		.min_u  = 0,
-		.max_u  = 1200000,
+		.max_u  = DCIN_ICL_MAX_UA,
 		.step_u = 40000,
 	},
 	.jeita_cc_comp_hot	= {
@@ -245,7 +245,7 @@ struct smb5 {
 	struct smb_dt_props	dt;
 };
 
-static int __debug_mask = PR_MISC | PR_OEM | PR_WLS;
+static int __debug_mask;
 module_param_named(
 	debug_mask, __debug_mask, int, 0600
 );
@@ -266,38 +266,6 @@ enum {
 	CONN_THERM,
 	SMB_THERM,
 };
-
-static int smb5_get_prop_input_voltage_regulation(struct smb_charger *chg,
-					union power_supply_propval *val)
-{
-	int rc;
-/*
-        if (!chg->idtp_psy) {
-                chg->idtp_psy = power_supply_get_by_name("idt");
-                if (!chg->idtp_psy)
-                        return -EINVAL;
-        }
-*/
-
-	chg->idtp_psy = power_supply_get_by_name("idt");
-	if (chg->idtp_psy)
-		chg->wls_chip_psy = chg->idtp_psy;
-	else {
-		chg->wip_psy = power_supply_get_by_name("rx1618");
-		if (chg->wip_psy)
-			chg->wls_chip_psy = chg->wip_psy;
-		else
-			return -EINVAL;
-	}
-
-	if (chg->wls_chip_psy)
-		rc = power_supply_get_property(chg->wls_chip_psy,
-			POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION, val);
-
-	val->intval = 1000*val->intval;//IDT in mV
-
-	return rc;
-}
 
 static const struct clamp_config clamp_levels[] = {
 	{ {0x11C6, 0x11F9, 0x13F1}, {0x60, 0x2E, 0x90} },
@@ -430,7 +398,6 @@ static int smb5_configure_internal_pull(struct smb_charger *chg, int type,
 
 int smblib_change_psns_to_curr(struct smb_charger *chg, int uv)
 {
-	dev_info(chg->dev, "get Vpsns = %d uV \n", uv);
 	uv =  uv * PSNS_CURRENT_SAMPLE_RATE / PSNS_CURRENT_SAMPLE_RESIS;
 
 	return uv;
@@ -488,9 +455,6 @@ static int smb5_parse_dt(struct smb5 *chip)
 
 	chg->qc_class_ab = of_property_read_bool(node,
 				"qcom,distinguish-qc-class-ab");
-
-	chg->support_wireless = of_property_read_bool(node,
-				"qcom,support-wireless");
 
 	rc = of_property_read_u32(node, "qcom,wd-bark-time-secs",
 					&chip->dt.wd_bark_time);
@@ -1847,14 +1811,14 @@ static int smb5_dc_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		rc = smblib_get_prop_dc_voltage_max(chg, val);
 		break;
-	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION:
-		smb5_get_prop_input_voltage_regulation(chg, val);
-		break;
 	case POWER_SUPPLY_PROP_REAL_TYPE:
 		val->intval = POWER_SUPPLY_TYPE_WIPOWER;
 		break;
 	case POWER_SUPPLY_PROP_DC_RESET:
 		val->intval = 0;
+		break;
+	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION:
+		rc = smblib_get_prop_voltage_wls_output(chg, val);
 		break;
 	default:
 		return -EINVAL;
@@ -1938,208 +1902,6 @@ static int smb5_init_dc_psy(struct smb5 *chip)
 	return 0;
 }
 
-static int smb5_get_prop_wireless_signal(struct smb_charger *chg,
-				union power_supply_propval *val)
-{
-	int rc;
-
-/*
-	if (!chg->idtp_psy) {
-		chg->idtp_psy = power_supply_get_by_name("idt");
-		if (!chg->idtp_psy)
-			return -EINVAL;
-	}
-*/
-	chg->idtp_psy = power_supply_get_by_name("idt");
-	if (chg->idtp_psy)
-		chg->wls_chip_psy = chg->idtp_psy;
-	else {
-		chg->wip_psy = power_supply_get_by_name("rx1618");
-		if (chg->wip_psy)
-			chg->wls_chip_psy = chg->wip_psy;
-		else
-			return -EINVAL;
-	}
-
-	if (chg->wls_chip_psy)
-		rc = power_supply_get_property(chg->wls_chip_psy,
-			POWER_SUPPLY_PROP_SIGNAL_STRENGTH, val);
-
-	return rc;
-}
-
-static int smb5_set_prop_input_voltage_regulation(struct smb_charger *chg,
-				const union power_supply_propval *val)
-{
-	int rc;
-
-/*
-	if (!chg->idtp_psy) {
-		chg->idtp_psy = power_supply_get_by_name("idt");
-		if (!chg->idtp_psy)
-			return -EINVAL;
-	}
-*/
-
-	chg->idtp_psy = power_supply_get_by_name("idt");
-	if (chg->idtp_psy)
-		chg->wls_chip_psy = chg->idtp_psy;
-	else {
-		chg->wip_psy = power_supply_get_by_name("rx1618");
-		if (chg->wip_psy)
-			chg->wls_chip_psy = chg->wip_psy;
-		else
-			return -EINVAL;
-	}
-
-	if (chg->wls_chip_psy)
-		rc = power_supply_set_property(chg->wls_chip_psy,
-			POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION, val);
-
-	return rc;
-}
-
-static int smb5_get_prop_wirless_type(struct smb_charger *chg,
-				union power_supply_propval *val)
-{
-	chg->idtp_psy = power_supply_get_by_name("idt");
-	if (chg->idtp_psy)
-		power_supply_get_property(chg->idtp_psy,
-			POWER_SUPPLY_PROP_TX_ADAPTER, val);
-
-	return 1;
-}
-
-/*************************
- * WIRELESS PSY REGISTRATION *
- *************************/
-
-static enum power_supply_property smb5_wireless_props[] = {
-	POWER_SUPPLY_PROP_WIRELESS_VERSION,
-	POWER_SUPPLY_PROP_SIGNAL_STRENGTH,
-	POWER_SUPPLY_PROP_WIRELESS_WAKELOCK,
-	POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION,
-	POWER_SUPPLY_PROP_WIRELESS_CP_EN,
-	POWER_SUPPLY_PROP_WIRELESS_POWER_GOOD_EN,
-	POWER_SUPPLY_PROP_TX_ADAPTER,
-};
-
-static int smb5_wireless_set_prop(struct power_supply *psy,
-		enum power_supply_property psp,
-		const union power_supply_propval *val)
-{
-	struct smb5 *chip = power_supply_get_drvdata(psy);
-	struct smb_charger *chg = &chip->chg;
-	int rc = 0;
-
-	switch (psp) {
-	case POWER_SUPPLY_PROP_WIRELESS_VERSION:
-		dev_info(chg->dev, "set version=%d\n", val->intval);
-		break;
-	case POWER_SUPPLY_PROP_WIRELESS_WAKELOCK:
-		rc = smblib_set_prop_wireless_wakelock(chg, val);
-		break;
-	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION:
-		smb5_set_prop_input_voltage_regulation(chg, val);
-		break;
-	case POWER_SUPPLY_PROP_WIRELESS_CP_EN:
-		smblib_set_wirless_cp_enable(chg, val);
-		break;
-	case POWER_SUPPLY_PROP_WIRELESS_POWER_GOOD_EN:
-		smblib_set_wirless_power_good_enable(chg, val);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return rc;
-}
-
-static int smb5_wireless_get_prop(struct power_supply *psy,
-		enum power_supply_property psp,
-		union power_supply_propval *val)
-{
-	struct smb5 *chip = power_supply_get_drvdata(psy);
-	struct smb_charger *chg = &chip->chg;
-	int rc = 0;
-
-	switch (psp) {
-	case POWER_SUPPLY_PROP_WIRELESS_VERSION:
-		rc = smblib_get_prop_wireless_version(chg, val);
-		break;
-	case POWER_SUPPLY_PROP_SIGNAL_STRENGTH:
-		smb5_get_prop_wireless_signal(chg, val);
-		break;
-	case POWER_SUPPLY_PROP_WIRELESS_WAKELOCK:
-		val->intval = 1;
-		break;
-	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION:
-		smb5_get_prop_input_voltage_regulation(chg, val);
-		break;
-	case POWER_SUPPLY_PROP_WIRELESS_CP_EN:
-		val->intval = chg->flag_dc_present;
-		break;
-	case POWER_SUPPLY_PROP_WIRELESS_POWER_GOOD_EN:
-		val->intval = chg->power_good_en;
-		break;
-	case POWER_SUPPLY_PROP_TX_ADAPTER:
-		smb5_get_prop_wirless_type(chg, val);
-		break;
-	default:
-		return -EINVAL;
-	}
-	if (rc < 0) {
-		pr_debug("Couldn't get prop %d rc = %d\n", psp, rc);
-		return -ENODATA;
-	}
-	return 0;
-}
-
-static int smb5_wireless_prop_is_writeable(struct power_supply *psy,
-		enum power_supply_property psp)
-{
-	switch (psp) {
-	case POWER_SUPPLY_PROP_WIRELESS_VERSION:
-	case POWER_SUPPLY_PROP_WIRELESS_WAKELOCK:
-	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION:
-	case POWER_SUPPLY_PROP_WIRELESS_CP_EN:
-	case POWER_SUPPLY_PROP_WIRELESS_POWER_GOOD_EN:
-		return 1;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static const struct power_supply_desc wireless_psy_desc = {
-	.name = "wireless",
-	.type = POWER_SUPPLY_TYPE_WIRELESS,
-	.properties = smb5_wireless_props,
-	.num_properties = ARRAY_SIZE(smb5_wireless_props),
-	.get_property = smb5_wireless_get_prop,
-	.set_property = smb5_wireless_set_prop,
-	.property_is_writeable = smb5_wireless_prop_is_writeable,
-};
-
-static int smb5_init_wireless_psy(struct smb5 *chip)
-{
-	struct power_supply_config wireless_cfg = {};
-	struct smb_charger *chg = &chip->chg;
-
-	wireless_cfg.drv_data = chip;
-	wireless_cfg.of_node = chg->dev->of_node;
-	chg->wireless_psy = power_supply_register(chg->dev,
-						  &wireless_psy_desc,
-						  &wireless_cfg);
-	if (IS_ERR(chg->wireless_psy)) {
-		pr_err("Couldn't register wireless power supply\n");
-		return PTR_ERR(chg->wireless_psy);
-	}
-
-	return 0;
-}
-
 /*************************
  * BATT PSY REGISTRATION *
  *************************/
@@ -2181,7 +1943,6 @@ static enum power_supply_property smb5_batt_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_FORCE_RECHARGE,
 	POWER_SUPPLY_PROP_FCC_STEPPER_ENABLE,
-	POWER_SUPPLY_PROP_DC_THERMAL_LEVELS,
 };
 
 #define DEBUG_ACCESSORY_TEMP_DECIDEGC	250
@@ -2216,9 +1977,6 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX:
 		rc = smblib_get_prop_system_temp_level_max(chg, val);
-		break;
-	case POWER_SUPPLY_PROP_DC_THERMAL_LEVELS:
-		rc = smblib_get_prop_dc_temp_level(chg, val);
 		break;
 	case POWER_SUPPLY_PROP_CHARGER_TEMP:
 		rc = smblib_get_prop_charger_temp(chg, val);
@@ -2364,10 +2122,6 @@ static int smb5_batt_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		rc = smblib_set_prop_system_temp_level(chg, val);
 		break;
-	case POWER_SUPPLY_PROP_DC_THERMAL_LEVELS:
-		if (chg->support_wireless)
-			rc = smblib_set_prop_dc_temp_level(chg, val);
-		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		rc = smblib_set_prop_batt_capacity(chg, val);
 		break;
@@ -2467,7 +2221,6 @@ static int smb5_batt_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMITED:
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_DIE_HEALTH:
-	case POWER_SUPPLY_PROP_DC_THERMAL_LEVELS:
 	case POWER_SUPPLY_PROP_LIQUID_DETECTION:
 	case POWER_SUPPLY_PROP_DYNAMIC_FV_ENABLED:
 		return 1;
@@ -4345,13 +4098,6 @@ static int smb5_probe(struct platform_device *pdev)
 			rc);
 		goto cleanup;
 	}
-
-	rc = smb5_init_wireless_psy(chip);
-	if (rc < 0) {
-		pr_err("Couldn't initialize wireless psy rc=%d\n", rc);
-		goto cleanup;
-	}
-
 
 	rc = smb5_request_interrupts(chip);
 	if (rc < 0) {

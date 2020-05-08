@@ -334,7 +334,7 @@ struct bias_config {
 	int	bias_kohms;
 };
 
-static int fg_gen4_debug_mask = FG_STATUS | FG_IRQ;
+static int fg_gen4_debug_mask;
 module_param_named(
 	debug_mask, fg_gen4_debug_mask, int, 0600
 );
@@ -4122,7 +4122,6 @@ static void pl_enable_work(struct work_struct *work)
 
 static void vbat_sync_work(struct work_struct *work)
 {
-	pr_err("sys_sync:vbat_sync_work\n");
 	sys_sync();
 }
 
