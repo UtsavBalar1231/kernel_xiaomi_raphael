@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,6 +33,7 @@
 #include "configfs.h"
 
 #define GSI_RMNET_CTRL_NAME "rmnet_ctrl"
+#define GSI_RMNET_V2X_CTRL_NAME "rmnet_v2x_ctrl"
 #define GSI_MBIM_CTRL_NAME "android_mbim"
 #define GSI_DPL_CTRL_NAME "dpl_ctrl"
 #define ETHER_RMNET_CTRL_NAME "rmnet_ctrl0"
@@ -78,6 +79,9 @@
 #define GSI_MBIM_DATA_EP_TYPE_HSUSB 0x2
 /* ID for Microsoft OS String */
 #define GSI_MBIM_OS_STRING_ID 0xEE
+
+static char compatible_id[256] = "ALTRCFG";
+static char sub_compatible_id[8];
 
 #define EVT_NONE			0
 #define EVT_UNINITIALIZED		1
@@ -130,6 +134,7 @@ enum usb_prot_id {
 	USB_PROT_RMNET_IPA,
 	USB_PROT_MBIM_IPA,
 	USB_PROT_DIAG_IPA,
+	USB_PROT_RMNET_V2X_IPA,
 
 	/* non-accelerated */
 	USB_PROT_RMNET_ETHER,
@@ -345,6 +350,8 @@ static int name_to_prot_id(const char *name)
 		return USB_PROT_DIAG_IPA;
 	if (!strncasecmp(name, "rmnet.ether", MAX_INST_NAME_LEN))
 		return USB_PROT_RMNET_ETHER;
+	if (!strncasecmp(name, "rmnet.v2x", MAX_INST_NAME_LEN))
+		return USB_PROT_RMNET_V2X_IPA;
 	if (!strncasecmp(name, "dpl.ether", MAX_INST_NAME_LEN))
 		return USB_PROT_DPL_ETHER;
 	if (!strncasecmp(name, "gps", MAX_INST_NAME_LEN))
@@ -367,8 +374,8 @@ static struct usb_interface_descriptor rmnet_gsi_interface_desc = {
 	.bDescriptorType =	USB_DT_INTERFACE,
 	.bNumEndpoints =	3,
 	.bInterfaceClass =	USB_CLASS_VENDOR_SPEC,
-	.bInterfaceSubClass =	USB_CLASS_VENDOR_SPEC,
-	.bInterfaceProtocol =	USB_CLASS_VENDOR_SPEC,
+	.bInterfaceSubClass =	USB_SUBCLASS_VENDOR_SPEC,
+	.bInterfaceProtocol =	0x50,
 	/* .iInterface = DYNAMIC */
 };
 
@@ -1335,9 +1342,9 @@ static struct usb_interface_descriptor qdss_gsi_data_intf_desc = {
 	.bDescriptorType    =	USB_DT_INTERFACE,
 	.bAlternateSetting  =   0,
 	.bNumEndpoints      =	1,
-	.bInterfaceClass    =	0xff,
-	.bInterfaceSubClass =	0xff,
-	.bInterfaceProtocol =	0xff,
+	.bInterfaceClass    =	USB_CLASS_VENDOR_SPEC,
+	.bInterfaceSubClass =	USB_SUBCLASS_VENDOR_SPEC,
+	.bInterfaceProtocol =	0x80,
 };
 
 static struct usb_endpoint_descriptor qdss_gsi_fs_data_desc = {

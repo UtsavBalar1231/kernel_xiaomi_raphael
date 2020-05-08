@@ -86,6 +86,9 @@ const char *ipa3_event_name[] = {
 	__stringify(WIGIG_FST_SWITCH),
 	__stringify(IPA_SOCKV5_ADD),
 	__stringify(IPA_SOCKV5_DEL),
+	__stringify(IPA_PDN_DEFAULT_MODE_CONFIG),
+	__stringify(IPA_PDN_IP_COLLISION_MODE_CONFIG),
+	__stringify(IPA_PDN_IP_PASSTHROUGH_MODE_CONFIG),
 };
 
 const char *ipa3_hdr_l2_type_name[] = {
@@ -527,6 +530,9 @@ static int ipa3_attrib_dump(struct ipa_rule_attrib *attrib,
 		pr_err("flow_label:%x ", attrib->u.v6.flow_label);
 
 	if (attrib->attrib_mask & IPA_FLT_NEXT_HDR)
+		pr_err("next_hdr:%d ", attrib->u.v6.next_hdr);
+
+	if (attrib->ext_attrib_mask & IPA_FLT_EXT_NEXT_HDR)
 		pr_err("next_hdr:%d ", attrib->u.v6.next_hdr);
 
 	if (attrib->attrib_mask & IPA_FLT_META_DATA) {

@@ -995,6 +995,7 @@
 				"tsens_tm_physical";
 		interrupts = <0 163 0>, <0 165 0>;
 		interrupt-names = "tsens-upper-lower", "tsens-critical";
+		tsens-reinit-wa;
 		#thermal-sensor-cells = <1>;
 	};
 
@@ -1059,6 +1060,7 @@
 		qcom,wlan-rc-num = <0>;
 		qcom,wlan-ramdump-dynamic = <0x400000>;
 		qcom,smmu-s1-enable;
+		qcom,set-wlaon-pwr-ctrl;
 
 		mhi,max-channels = <30>;
 		mhi,buffer-len = <0x8000>;
@@ -1233,6 +1235,7 @@
 		qcom,pcie-aggregated-irq;
 		qcom,pcie-mhi-a7-irq;
 		qcom,phy-status-reg = <0x814>;
+		qcom,mhi-soc-reset-offset = <0xb01b8>;
 
 		qcom,phy-init = <0x1240 0x001 0x0 0x1
 				0x100c 0x002 0x0 0x1
@@ -1495,6 +1498,7 @@
 		qcom,bus-vector-names = "0", "10", "100", "1000";
 		snps,tso;
 		snps,pbl = <32>;
+		mac-address = [00 55 7B B5 7D f7];
 		rx-fifo-depth = <16384>;
 		tx-fifo-depth = <20480>;
 		snps,mtl-rx-config = <&mtl_rx_setup>;
@@ -1513,7 +1517,7 @@
 		snps,reset-gpio = <&tlmm 91 GPIO_ACTIVE_LOW>;
 
 		snps,reset-active-low;
-		snps,reset-delays-us = <0 10000 70000>;
+		snps,reset-delays-us = <0 11000 70000>;
 		phy-mode = "rgmii";
 
 		ethqos_emb_smmu: ethqos_emb_smmu {
@@ -1526,6 +1530,7 @@
 	emac_hw: qcom,emac@00020000 {
 		compatible = "qcom,emac-dwc-eqos";
 		qcom,arm-smmu;
+		emac-phy-addr = <7>;
 		reg = <0x20000 0x10000>,
 		   <0x36000 0x100>,
 		   <0xf100000 0x300000>;
@@ -1562,7 +1567,7 @@
 			"eth_rgmii_clk", "eth_slave_ahb_clk";
 		qcom,phy-intr-redirect = <&tlmm 90 GPIO_ACTIVE_LOW>;
 		qcom,phy-reset = <&tlmm 91 GPIO_ACTIVE_LOW>;
-		qcom,phy-reset-delay-msecs = <10>;
+		qcom,phy-reset-delay-msecs = <10 50>;
 		qcom,emac-pps0-test-intr = <&tlmm 31 GPIO_ACTIVE_LOW>;
 		vreg_rgmii-supply = <&pmxprairie_vref_rgmii>;
 		vreg_emac_phy-supply =  <&vreg_emac_phy>;
