@@ -1553,6 +1553,24 @@ QDF_STATUS wma_peer_unmap_conf_cb(uint8_t vdev_id,
 	return qdf_status;
 }
 
+static bool wma_objmgr_peer_exist(tp_wma_handle wma, uint8_t vdev_id,
+				  uint8_t *peer_addr, uint8_t *peer_vdev_id)
+{
+	struct wlan_objmgr_peer *peer;
+
+	peer = wlan_objmgr_get_peer_by_mac(wma->psoc, peer_addr,
+					   WLAN_LEGACY_WMA_ID);
+	if (!peer)
+		return false;
+
+	if (peer_vdev_id)
+		*peer_vdev_id = wlan_vdev_get_id(wlan_peer_get_vdev(peer));
+
+	wlan_objmgr_peer_release_ref(peer, WLAN_LEGACY_WMA_ID);
+
+	return true;
+}
+
 /**
  * wma_remove_peer() - remove peer information from host driver and fw
  * @wma: wma handle
@@ -1596,6 +1614,13 @@ QDF_STATUS wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 
 	if (!peer) {
 		WMA_LOGE("%s: PEER is NULL for vdev_id: %d", __func__, vdev_id);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!wma_objmgr_peer_exist(wma, vdev_id, peer_addr, NULL)) {
+		wma_err("peer doesn't exist peer_addr %pM vdevid %d peer_count %d",
+			 peer_addr, vdev_id,
+			 wma->interfaces[vdev_id].peer_count);
 		return QDF_STATUS_E_INVAL;
 	}
 	peer_unmap_conf_support_enabled =
@@ -5411,7 +5436,7 @@ out:
 }
 
 /**
- * wma_delete_sta_req_ap_mode() - process delete sta request from UMAC in AP mode
+ * wma_delete_sta_req_ap_mode() - process delete sta req from UMAC in AP mode
  * @wma: wma handle
  * @del_sta: delete sta params
  *
@@ -5419,6 +5444,14 @@ out:
  */
 static void wma_delete_sta_req_ap_mode(tp_wma_handle wma,
 				       tpDeleteStaParams del_sta)
+{
+	wma_delete_sta_req(wma, del_sta,
+			   wmi_service_enabled(wma->wmi_handle,
+					       wmi_service_sync_delete_cmds));
+}
+
+void wma_delete_sta_req(tp_wma_handle wma, tpDeleteStaParams del_sta,
+			bool wait_for_response)
 {
 	struct cdp_pdev *pdev;
 	void *peer;
@@ -5454,8 +5487,7 @@ static void wma_delete_sta_req_ap_mode(tp_wma_handle wma,
 	}
 	del_sta->status = QDF_STATUS_SUCCESS;
 
-	if (wmi_service_enabled(wma->wmi_handle,
-				    wmi_service_sync_delete_cmds)) {
+	if (wait_for_response) {
 		msg = wma_fill_hold_req(wma, del_sta->smesessionId,
 				   WMA_DELETE_STA_REQ,
 				   WMA_DELETE_STA_RSP_START, del_sta,
@@ -5719,6 +5751,11 @@ void wma_delete_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 		break;
 	case BSS_OPERATIONAL_MODE_NDI:
 		wma_delete_sta_req_ndi_mode(wma, del_sta);
+		if (!rsp_requested) {
+			WMA_LOGD("NDI del sta: no response needed vdev_id %d status %d",
+				 del_sta->smesessionId, del_sta->status);
+			qdf_mem_free(del_sta);
+		}
 		break;
 	default:
 		WMA_LOGE(FL("Incorrect oper mode %d"), oper_mode);
