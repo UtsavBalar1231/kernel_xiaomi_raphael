@@ -514,7 +514,7 @@ struct mgmt_cp_read_local_oob_ext_data {
 struct mgmt_rp_read_local_oob_ext_data {
 	__u8    type;
 	__le16	eir_len;
-	__u8	eir[0];
+	__u8	eir[1];
 } __packed;
 
 #define MGMT_OP_READ_EXT_INDEX_LIST	0x003C
