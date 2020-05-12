@@ -6,7 +6,7 @@
  * Copyright (C) 2008 Nokia Corporation
  * Copyright (C) 2009 Samsung Electronics
  *			Author: Michal Nazarewicz (mina86@mina86.com)
- * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2
@@ -33,7 +33,7 @@
 #include <linux/rndis_ipa.h>
 #include "configfs.h"
 
-unsigned int rndis_dl_max_xfer_size = 9216;
+static unsigned int rndis_dl_max_xfer_size = 9216;
 module_param(rndis_dl_max_xfer_size, uint, 0644);
 MODULE_PARM_DESC(rndis_dl_max_xfer_size,
 		"Max size of bus transfer to host");
@@ -408,7 +408,7 @@ static struct usb_gadget_strings *rndis_qc_strings[] = {
 	NULL,
 };
 
-struct f_rndis_qc *_rndis_qc;
+static struct f_rndis_qc *_rndis_qc;
 
 static inline int rndis_qc_lock(atomic_t *excl)
 {
@@ -549,7 +549,7 @@ static void rndis_qc_command_complete(struct usb_ep *ep,
 
 	buf = (rndis_init_msg_type *)req->buf;
 
-	if (buf->MessageType == RNDIS_MSG_INIT) {
+	if (le32_to_cpu(buf->MessageType) == RNDIS_MSG_INIT) {
 		ul_max_xfer_size = rndis_get_ul_max_xfer_size(rndis->params);
 		ipa_data_set_ul_max_xfer_size(ul_max_xfer_size);
 		/*
@@ -646,7 +646,7 @@ invalid:
 	return value;
 }
 
-struct net_device *rndis_qc_get_net(const char *netname)
+static struct net_device *rndis_qc_get_net(const char *netname)
 {
 	struct net_device *net_dev;
 
@@ -871,7 +871,8 @@ static void rndis_qc_open(struct f_rndis_qc *rndis)
 	rndis_signal_connect(rndis->params);
 }
 
-void ipa_data_flow_control_enable(bool enable, struct rndis_params *param)
+static void ipa_data_flow_control_enable(bool enable,
+	struct rndis_params *param)
 {
 	if (enable)
 		ipa_data_stop_rndis_ipa(USB_IPA_FUNC_RNDIS);
@@ -1020,10 +1021,10 @@ rndis_qc_bind(struct usb_configuration *c, struct usb_function *f)
 
 	params = rndis_register(rndis_qc_response_available, rndis,
 			ipa_data_flow_control_enable);
-	if (params < 0)
+	if (IS_ERR(params))
 		goto fail;
-	rndis->params = params;
 
+	rndis->params = params;
 	rndis_set_param_medium(rndis->params, RNDIS_MEDIUM_802_3, 0);
 	rndis_set_host_mac(rndis->params, rndis->ethaddr);
 
@@ -1137,7 +1138,7 @@ void rndis_ipa_reset_trigger(void)
  * Callback let RNDIS_IPA trigger us when network interface is up
  * and userspace is ready to answer DHCP requests
  */
-void rndis_net_ready_notify(void)
+static void rndis_net_ready_notify(void)
 {
 	struct f_rndis_qc *rndis;
 	unsigned long flags;

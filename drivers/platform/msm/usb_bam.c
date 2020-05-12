@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/msm-sps.h>
+#include <linux/ipa.h>
 #include <linux/sched/clock.h>
 #include <linux/usb_bam.h>
 #include <linux/workqueue.h>
@@ -1692,7 +1693,7 @@ no_lpm:
 	mutex_unlock(&info[cur_bam].suspend_resume_mutex);
 }
 
-void usb_bam_finish_suspend_(struct work_struct *w)
+static void usb_bam_finish_suspend_(struct work_struct *w)
 {
 	enum usb_ctrl cur_bam;
 	struct usb_bam_ipa_handshake_info *info_ptr;
@@ -1908,7 +1909,7 @@ static void wait_for_prod_granted(enum usb_ctrl cur_bam)
 				__func__, ret);
 }
 
-void notify_usb_connected(enum usb_ctrl cur_bam)
+static void notify_usb_connected(enum usb_ctrl cur_bam)
 {
 	log_event_dbg("%s: enter\n", __func__);
 

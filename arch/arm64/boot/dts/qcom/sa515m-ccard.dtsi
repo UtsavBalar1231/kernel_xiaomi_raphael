@@ -225,6 +225,7 @@
 		interrupts = <84 IRQ_TYPE_EDGE_RISING>;
 		st,drdy-int-pin= <2>;
 		qcom,regulator_check = <0>; /* 0:Disable 1:Enable */
+		qcom,asm330_hrtimer;
 	};
 
 };
@@ -257,8 +258,6 @@
 };
 
 &soc {
-	/delete-node/ bt_qca6390;
-
 	bluetooth: bt_qca6390 {
 		compatible = "qca,qca6390";
 		qca,bt-reset-gpio = <&pmxprairie_gpios 6 0>;

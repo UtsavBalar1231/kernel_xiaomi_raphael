@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2017,2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2017, 2019-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -407,12 +407,12 @@ static inline bool usb_bam_get_prod_granted(enum usb_ctrl bam_type, u8 idx)
 	return false;
 }
 
-int usb_bam_alloc_fifos(enum usb_ctrl cur_bam, u8 idx)
+static inline int usb_bam_alloc_fifos(enum usb_ctrl cur_bam, u8 idx)
 {
 	return false;
 }
 
-int usb_bam_free_fifos(enum usb_ctrl cur_bam, u8 idx)
+static inline int usb_bam_free_fifos(enum usb_ctrl cur_bam, u8 idx)
 {
 	return false;
 }

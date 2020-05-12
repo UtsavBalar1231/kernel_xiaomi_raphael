@@ -193,9 +193,6 @@ config USB_F_RNDIS
 config USB_F_QCRNDIS
 	tristate
 
-config USB_F_RMNET_BAM
-	tristate
-
 config USB_F_MASS_STORAGE
 	tristate
 
@@ -261,6 +258,9 @@ config USB_F_MDM_DATA
 
 config USB_F_RMNET_BAM
 	tristate
+
+config USB_F_MBIM_BAM
+        tristate
 
 # this first set of drivers all depend on bulk-capable hardware.
 
@@ -367,7 +367,6 @@ config USB_CONFIGFS_RNDIS
 config USB_CONFIGFS_RMNET_BAM
 	bool "RMNET_BAM"
 	depends on USB_CONFIGFS
-	depends on IPA
 	select USB_F_RMNET_BAM
 	help
 	   RmNet interface is a new logical device in QMI framework for data
@@ -375,6 +374,18 @@ config USB_CONFIGFS_RMNET_BAM
 	   channel for IP data transfer and control I/O channel for QMI
 	   messaging (functionality similar to AT commands).
 	   RmNet interface is an alternative to standard CDC-ECM and windows
+	   RNDIS.
+
+config USB_CONFIGFS_MBIM_BAM
+        bool "MBIM_BAM"
+        depends on USB_CONFIGFS
+        select USB_F_MBIM_BAM
+	help
+	   Mbim interface is a new logical device in QMI framework for data
+	   services. Mbim in accordance with QMI architecture uses Data I/O
+	   channel for IP data transfer and control I/O channel for QMI
+	   messaging (functionality similar to AT commands).
+	   Mbim interface is an alternative to standard CDC-ECM and windows
 	   RNDIS.
 
 config USB_CONFIGFS_EEM
@@ -455,6 +466,7 @@ config USB_CONFIGFS_F_PTP
 config USB_CONFIGFS_F_ACC
 	boolean "Accessory gadget"
 	depends on USB_CONFIGFS
+	depends on HID=y
 	select USB_F_ACC
 	help
 	  USB gadget Accessory support
