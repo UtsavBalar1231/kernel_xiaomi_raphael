@@ -2194,7 +2194,14 @@ static void __exit cnss_exit(void)
 	cnss_debug_deinit();
 }
 
-module_init(cnss_initialize);
+static int __init cnss_set_sync(void)
+{
+	cnss_platform_driver.driver.probe_type = 0;
+	return 0;
+}
+early_init(cnss_set_sync, EARLY_SUBSYS_5, EARLY_INIT_LEVEL4);
+
+early_module_init(cnss_initialize, EARLY_SUBSYS_5, EARLY_INIT_LEVEL5);
 module_exit(cnss_exit);
 
 MODULE_LICENSE("GPL v2");

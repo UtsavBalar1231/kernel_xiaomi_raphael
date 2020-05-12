@@ -3252,7 +3252,8 @@ static int __init cam_cc_sdmshrike_init(void)
 {
 	return platform_driver_register(&cam_cc_sdmshrike_driver);
 }
-subsys_initcall(cam_cc_sdmshrike_init);
+early_subsys_initcall(cam_cc_sdmshrike_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL5);
 
 static void __exit cam_cc_sdmshrike_exit(void)
 {

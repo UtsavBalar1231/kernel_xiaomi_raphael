@@ -713,7 +713,7 @@ static void __exit msm_lease_drm_unregister(void)
 	platform_driver_unregister(&msm_lease_platform_driver);
 }
 
-module_init(msm_lease_drm_register);
+early_module_init(msm_lease_drm_register, EARLY_SUBSYS_2, EARLY_INIT_LEVEL4);
 module_exit(msm_lease_drm_unregister);
 
 MODULE_DESCRIPTION("MSM LEASE DRM Driver");
