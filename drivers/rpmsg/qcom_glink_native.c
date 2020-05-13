@@ -142,6 +142,7 @@ struct qcom_glink {
 	struct qcom_glink_pipe *tx_pipe;
 
 	int irq;
+	char irqname[GLINK_NAME_SIZE];
 
 	struct kthread_worker kworker;
 	struct task_struct *task;
@@ -2033,6 +2034,8 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	if (ret)
 		dev_err(dev, "failed to register early notif %d\n", ret);
 
+	snprintf(glink->irqname, 32, "glink-native-%s", glink->name);
+
 	irq = of_irq_get(dev->of_node, 0);
 
 	/* Use different irq flag option in case of gvm */
@@ -2045,7 +2048,7 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	ret = devm_request_irq(dev, irq,
 			       qcom_glink_native_intr,
 			       irqflags,
-			       "glink-native", glink);
+			       glink->irqname, glink);
 	if (ret) {
 		dev_err(dev, "failed to request IRQ\n");
 		goto unregister;
