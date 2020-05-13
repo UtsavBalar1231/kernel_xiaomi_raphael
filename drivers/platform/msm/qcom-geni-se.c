@@ -1992,6 +1992,8 @@ static int geni_se_probe(struct platform_device *pdev)
 			dev_err(dev, "Unable to create sysfs file\n");
 	}
 
+	device_enable_async_suspend(&pdev->dev);
+
 	GENI_SE_DBG(geni_se_dev->log_ctx, false, NULL,
 		    "%s: Probe successful\n", __func__);
 	return 0;
