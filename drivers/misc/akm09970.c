@@ -135,10 +135,16 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer_t)
 	struct akm09970_soc_ctrl *c_ctrl = container_of(timer_t,
 				struct akm09970_soc_ctrl, timer);
 
-	if (!c_ctrl->read_flag)
+	if (false == c_ctrl->read_flag) {
 		queue_work(c_ctrl->work_queue, &c_ctrl->report_work);
 
-	return HRTIMER_NORESTART;
+		hrtimer_forward_now(&c_ctrl->timer,
+			ktime_set(CLEAR_IRQ_TIME / MSEC_PER_SEC,
+			(CLEAR_IRQ_TIME % MSEC_PER_SEC) * NSEC_PER_MSEC));
+		return HRTIMER_RESTART;
+	} else {
+		return HRTIMER_NORESTART;
+	}
 }
 
 static void akm09970_reset(
@@ -209,14 +215,14 @@ static int akm09970_active(struct akm09970_soc_ctrl *c_ctrl, bool on)
 				c_ctrl->measure_freq_hz < 50)
 			mode = AK09970_MODE_CONTINUOUS_20HZ;
 		else
-			mode = AK09970_MODE_CONTINUOUS_10HZ;
+			mode = AK09970_MODE_CONTINUOUS_100HZ;
 
 		c_ctrl->measure_range = 0;
 
 		rc = akm09970_write_byte(c_ctrl->client, AK09970_MODE_REG,
 					(mode | c_ctrl->measure_range));
 		if (rc < 0) {
-			pr_err("Failed to set mode and smr.");
+			pr_err("Failed to set mode and smr.\n");
 			akm09970_power_down(c_ctrl);
 			return rc;
 		}
@@ -407,7 +413,10 @@ static long akm09970_ioctl(struct file *filp,
 	case AKM_IOC_GET_SENSEDATA:
 		pr_debug("AKM_IOC_GET_SENSEDATA");
 		for (i = 0; i < AKM_SENSOR_DATA_SIZE; i++) {
-			c_ctrl->pdata.data[i] = c_ctrl->chip_data[i];
+			if (c_ctrl->read_flag)
+				c_ctrl->pdata.data[i] = c_ctrl->chip_data[i];
+			else
+				c_ctrl->pdata.data[i] = 0x00;
 			pr_debug("data%d = %d\n", i, c_ctrl->chip_data[i]);
 		}
 		break;
@@ -491,13 +500,13 @@ static struct device_attribute *akm_attrs[] = {
 
 static int akm09970_regulator_init(struct akm09970_soc_ctrl *c_ctrl, bool on)
 {
-	int rc;
+	int rc = 0;
 
 	if (on) {
-		c_ctrl->vdd = regulator_get(&c_ctrl->client->dev, "vdd");
+		c_ctrl->vdd = regulator_get(c_ctrl->dev, "vdd");
 		if (IS_ERR(c_ctrl->vdd)) {
 			rc = PTR_ERR(c_ctrl->vdd);
-			pr_err("Regulator get failed vdd rc=%d", rc);
+			pr_err("Regulator get failed vdd rc=%d\n", rc);
 			return rc;
 		}
 
@@ -505,7 +514,7 @@ static int akm09970_regulator_init(struct akm09970_soc_ctrl *c_ctrl, bool on)
 			rc = regulator_set_voltage(c_ctrl->vdd,
 				AKM09970_VDD_MIN_UV, AKM09970_VDD_MAX_UV);
 			if (rc) {
-				pr_err("Regulator set failed vdd rc=%d",
+				pr_err("Regulator set failed vdd rc=%d\n",
 					rc);
 				regulator_put(c_ctrl->vdd);
 				return rc;
@@ -544,8 +553,8 @@ static int akm09970_gpio_config(struct akm09970_soc_ctrl *c_ctrl)
 	} else {
 		gpio_direction_input(c_ctrl->gpio_irq);
 		c_ctrl->irq = gpio_to_irq(c_ctrl->gpio_irq);
-		rc = request_threaded_irq(c_ctrl->irq, akm09970_irq_handler,
-			NULL, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+		rc = request_threaded_irq(c_ctrl->irq, NULL, akm09970_irq_handler,
+			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"akm09970_irq", c_ctrl);
 		if (rc < 0) {
 			pr_err("Unable to request irq\n");
@@ -595,7 +604,7 @@ static int akm09970_pinctrl_init(struct akm09970_soc_ctrl *c_ctrl)
 	c_ctrl->pinctrl = devm_pinctrl_get(dev);
 	if (IS_ERR_OR_NULL(c_ctrl->pinctrl)) {
 		rc = PTR_ERR(c_ctrl->pinctrl);
-		pr_err("Unable to acquire pinctrl %d", rc);
+		pr_err("Unable to acquire pinctrl %d\n", rc);
 		goto err_pinctrl_get;
 	}
 
@@ -670,7 +679,7 @@ static int akm09970_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	pr_debug("Start parse device tree");
+	pr_debug("Start parse device tree\n");
 	if (client->dev.of_node) {
 		rc = akm09970_parse_dt(&client->dev, c_ctrl);
 		if (rc < 0) {
