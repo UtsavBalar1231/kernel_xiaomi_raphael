@@ -576,7 +576,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	unsigned long flags;
 	struct sighand_struct *sighand;
 	struct task_struct *p = timer->it.cpu.task;
-	u64 old_expires, new_expires, old_incr, val;
+	u64 old_expires, new_expires, old_incr, val = 0;
 	int ret;
 
 	WARN_ON_ONCE(p == NULL);
@@ -716,7 +716,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 
 static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp)
 {
-	u64 now;
+	u64 now = 0;
 	struct task_struct *p = timer->it.cpu.task;
 
 	WARN_ON_ONCE(p == NULL);
@@ -993,7 +993,7 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 	struct sighand_struct *sighand;
 	unsigned long flags;
 	struct task_struct *p = timer->it.cpu.task;
-	u64 now;
+	u64 now = 0;
 
 	WARN_ON_ONCE(p == NULL);
 
@@ -1187,7 +1187,7 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 			   u64 *newval, u64 *oldval)
 {
-	u64 now;
+	u64 now = 0;
 
 	WARN_ON_ONCE(clock_idx == CPUCLOCK_SCHED);
 	cpu_timer_sample_group(clock_idx, tsk, &now);

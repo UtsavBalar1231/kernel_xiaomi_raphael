@@ -944,7 +944,7 @@ static int ipa_wigig_store_client_smmu_info
 (struct ipa_wigig_conn_tx_in_params_smmu *in, enum ipa_client_type client)
 {
 	int ret;
-	unsigned int idx;
+	unsigned int idx = 0;
 
 	IPA_WIGIG_DBG("\n");
 
@@ -991,7 +991,7 @@ static int ipa_wigig_get_tx_smmu_info(
 	struct ipa_wigig_tx_pipe_data_buffer_info_smmu **dbuff_smmu,
 	enum ipa_client_type client)
 {
-	unsigned int idx;
+	unsigned int idx = 0;
 	int ret;
 
 	ret = ipa_wigig_client_to_idx(client, &idx);
@@ -1019,7 +1019,7 @@ static int ipa_wigig_clean_smmu_info(enum ipa_client_type client)
 			return ret;
 		ipa_wigig_clean_rx_buff_smmu_info();
 	} else {
-		unsigned int idx;
+		unsigned int idx = 0;
 
 		ret = ipa_wigig_client_to_idx(client, &idx);
 		if (ret)
@@ -1152,7 +1152,7 @@ EXPORT_SYMBOL(ipa_wigig_set_perf_profile);
 static int ipa_wigig_store_client_mac(enum ipa_client_type client,
 	const char *mac)
 {
-	unsigned int idx;
+	unsigned int idx = 0;
 
 	if (ipa_wigig_client_to_idx(client, &idx)) {
 		IPA_WIGIG_ERR("couldn't acquire idx\n");
@@ -1164,7 +1164,7 @@ static int ipa_wigig_store_client_mac(enum ipa_client_type client,
 
 static int ipa_wigig_get_client_mac(enum ipa_client_type client, char *mac)
 {
-	unsigned int idx;
+	unsigned int idx = 0;
 
 	if (ipa_wigig_client_to_idx(client, &idx)) {
 		IPA_WIGIG_ERR("couldn't acquire idx\n");

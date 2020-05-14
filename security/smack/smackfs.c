@@ -475,7 +475,7 @@ static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 					struct list_head *rule_list,
 					struct mutex *rule_lock, int format)
 {
-	struct smack_parsed_rule rule;
+	struct smack_parsed_rule rule = { 0 };
 	char *data;
 	int rc;
 	int trunc = 0;
@@ -2286,7 +2286,7 @@ static const struct file_operations smk_load_self_ops = {
 static ssize_t smk_user_access(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos, int format)
 {
-	struct smack_parsed_rule rule;
+	struct smack_parsed_rule rule = { 0 };
 	char *data;
 	int res;
 

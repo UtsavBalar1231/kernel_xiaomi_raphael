@@ -1591,7 +1591,7 @@ static void connectable_update_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    connectable_update);
-	u8 status;
+	u8 status = 0;
 
 	hci_req_sync(hdev, connectable_update, 0, HCI_CMD_TIMEOUT, &status);
 	mgmt_set_connectable_complete(hdev, status);
@@ -1700,7 +1700,7 @@ static void discoverable_update_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    discoverable_update);
-	u8 status;
+	u8 status = 0;
 
 	hci_req_sync(hdev, discoverable_update, 0, HCI_CMD_TIMEOUT, &status);
 	mgmt_set_discoverable_complete(hdev, status);
@@ -1812,7 +1812,7 @@ static void bg_scan_update(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    bg_scan_update);
 	struct hci_conn *conn;
-	u8 status;
+	u8 status = 0;
 	int err;
 
 	err = hci_req_sync(hdev, update_bg_scan, 0, HCI_CMD_TIMEOUT, &status);
@@ -1865,7 +1865,7 @@ static void le_scan_disable_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    le_scan_disable.work);
-	u8 status;
+	u8 status = 0;
 
 	BT_DBG("%s", hdev->name);
 
@@ -1943,7 +1943,7 @@ static void le_scan_restart_work(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    le_scan_restart.work);
 	unsigned long timeout, duration, scan_start, now;
-	u8 status;
+	u8 status = 0;
 
 	BT_DBG("%s", hdev->name);
 

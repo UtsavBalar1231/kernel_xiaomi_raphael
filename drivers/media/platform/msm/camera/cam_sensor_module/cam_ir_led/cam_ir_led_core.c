@@ -47,8 +47,10 @@ void cam_ir_led_shutdown(struct cam_ir_led_ctrl *ictrl)
 	}
 
 	rc = cam_ir_led_release_dev(ictrl);
-	if (rc)
+	if (rc) {
 		CAM_ERR(CAM_IR_LED, "Release failed rc: %d", rc);
-	else
+	}
+	else {
 		ictrl->ir_led_state = CAM_IR_LED_STATE_INIT;
+	}
 }

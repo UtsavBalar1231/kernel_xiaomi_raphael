@@ -2662,20 +2662,22 @@ static int __cam_req_mgr_setup_link_info(struct cam_req_mgr_core_link *link,
 		rc = dev->ops->get_dev_info(&dev->dev_info);
 
 		trace_cam_req_mgr_connect_device(link, &dev->dev_info);
-		if (link_info->version == VERSION_1)
+		if (link_info->version == VERSION_1) {
 			CAM_DBG(CAM_CRM,
 				"%x: connected: %s, id %d, delay %d, trigger %x",
 				link_info->u.link_info_v1.session_hdl,
 				dev->dev_info.name,
 				dev->dev_info.dev_id, dev->dev_info.p_delay,
 				dev->dev_info.trigger);
-		else if (link_info->version == VERSION_2)
+		}
+		else if (link_info->version == VERSION_2) {
 			CAM_DBG(CAM_CRM,
 				"%x: connected: %s, id %d, delay %d, trigger %x",
 				link_info->u.link_info_v2.session_hdl,
 				dev->dev_info.name,
 				dev->dev_info.dev_id, dev->dev_info.p_delay,
 				dev->dev_info.trigger);
+		}
 		if (rc < 0 ||
 			dev->dev_info.p_delay >=
 			CAM_PIPELINE_DELAY_MAX ||
