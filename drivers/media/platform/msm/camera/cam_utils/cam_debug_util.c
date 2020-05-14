@@ -15,6 +15,7 @@
 
 #include "cam_debug_util.h"
 
+#if CAM_DEBUG_LOGGING
 static uint debug_mdl;
 module_param(debug_mdl, uint, 0644);
 
@@ -125,3 +126,10 @@ void cam_debug_log(unsigned int module_id, const char *func, const int line,
 		va_end(args);
 	}
 }
+#else
+void cam_debug_log(unsigned int module_id, const char *func, const int line,
+	const char *fmt, ...)
+{
+	return;
+}
+#endif
