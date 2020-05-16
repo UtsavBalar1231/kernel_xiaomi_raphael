@@ -247,8 +247,6 @@ void tfa_set_query_info(struct tfa_device *tfa)
 	tfa->partial_enable = 0;
 	tfa->convert_dsp32 = 0;
 	tfa->sync_iv_delay = 0;
-    tfa->dynamicTDMmode = -1; /**tracking dynamic TDM setting from alsa input stream*/
-	tfa->bitwidth = -1;/**bitwdith from alsa input stream*/
 
 	/* TODO use the getfeatures() for retrieving the features [artf103523]
 	tfa->supportDrc = supportNotSet;*/
@@ -2911,10 +2909,6 @@ enum Tfa98xx_Error tfaRunStartup(struct tfa_device *tfa, int profile)
 		 * in case something else was given in cnt file, profile below will apply this. */
 		TFA_SET_BF(tfa, AUDFS, audfs);
 		TFA_SET_BF(tfa, FRACTDEL, fractdel);
-#ifdef __KERNEL__
-	if ((tfa->dynamicTDMmode == 3) && tfa_dev_set_tdm_bitwidth(tfa, tfa->bitwidth))
-		return Tfa98xx_Error_Fail;
-#endif//
 	} else {
 		pr_debug("\nWarning: No init keyword found in the cnt file. Init is skipped!\n");
 	}
@@ -4139,56 +4133,6 @@ enum Tfa98xx_Error tfa_status(struct tfa_device *tfa)
 
 	return Tfa98xx_Error_Ok;
 }
-#ifdef __KERNEL__
-int tfa_dev_set_tdm_bitwidth(struct tfa_device *tfa, int width)
-{
-	uint8_t nbck, slotlen, samplesize;
-
-	switch (width) {
-	case 16: /* 16-bit sample in 16-bit slot */
-		nbck = 0;
-		slotlen = 15;
-		samplesize = 15;
-		break;
-	case 24: /* 24-bit sample in 32-bit slot */
-		nbck = 2;
-		slotlen = 31;
-		samplesize = (tfa->tfa_family == 1) ? 23 : (tfa->is_probus_device == 1) ? 31 : 23;
-		break;
-	case 32: /* 32-bit sample in 32-bit slot */
-		nbck = 2;
-		slotlen = 31;
-		samplesize = (tfa->tfa_family == 1) ? 23 : (tfa->is_probus_device == 1) ? 31 : 23;
-		break;
-	default:
-		pr_err("unsupported tdm bitwidth:%d\n", width);
-		return -EINVAL;
-		break;
-	}
-
-	if (tfa->tfa_family == 2)
-	{
-		/* stop tdm */
-		TFA2_SET_TDM(tfa, TDME, 0);
-		TFA2_SET_TDM(tfa, TDMNBCK, nbck);
-		TFA2_SET_TDM(tfa, TDMSLLN, slotlen);
-		TFA2_SET_TDM(tfa, TDMSSIZE, samplesize);
-		/* enable tdm */
-		TFA2_SET_TDM(tfa, TDME, 1);
-	} else if (tfa->daimap == Tfa98xx_DAI_TDM)
-	{
-		/* stop tdm */
-		tfa_set_bf(tfa, TFA1_BF_TDMEN, 0);
-		tfa_set_bf(tfa, TFA1_BF_NBCK, nbck);
-		tfa_set_bf(tfa, TFA1_BF_TDMSLLN, slotlen);
-		tfa_set_bf(tfa, TFA1_BF_TDMSAMSZ, samplesize);
-		/* enable tdm */
-		tfa_set_bf(tfa, TFA1_BF_TDMEN, 1);
-
-	}
-	return 0;
-
-}
 #define NR_OF_BATS 10
 void tfa_adapt_noisemode(struct tfa_device *tfa)
 {
@@ -4319,4 +4263,3 @@ void tfa_lp_mode_interrupt(struct tfa_device *tfa)
 		tfa_irq_clear(tfa, tfa9912_irq_stclpr);
 	}
 }
-#endif//__KERNEL__

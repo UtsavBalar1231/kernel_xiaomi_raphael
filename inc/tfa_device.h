@@ -109,8 +109,6 @@ struct tfa_device {
 	int in_use;
 	int buffer_size;		/**< lowest level max buffer size */
 	int has_msg;			/**< support direct dsp messaging */
-	int dynamicTDMmode; /**tracking dynamic TDM setting from alsa input stream*/
-	int bitwidth;       /**bitwdith from alsa input stream*/
 	unsigned char slave_address; /**< I2C slave address (not shifted) */
 	unsigned short rev;     /**< full revid of this device */
 	unsigned char tfa_family; /**< tfa1/tfa2 */
@@ -239,16 +237,6 @@ enum tfa_error tfa_dev_set_state(struct tfa_device *tfa, enum tfa_state state, i
  */
 enum tfa_state tfa_dev_get_state(struct tfa_device *tfa);
 
-/**
- * Deduce the width from machine driver and decide TDM setting to be
- * programmed to the TFA amplifier dynamically
- *  @param tfa struct = pointer to context of this device instance
- *  @param width = parmeters read from top layer to decide the applicable TDM settings
- *  @return tfa_error enum
-    - 0 if the width received is correct (16/32/24)
- *  - others if width received is not correct
- */
-int tfa_dev_set_tdm_bitwidth(struct tfa_device *tfa, int width);
 /*****************************************************************************/
 /*****************************************************************************/
 /**
