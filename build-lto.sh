@@ -1,15 +1,18 @@
 #!/bin/bash
 OUT_DIR=out/
 
+export KBUILD_BUILD_HOST=CuntsSpace
+
 make ARCH=arm64 \
 	O=${OUT_DIR} \
 	raphael_defconfig \
-	-j$(nproc --all)
+	-j4
 
 scripts/config --file ${OUT_DIR}/.config \
 	-e LTO \
 	-e LTO_CLANG \
 	-e TOOLS_SUPPORT_RELR \
+	-e LD_LLD
 
 cd ${OUT_DIR}
 make O=${OUT_DIR} \
@@ -31,6 +34,6 @@ make ARCH=arm64 \
 	CLANG_TRIPLE="aarch64-linux-gnu-" \
 	CROSS_COMPILE="aarch64-linux-gnu-" \
 	CROSS_COMPILE_ARM32="arm-linux-gnueabi-" \
-	-j$(nproc --all)
+	-j4
 
 rm out/.version

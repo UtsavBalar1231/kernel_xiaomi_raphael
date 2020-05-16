@@ -1,15 +1,18 @@
 #!/bin/bash
 OUT_DIR=out/
 
+export KBUILD_BUILD_HOST=CuntsSpace
+
 make ARCH=arm64 \
 	O=${OUT_DIR} \
 	raphael_defconfig \
-	-j$(nproc --all)
+	-j4
 
 scripts/config --file ${OUT_DIR}/.config \
 	-d LTO \
 	-d LTO_CLANG \
-	-d TOOLS_SUPPORT_RELR \
+	-e TOOLS_SUPPORT_RELR \
+	-e LD_LLD
 
 cd ${OUT_DIR}
 make O=${OUT_DIR} \
@@ -17,14 +20,20 @@ make O=${OUT_DIR} \
 	olddefconfig
 cd ../
 
-PATH=/home/utsavthecunt/benzoclang/bin/:/home/utsavthecunt/arm64-gcc/bin:/home/utsavthecunt/arm32-gcc/bin:$PATH
+PATH=/home/utsavthecunt/proton-clang/bin/:$PATH
 
 make ARCH=arm64 \
 	O=out \
 	CC="ccache clang" \
+	LD="ld.lld" \
+	AR="llvm-ar" \
+	NM="llvm-nm" \
+	OBJCOPY="llvm-objcopy" \
+	OBJDUMP="llvm-objdump" \
+	STRIP="llvm-strip" \
 	CLANG_TRIPLE="aarch64-linux-gnu-" \
-	CROSS_COMPILE="aarch64-linux-android-" \
-	CROSS_COMPILE_ARM32="arm-linux-androideabi-" \
-	-j$(nproc --all)
+	CROSS_COMPILE="aarch64-linux-gnu-" \
+	CROSS_COMPILE_ARM32="arm-linux-gnueabi-" \
+	-j4
 
 rm out/.version
