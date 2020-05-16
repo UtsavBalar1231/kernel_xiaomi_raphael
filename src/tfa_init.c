@@ -739,7 +739,7 @@ static enum Tfa98xx_Error tfa9873_faim_protect(struct tfa_device *tfa, int statu
 	ret = tfa_set_bf_volatile(tfa, TFA9873_BF_OPENMTP, (uint16_t)(status));
 	return ret;
 }
-static enum Tfa98xx_Error tfa9873_specific(struct tfa_device *tfa)
+static enum Tfa98xx_Error tfa9873_specific(struct tfa_device* tfa)
 {
 	enum Tfa98xx_Error error = Tfa98xx_Error_Ok;
 	unsigned short value, xor;
@@ -781,14 +781,15 @@ static enum Tfa98xx_Error tfa9873_specific(struct tfa_device *tfa)
 		break;
 	case 0x0b73:
 		/* ----- generated code start ----- */
-		/* -----  version 12 ----- */
+		/* -----  version 13 ----- */
 		reg_write(tfa, 0x02, 0x0628); //POR=0x0008
 		reg_write(tfa, 0x61, 0x0183); //POR=0x0182
-        reg_write(tfa, 0x63, 0x005a); //POR=0x055a
-		reg_write(tfa, 0x6f, 0x00a3); //POR=0x00a5
+		reg_write(tfa, 0x63, 0x005a); //POR=0x055a
+		reg_write(tfa, 0x6f, 0x0083); //POR=0x00a5
 		reg_write(tfa, 0x70, 0xa3fb); //POR=0x23fb
 		reg_write(tfa, 0x73, 0x0187); //POR=0x0107
 		reg_write(tfa, 0x83, 0x009a); //POR=0x0799
+		reg_write(tfa, 0x85, 0x0380); //POR=0x0382
 		reg_write(tfa, 0xd5, 0x004d); //POR=0x014d
 		/* ----- generated code end   ----- */
 		break;
@@ -798,7 +799,8 @@ static enum Tfa98xx_Error tfa9873_specific(struct tfa_device *tfa)
 		pr_info("\nWarning: Optimal settings not found for device with revid = 0x%x \n", tfa->rev);
 		break;
 	}
-
+	error = tfa_set_bf_volatile(tfa, TFA9873_BF_FSSYNCEN, 0);
+	pr_info("info : disabled FS synchronisation! \n");
 	return error;
 }
 void tfa9873_ops(struct tfa_device_ops *ops)

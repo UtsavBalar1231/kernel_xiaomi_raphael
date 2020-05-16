@@ -14,7 +14,7 @@
 #define _TFA9873_TFAFIELDNAMES_B0_H
 
 
-#define TFA9873B0_I2CVERSION    12
+#define TFA9873B0_I2CVERSION    13
 
 typedef enum Tfa9873B0BfEnumList {
     TFA9873B0_BF_PWDN  = 0x0000,    /*!< Powerdown selection                                */
