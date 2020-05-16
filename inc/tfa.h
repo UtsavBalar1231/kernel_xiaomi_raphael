@@ -1,11 +1,13 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
  */
+
 
 #ifndef TFA_H_
 #define TFA_H_
@@ -43,5 +45,6 @@ int tfa_plop_noise_interrupt(struct tfa_device *tfa, int profile, int vstep, u8 
 int tfa_plop_noise_interrupt(struct tfa_device *tfa, int profile, int vstep);
 #endif
 void tfa_lp_mode_interrupt(struct tfa_device *tfa);
+void tfa_adapt_noisemode(struct tfa_device *tfa);
 
 #endif /* TFA_H_ */

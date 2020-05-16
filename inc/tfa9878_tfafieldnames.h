@@ -1,10 +1,17 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
+ */
+
+
+/** Filename: tfa9878_tfaFieldnames.h
+ *  This file was generated automatically on 06/28/19 at 10:22:32. 
+ *  Source file: TFA9878_PRB3_N1A1_DefaultI2CSettings.xlsx
  */
 
 #ifndef _TFA9878_TFAFIELDNAMES_H
@@ -13,7 +20,7 @@
 
 #define TFA9878_I2CVERSION    12
 
-typedef enum nxpTfa9878BfEnumList {
+typedef enum Tfa9878BfEnumList {
     TFA9878_BF_PWDN  = 0x0000,    /*!< Powerdown selection                                */
     TFA9878_BF_I2CR  = 0x0010,    /*!< I2C Reset - Auto clear                             */
     TFA9878_BF_AMPE  = 0x0030,    /*!< Activate Amplifier                                 */
@@ -233,7 +240,7 @@ typedef enum nxpTfa9878BfEnumList {
     TFA9878_BF_USERDEF= 0xf042,    /*!< Calibration delta current limit DCDC               */
     TFA9878_BF_CUSTINFO= 0xf078,    /*!< Reserved space for allowing customer to store speaker information */
     TFA9878_BF_R25C  = 0xf50f,    /*!< Ron resistance of  speaker coil                    */
-} nxpTfa9878BfEnumList_t;
+} Tfa9878BfEnumList_t;
 #define TFA9878_NAMETABLE static tfaBfName_t Tfa9878DatasheetNames[]= {\
    { 0x0, "PWDN"},    /* Powerdown selection                               , */\
    { 0x10, "I2CR"},    /* I2C Reset - Auto clear                            , */\

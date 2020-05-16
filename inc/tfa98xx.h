@@ -1,5 +1,6 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,6 +34,7 @@
 #define TFA98XX_FLAG_REMOVE_PLOP_NOISE	(1 << 6)
 #define TFA98XX_FLAG_LP_MODES	        (1 << 7)
 #define TFA98XX_FLAG_TDM_DEVICE         (1 << 8)
+#define TFA98XX_FLAG_ADAPT_NOISE_MODE   (1 << 9)
 
 #define TFA98XX_NUM_RATES		9
 
@@ -118,12 +120,17 @@ struct tfa98xx {
 	struct regmap *regmap;
 	struct i2c_client *i2c;
 	struct regulator *vdd;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,0)
+	struct snd_soc_component *codec;
+#else
 	struct snd_soc_codec *codec;
+#endif
 	struct workqueue_struct *tfa98xx_wq;
 	struct delayed_work init_work;
 	struct delayed_work monitor_work;
 	struct delayed_work interrupt_work;
 	struct delayed_work tapdet_work;
+	struct delayed_work nmodeupdate_work;
 	struct mutex dsp_lock;
 	int dsp_init;
 	int dsp_fw_state;

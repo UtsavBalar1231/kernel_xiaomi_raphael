@@ -1,5 +1,6 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -7,9 +8,14 @@
  *
  */
 
+
+
 #ifndef TFA_SERVICE_H
 #define TFA_SERVICE_H
 
+//#include "config.h"
+// workaround for Visual Studio: 
+// fatal error C1083: Cannot open include file: 'config.h': No such file or directory
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else
@@ -17,7 +23,7 @@
 #endif
 #ifdef __cplusplus
 extern "C" {
-#include "NXP_I2C.h"
+#include "TFA_I2C.h"
 #endif
 
 /* Linux kernel module defines TFA98XX_GIT_VERSIONS in the linux_driver/Makefile */
@@ -25,9 +31,9 @@ extern "C" {
 #include "versions.h"
 #endif
 #ifdef TFA98XX_GIT_VERSIONS
-  #define TFA98XX_API_REV_STR "v6.6.3"/*TFA98XX_GIT_VERSIONS*/
+  #define TFA98XX_API_REV_STR "v6.7.1"/*TFA98XX_GIT_VERSIONS*/
 #else
-  #define TFA98XX_API_REV_STR "v6.6.3"
+  #define TFA98XX_API_REV_STR "v6.7.1"
 #endif
 
 #include "tfa_device.h"
@@ -256,13 +262,13 @@ struct Tfa98xx_StateInfo {
 	struct Tfa98xx_DrcStateInfo drcState; /* DRC state, when enabled */
 };
 
-typedef struct nxpTfaMsg {
+typedef struct TfaMsg {
 	uint8_t msg_size;
 	unsigned char cmdId[3];
 	int data[9];
-} nxpTfaMsg_t;
+} TfaMsg_t;
 
-typedef struct nxp_vstep_msg {
+typedef struct tfa_vstep_msg {
 	int			fw_version;
 	uint8_t		no_of_vsteps;
 	uint16_t	reg_no;
@@ -274,15 +280,15 @@ typedef struct nxp_vstep_msg {
 	uint8_t		*msg_filter_coef;
 	uint32_t	mbdrc_length;
     uint8_t		*msg_mbdrc;
-} nxp_vstep_msg_t;
+} tfa_vstep_msg_t;
 
-typedef struct nxpTfaGroup {
+typedef struct TfaGroup {
 	uint8_t msg_size;
 	uint8_t profileId[64];
-} nxpTfaGroup_t;
+} TfaGroup_t;
 
 
-struct nxpTfa98xx_Memtrack_data {
+struct Tfa98xx_Memtrack_data {
 	int length;
 	float mValues[MEMTRACK_MAX_WORDS];
 	int mAdresses[MEMTRACK_MAX_WORDS];

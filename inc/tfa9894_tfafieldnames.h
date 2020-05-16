@@ -1,10 +1,17 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
+ */
+
+
+/** Filename: tfa9894_tfaFieldnames_N1Last.h
+ *  This file was generated automatically on 09/28/18 at 11:24:56. 
+ *  Source file: TFA9894_N1A1_I2C_RegisterMap.xlsx
  */
 
 #ifndef _TFA9894_TFAFIELDNAMES_H
@@ -13,7 +20,7 @@
 
 #define TFA9894_I2CVERSION    17.0
 
-typedef enum nxpTfa9894BfEnumList {
+typedef enum Tfa9894BfEnumList {
     TFA9894_BF_PWDN  = 0x0000,    /*!< Powerdown control                                  */
     TFA9894_BF_I2CR  = 0x0010,    /*!< I2C Reset - Auto clear                             */
     TFA9894_BF_CFE   = 0x0020,    /*!< Enable CoolFlux DSP                                */
@@ -273,7 +280,7 @@ typedef enum nxpTfa9894BfEnumList {
     TFA9894_BF_USERDEF= 0xf042,    /*!< Calibration delta current limit DCDC               */
     TFA9894_BF_CUSTINFO= 0xf078,    /*!< Reserved space for allowing customer to store speaker information */
     TFA9894_BF_R25C  = 0xf50f,    /*!< Ron resistance of speaker coil                     */
-} nxpTfa9894BfEnumList_t;
+} Tfa9894BfEnumList_t;
 #define TFA9894_NAMETABLE static tfaBfName_t Tfa9894DatasheetNames[]= {\
    { 0x0, "PWDN"},    /* Powerdown control                                 , */\
    { 0x10, "I2CR"},    /* I2C Reset - Auto clear                            , */\

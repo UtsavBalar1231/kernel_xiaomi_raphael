@@ -1,13 +1,20 @@
-/*
- * Copyright (C) 2014 NXP Semiconductors, All Rights Reserved.
+/* 
+ * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
+ * Copyright 2020 GOODIX 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
  */
+
+
+/** Filename: Tfa98xx_TfaFieldnames.h
+ *  This file was generated automatically on 09/01/15 at 09:40:28. 
+ *  Source file: TFA9888_N1C_I2C_regmap_V1.xlsx
+ */
 #define TFA9888_I2CVERSION 18
-typedef enum nxpTfa2BfEnumList {
+typedef enum Tfa2BfEnumList {
     TFA2_BF_PWDN  = 0x0000,    /*!< Powerdown selection                                */
     TFA2_BF_I2CR  = 0x0010,    /*!< I2C Reset - Auto clear                             */
     TFA2_BF_CFE   = 0x0020,    /*!< Enable CoolFlux                                    */
@@ -399,7 +406,7 @@ typedef enum nxpTfa2BfEnumList {
     TFA2_BF_USERDEF= 0xf042,    /*!< Calibration delta current limit DCDC               */
     TFA2_BF_R25CL = 0xf40f,    /*!< Ron resistance of left channel speaker coil        */
     TFA2_BF_R25CR = 0xf50f,    /*!< Ron resistance of right channel speaker coil       */
-} nxpTfa2BfEnumList_t;
+} Tfa2BfEnumList_t;
 #define TFA2_NAMETABLE static tfaBfName_t Tfa2DatasheetNames[]= {\
    { 0x0, "PWDN"},    /* Powerdown selection                               , */\
    { 0x10, "I2CR"},    /* I2C Reset - Auto clear                            , */\
