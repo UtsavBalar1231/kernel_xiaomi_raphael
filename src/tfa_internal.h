@@ -1,6 +1,6 @@
-/* 
+/*
  * Copyright (C) 2014-2020 NXP Semiconductors, All Rights Reserved.
- * Copyright 2020 GOODIX 
+ * Copyright 2020 GOODIX
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,7 +19,7 @@
 #include "tfa_ext.h"
 
 #if __GNUC__ >= 4
-  #define TFA_INTERNAL __attribute__ ((visibility ("hidden")))
+  #define TFA_INTERNAL __attribute__ ((visibility("hidden")))
 #else
   #define TFA_INTERNAL
 #endif
