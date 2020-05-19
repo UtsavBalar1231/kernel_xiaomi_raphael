@@ -177,7 +177,7 @@ static enum hrtimer_restart pwm_hrtimer_handler(struct hrtimer *timer)
 		break;
 	default:
 		mctrl->pwm_setting.duty_ns = 0;
-		pr_info("default state.");
+		pr_debug("default state.");
 	}
 	schedule_work(&mctrl->pwm_apply_work);
 
@@ -474,84 +474,84 @@ int drv8846_parse_dt(struct drv8846_soc_ctrl *mctrl)
 	mctrl->gpio_mode0 = of_get_named_gpio_flags(of_node,
 			"motor,gpio-mode0", 0, NULL);
 	if (!gpio_is_valid(mctrl->gpio_mode0)) {
-		pr_info("mctrl->motor_data.gpio_mode0 is invalid.");
+		pr_debug("mctrl->motor_data.gpio_mode0 is invalid.");
 		return -EINVAL;
 	}
 
 	mctrl->gpio_mode1 = of_get_named_gpio_flags(of_node,
 			"motor,gpio-mode1", 0, NULL);
 	if (!gpio_is_valid(mctrl->gpio_mode1)) {
-		pr_info("motor,mode1-gpio is invalid.");
+		pr_debug("motor,mode1-gpio is invalid.");
 		return -EINVAL;
 	}
 
 	mctrl->gpio_sleep = of_get_named_gpio_flags(of_node,
 			"motor,gpio-sleep", 0, NULL);
 	if (!gpio_is_valid(mctrl->gpio_sleep)) {
-		pr_info("motor,sleep-gpio is invalid.");
+		pr_debug("motor,sleep-gpio is invalid.");
 		return -EINVAL;
 	}
 
 	mctrl->gpio_dir = of_get_named_gpio_flags(of_node,
 			"motor,gpio-dir", 0, NULL);
 	if (!gpio_is_valid(mctrl->gpio_dir)) {
-		pr_info("motor,dir-gpio is invalid.");
+		pr_debug("motor,dir-gpio is invalid.");
 		return -EINVAL;
 	}
 
 	mctrl->gpio_pwren = of_get_named_gpio_flags(of_node,
 			"motor,gpio-pwren", 0, NULL);
 	if (!gpio_is_valid(mctrl->gpio_pwren)) {
-		pr_info("power,en-gpio is invalid.");
+		pr_debug("power,en-gpio is invalid.");
 		return -EINVAL;
 	}
 
 	rc = of_property_read_u32(of_node, "motor,rampup-pwm-period-ns",
 			&mctrl->rampup_period_ns);
 	if (rc < 0) {
-		pr_info("motor,rampup-pwm-period-ns not set, use default.");
+		pr_debug("motor,rampup-pwm-period-ns not set, use default.");
 		mctrl->rampup_period_ns = RAMP_PERIOD_DEFAULT_NS;
 	}
 
 	rc = of_property_read_u32(of_node, "motor,high-pwm-period-ns",
 			&mctrl->high_period_ns);
 	if (rc < 0) {
-		pr_info("motor,high-pwm-period-ns not set, use default.");
+		pr_debug("motor,high-pwm-period-ns not set, use default.");
 		mctrl->high_period_ns = HIGH_PERIOD_DEFAULT_NS;
 	}
 
 	rc = of_property_read_u32(of_node, "motor,rampdown-pwm-period-ns",
 			&mctrl->rampdown_period_ns);
 	if (rc < 0) {
-		pr_info("motor,rampdown-pwm-period-ns not set, use default.");
+		pr_debug("motor,rampdown-pwm-period-ns not set, use default.");
 		mctrl->rampdown_period_ns = RAMP_PERIOD_DEFAULT_NS;
 	}
 
 	rc = of_property_read_u32(of_node, "motor,rampup-duration-ms",
 			&mctrl->rampup_duration_ms);
 	if (rc < 0) {
-		pr_info("motor,rampup-duration-ms not set, use default.");
+		pr_debug("motor,rampup-duration-ms not set, use default.");
 		mctrl->rampup_duration_ms = RAMP_DURATION_DEFAULT_MS;
 	}
 
 	rc = of_property_read_u32(of_node, "motor,high-duration-ms",
 			&mctrl->high_duration_ms);
 	if (rc < 0) {
-		pr_info("motor,high-duration-ms not set, use default.");
+		pr_debug("motor,high-duration-ms not set, use default.");
 		mctrl->high_duration_ms = HIGH_DURATION_DEFAULT_MS;
 	}
 
 	rc = of_property_read_u32(of_node, "motor,rampdown-duration-ms",
 			&mctrl->rampdown_duration_ms);
 	if (rc < 0) {
-		pr_info("motor,rampdown-duration-ms not set, use default.");
+		pr_debug("motor,rampdown-duration-ms not set, use default.");
 		mctrl->rampdown_duration_ms = RAMP_DURATION_DEFAULT_MS;
 	}
 
 	rc = of_property_read_u32(of_node, "motor,step-mode",
 			&mctrl->step_mode);
 	if (rc < 0) {
-		pr_info("motor,step-mode not set, use default.");
+		pr_debug("motor,step-mode not set, use default.");
 		mctrl->step_mode = DEFAULT_STEP_MODE;
 	}
 
