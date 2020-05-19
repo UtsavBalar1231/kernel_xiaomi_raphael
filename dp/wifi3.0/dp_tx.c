@@ -1534,9 +1534,11 @@ static qdf_nbuf_t dp_tx_send_msdu_single(struct dp_vdev *vdev, qdf_nbuf_t nbuf,
 	nbuf = NULL;
 
 fail_return:
-	if (hif_pm_runtime_get(soc->hif_handle) == 0) {
+	if (hif_pm_runtime_get(soc->hif_handle,
+			       RTPM_ID_DW_TX_HW_ENQUEUE) == 0) {
 		hal_srng_access_end(soc->hal_soc, hal_srng);
-		hif_pm_runtime_put(soc->hif_handle);
+		hif_pm_runtime_put(soc->hif_handle,
+				   RTPM_ID_DW_TX_HW_ENQUEUE);
 	} else {
 		hal_srng_access_end_reap(soc->hal_soc, hal_srng);
 		hal_srng_set_event(hal_srng, HAL_SRNG_FLUSH_EVENT);
@@ -1707,9 +1709,11 @@ qdf_nbuf_t dp_tx_send_msdu_multiple(struct dp_vdev *vdev, qdf_nbuf_t nbuf,
 	nbuf = NULL;
 
 done:
-	if (hif_pm_runtime_get(soc->hif_handle) == 0) {
+	if (hif_pm_runtime_get(soc->hif_handle,
+			       RTPM_ID_DW_TX_HW_ENQUEUE) == 0) {
 		hal_srng_access_end(soc->hal_soc, hal_srng);
-		hif_pm_runtime_put(soc->hif_handle);
+		hif_pm_runtime_put(soc->hif_handle,
+				   RTPM_ID_DW_TX_HW_ENQUEUE);
 	} else {
 		hal_srng_access_end_reap(soc->hal_soc, hal_srng);
 		hal_srng_set_event(hal_srng, HAL_SRNG_FLUSH_EVENT);
@@ -2731,6 +2735,23 @@ static void dp_tx_compute_delay(struct dp_vdev *vdev,
 	vdev->prev_tx_enq_tstamp = timestamp_ingress;
 }
 
+#ifdef DISABLE_DP_STATS
+static
+inline void dp_update_no_ack_stats(qdf_nbuf_t nbuf, struct dp_peer *peer)
+{
+}
+#else
+static
+inline void dp_update_no_ack_stats(qdf_nbuf_t nbuf, struct dp_peer *peer)
+{
+	enum qdf_proto_subtype subtype = QDF_PROTO_INVALID;
+
+	DPTRACE(qdf_dp_track_noack_check(nbuf, &subtype));
+	if (subtype != QDF_PROTO_INVALID)
+		DP_STATS_INC(peer, tx.no_ack_count[subtype], 1);
+}
+#endif
+
 /**
  * dp_tx_update_peer_stats() - Update peer stats from Tx completion indications
  *				per wbm ring
@@ -2799,6 +2820,7 @@ dp_tx_update_peer_stats(struct dp_tx_desc_s *tx_desc,
 
 	if (ts->status != HAL_TX_TQM_RR_FRAME_ACKED) {
 		tid_stats->comp_fail_cnt++;
+		dp_update_no_ack_stats(tx_desc->nbuf, peer);
 		return;
 	}
 

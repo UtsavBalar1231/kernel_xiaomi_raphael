@@ -1949,6 +1949,7 @@ struct roam_fils_params {
  * @mode: stores flags for scan
  * @vdev_id: vdev id
  * @roam_offload_enabled: flag for offload enable
+ * @disable_self_roam: disable roaming to self BSSID
  * @psk_pmk: pre shared key/pairwise master key
  * @pmk_len: length of PMK
  * @prefer_5ghz: prefer select 5G candidate
@@ -1991,6 +1992,7 @@ struct roam_offload_scan_params {
 	uint32_t vdev_id;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	uint8_t roam_offload_enabled;
+	bool disable_self_roam;
 	uint8_t psk_pmk[WMI_ROAM_SCAN_PSK_SIZE];
 	uint32_t pmk_len;
 	uint8_t prefer_5ghz;
@@ -4806,6 +4808,7 @@ typedef enum {
 	wmi_ndp_responder_rsp_event_id,
 	wmi_ndp_end_indication_event_id,
 	wmi_ndp_end_rsp_event_id,
+	wmi_nan_dmesg_event_id,
 	wmi_ndl_schedule_update_event_id,
 	wmi_ndp_event_id,
 	wmi_oem_response_event_id,

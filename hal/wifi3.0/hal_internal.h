@@ -191,7 +191,8 @@ struct hal_soc;
  * struct hal_reg_write_q_elem - delayed register write queue element
  * @srng: hal_srng queued for a delayed write
  * @addr: iomem address of the register
- * @val: register value at the time of delayed write enqueue
+ * @enqueue_val: register value at the time of delayed write enqueue
+ * @dequeue_val: register value at the time of delayed write dequeue
  * @valid: whether this entry is valid or not
  * @enqueue_time: enqueue time (qdf_log_timestamp)
  * @dequeue_time: dequeue time (qdf_log_timestamp)
@@ -199,7 +200,8 @@ struct hal_soc;
 struct hal_reg_write_q_elem {
 	struct hal_srng *srng;
 	void __iomem *addr;
-	uint32_t val;
+	uint32_t enqueue_val;
+	uint32_t dequeue_val;
 	uint8_t valid;
 	qdf_time_t enqueue_time;
 	qdf_time_t dequeue_time;
@@ -407,6 +409,7 @@ struct hal_hw_txrx_ops {
 	void *scatter_bufs_base_vaddr[], uint32_t num_scatter_bufs,
 	uint32_t scatter_buf_size, uint32_t last_buf_end_offset,
 	uint32_t num_entries);
+	void (*hal_reo_set_err_dst_remap)(void *hal_soc);
 
 	/* tx */
 	void (*hal_tx_desc_set_dscp_tid_table_id)(void *desc, uint8_t id);

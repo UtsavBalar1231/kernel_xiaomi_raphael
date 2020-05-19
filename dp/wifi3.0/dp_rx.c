@@ -1568,25 +1568,6 @@ static inline bool dp_rx_enable_eol_data_check(struct dp_soc *soc)
 
 #endif /* WLAN_FEATURE_RX_SOFTIRQ_TIME_LIMIT */
 
-/**
- * dp_is_special_data() - check is the pkt special like eapol, dhcp, etc
- *
- * @nbuf: pkt skb pointer
- *
- * Return: true if matched, false if not
- */
-static inline
-bool dp_is_special_data(qdf_nbuf_t nbuf)
-{
-	if (qdf_nbuf_is_ipv4_arp_pkt(nbuf) ||
-	    qdf_nbuf_is_ipv4_dhcp_pkt(nbuf) ||
-	    qdf_nbuf_is_ipv4_eapol_pkt(nbuf) ||
-	    qdf_nbuf_is_ipv6_dhcp_pkt(nbuf))
-		return true;
-	else
-		return false;
-}
-
 #ifdef DP_RX_PKT_NO_PEER_DELIVER
 /**
  * dp_rx_deliver_to_stack_no_peer() - try deliver rx data even if
@@ -1611,6 +1592,8 @@ void dp_rx_deliver_to_stack_no_peer(struct dp_soc *soc, qdf_nbuf_t nbuf)
 	uint16_t msdu_len = 0;
 	uint32_t pkt_len = 0;
 	uint8_t *rx_tlv_hdr;
+	uint32_t frame_mask = FRAME_MASK_IPV4_ARP | FRAME_MASK_IPV4_DHCP |
+				FRAME_MASK_IPV4_EAPOL | FRAME_MASK_IPV6_DHCP;
 
 	peer_mdata =  QDF_NBUF_CB_RX_PEER_ID(nbuf);
 
@@ -1623,29 +1606,27 @@ void dp_rx_deliver_to_stack_no_peer(struct dp_soc *soc, qdf_nbuf_t nbuf)
 	if (!vdev || vdev->delete.pending || !vdev->osif_rx)
 		goto deliver_fail;
 
+	if (qdf_unlikely(qdf_nbuf_is_frag(nbuf)))
+		goto deliver_fail;
+
 	rx_tlv_hdr = qdf_nbuf_data(nbuf);
 	l2_hdr_offset =
 		hal_rx_msdu_end_l3_hdr_padding_get(rx_tlv_hdr);
 
 	msdu_len = QDF_NBUF_CB_RX_PKT_LEN(nbuf);
 	pkt_len = msdu_len + l2_hdr_offset + RX_PKT_TLVS_LEN;
+	QDF_NBUF_CB_RX_NUM_ELEMENTS_IN_LIST(nbuf) = 1;
 
-	if (qdf_unlikely(qdf_nbuf_is_frag(nbuf))) {
-		qdf_nbuf_pull_head(nbuf, RX_PKT_TLVS_LEN);
-	} else {
-		qdf_nbuf_set_pktlen(nbuf, pkt_len);
-		qdf_nbuf_pull_head(nbuf,
-				   RX_PKT_TLVS_LEN +
-				   l2_hdr_offset);
+	qdf_nbuf_set_pktlen(nbuf, pkt_len);
+	qdf_nbuf_pull_head(nbuf,
+			   RX_PKT_TLVS_LEN +
+			   l2_hdr_offset);
+
+	if (dp_rx_is_special_frame(nbuf, frame_mask)) {
+		vdev->osif_rx(vdev->osif_vdev, nbuf);
+		DP_STATS_INC(soc, rx.err.pkt_delivered_no_peer, 1);
+		return;
 	}
-
-	/* only allow special frames */
-	if (!dp_is_special_data(nbuf))
-		goto deliver_fail;
-
-	vdev->osif_rx(vdev->osif_vdev, nbuf);
-	DP_STATS_INC(soc, rx.err.pkt_delivered_no_peer, 1);
-	return;
 
 deliver_fail:
 	DP_STATS_INC_PKT(soc, rx.err.rx_invalid_peer, 1,
@@ -1849,26 +1830,11 @@ more_data:
 
 		dp_rx_desc_nbuf_sanity_check(ring_desc, rx_desc);
 
-		/* TODO */
-		/*
-		 * Need a separate API for unmapping based on
-		 * phyiscal address
-		 */
-		qdf_nbuf_unmap_single(soc->osdev, rx_desc->nbuf,
-					QDF_DMA_FROM_DEVICE);
-		rx_desc->unmapped = 1;
-
-		core_id = smp_processor_id();
-		DP_STATS_INC(soc, rx.ring_packets[core_id][ring_id], 1);
-
 		/* Get MPDU DESC info */
 		hal_rx_mpdu_desc_info_get(ring_desc, &mpdu_desc_info);
 
 		/* Get MSDU DESC info */
 		hal_rx_msdu_desc_info_get(ring_desc, &msdu_desc_info);
-
-		if (mpdu_desc_info.mpdu_flags & HAL_MPDU_F_RETRY_BIT)
-			qdf_nbuf_set_rx_retry_flag(rx_desc->nbuf, 1);
 
 		if (qdf_unlikely(msdu_desc_info.msdu_flags &
 				 HAL_MSDU_F_MSDU_CONTINUATION)) {
@@ -1898,6 +1864,20 @@ more_data:
 			}
 
 		}
+
+		/*
+		 * move unmap after scattered msdu waiting break logic
+		 * in case double skb unmap happened.
+		 */
+		qdf_nbuf_unmap_single(soc->osdev, rx_desc->nbuf,
+				      QDF_DMA_FROM_DEVICE);
+		rx_desc->unmapped = 1;
+
+		core_id = smp_processor_id();
+		DP_STATS_INC(soc, rx.ring_packets[core_id][ring_id], 1);
+
+		if (mpdu_desc_info.mpdu_flags & HAL_MPDU_F_RETRY_BIT)
+			qdf_nbuf_set_rx_retry_flag(rx_desc->nbuf, 1);
 
 		if (qdf_unlikely(mpdu_desc_info.mpdu_flags &
 				 HAL_MPDU_F_RAW_AMPDU))
@@ -1963,7 +1943,12 @@ more_data:
 						rx_desc);
 
 		num_rx_bufs_reaped++;
-		if (dp_rx_reap_loop_pkt_limit_hit(soc, num_rx_bufs_reaped))
+		/*
+		 * only if complete msdu is received for scatter case,
+		 * then allow break.
+		 */
+		if (is_prev_msdu_last &&
+		    dp_rx_reap_loop_pkt_limit_hit(soc, num_rx_bufs_reaped))
 			break;
 	}
 done:
@@ -2592,3 +2577,38 @@ dp_rx_nbuf_prepare(struct dp_soc *soc, struct dp_pdev *pdev)
 
 	return nbuf;
 }
+
+#ifdef DP_RX_SPECIAL_FRAME_NEED
+bool dp_rx_deliver_special_frame(struct dp_soc *soc, struct dp_peer *peer,
+				 qdf_nbuf_t nbuf, uint32_t frame_mask)
+{
+	uint32_t l2_hdr_offset = 0;
+	uint16_t msdu_len = 0;
+	uint32_t pkt_len = 0;
+	uint8_t *rx_tlv_hdr;
+
+	if (qdf_unlikely(qdf_nbuf_is_frag(nbuf)))
+		return false;
+
+	rx_tlv_hdr = qdf_nbuf_data(nbuf);
+	l2_hdr_offset =
+		hal_rx_msdu_end_l3_hdr_padding_get(rx_tlv_hdr);
+
+	msdu_len = QDF_NBUF_CB_RX_PKT_LEN(nbuf);
+	pkt_len = msdu_len + l2_hdr_offset + RX_PKT_TLVS_LEN;
+	QDF_NBUF_CB_RX_NUM_ELEMENTS_IN_LIST(nbuf) = 1;
+
+	qdf_nbuf_set_pktlen(nbuf, pkt_len);
+	qdf_nbuf_pull_head(nbuf,
+			   RX_PKT_TLVS_LEN +
+			   l2_hdr_offset);
+
+	if (dp_rx_is_special_frame(nbuf, frame_mask)) {
+		dp_rx_deliver_to_stack(soc, peer->vdev, peer,
+				       nbuf, NULL);
+		return true;
+	}
+
+	return false;
+}
+#endif

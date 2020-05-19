@@ -3113,16 +3113,14 @@ QDF_STATUS dp_clear_peer(struct cdp_pdev *pdev_handle, uint8_t local_id)
 {
 	struct dp_peer *peer;
 	struct dp_pdev *pdev = (struct dp_pdev *)pdev_handle;
+	struct dp_soc *soc;
 
 	peer = dp_peer_find_by_local_id((struct cdp_pdev *)pdev, local_id);
-	if (!peer)
+	if (!peer || !peer->valid)
 		return QDF_STATUS_E_FAULT;
 
-	qdf_spin_lock_bh(&peer->peer_info_lock);
-	peer->state = OL_TXRX_PEER_STATE_DISC;
-	qdf_spin_unlock_bh(&peer->peer_info_lock);
-
-	dp_rx_flush_rx_cached(peer, true);
+	soc = pdev->soc;
+	dp_clear_peer_internal(soc, peer);
 
 	return QDF_STATUS_SUCCESS;
 }

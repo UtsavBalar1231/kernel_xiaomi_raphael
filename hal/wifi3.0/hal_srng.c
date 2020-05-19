@@ -342,28 +342,38 @@ static inline bool hal_is_reg_write_tput_level_high(struct hal_soc *hal)
  * @hal: hal_soc pointer
  * @q_elem: pointer to hal regiter write queue element
  *
- * Return: None
+ * Return: The value which was written to the address
  */
-static void hal_process_reg_write_q_elem(struct hal_soc *hal,
-					 struct hal_reg_write_q_elem *q_elem)
+static uint32_t
+hal_process_reg_write_q_elem(struct hal_soc *hal,
+			     struct hal_reg_write_q_elem *q_elem)
 {
 	struct hal_srng *srng = q_elem->srng;
+	uint32_t write_val;
 
 	SRNG_LOCK(&srng->lock);
 
 	srng->reg_write_in_progress = false;
 	srng->wstats.dequeues++;
 
-	if (srng->ring_dir == HAL_SRNG_SRC_RING)
+	if (srng->ring_dir == HAL_SRNG_SRC_RING) {
+		q_elem->dequeue_val = srng->u.src_ring.hp;
 		hal_write_address_32_mb(hal,
 					srng->u.src_ring.hp_addr,
-					srng->u.src_ring.hp);
-	else
+					srng->u.src_ring.hp, false);
+		write_val = srng->u.src_ring.hp;
+	} else {
+		q_elem->dequeue_val = srng->u.dst_ring.tp;
 		hal_write_address_32_mb(hal,
 					srng->u.dst_ring.tp_addr,
-					srng->u.dst_ring.tp);
+					srng->u.dst_ring.tp, false);
+		write_val = srng->u.dst_ring.tp;
+	}
 
+	q_elem->valid = 0;
 	SRNG_UNLOCK(&srng->lock);
+
+	return write_val;
 }
 
 /**
@@ -398,10 +408,12 @@ static inline void hal_reg_write_fill_sched_delay_hist(struct hal_soc *hal,
  */
 static void hal_reg_write_work(void *arg)
 {
-	int32_t q_depth;
+	int32_t q_depth, write_val;
 	struct hal_soc *hal = arg;
 	struct hal_reg_write_q_elem *q_elem;
-	qdf_time_t delta_us;
+	uint64_t delta_us;
+	uint8_t ring_id;
+	uint32_t *addr;
 
 	q_elem = &hal->reg_write_queue[(hal->read_idx)];
 
@@ -419,22 +431,19 @@ static void hal_reg_write_work(void *arg)
 
 	while (q_elem->valid) {
 		q_elem->dequeue_time = qdf_get_log_timestamp();
+		ring_id = q_elem->srng->ring_id;
+		addr = q_elem->addr;
 		delta_us = qdf_log_timestamp_to_usecs(q_elem->dequeue_time -
 						      q_elem->enqueue_time);
 		hal_reg_write_fill_sched_delay_hist(hal, delta_us);
-		hal_verbose_debug("read_idx %u srng 0x%x, addr 0x%x val %u sched delay %u us",
-				  hal->read_idx,
-				  q_elem->srng->ring_id,
-				  q_elem->addr,
-				  q_elem->val,
-				  delta_us);
 
 		hal->stats.wstats.dequeues++;
 		qdf_atomic_dec(&hal->stats.wstats.q_depth);
 
-		hal_process_reg_write_q_elem(hal, q_elem);
+		write_val = hal_process_reg_write_q_elem(hal, q_elem);
+		hal_verbose_debug("read_idx %u srng 0x%x, addr 0x%pK dequeue_val %u sched delay %llu us",
+				  hal->read_idx, ring_id, addr, write_val, delta_us);
 
-		q_elem->valid = 0;
 		hal->read_idx = (hal->read_idx + 1) &
 					(HAL_REG_WRITE_QUEUE_LEN - 1);
 		q_elem = &hal->reg_write_queue[(hal->read_idx)];
@@ -502,9 +511,16 @@ static void hal_reg_write_enqueue(struct hal_soc *hal_soc,
 
 	q_elem->srng = srng;
 	q_elem->addr = addr;
-	q_elem->val = value;
+	q_elem->enqueue_val = value;
 	q_elem->enqueue_time = qdf_get_log_timestamp();
 
+	/*
+	 * Before the valid flag is set to true, all the other
+	 * fields in the q_elem needs to be updated in memory.
+	 * Else there is a chance that the dequeuing worker thread
+	 * might read stale entries and process incorrect srng.
+	 */
+	qdf_wmb();
 	q_elem->valid = true;
 
 	srng->reg_write_in_progress  = true;
@@ -525,7 +541,7 @@ void hal_delayed_reg_write(struct hal_soc *hal_soc,
 	    hal_is_reg_write_tput_level_high(hal_soc)) {
 		qdf_atomic_inc(&hal_soc->stats.wstats.direct);
 		srng->wstats.direct++;
-		hal_write_address_32_mb(hal_soc, addr, value);
+		hal_write_address_32_mb(hal_soc, addr, value, false);
 	} else {
 		hal_reg_write_enqueue(hal_soc, srng, addr, value);
 	}
@@ -898,7 +914,7 @@ void hal_srng_dst_init_hp(struct hal_srng *srng,
 		return;
 
 	srng->u.dst_ring.hp_addr = vaddr;
-	SRNG_DST_REG_WRITE(srng, HP, srng->u.dst_ring.cached_hp);
+	SRNG_DST_REG_WRITE_CONFIRM(srng, HP, srng->u.dst_ring.cached_hp);
 
 	if (vaddr) {
 		*srng->u.dst_ring.hp_addr = srng->u.dst_ring.cached_hp;

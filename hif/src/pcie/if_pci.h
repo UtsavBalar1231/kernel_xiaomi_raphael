@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -59,30 +59,6 @@ enum hif_pm_runtime_state {
 
 #ifdef FEATURE_RUNTIME_PM
 
-#define PM_STATUS_RUNTIME_CALLER_MAX   128
-
-#define HIF_PM_STATS_RUNTIME_GET_RECORD(sc)  \
-{\
-	typeof(sc) sc_ = (sc); \
-	int32_t index = \
-		qdf_atomic_read(&sc_->pm_stats.runtime_get_caller_index) % \
-		PM_STATUS_RUNTIME_CALLER_MAX; \
-	sc_->pm_stats.runtime_get_caller[index] = (void *)_RET_IP_; \
-	qdf_atomic_inc(&sc_->pm_stats.runtime_get_caller_index); \
-	qdf_atomic_inc(&sc_->pm_stats.runtime_get); \
-}
-
-#define HIF_PM_STATS_RUNTIME_PUT_RECORD(sc)  \
-{\
-	typeof(sc) sc_ = (sc); \
-	int32_t index = \
-		qdf_atomic_read(&sc_->pm_stats.runtime_put_caller_index) % \
-		PM_STATUS_RUNTIME_CALLER_MAX; \
-	sc_->pm_stats.runtime_put_caller[index] = (void *)_RET_IP_; \
-	qdf_atomic_inc(&sc_->pm_stats.runtime_put_caller_index); \
-	qdf_atomic_inc(&sc_->pm_stats.runtime_put); \
-}
-
 /**
  * struct hif_pm_runtime_lock - data structure for preventing runtime suspend
  * @list - global list of runtime locks
@@ -103,10 +79,10 @@ struct hif_pci_pm_stats {
 	u32 resumed;
 	atomic_t runtime_get;
 	atomic_t runtime_put;
-	atomic_t runtime_get_caller_index;
-	atomic_t runtime_put_caller_index;
-	void *runtime_get_caller[PM_STATUS_RUNTIME_CALLER_MAX];
-	void *runtime_put_caller[PM_STATUS_RUNTIME_CALLER_MAX];
+	atomic_t runtime_get_dbgid[RTPM_ID_MAX];
+	atomic_t runtime_put_dbgid[RTPM_ID_MAX];
+	uint64_t runtime_get_timestamp_dbgid[RTPM_ID_MAX];
+	uint64_t runtime_put_timestamp_dbgid[RTPM_ID_MAX];
 	u32 request_resume;
 	atomic_t allow_suspend;
 	atomic_t prevent_suspend;
@@ -242,9 +218,5 @@ static inline int hif_pm_runtime_put_auto(struct device *dev)
 	return pm_runtime_put_autosuspend(dev);
 }
 
-static inline int hif_pm_runtime_resume(struct device *dev)
-{
-	return pm_runtime_resume(dev);
-}
 #endif /* FEATURE_RUNTIME_PM */
 #endif /* __ATH_PCI_H__ */
