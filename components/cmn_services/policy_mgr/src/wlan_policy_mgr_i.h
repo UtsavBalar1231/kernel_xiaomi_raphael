@@ -317,6 +317,7 @@ struct policy_mgr_cfg {
  * @nan_sap_conc_work: Info related to nan sap conc work
  * @opportunistic_update_done_evt: qdf event to synchronize host
  *                               & FW HW mode
+ * @dynamic_mcc_adaptive_sched: disable/enable mcc adaptive scheduler feature
  */
 struct policy_mgr_psoc_priv_obj {
 	struct wlan_objmgr_psoc *psoc;
@@ -354,6 +355,7 @@ struct policy_mgr_psoc_priv_obj {
 	send_mode_change_event_cb mode_change_cb;
 	uint32_t user_config_sap_channel;
 	struct policy_mgr_cfg cfg;
+	bool dynamic_mcc_adaptive_sched;
 };
 
 /**

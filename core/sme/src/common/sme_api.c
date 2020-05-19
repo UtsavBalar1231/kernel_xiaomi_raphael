@@ -219,7 +219,7 @@ static QDF_STATUS sme_process_set_hw_mode_resp(struct mac_context *mac, uint8_t 
 		csr_sta_continue_csa(mac, session_id);
 	}
 
-	if (reason == POLICY_MGR_UPDATE_REASON_CHANNEL_SWITCH) {
+	if (reason == POLICY_MGR_UPDATE_REASON_CHANNEL_SWITCH_SAP) {
 		sme_info("Continue channel switch for SAP on vdev %d",
 			 session_id);
 		csr_csa_restart(mac, session_id);
@@ -10983,7 +10983,6 @@ QDF_STATUS sme_ll_stats_set_thresh(mac_handle_t mac_handle,
 
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 
-#ifdef WLAN_POWER_DEBUGFS
 /**
  * sme_power_debug_stats_req() - SME API to collect Power debug stats
  * @callback_fn: Pointer to the callback function for Power stats event
@@ -11022,7 +11021,6 @@ QDF_STATUS sme_power_debug_stats_req(
 	}
 	return status;
 }
-#endif
 
 #ifdef WLAN_FEATURE_BEACON_RECEPTION_STATS
 QDF_STATUS sme_beacon_debug_stats_req(

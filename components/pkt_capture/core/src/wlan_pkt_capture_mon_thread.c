@@ -24,13 +24,18 @@
 #include <linux/kthread.h>
 #include "cds_ieee80211_common.h"
 #include <sir_mac_prot_def.h>
+#include "cds_utils.h"
+#include "cdp_txrx_mon.h"
 
 void pkt_capture_mon(struct pkt_capture_cb_context *cb_ctx,
-		     qdf_nbuf_t msdu)
+		     qdf_nbuf_t msdu, struct wlan_objmgr_vdev *vdev,
+		     uint8_t chan_num)
 {
 	struct radiotap_header *rthdr;
 	uint8_t rtlen;
 	tSirMacFrameCtl *fc;
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	struct wlan_objmgr_pdev *pdev = wlan_vdev_get_pdev(vdev);
 
 	rthdr = (struct radiotap_header *)qdf_nbuf_data(msdu);
 	rtlen = rthdr->it_len;
@@ -41,6 +46,14 @@ void pkt_capture_mon(struct pkt_capture_cb_context *cb_ctx,
 		qdf_nbuf_free(msdu);
 		return;
 	}
+
+	if ((fc->type == SIR_MAC_MGMT_FRAME) &&
+	    (fc->subType == SIR_MAC_MGMT_AUTH)) {
+		cdp_pktcapture_record_channel(
+				soc,
+				wlan_objmgr_pdev_get_pdev_id(pdev), chan_num);
+	}
+
 	if (cb_ctx->mon_cb(cb_ctx->mon_ctx, msdu) != QDF_STATUS_SUCCESS) {
 		pkt_capture_err("Frame Rx to HDD failed");
 		qdf_nbuf_free(msdu);

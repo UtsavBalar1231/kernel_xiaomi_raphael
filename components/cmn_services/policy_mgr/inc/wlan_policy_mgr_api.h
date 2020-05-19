@@ -339,6 +339,34 @@ QDF_STATUS policy_mgr_set_ch_select_plcy(struct wlan_objmgr_psoc *psoc,
 					 uint32_t ch_select_policy);
 
 /**
+ * policy_mgr_get_dynamic_mcc_adaptive_sch() - to get dynamic mcc adaptive
+ *                                             scheduler
+ * @psoc: pointer to psoc
+ * @dynamic_mcc_adaptive_sched: value to be filled
+ *
+ * This API is used to get dynamic mcc adaptive scheduler
+ *
+ * Return: QDF_STATUS_SUCCESS up on success and any other status for failure.
+ */
+QDF_STATUS policy_mgr_get_dynamic_mcc_adaptive_sch(
+				struct wlan_objmgr_psoc *psoc,
+				bool *dynamic_mcc_adaptive_sched);
+
+/**
+ * policy_mgr_set_dynamic_mcc_adaptive_sch() - to set dynamic mcc adaptive
+ *                                             scheduler
+ * @psoc: pointer to psoc
+ * @dynamic_mcc_adaptive_sched: value to be set
+ *
+ * This API is used to set dynamic mcc adaptive scheduler
+ *
+ * Return: QDF_STATUS_SUCCESS up on success and any other status for failure.
+ */
+QDF_STATUS policy_mgr_set_dynamic_mcc_adaptive_sch(
+				struct wlan_objmgr_psoc *psoc,
+				bool dynamic_mcc_adaptive_sched);
+
+/**
  * policy_mgr_get_mcc_adaptive_sch() - to get mcc adaptive scheduler
  * @psoc: pointer to psoc
  * @enable_mcc_adaptive_sch: value to be filled
@@ -598,6 +626,16 @@ void policy_mgr_decr_session_set_pcl(struct wlan_objmgr_psoc *psoc,
 		enum QDF_OPMODE mode, uint8_t session_id);
 
 /**
+ * policy_mgr_skip_dfs_ch() - skip dfs channel or not
+ * @psoc: pointer to soc
+ * @skip_dfs_channel: pointer to result
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS policy_mgr_skip_dfs_ch(struct wlan_objmgr_psoc *psoc,
+				  bool *skip_dfs_channel);
+
+/**
  * policy_mgr_get_channel() - provide channel number of given mode and vdevid
  * @psoc: PSOC object information
  * @mode: given  mode
@@ -633,6 +671,18 @@ QDF_STATUS policy_mgr_get_pcl(struct wlan_objmgr_psoc *psoc,
 		enum policy_mgr_con_mode mode,
 		uint8_t *pcl_channels, uint32_t *len,
 		uint8_t *pcl_weight, uint32_t weight_len);
+
+/**
+ * policy_mgr_init_chan_avoidance() - init channel avoidance in policy manager.
+ * @psoc: PSOC object information
+ * @chan_list: channel list
+ * @chan_cnt: channel count
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS policy_mgr_init_chan_avoidance(struct wlan_objmgr_psoc *psoc,
+					  uint16_t *chan_list,
+					  uint16_t chan_cnt);
 
 /**
  * policy_mgr_update_with_safe_channel_list() - provides the safe
@@ -2888,6 +2938,17 @@ void policy_mgr_set_weight_of_dfs_passive_channels_to_zero(
  */
 bool policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(
 		struct wlan_objmgr_psoc *psoc);
+
+/**
+ * policy_mgr_is_special_mode_active_5g() - check if given mode active in 5g
+ * @psoc: pointer to soc
+ * @mode: operating mode of interface to be checked
+ *
+ * Return: true if given mode is active in 5g
+ */
+bool policy_mgr_is_special_mode_active_5g(struct wlan_objmgr_psoc *psoc,
+					  enum policy_mgr_con_mode mode);
+
 /**
  * policy_mgr_is_sta_connected_2g() - check if sta connected in 2g
  * @psoc: pointer to soc

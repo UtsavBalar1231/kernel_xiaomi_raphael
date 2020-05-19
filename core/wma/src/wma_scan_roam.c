@@ -326,6 +326,8 @@ static void wma_roam_scan_offload_set_params(
 				(roam_req->ConnectedNetwork.authentication,
 				 roam_req->ConnectedNetwork.encryption);
 
+	params->disable_self_roam =
+				!roam_req->enable_self_bss_roam;
 	params->roam_offload_enabled = roam_req->roam_offload_enabled;
 	params->roam_offload_params.ho_delay_for_rx =
 				roam_req->ho_delay_for_rx;
@@ -2770,6 +2772,29 @@ wma_roam_update_vdev(tp_wma_handle wma,
 	qdf_mem_free(add_sta_params);
 }
 
+/**
+ * wma_post_roam_sync_failure: Send roam sync failure ind to fw
+ * @wma: wma handle
+ * @vdev_id: session id
+ *
+ * Return: None
+ */
+static void wma_post_roam_sync_failure(tp_wma_handle wma, uint8_t vdev_id)
+{
+	struct roam_offload_scan_req *roam_req;
+
+	roam_req = qdf_mem_malloc(sizeof(struct roam_offload_scan_req));
+	if (roam_req) {
+		roam_req->Command = ROAM_SCAN_OFFLOAD_STOP;
+		roam_req->reason = REASON_ROAM_SYNCH_FAILED;
+		roam_req->sessionId = vdev_id;
+		wma_debug("In cleanup: RSO Command:%d, reason %d vdev %d",
+			  roam_req->Command, roam_req->reason,
+			  roam_req->sessionId);
+		wma_process_roaming_config(wma, roam_req);
+	}
+}
+
 int wma_mlme_roam_synch_event_handler_cb(void *handle, uint8_t *event,
 					 uint32_t len)
 {
@@ -2781,7 +2806,6 @@ int wma_mlme_roam_synch_event_handler_cb(void *handle, uint8_t *event,
 	uint8_t channel;
 	uint16_t ie_len = 0;
 	int status = -EINVAL;
-	struct roam_offload_scan_req *roam_req;
 	qdf_time_t roam_synch_received = qdf_get_system_timestamp();
 	uint32_t roam_synch_data_len;
 	A_UINT32 bcn_probe_rsp_len;
@@ -3001,16 +3025,8 @@ cleanup_label:
 			wma->csr_roam_synch_cb(wma->mac_context,
 					       roam_synch_ind_ptr, NULL,
 					       SIR_ROAMING_ABORT);
-		roam_req = qdf_mem_malloc(sizeof(struct roam_offload_scan_req));
-		if (roam_req && synch_event) {
-			roam_req->Command = ROAM_SCAN_OFFLOAD_STOP;
-			roam_req->reason = REASON_ROAM_SYNCH_FAILED;
-			roam_req->sessionId = synch_event->vdev_id;
-			wma_debug("In cleanup: RSO Command:%d, reason %d vdev %d",
-				  roam_req->Command, roam_req->reason,
-				  roam_req->sessionId);
-			wma_process_roaming_config(wma, roam_req);
-		}
+		if (synch_event)
+			wma_post_roam_sync_failure(wma, synch_event->vdev_id);
 	}
 	if (roam_synch_ind_ptr && roam_synch_ind_ptr->join_rsp)
 		qdf_mem_free(roam_synch_ind_ptr->join_rsp);
@@ -3181,6 +3197,7 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	struct wma_txrx_node *iface = NULL;
 	wmi_roam_synch_event_fixed_param *synch_event = NULL;
 	WMI_ROAM_SYNCH_EVENTID_param_tlvs *param_buf = NULL;
+	struct vdev_mlme_obj *mlme_obj;
 
 	if (!event) {
 		wma_err_rl("event param null");
@@ -3205,12 +3222,18 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	}
 
 	iface = &wma->interfaces[synch_event->vdev_id];
+	mlme_obj = wlan_vdev_mlme_get_cmpt_obj(iface->vdev);
+	if (mlme_obj)
+		mlme_obj->mgmt.generic.tx_pwrlimit =
+				synch_event->max_allowed_tx_power;
+
 	qdf_status = wlan_vdev_mlme_sm_deliver_evt(iface->vdev,
 						   WLAN_VDEV_SM_EV_ROAM,
 						   len,
 						   event);
 	if (QDF_IS_STATUS_ERROR(qdf_status)) {
 		wma_err("Failed to send the EV_ROAM");
+		wma_post_roam_sync_failure(wma, synch_event->vdev_id);
 		return status;
 	}
 	wma_debug("Posted EV_ROAM to VDEV SM");

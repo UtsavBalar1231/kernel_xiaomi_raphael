@@ -936,16 +936,16 @@ static void __hdd_hard_start_xmit(struct sk_buff *skb,
 
 	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state() ||
 	    cds_is_load_or_unload_in_progress()) {
-		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "Recovery/(Un)load in progress, dropping the packet");
+		QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_HDD_DATA,
+				   "Recovery/(Un)load in progress, dropping the packet");
 		goto drop_pkt;
 	}
 
 	wlan_hdd_classify_pkt(skb);
 	if (QDF_NBUF_CB_GET_PACKET_TYPE(skb) == QDF_NBUF_CB_PACKET_TYPE_ARP) {
-		is_arp = true;
 		if (qdf_nbuf_data_is_arp_req(skb) &&
 		    (adapter->track_arp_ip == qdf_nbuf_get_arp_tgt_ip(skb))) {
+			is_arp = true;
 			++adapter->hdd_stats.hdd_arp_stats.tx_arp_req_count;
 			QDF_TRACE(QDF_MODULE_ID_HDD_DATA,
 				  QDF_TRACE_LEVEL_INFO_HIGH,
@@ -2102,8 +2102,7 @@ QDF_STATUS hdd_rx_packet_cbk(void *adapter_context,
 		next = skb->next;
 		skb->next = NULL;
 
-		if (QDF_NBUF_CB_PACKET_TYPE_ARP ==
-		    QDF_NBUF_CB_GET_PACKET_TYPE(skb)) {
+		if (qdf_nbuf_is_ipv4_arp_pkt(skb)) {
 			if (qdf_nbuf_data_is_arp_rsp(skb) &&
 				(adapter->track_arp_ip ==
 			     qdf_nbuf_get_arp_src_ip(skb))) {
@@ -2726,6 +2725,17 @@ int hdd_set_mon_rx_cb(struct net_device *dev)
 	struct ol_txrx_ops txrx_ops;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 	void *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	struct cdp_peer *peer;
+	uint8_t peer_id;
+
+	peer = cdp_peer_find_by_addr(soc, pdev, adapter->mac_addr.bytes,
+				     &peer_id);
+	if (!peer) {
+		hdd_err("Peer %pM not found", adapter->mac_addr.bytes);
+		return -EINVAL;
+	}
+
+	sta_desc.sta_id = peer_id;
 
 	qdf_mem_zero(&txrx_ops, sizeof(txrx_ops));
 	txrx_ops.rx.rx = hdd_mon_rx_packet_cbk;

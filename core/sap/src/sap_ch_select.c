@@ -2398,11 +2398,8 @@ uint8_t sap_select_channel(mac_handle_t mac_handle,
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("No external AP present"));
 
-#ifndef SOFTAP_CHANNEL_RANGE
-		return SAP_CHANNEL_NOT_SELECTED;
-#else
-		return sap_select_default_oper_chan(sap_ctx->acs_cfg);
-#endif
+		return sap_select_default_oper_chan(mac_ctx,
+						    sap_ctx->acs_cfg);
 	}
 
 	/* Initialize the structure pointed by spect_info */

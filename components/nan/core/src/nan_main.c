@@ -354,9 +354,14 @@ nan_increment_ndp_sessions(struct wlan_objmgr_psoc *psoc,
 	 * Store the first channel info in NDP Confirm as the home channel info
 	 * and store it in the peer private object.
 	 */
-	qdf_mem_copy(&peer_nan_obj->home_chan_info, ndp_chan_info,
-		     sizeof(struct nan_datapath_channel_info));
+	if (!peer_nan_obj->active_ndp_sessions)
+		qdf_mem_copy(&peer_nan_obj->home_chan_info, ndp_chan_info,
+			     sizeof(struct nan_datapath_channel_info));
+
 	peer_nan_obj->active_ndp_sessions++;
+	nan_debug("Number of active session = %d for peer:"QDF_MAC_ADDR_STR"",
+		  peer_nan_obj->active_ndp_sessions,
+		  QDF_MAC_ADDR_ARRAY(peer_ndi_mac->bytes));
 	qdf_spin_unlock_bh(&peer_nan_obj->lock);
 	wlan_objmgr_peer_release_ref(peer, WLAN_NAN_ID);
 
@@ -393,6 +398,9 @@ static QDF_STATUS nan_decrement_ndp_sessions(struct wlan_objmgr_psoc *psoc,
 		return QDF_STATUS_E_FAILURE;
 	}
 	peer_nan_obj->active_ndp_sessions--;
+	nan_debug("Number of active session = %d for peer:"QDF_MAC_ADDR_STR"",
+		  peer_nan_obj->active_ndp_sessions,
+		  QDF_MAC_ADDR_ARRAY(peer_ndi_mac->bytes));
 	qdf_spin_unlock_bh(&peer_nan_obj->lock);
 	wlan_objmgr_peer_release_ref(peer, WLAN_NAN_ID);
 
@@ -951,16 +959,19 @@ static QDF_STATUS nan_handle_schedule_update(
 }
 
 /**
- * nan_handle_host_update: Updates Host about NAN Datapath status, called by
- * NAN modules's Datapath event handler.
+ * nan_handle_host_update() - Updates Host about NAN Datapath status
+ * @evt: Event data received from firmware
+ * @vdev: pointer to vdev
  *
  * Return: status of operation
  */
-static QDF_STATUS nan_handle_host_update(struct nan_datapath_host_event *evt)
+static QDF_STATUS nan_handle_host_update(struct nan_datapath_host_event *evt,
+					 struct wlan_objmgr_vdev **vdev)
 {
 	struct wlan_objmgr_psoc *psoc;
 	struct nan_psoc_priv_obj *psoc_nan_obj;
 
+	*vdev = evt->vdev;
 	psoc = wlan_vdev_get_psoc(evt->vdev);
 	if (!psoc) {
 		nan_err("psoc is NULL");
@@ -1068,7 +1079,9 @@ QDF_STATUS nan_datapath_event_handler(struct scheduler_msg *pe_msg)
 		nan_handle_schedule_update(pe_msg->bodyptr);
 		break;
 	case NDP_HOST_UPDATE:
-		nan_handle_host_update(pe_msg->bodyptr);
+		nan_handle_host_update(pe_msg->bodyptr, &cmd.vdev);
+		cmd.cmd_type = WLAN_SER_CMD_NDP_END_ALL_REQ;
+		wlan_serialization_remove_cmd(&cmd);
 		break;
 	default:
 		nan_alert("Unhandled NDP event: %d", pe_msg->type);

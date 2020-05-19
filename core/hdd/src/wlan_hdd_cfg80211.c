@@ -399,8 +399,10 @@ static const u32 hdd_sta_akm_suites[] = {
 	WLAN_AKM_SUITE_TDLS,
 	WLAN_AKM_SUITE_SAE,
 	WLAN_AKM_SUITE_FT_OVER_SAE,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
 	WLAN_AKM_SUITE_8021X_SUITE_B,
 	WLAN_AKM_SUITE_8021X_SUITE_B_192,
+#endif
 	WLAN_AKM_SUITE_FILS_SHA256,
 	WLAN_AKM_SUITE_FILS_SHA384,
 	WLAN_AKM_SUITE_FT_FILS_SHA256,
@@ -13291,6 +13293,8 @@ static int __wlan_hdd_cfg80211_get_nud_stats(struct wiphy *wiphy,
 		goto exit;
 	}
 
+	hdd_update_sta_arp_stats(adapter);
+
 	if (nla_put_u16(skb, COUNT_FROM_NETDEV,
 			adapter->hdd_stats.hdd_arp_stats.tx_arp_req_count) ||
 	    nla_put_u16(skb, COUNT_TO_LOWER_MAC,
@@ -14770,8 +14774,7 @@ static void
 wlan_hdd_update_akm_suit_info(struct wiphy *wiphy)
 {
 	wiphy->iftype_akm_suites = wlan_hdd_akm_suites;
-	wiphy->num_iftype_akm_suites = QDF_ARRAY_SIZE(wlan_hdd_akm_suites) /
-				       sizeof(struct wiphy_iftype_akm_suites);
+	wiphy->num_iftype_akm_suites = QDF_ARRAY_SIZE(wlan_hdd_akm_suites);
 }
 #else
 static void

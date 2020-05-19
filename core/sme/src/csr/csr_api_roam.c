@@ -7279,6 +7279,21 @@ static inline void csr_process_fils_join_rsp(struct mac_context *mac_ctx,
 {}
 #endif
 
+static void csr_update_tx_pwr_to_fw(struct mac_context *mac_ctx,
+				    uint8_t vdev_id)
+{
+	struct scheduler_msg msg = {0};
+
+	msg.type = WMA_SEND_MAX_TX_POWER;
+	msg.bodyval = vdev_id;
+	if (QDF_STATUS_SUCCESS != scheduler_post_message(QDF_MODULE_ID_SME,
+							 QDF_MODULE_ID_WMA,
+							 QDF_MODULE_ID_WMA,
+							 &msg)) {
+		sme_err("Failed to post WMA_SEND_MAX_TX_POWER message to WMA");
+	}
+}
+
 /**
  * csr_roam_process_join_res() - Process the Join results
  * @mac_ctx:          Global MAC Context
@@ -7689,6 +7704,8 @@ static void csr_roam_process_join_res(struct mac_context *mac_ctx,
 #endif
 		csr_roam_link_up(mac_ctx, conn_profile->bssid);
 	}
+
+	csr_update_tx_pwr_to_fw(mac_ctx, session_id);
 	sme_free_join_rsp_fils_params(roam_info);
 	qdf_mem_free(roam_info);
 }
@@ -9160,6 +9177,7 @@ static void csr_roam_join_rsp_processor(struct mac_context *mac,
 	uint32_t len = 0, roamId = 0, reason_code = 0;
 	bool is_dis_pending;
 	bool use_same_bss = false;
+	bool retry_same_bss = false;
 
 	if (!pSmeJoinRsp) {
 		sme_err("Sme Join Response is NULL");
@@ -9252,7 +9270,6 @@ static void csr_roam_join_rsp_processor(struct mac_context *mac,
 	 * AP.
 	 */
 	if (reason_code == eSIR_MAC_INVALID_PMKID) {
-		struct tag_csrscan_result *scan_result;
 
 		pmksa_entry = qdf_mem_malloc(sizeof(*pmksa_entry));
 		if (!pmksa_entry)
@@ -9266,16 +9283,26 @@ static void csr_roam_join_rsp_processor(struct mac_context *mac,
 		sme_roam_del_pmkid_from_cache(mac_handle, session_ptr->vdev_id,
 					      pmksa_entry, false);
 		qdf_mem_free(pmksa_entry);
-		if (pCommand && pCommand->u.roamCmd.pRoamBssEntry) {
-			scan_result =
-				GET_BASE_ADDR(pCommand->u.roamCmd.pRoamBssEntry,
-					      struct tag_csrscan_result, Link);
-			/* Retry with same BSSID without PMKID */
-			if (!scan_result->retry_count) {
-				sme_info("Retry once again with same BSSID without PMKID");
-				scan_result->retry_count = 1;
-				use_same_bss = true;
-			}
+		retry_same_bss = true;
+	}
+	if (pSmeJoinRsp->messageType == eWNI_SME_JOIN_RSP &&
+	    pSmeJoinRsp->status_code == eSIR_SME_ASSOC_TIMEOUT_RESULT_CODE &&
+	    mlme_get_reconn_after_assoc_timeout_flag(mac->psoc,
+						     pSmeJoinRsp->sessionId))
+		retry_same_bss = true;
+
+	if (retry_same_bss && pCommand && pCommand->u.roamCmd.pRoamBssEntry) {
+		struct tag_csrscan_result *scan_result;
+
+		scan_result =
+			GET_BASE_ADDR(pCommand->u.roamCmd.pRoamBssEntry,
+				      struct tag_csrscan_result, Link);
+		/* Retry with same BSSID without PMKID */
+		if (!scan_result->retry_count) {
+			sme_info("Retry once with same BSSID, status %d reason %d",
+				 pSmeJoinRsp->status_code, reason_code);
+			scan_result->retry_count = 1;
+			use_same_bss = true;
 		}
 	}
 
@@ -10332,13 +10359,9 @@ void csr_roaming_state_msg_processor(struct mac_context *mac, void *msg_buf)
 		break;
 	case eWNI_SME_DEAUTH_RSP:
 		/* or the Deauthentication response message... */
-		if (CSR_IS_ROAM_SUBSTATE_DEAUTH_REQ(mac, pSmeRsp->sessionId)) {
-			csr_remove_nonscan_cmd_from_pending_list(mac,
-					pSmeRsp->sessionId,
-					eSmeCommandWmStatusChange);
+		if (CSR_IS_ROAM_SUBSTATE_DEAUTH_REQ(mac, pSmeRsp->sessionId))
 			csr_roam_roaming_state_deauth_rsp_processor(mac,
 						(struct deauth_rsp *) pSmeRsp);
-		}
 		break;
 	case eWNI_SME_START_BSS_RSP:
 		/* or the Start BSS response message... */
@@ -15975,6 +15998,7 @@ QDF_STATUS csr_send_join_req_msg(struct mac_context *mac, uint32_t sessionId,
 	uint8_t ap_nss;
 	struct wlan_objmgr_vdev *vdev;
 	bool follow_ap_edca;
+	bool reconn_after_assoc_timeout = false;
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -16147,6 +16171,14 @@ QDF_STATUS csr_send_join_req_msg(struct mac_context *mac, uint32_t sessionId,
 		follow_ap_edca = ucfg_action_oui_search(mac->psoc,
 					    &vendor_ap_search_attr,
 					    ACTION_OUI_DISABLE_AGGRESSIVE_EDCA);
+
+		if (messageType == eWNI_SME_JOIN_REQ &&
+		    ucfg_action_oui_search(mac->psoc, &vendor_ap_search_attr,
+					   ACTION_OUI_HOST_RECONN))
+			reconn_after_assoc_timeout = true;
+		mlme_set_reconn_after_assoc_timeout_flag(
+				mac->psoc, sessionId,
+				reconn_after_assoc_timeout);
 
 		vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac->psoc,
 							sessionId,
@@ -18801,6 +18833,8 @@ csr_update_roam_scan_offload_request(struct mac_context *mac_ctx,
 	if (!req_buf->roam_offload_enabled)
 		return;
 
+	req_buf->enable_self_bss_roam =
+			mac_ctx->mlme_cfg->lfr.enable_self_bss_roam;
 	req_buf->roam_triggers.vdev_id = session->vdev_id;
 	req_buf->roam_triggers.trigger_bitmap =
 		mlme_get_roam_trigger_bitmap(mac_ctx->psoc, session->vdev_id);
@@ -22692,7 +22726,7 @@ static QDF_STATUS csr_process_roam_sync_callback(struct mac_context *mac_ctx,
 		sme_debug("Roaming triggered failed source %d nud behaviour %d",
 			  vdev_roam_params->source, mac_ctx->nud_fail_behaviour);
 		if (vdev_roam_params->source == USERSPACE_INITIATED ||
-		    mac_ctx->nud_fail_behaviour == DISCONNECT_AFTER_NUD_FAIL) {
+		    mac_ctx->nud_fail_behaviour == DISCONNECT_AFTER_ROAM_FAIL) {
 			/* Userspace roam req fail, disconnect with AP */
 			csr_roam_disconnect(mac_ctx, session_id,
 					eCSR_DISCONNECT_REASON_DEAUTH,

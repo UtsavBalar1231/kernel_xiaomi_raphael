@@ -1189,6 +1189,7 @@ struct wlan_mlme_product_details_cfg {
  * @is_vendor_acs_support - enable application based channel selection
  * @is_acs_support_for_dfs_ltecoex - enable channel for dfs and lte coex
  * @is_external_acs_policy - control external policy
+ * @force_sap_start: Force SAP start when no channel is found suitable
  */
 struct wlan_mlme_acs {
 	bool is_acs_with_more_param;
@@ -1196,6 +1197,7 @@ struct wlan_mlme_acs {
 	bool is_vendor_acs_support;
 	bool is_acs_support_for_dfs_ltecoex;
 	bool is_external_acs_policy;
+	bool force_sap_start;
 };
 
 /*
@@ -1395,6 +1397,7 @@ struct bss_load_trigger {
  * @mawc_roam_enabled:              Enable/Disable MAWC during roaming
  * @enable_fast_roam_in_concurrency:Enable LFR roaming on STA during concurrency
  * @lfr3_roaming_offload:           Enable/disable roam offload feature
+ * @enable_self_bss_roam:               enable roaming to connected BSSID
  * @enable_disconnect_roam_offload: enable disassoc/deauth roam scan.
  * @enable_idle_roam: flag to enable/disable idle roam in fw
  * @idle_roam_rssi_delta: rssi delta of connected ap which is used to
@@ -1502,6 +1505,7 @@ struct wlan_mlme_lfr_cfg {
 	bool enable_fast_roam_in_concurrency;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	bool lfr3_roaming_offload;
+	bool enable_self_bss_roam;
 	bool enable_disconnect_roam_offload;
 	bool enable_idle_roam;
 	uint32_t idle_roam_rssi_delta;

@@ -2328,6 +2328,7 @@ struct roam_offload_scan_req {
 	eSirDFSRoamScanMode allowDFSChannelRoam;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	uint8_t roam_offload_enabled;
+	bool enable_self_bss_roam;
 	uint8_t PSK_PMK[SIR_ROAM_SCAN_PSK_SIZE];
 	uint32_t pmk_len;
 	uint8_t Prefer5GHz;
@@ -3484,7 +3485,6 @@ struct auto_shutdown_cmd {
 };
 #endif
 
-#ifdef WLAN_POWER_DEBUGFS
 /**
  * struct power_stats_response - Power stats response
  * @cumulative_sleep_time_ms: cumulative sleep time in ms
@@ -3504,7 +3504,6 @@ struct power_stats_response {
 	uint32_t num_debug_register;
 	uint32_t *debug_registers;
 };
-#endif
 
 #ifdef WLAN_FEATURE_BEACON_RECEPTION_STATS
 #define MAX_BCNMISS_BITMAP 8

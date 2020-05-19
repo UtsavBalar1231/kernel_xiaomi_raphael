@@ -69,6 +69,7 @@
 #include "wlan_qct_sys.h"
 #include <wlan_scan_ucfg_api.h>
 #include <wlan_blm_api.h>
+#include <lim_assoc_utils.h>
 
 #define ASCII_SPACE_CHARACTER 0x20
 
@@ -3824,16 +3825,6 @@ QDF_STATUS lim_tx_complete(void *context, qdf_nbuf_t buf, bool free)
 	return QDF_STATUS_SUCCESS;
 }
 
-static void lim_ht_width_switch_cback(struct mac_context *mac,
-				QDF_STATUS status, uint32_t *data,
-				struct pe_session *pe_session)
-{
-	pe_debug("status %d for ht width switch for vdev %d", status,
-		 pe_session->smeSessionId);
-	if (QDF_IS_STATUS_SUCCESS(status))
-		lim_switch_channel_vdev_started(pe_session);
-}
-
 static void lim_ht_switch_chnl_params(struct pe_session *pe_session)
 {
 	uint8_t center_freq = 0;
@@ -3847,7 +3838,7 @@ static void lim_ht_switch_chnl_params(struct pe_session *pe_session)
 		return;
 	}
 
-	primary_channel = pe_session->gLimChannelSwitch.primaryChannel;
+	primary_channel = pe_session->currentOperChannel;
 	if (eHT_CHANNEL_WIDTH_40MHZ ==
 	    pe_session->htRecommendedTxWidthSet) {
 		ch_width = CH_WIDTH_40MHZ;
@@ -3861,13 +3852,22 @@ static void lim_ht_switch_chnl_params(struct pe_session *pe_session)
 			ch_width = CH_WIDTH_20MHZ;
 	}
 
-	/* notify HAL */
-	pe_debug("HT IE changed: Primary Channel: %d Secondary Channel Offset: %d Channel Width: %d",
+	pe_session->gLimChannelSwitch.primaryChannel = primary_channel;
+	pe_session->currentReqChannel = primary_channel;
+	pe_session->ch_center_freq_seg0 = center_freq;
+	pe_session->gLimChannelSwitch.ch_center_freq_seg0 = center_freq;
+	pe_session->ch_width = ch_width;
+	pe_session->gLimChannelSwitch.ch_width = ch_width;
+	pe_session->gLimChannelSwitch.sec_ch_offset =
+				pe_session->htSecondaryChannelOffset;
+	pe_session->gLimChannelSwitch.ch_center_freq_seg1 = 0;
+
+	pe_debug("HT IE changed: Primary Channel: %d center chan: %d Channel Width: %d",
 		 primary_channel, center_freq,
 		 pe_session->htRecommendedTxWidthSet);
 	pe_session->channelChangeReasonCode =
 			LIM_SWITCH_CHANNEL_HT_WIDTH;
-	mac->lim.gpchangeChannelCallback = lim_ht_width_switch_cback;
+	mac->lim.gpchangeChannelCallback = lim_switch_channel_cback;
 	mac->lim.gpchangeChannelData = NULL;
 
 	lim_send_switch_chnl_params(mac, primary_channel,
@@ -3961,12 +3961,15 @@ void lim_update_sta_run_time_ht_switch_chnl_params(struct mac_context *mac,
 		return;
 	}
 
+	if (lim_is_roam_synch_in_progress(pe_session)) {
+		pe_debug("Roaming in progress, ignore HT IE BW update");
+		return;
+	}
+
 	if (pe_session->htSecondaryChannelOffset !=
 	    (uint8_t) pHTInfo->secondaryChannelOffset
 	    || pe_session->htRecommendedTxWidthSet !=
 	    (uint8_t) pHTInfo->recommendedTxWidthSet) {
-		pe_session->gLimChannelSwitch.primaryChannel =
-							pHTInfo->primaryChannel;
 		pe_session->htSecondaryChannelOffset =
 			(ePhyChanBondState) pHTInfo->secondaryChannelOffset;
 		pe_session->htRecommendedTxWidthSet =
@@ -5313,6 +5316,9 @@ lim_set_protected_bit(struct mac_context *mac,
 		 */
 		if (sta->rmfEnabled && sta->is_key_installed)
 			pMacHdr->fc.wep = 1;
+
+		pe_debug("wep:%d rmf:%d is_key_set:%d", pMacHdr->fc.wep,
+			 sta->rmfEnabled, sta->is_key_installed);
 	}
 } /*** end lim_set_protected_bit() ***/
 #endif

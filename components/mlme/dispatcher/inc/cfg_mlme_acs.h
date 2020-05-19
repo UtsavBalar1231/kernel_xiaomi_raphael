@@ -155,11 +155,35 @@
 		1, \
 		"External ACS Policy Control")
 
+/*
+ * <ini>
+ * force_start_sap- Enable the SAP even if no channel is suitable for SAP
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable the SAP even if no channel is found suitable
+ * for SAP by ACS.
+ *
+ * Related: NA
+ *
+ * Supported Feature: ACS
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_ACS_FORCE_START_SAP CFG_INI_BOOL( \
+		"force_start_sap", \
+		0, \
+		"Force start SAP")
+
 #define CFG_ACS_ALL \
 	CFG(CFG_ACS_WITH_MORE_PARAM) \
 	CFG(CFG_AUTO_CHANNEL_SELECT_WEIGHT) \
 	CFG(CFG_USER_AUTO_CHANNEL_SELECTION) \
 	CFG(CFG_USER_ACS_DFS_LTE) \
-	CFG(CFG_EXTERNAL_ACS_POLICY)
+	CFG(CFG_EXTERNAL_ACS_POLICY) \
+	CFG(CFG_ACS_FORCE_START_SAP)
 
 #endif /* __CFG_MLME_ACS_H */

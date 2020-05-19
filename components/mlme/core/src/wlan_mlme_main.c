@@ -1309,6 +1309,8 @@ static void mlme_init_acs_cfg(struct wlan_objmgr_psoc *psoc,
 {
 	acs->is_acs_with_more_param =
 		cfg_get(psoc, CFG_ACS_WITH_MORE_PARAM);
+	acs->force_sap_start =
+		cfg_get(psoc, CFG_ACS_FORCE_START_SAP);
 	acs->auto_channel_select_weight =
 		cfg_get(psoc, CFG_AUTO_CHANNEL_SELECT_WEIGHT);
 	acs->is_vendor_acs_support =
@@ -1478,7 +1480,7 @@ static void mlme_init_roam_offload_cfg(struct wlan_objmgr_psoc *psoc,
 {
 	lfr->lfr3_roaming_offload =
 		cfg_get(psoc, CFG_LFR3_ROAMING_OFFLOAD);
-
+	lfr->enable_self_bss_roam = cfg_get(psoc, CFG_LFR3_ENABLE_SELF_BSS_ROAM);
 	lfr->enable_disconnect_roam_offload =
 		cfg_get(psoc, CFG_LFR_ENABLE_DISCONNECT_ROAM);
 	lfr->enable_idle_roam =
@@ -2607,6 +2609,57 @@ void mlme_get_discon_reason_n_from_ap(struct wlan_objmgr_psoc *psoc,
 	mlme_priv->disconnect_info.from_ap = false;
 	mlme_priv->disconnect_info.discon_reason = 0;
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+}
+
+void mlme_set_reconn_after_assoc_timeout_flag(struct wlan_objmgr_psoc *psoc,
+					      uint8_t vdev_id, bool flag)
+{
+	struct wlan_objmgr_vdev *vdev;
+	struct mlme_legacy_priv *mlme_priv;
+
+	if (!psoc)
+		return;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
+						    WLAN_LEGACY_MAC_ID);
+	if (!vdev)
+		return;
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (!mlme_priv) {
+		mlme_legacy_err("vdev legacy private object is NULL");
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+		return;
+	}
+
+	mlme_priv->reconn_after_assoc_timeout = flag;
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+}
+
+bool mlme_get_reconn_after_assoc_timeout_flag(struct wlan_objmgr_psoc *psoc,
+					      uint8_t vdev_id)
+{
+	struct wlan_objmgr_vdev *vdev;
+	struct mlme_legacy_priv *mlme_priv;
+	bool reconn_after_assoc_timeout;
+
+	if (!psoc)
+		return false;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
+						    WLAN_LEGACY_MAC_ID);
+	if (!vdev)
+		return false;
+	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
+	if (!mlme_priv) {
+		mlme_legacy_err("vdev legacy private object is NULL");
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+		return false;
+	}
+
+	reconn_after_assoc_timeout = mlme_priv->reconn_after_assoc_timeout;
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+
+	return reconn_after_assoc_timeout;
 }
 
 #if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)

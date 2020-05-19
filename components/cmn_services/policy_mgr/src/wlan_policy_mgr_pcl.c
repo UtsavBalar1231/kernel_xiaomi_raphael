@@ -176,6 +176,31 @@ void policy_mgr_reg_chan_change_callback(struct wlan_objmgr_psoc *psoc,
 		pm_ctx->unsafe_channel_count);
 }
 
+QDF_STATUS policy_mgr_init_chan_avoidance(struct wlan_objmgr_psoc *psoc,
+					  uint16_t *chan_list,
+					  uint16_t chan_cnt)
+{
+	struct policy_mgr_psoc_priv_obj *pm_ctx;
+	uint32_t i;
+
+	pm_ctx = policy_mgr_get_context(psoc);
+	if (!pm_ctx) {
+		policy_mgr_err("Invalid Context");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	pm_ctx->unsafe_channel_count = chan_cnt >= NUM_CHANNELS ?
+			NUM_CHANNELS : chan_cnt;
+
+	for (i = 0; i < pm_ctx->unsafe_channel_count; i++)
+		pm_ctx->unsafe_channel_list[i] = chan_list[i];
+
+	policy_mgr_debug("Channel list init, received %d avoided channels",
+			 pm_ctx->unsafe_channel_count);
+
+	return QDF_STATUS_SUCCESS;
+}
+
 void policy_mgr_update_with_safe_channel_list(struct wlan_objmgr_psoc *psoc,
 		uint8_t *pcl_channels, uint32_t *len,
 		uint8_t *weight_list, uint32_t weight_len)
@@ -340,15 +365,8 @@ uint8_t policy_mgr_get_channel(struct wlan_objmgr_psoc *psoc,
 	return 0;
 }
 
-/**
- * policy_mgr_skip_dfs_ch() - skip dfs channel or not
- * @psoc: pointer to soc
- * @skip_dfs_channel: pointer to result
- *
- * Return: QDF_STATUS
- */
-static QDF_STATUS policy_mgr_skip_dfs_ch(struct wlan_objmgr_psoc *psoc,
-					 bool *skip_dfs_channel)
+QDF_STATUS policy_mgr_skip_dfs_ch(struct wlan_objmgr_psoc *psoc,
+				  bool *skip_dfs_channel)
 {
 	bool sta_sap_scc_on_dfs_chan;
 	bool dfs_master_capable;
@@ -371,11 +389,23 @@ static QDF_STATUS policy_mgr_skip_dfs_ch(struct wlan_objmgr_psoc *psoc,
 
 	sta_sap_scc_on_dfs_chan =
 		policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(psoc);
-	if ((policy_mgr_mode_specific_connection_count(psoc, PM_STA_MODE,
-						       NULL) > 0) &&
-	    !sta_sap_scc_on_dfs_chan) {
-		policy_mgr_debug("SAP/Go skips DFS ch if sta connects");
-		*skip_dfs_channel = true;
+
+	if (policy_mgr_is_hw_dbs_capable(psoc)) {
+		if ((policy_mgr_is_special_mode_active_5g(psoc,
+							  PM_P2P_CLIENT_MODE) ||
+		     policy_mgr_is_special_mode_active_5g(psoc, PM_STA_MODE)) &&
+		    !sta_sap_scc_on_dfs_chan) {
+			policy_mgr_debug("skip DFS ch from pcl for DBS SAP/Go");
+			*skip_dfs_channel = true;
+		}
+	} else {
+		if ((policy_mgr_mode_specific_connection_count(psoc,
+							       PM_STA_MODE,
+							       NULL) > 0) &&
+		    !sta_sap_scc_on_dfs_chan) {
+			policy_mgr_debug("skip DFS ch from pcl for non-DBS SAP/Go");
+			*skip_dfs_channel = true;
+		}
 	}
 
 	return QDF_STATUS_SUCCESS;

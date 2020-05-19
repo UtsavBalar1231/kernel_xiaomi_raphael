@@ -1374,7 +1374,8 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 	phymode = wma_peer_phymode(nw_type, params->staType,
 				   params->htCapable, params->ch_width,
 				   params->vhtCapable, is_he);
-	if ((intr->type == WMI_VDEV_TYPE_AP) && (phymode > intr->chanmode)) {
+	if ((phymode != MODE_11B) && (intr->type == WMI_VDEV_TYPE_AP) &&
+	    (phymode > intr->chanmode)) {
 		wma_nofl_debug("Peer phymode %d is not allowed. Set it equal to sap/go phymode %d",
 			       phymode, intr->chanmode);
 		phymode = intr->chanmode;
@@ -3863,80 +3864,56 @@ static uint64_t wma_extract_ccmp_pn(uint8_t *ccmp_ptr)
 		 ((uint64_t) pn[2] << 16) |
 		 ((uint64_t) pn[1] << 8) | ((uint64_t) pn[0] << 0);
 
-	WMA_LOGE("PN of received packet is %llu", new_pn);
 	return new_pn;
 }
 
 /**
  * wma_is_ccmp_pn_replay_attack() - detect replay attacking using PN in CCMP
- * @cds_ctx: cds context
+ * @wma: wma context
  * @wh: 802.11 frame header
  * @ccmp_ptr: CCMP frame header
  *
  * Return: true/false
  */
 static bool
-wma_is_ccmp_pn_replay_attack(void *cds_ctx, struct ieee80211_frame *wh,
-			 uint8_t *ccmp_ptr)
+wma_is_ccmp_pn_replay_attack(tp_wma_handle wma, struct ieee80211_frame *wh,
+			     uint8_t *ccmp_ptr)
 {
-	struct cdp_pdev *pdev;
-	struct cdp_vdev *vdev;
-	void *peer;
-	uint8_t vdev_id, peer_id;
-	uint8_t *last_pn_valid = NULL;
-	uint64_t *last_pn = NULL, new_pn;
-	uint32_t *rmf_pn_replays = NULL;
-	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	uint64_t new_pn;
 	bool ret = false;
-
-	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-	if (!pdev) {
-		WMA_LOGE("%s: Failed to find pdev", __func__);
-		return true;
-	}
-
-	vdev = wma_find_vdev_by_bssid(cds_ctx, wh->i_addr3, &vdev_id);
-	if (!vdev) {
-		WMA_LOGE("%s: Failed to find vdev", __func__);
-		return true;
-	}
-
-	/* Retrieve the peer based on vdev and addr */
-	peer = cdp_peer_get_ref_by_addr(soc, pdev, wh->i_addr2, &peer_id,
-					PEER_DEBUG_ID_WMA_CCMP_REPLAY_ATTACK);
-
-	if (!peer) {
-		WMA_LOGE("%s: Failed to find peer, Not able to validate PN",
-			    __func__);
-		return true;
-	}
+	struct peer_mlme_priv_obj *peer_priv;
+	struct wlan_objmgr_peer *peer;
 
 	new_pn = wma_extract_ccmp_pn(ccmp_ptr);
 
-	cdp_get_pn_info(soc, peer, &last_pn_valid, &last_pn, &rmf_pn_replays);
+	peer = wlan_objmgr_get_peer_by_mac(wma->psoc, wh->i_addr2,
+					   WLAN_LEGACY_WMA_ID);
+	if (!peer)
+		return ret;
 
-	if (!last_pn_valid || !last_pn || !rmf_pn_replays) {
-		WMA_LOGE("%s: PN validation seems not supported", __func__);
-		goto rel_peer_ref;
+	peer_priv = wlan_objmgr_peer_get_comp_private_obj(peer,
+							  WLAN_UMAC_COMP_MLME);
+	if (!peer_priv) {
+		wlan_objmgr_peer_release_ref(peer, WLAN_LEGACY_WMA_ID);
+		return ret;
 	}
 
-	if (*last_pn_valid) {
-		if (new_pn > *last_pn) {
-			*last_pn = new_pn;
-			WMA_LOGE("%s: PN validation successful", __func__);
+	if (peer_priv->last_pn_valid) {
+		if (new_pn > peer_priv->last_pn) {
+			peer_priv->last_pn = new_pn;
 		} else {
-			WMA_LOGE("%s: PN Replay attack detected", __func__);
+			wma_err_rl("PN Replay attack detected");
 			/* per 11W amendment, keeping track of replay attacks */
-			*rmf_pn_replays += 1;
+			peer_priv->rmf_pn_replays += 1;
 			ret = true;
 		}
 	} else {
-		*last_pn_valid = 1;
-		*last_pn = new_pn;
+		peer_priv->last_pn_valid = 1;
+		peer_priv->last_pn = new_pn;
 	}
 
-rel_peer_ref:
-	cdp_peer_release_ref(soc, peer, PEER_DEBUG_ID_WMA_CCMP_REPLAY_ATTACK);
+	wlan_objmgr_peer_release_ref(peer, WLAN_LEGACY_WMA_ID);
+
 	return ret;
 }
 
@@ -4101,9 +4078,8 @@ int wma_process_rmf_frame(tp_wma_handle wma_handle,
 		orig_hdr = (uint8_t *) qdf_nbuf_data(wbuf);
 		/* Pointer to head of CCMP header */
 		ccmp = orig_hdr + sizeof(*wh);
-		if (wma_is_ccmp_pn_replay_attack(
-			wma_handle, wh, ccmp)) {
-			WMA_LOGE("Dropping the frame");
+		if (wma_is_ccmp_pn_replay_attack(wma_handle, wh, ccmp)) {
+			wma_err_rl("Dropping the frame");
 			cds_pkt_return_packet(rx_pkt);
 			return -EINVAL;
 		}

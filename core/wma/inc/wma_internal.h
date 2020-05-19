@@ -956,6 +956,15 @@ void wma_set_max_tx_power(WMA_HANDLE handle,
 
 void wma_disable_sta_ps_mode(tpDisablePsParams ps_req);
 
+/**
+ * wma_send_max_tx_pwrlmt() - send max tx power limit to fw
+ * @handle: wma handle
+ * @vdev_id: vdev id
+ *
+ * Return: none
+ */
+void wma_send_max_tx_pwrlmt(WMA_HANDLE handle, uint8_t vdev_id);
+
 void wma_enable_uapsd_mode(tp_wma_handle wma, tpEnableUapsdParams ps_req);
 
 void wma_disable_uapsd_mode(tp_wma_handle wma, tpDisableUapsdParams ps_req);
@@ -1669,16 +1678,6 @@ int wma_fill_beacon_interval_reset_req(tp_wma_handle wma, uint8_t vdev_id,
  * Return: 'true' on valid vdev else 'false'
  */
 bool wma_is_vdev_valid(uint32_t vdev_id);
-
-/*
- * wma_is_vdev_started() - check whether vdev is started or not
- * @vdev: pointer to vdev object
- *
- * This function verifies the vdev is started nor not
- *
- * Return: 'true' if vdev is started else 'false'
- */
-bool wma_is_vdev_started(struct wlan_objmgr_vdev *vdev);
 
 /**
  * wma_vdev_obss_detection_info_handler - event handler to handle obss detection

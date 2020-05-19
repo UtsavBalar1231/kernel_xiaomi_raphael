@@ -1390,7 +1390,7 @@ QDF_STATUS wlansap_set_channel_change_with_csa(struct sap_context *sap_ctx,
 			hw_mode_status =
 			  policy_mgr_check_and_set_hw_mode_for_channel_switch(
 				   mac->psoc, sap_ctx->sessionId, targetChannel,
-				   POLICY_MGR_UPDATE_REASON_CHANNEL_SWITCH);
+				   POLICY_MGR_UPDATE_REASON_CHANNEL_SWITCH_SAP);
 
 			/*
 			 * If hw_mode_status is QDF_STATUS_E_FAILURE, mean HW

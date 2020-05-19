@@ -1461,6 +1461,7 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	struct vdev_up_params param = {0};
 	target_resource_config *wlan_res_cfg;
 	struct wlan_objmgr_psoc *psoc = wma->psoc;
+	struct vdev_mlme_obj *mlme_obj;
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	struct mac_context *mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 #endif
@@ -1540,7 +1541,10 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	}
 
 	iface = &wma->interfaces[resp_event->vdev_id];
-
+	mlme_obj = wlan_vdev_mlme_get_cmpt_obj(iface->vdev);
+	if (!mlme_obj)
+		return -EINVAL;
+	mlme_obj->mgmt.generic.tx_pwrlimit = resp_event->max_allowed_tx_power;
 	req_msg = wma_find_vdev_req(wma, resp_event->vdev_id,
 				    WMA_TARGET_REQ_TYPE_VDEV_START,
 				    true);
@@ -1614,14 +1618,6 @@ bool wma_is_vdev_valid(uint32_t vdev_id)
 	}
 
 	return wma_handle->interfaces[vdev_id].vdev_active;
-}
-
-bool wma_is_vdev_started(struct wlan_objmgr_vdev *vdev)
-{
-	if (WLAN_VDEV_S_START == wlan_vdev_mlme_get_state(vdev))
-		return true;
-	else
-		return false;
 }
 
 /**
@@ -1806,6 +1802,24 @@ QDF_STATUS wma_peer_unmap_conf_cb(uint8_t vdev_id,
 	return qdf_status;
 }
 
+static bool wma_objmgr_peer_exist(tp_wma_handle wma, uint8_t vdev_id,
+				  uint8_t *peer_addr, uint8_t *peer_vdev_id)
+{
+	struct wlan_objmgr_peer *peer;
+
+	peer = wlan_objmgr_get_peer_by_mac(wma->psoc, peer_addr,
+					   WLAN_LEGACY_WMA_ID);
+	if (!peer)
+		return false;
+
+	if (peer_vdev_id)
+		*peer_vdev_id = wlan_vdev_get_id(wlan_peer_get_vdev(peer));
+
+	wlan_objmgr_peer_release_ref(peer, WLAN_LEGACY_WMA_ID);
+
+	return true;
+}
+
 /**
  * wma_remove_peer() - remove peer information from host driver and fw
  * @wma: wma handle
@@ -1850,6 +1864,13 @@ QDF_STATUS wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 	if (!peer) {
 		WMA_LOGE("%s: PEER is NULL for vdev_id: %d", __func__, vdev_id);
 		QDF_BUG(0);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!wma_objmgr_peer_exist(wma, vdev_id, peer_addr, NULL)) {
+		wma_err("peer doesn't exist peer_addr %pM vdevid %d peer_count %d",
+			 peer_addr, vdev_id,
+			 wma->interfaces[vdev_id].peer_count);
 		return QDF_STATUS_E_INVAL;
 	}
 	peer_unmap_conf_support_enabled =
@@ -2807,7 +2828,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
 	uint32_t cfg_val;
-	uint8_t mcc_adapt_sch;
+	bool mcc_adapt_sch;
 	QDF_STATUS ret;
 	struct mlme_ht_capabilities_info *ht_cap_info;
 	struct scheduler_msg sme_msg = { 0 };
@@ -3172,8 +3193,8 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 		mac->mlme_cfg->lfr.roam_bmiss_final_bcnt,
 		self_sta_req->session_id);
 
-	if (policy_mgr_get_mcc_adaptive_sch(mac->psoc,
-					    &mcc_adapt_sch) ==
+	if (policy_mgr_get_dynamic_mcc_adaptive_sch(mac->psoc,
+						    &mcc_adapt_sch) ==
 	    QDF_STATUS_SUCCESS) {
 		WMA_LOGD("%s: setting ini value for WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED: %d",
 			__func__, mcc_adapt_sch);
