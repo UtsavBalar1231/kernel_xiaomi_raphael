@@ -86,6 +86,9 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	if (unlikely(rdes3 & RDES3_OWN))
 		return dma_own;
 
+	if (likely((rdes3 & RDES3_CONTEXT_DESCRIPTOR)))
+		return (discard_frame | ctxt_desc);
+
 	/* Verify rx error by looking at the last segment. */
 	if (likely(!(rdes3 & RDES3_LAST_DESCRIPTOR)))
 		return discard_frame;
@@ -293,7 +296,7 @@ exit:
 }
 
 static void dwmac4_rd_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
-				   int mode, int end)
+				   int mode, int end, int bfsize)
 {
 	p->des3 = cpu_to_le32(RDES3_OWN | RDES3_BUFFER1_VALID_ADDR);
 

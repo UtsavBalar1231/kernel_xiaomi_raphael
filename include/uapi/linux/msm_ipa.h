@@ -125,6 +125,7 @@
 #define IPA_IOCTL_GET_NAT_IN_SRAM_INFO          77
 #define IPA_IOCTL_GET_PHERIPHERAL_EP_INFO       78
 #define IPA_IOCTL_APP_CLOCK_VOTE                79
+#define IPA_IOCTL_PDN_CONFIG                    80
 
 /**
  * max size of the header to be inserted
@@ -223,11 +224,12 @@
 #define IPA_FLT_EXT_L2TP_UDP_INNER_ETHER_TYPE       (1ul << 1)
 #define IPA_FLT_EXT_MTU     (1ul << 2)
 #define IPA_FLT_EXT_L2TP_UDP_INNER_NEXT_HDR		(1ul << 3)
+#define IPA_FLT_EXT_NEXT_HDR				(1ul << 4)
 
 /**
  * maximal number of NAT PDNs in the PDN config table
  */
-#define IPA_MAX_PDN_NUM 5
+#define IPA_MAX_PDN_NUM 7
 
 /**
  * enum ipa_client_type - names for the various IPA "clients"
@@ -403,8 +405,8 @@ enum ipa_client_type {
 	IPA_CLIENT_Q6_CV2X_PROD	= 106,
 	IPA_CLIENT_Q6_CV2X_CONS	= 107,
 
-	IPA_CLIENT_MHI_QMAP_PROD = 108,
-	IPA_CLIENT_MHI_QMAP_CONS = 109,
+	IPA_CLIENT_MHI_LOW_LAT_PROD = 108,
+	IPA_CLIENT_MHI_LOW_LAT_CONS = 109,
 
 	/* RESERVERD PROD					= 110, */
 	IPA_CLIENT_MHI_QDSS_CONS = 111,
@@ -526,8 +528,8 @@ enum ipa_client_type {
 	(client) == IPA_CLIENT_MHI_PROD || \
 	(client) == IPA_CLIENT_MHI2_PROD || \
 	(client) == IPA_CLIENT_MHI2_CONS || \
-	(client) == IPA_CLIENT_MHI_QMAP_PROD || \
-	(client) == IPA_CLIENT_MHI_QMAP_CONS || \
+	(client) == IPA_CLIENT_MHI_LOW_LAT_PROD || \
+	(client) == IPA_CLIENT_MHI_LOW_LAT_CONS || \
 	(client) == IPA_CLIENT_MHI_DPL_CONS || \
 	(client) == IPA_CLIENT_MHI_QDSS_CONS)
 
@@ -738,7 +740,15 @@ enum ipa_sockv5_event {
 #define IPA_SOCKV5_EVENT_MAX IPA_SOCKV5_EVENT_MAX
 };
 
-#define IPA_EVENT_MAX_NUM (IPA_SOCKV5_EVENT_MAX)
+enum ipa_pdn_config_event {
+	IPA_PDN_DEFAULT_MODE_CONFIG = IPA_SOCKV5_EVENT_MAX, /* Default mode. */
+	IPA_PDN_IP_COLLISION_MODE_CONFIG, /* IP Collision detected. */
+	IPA_PDN_IP_PASSTHROUGH_MODE_CONFIG, /* IP Passthrough mode. */
+	IPA_PDN_CONFIG_EVENT_MAX
+#define IPA_PDN_CONFIG_EVENT_MAX IPA_PDN_CONFIG_EVENT_MAX
+};
+
+#define IPA_EVENT_MAX_NUM (IPA_PDN_CONFIG_EVENT_MAX)
 #define IPA_EVENT_MAX ((int)IPA_EVENT_MAX_NUM)
 
 /**
@@ -2286,6 +2296,7 @@ enum ipa_l2tp_tunnel_type {
  * @tunnel_type: l2tp tunnel type
  * @src_port: UDP source port
  * @dst_port: UDP destination port
+ * @mtu: MTU of the L2TP interface
  */
 struct ipa_ioc_l2tp_vlan_mapping_info {
 	enum ipa_ip_type iptype;
@@ -2295,6 +2306,7 @@ struct ipa_ioc_l2tp_vlan_mapping_info {
 	enum ipa_l2tp_tunnel_type tunnel_type;
 	uint16_t src_port;
 	uint16_t dst_port;
+	uint16_t mtu;
 };
 
 /**
@@ -2322,6 +2334,12 @@ enum ipa_peripheral_ep_type {
 	IPA_DATA_EP_TYP_BAM_DMUX,
 };
 
+enum ipa_data_ep_prot_type {
+	IPA_PROT_RMNET = 0,
+	IPA_PROT_RMNET_CV2X = 1,
+	IPA_PROT_MAX
+};
+
 struct ipa_ep_pair_info {
 	uint32_t consumer_pipe_num;
 	uint32_t producer_pipe_num;
@@ -2336,6 +2354,8 @@ struct ipa_ep_pair_info {
  * @num_ep_pairs: number of ep_pairs - o/p param
  * @ep_pair_size: sizeof(ipa_ep_pair_info) * max_ep_pairs
  * @info: structure contains ep pair info
+ * @teth_prot : RMNET/CV2X --i/p param
+ * @teth_prot_valid - validity of i/p param protocol
  */
 struct ipa_ioc_get_ep_info {
 	enum ipa_peripheral_ep_type ep_type;
@@ -2343,6 +2363,8 @@ struct ipa_ioc_get_ep_info {
 	uint8_t num_ep_pairs;
 	uint32_t ep_pair_size;
 	uintptr_t info;
+	enum ipa_data_ep_prot_type teth_prot;
+	uint8_t teth_prot_valid;
 };
 
 /**
@@ -2732,6 +2754,39 @@ struct ipa_odl_modem_config {
 	 __u8 config_status;
 };
 
+/**
+ * struct ipa_ioc_pdn_config - provide pdn configuration
+ * @dev_name: PDN interface name
+ * @pdn_cfg_type: type of the pdn config applied.
+ * @enable: enable/disable pdn config type.
+ * @u.collison_cfg.pdn_ip_addr: pdn_ip_address used in collision config.
+ * @u.passthrough_cfg.pdn_ip_addr: pdn_ip_address used in passthrough config.
+ * @u.passthrough_cfg.device_type: Device type of the client.
+ * @u.passthrough_cfg.vlan_id: VLAN ID of the client.
+ * @u.passthrough_cfg.client_mac_addr: client mac for which passthough
+ *	is enabled.
+ * @u.passthrough_cfg.skip_nat: skip NAT processing.
+ */
+struct ipa_ioc_pdn_config {
+	char dev_name[IPA_RESOURCE_NAME_MAX];
+	enum ipa_pdn_config_event pdn_cfg_type;
+	uint8_t enable;
+	union {
+
+		struct ipa_pdn_ip_collision_cfg {
+			uint32_t pdn_ip_addr;
+		} collison_cfg;
+
+		struct ipa_pdn_ip_passthrough_cfg {
+			uint32_t pdn_ip_addr;
+			enum ipacm_per_client_device_type device_type;
+			uint16_t vlan_id;
+			uint8_t client_mac_addr[IPA_MAC_ADDR_SIZE];
+			uint8_t skip_nat;
+		} passthrough_cfg;
+	} u;
+};
+
 
 /**
  *   actual IOCTLs supported by IPA driver
@@ -2994,6 +3049,9 @@ struct ipa_odl_modem_config {
 				IPA_IOCTL_APP_CLOCK_VOTE, \
 				uint32_t)
 
+#define IPA_IOC_PDN_CONFIG _IOWR(IPA_IOC_MAGIC, \
+				IPA_IOCTL_PDN_CONFIG, \
+				struct ipa_ioc_pdn_config)
 /*
  * unique magic number of the Tethering bridge ioctls
  */

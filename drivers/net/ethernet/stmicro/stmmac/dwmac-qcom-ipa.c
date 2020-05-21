@@ -762,6 +762,41 @@ static void ethqos_wrapper_rx_descriptor_init_single_q(
 	ethqos_ipa_rx_desc_init(ethqos, qinx);
 }
 
+static void ethqos_rx_skb_free_mem(struct qcom_ethqos *ethqos,
+				   unsigned int qinx)
+{
+	struct net_device *ndev;
+	struct stmmac_priv *priv;
+	int i;
+
+	if (!ethqos) {
+		ETHQOSERR("Null parameter");
+		return;
+	}
+
+	ndev = dev_get_drvdata(&ethqos->pdev->dev);
+	priv = netdev_priv(ndev);
+
+	for (i = 0; i < eth_ipa_ctx.rx_queue[qinx].desc_cnt; i++) {
+		dma_free_coherent
+		 (GET_MEM_PDEV_DEV,
+		 ETHQOS_ETH_FRAME_LEN_IPA,
+		 eth_ipa_ctx.rx_queue->ipa_rx_buff_pool_va_addrs_base[i],
+		 eth_ipa_ctx.rx_queue->ipa_rx_buff_pool_pa_addrs_base[i]);
+	}
+}
+
+static void ethqos_free_ipa_queue_mem(struct qcom_ethqos *ethqos)
+{
+	ethqos_rx_desc_free_mem(ethqos, IPA_DMA_RX_CH);
+	ethqos_tx_desc_free_mem(ethqos, IPA_DMA_TX_CH);
+	ethqos_rx_skb_free_mem(ethqos, IPA_DMA_RX_CH);
+	ethqos_rx_buf_free_mem(ethqos, IPA_DMA_RX_CH);
+	ethqos_tx_buf_free_mem(ethqos, IPA_DMA_TX_CH);
+	ethqos_free_ipa_rx_queue_struct(ethqos);
+	ethqos_free_ipa_tx_queue_struct(ethqos);
+}
+
 static int ethqos_set_ul_dl_smmu_ipa_params(struct qcom_ethqos *ethqos,
 					    struct ipa_ntn_setup_info *ul,
 					    struct ipa_ntn_setup_info *dl)
@@ -896,13 +931,12 @@ static int enable_tx_dma_interrupts(unsigned int QINX,
 	/* NIE - Normal Interrupt Summary Enable */
 	/* AIE - Abnormal Interrupt Summary Enable */
 	/* FBE - Fatal Bus Error Enable */
-	/* TXSE - Transmit Stopped Enable */
 	DMA_IER_RGRD(QINX, VARDMA_IER);
 	/* Reset all Tx interrupt bits */
 	VARDMA_IER = VARDMA_IER & DMA_TX_INT_RESET_MASK;
 
-	VARDMA_IER = VARDMA_IER | ((0x1) << 1) |
-	     ((0x1) << 12) | ((0x1) << 14) | ((0x1) << 15);
+	VARDMA_IER = VARDMA_IER | ((0x1) << 12) | ((0x1) << 14) |
+		     ((0x1) << 15);
 
 	DMA_IER_RGWR(QINX, VARDMA_IER);
 
@@ -1115,13 +1149,14 @@ static int ethqos_ipa_offload_init(struct qcom_ethqos *pdata)
 		eth_l2_hdr_v6.h_proto = htons(ETH_P_IPV6);
 		in.hdr_info[0].hdr = (u8 *)&eth_l2_hdr_v4;
 		in.hdr_info[0].hdr_len = ETH_HLEN;
+		in.hdr_info[0].hdr_type = IPA_HDR_L2_ETHERNET_II;
 		in.hdr_info[1].hdr = (u8 *)&eth_l2_hdr_v6;
 		in.hdr_info[1].hdr_len = ETH_HLEN;
+		in.hdr_info[1].hdr_type = IPA_HDR_L2_ETHERNET_II;
 	}
 
 #ifdef ETHQOS_IPA_OFFLOAD_VLAN
-	if ((eth_ipa_ctx.vlan_id > MIN_VLAN_ID && eth_ipa_ctx.vlan_id <=
-	    MAX_VLAN_ID) || ipa_vlan_mode) {
+	if (ipa_vlan_mode) {
 		memset(&eth_vlan_hdr_v4, 0, sizeof(eth_vlan_hdr_v4));
 		memset(&eth_vlan_hdr_v6, 0, sizeof(eth_vlan_hdr_v6));
 		memcpy(&eth_vlan_hdr_v4.h_source, ndev->dev_addr, ETH_ALEN);
@@ -1145,9 +1180,7 @@ static int ethqos_ipa_offload_init(struct qcom_ethqos *pdata)
 	in.notify = ntn_ipa_notify_cb;
 	in.proto = IPA_UC_NTN;
 	in.hdr_info[0].dst_mac_addr_offset = 0;
-	in.hdr_info[0].hdr_type = IPA_HDR_L2_ETHERNET_II;
 	in.hdr_info[1].dst_mac_addr_offset = 0;
-	in.hdr_info[1].hdr_type = IPA_HDR_L2_ETHERNET_II;
 
 	ret = ipa_uc_offload_reg_intf(&in, &out);
 	if (ret) {
@@ -2256,6 +2289,8 @@ void ethqos_ipa_offload_event_handler(void *data,
 
 			/* reset link down on dev close */
 			eth_ipa_ctx.ipa_offload_link_down = 0;
+			ethqos_free_ipa_queue_mem(eth_ipa_ctx.ethqos);
+
 		}
 		break;
 	case EV_DPM_SUSPEND:
