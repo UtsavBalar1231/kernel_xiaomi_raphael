@@ -35,25 +35,13 @@
 #include "qcom_glink_native.h"
 
 #define GLINK_LOG_PAGE_CNT 2
-#define GLINK_INFO(ctxt, x, ...)					       \
-do {									       \
-	if (ctxt->ilc)							       \
-		ipc_log_string(ctxt->ilc, "[%s]: "x, __func__, ##__VA_ARGS__); \
-} while (0)
+#define GLINK_INFO(ctxt, x, ...) ((void)0)
 
-#define CH_INFO(ch, x, ...)						     \
-do {									     \
-	if (ch->glink && ch->glink->ilc)				     \
-		ipc_log_string(ch->glink->ilc, "%s[%d:%d] %s: "x, ch->name,  \
-			       ch->lcid, ch->rcid, __func__, ##__VA_ARGS__); \
-} while (0)
-
+#define CH_INFO(ch, x, ...) ((void)0)
 
 #define GLINK_ERR(ctxt, x, ...)						       \
 do {									       \
 	pr_err_ratelimited("[%s]: "x, __func__, ##__VA_ARGS__);		       \
-	if (ctxt->ilc)							       \
-		ipc_log_string(ctxt->ilc, "[%s]: "x, __func__, ##__VA_ARGS__); \
 } while (0)
 
 #define SPI_ALIGNMENT 16

@@ -62,22 +62,13 @@
 
 #define IPA_RNDIS_IPC_LOG_PAGES 50
 
-#define IPA_RNDIS_IPC_LOGGING(buf, fmt, args...) \
-	do { \
-		if (buf) \
-			ipc_log_string((buf), fmt, __func__, __LINE__, \
-				## args); \
-	} while (0)
+#define IPA_RNDIS_IPC_LOGGING(buf, fmt, args...) ((void)0)
 
 static void *ipa_rndis_logbuf;
 
 #define RNDIS_IPA_DEBUG(fmt, args...) \
 	do { \
 		pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args);\
-		if (ipa_rndis_logbuf) { \
-			IPA_RNDIS_IPC_LOGGING(ipa_rndis_logbuf, \
-				DRV_NAME " %s:%d " fmt, ## args); \
-		} \
 	} while (0)
 
 #define RNDIS_IPA_DEBUG_XMIT(fmt, args...) \
@@ -87,10 +78,6 @@ static void *ipa_rndis_logbuf;
 	do { \
 		pr_err(DRV_NAME "@%s@%d@ctx:%s: "\
 			fmt, __func__, __LINE__, current->comm, ## args);\
-		if (ipa_rndis_logbuf) { \
-			IPA_RNDIS_IPC_LOGGING(ipa_rndis_logbuf, \
-				DRV_NAME " %s:%d " fmt, ## args); \
-		} \
 	} while (0)
 
 #define NULL_CHECK_RETVAL(ptr) \

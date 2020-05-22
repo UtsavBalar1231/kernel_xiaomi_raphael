@@ -65,43 +65,22 @@ struct tsens_device;
 
 #ifdef CONFIG_DEBUG_FS
 #define TSENS_IPC(idx, dev, msg, args...) do { \
-		if (dev) { \
-			if ((idx == 0) && (dev)->ipc_log0) \
-				ipc_log_string((dev)->ipc_log0, \
-					"%s: " msg, __func__, args); \
-			else if ((idx == 1) && (dev)->ipc_log1) \
-				ipc_log_string((dev)->ipc_log1, \
-					"%s: " msg, __func__, args); \
-			else if ((idx == 2) && (dev)->ipc_log2) \
-				ipc_log_string((dev)->ipc_log2, \
-					"%s: " msg, __func__, args); \
-			else \
-				pr_debug("tsens: invalid logging index\n"); \
-		} \
+		pr_debug("tsens: invalid logging index\n"); \
 	} while (0)
 #define TSENS_DUMP(dev, msg, args...) do {				\
-		TSENS_IPC(2, dev, msg, args); \
 		pr_info(msg, ##args);	\
 	} while (0)
 #define TSENS_ERR(dev, msg, args...) do {				\
 		pr_err(msg, ##args);	\
-		TSENS_IPC(1, dev, msg, args); \
 	} while (0)
 #define TSENS_INFO(dev, msg, args...) do {				\
 		pr_info(msg, ##args);	\
-		TSENS_IPC(1, dev, msg, args); \
 	} while (0)
 #define TSENS_DBG(dev, msg, args...) do {				\
 		pr_debug(msg, ##args);	\
-		if (dev) { \
-			TSENS_IPC(0, dev, msg, args); \
-		}	\
 	} while (0)
 #define TSENS_DBG1(dev, msg, args...) do {				\
 		pr_debug(msg, ##args);	\
-		if (dev) { \
-			TSENS_IPC(1, dev, msg, args); \
-		}	\
 	} while (0)
 #else
 #define	TSENS_DBG1(dev, msg, x...)		pr_debug(msg, ##x)

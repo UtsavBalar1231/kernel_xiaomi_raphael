@@ -78,40 +78,22 @@ enum MHI_DEBUG_LEVEL msg_lvl = MHI_MSG_LVL_ERROR;
 #define MSG_VERB(fmt, ...) do { \
 		if (msg_lvl <= MHI_MSG_LVL_VERBOSE) \
 			pr_err("[D][%s] " fmt, __func__, ##__VA_ARGS__); \
-		if (uci_dev->ipc_log && uci_dev->ipc_log_lvl && \
-		    (*uci_dev->ipc_log_lvl <= MHI_MSG_LVL_VERBOSE)) \
-			ipc_log_string(uci_dev->ipc_log, \
-				"[D][%s] " fmt, __func__, ##__VA_ARGS__); \
 	} while (0)
 
 #else
 
 #define MHI_UCI_IPC_LOG_PAGES (1)
-#define MSG_VERB(fmt, ...) do { \
-		if (uci_dev->ipc_log && uci_dev->ipc_log_lvl && \
-		    (*uci_dev->ipc_log_lvl <= MHI_MSG_LVL_VERBOSE)) \
-			ipc_log_string(uci_dev->ipc_log, \
-				"[D][%s] " fmt, __func__, ##__VA_ARGS__); \
-	} while (0)
-
+#define MSG_VERB(fmt, ...) ((void)0)
 #endif
 
 #define MSG_LOG(fmt, ...) do { \
 		if (msg_lvl <= MHI_MSG_LVL_INFO) \
 			pr_err("[I][%s] " fmt, __func__, ##__VA_ARGS__); \
-		if (uci_dev->ipc_log && uci_dev->ipc_log_lvl && \
-		    (*uci_dev->ipc_log_lvl <= MHI_MSG_LVL_INFO)) \
-			ipc_log_string(uci_dev->ipc_log, "[I][%s] " fmt, \
-				       __func__, ##__VA_ARGS__); \
 	} while (0)
 
 #define MSG_ERR(fmt, ...) do { \
 		if (msg_lvl <= MHI_MSG_LVL_ERROR) \
 			pr_err("[E][%s] " fmt, __func__, ##__VA_ARGS__); \
-		if (uci_dev->ipc_log && uci_dev->ipc_log_lvl && \
-		    (*uci_dev->ipc_log_lvl <= MHI_MSG_LVL_ERROR)) \
-			ipc_log_string(uci_dev->ipc_log, "[E][%s] " fmt, \
-				       __func__, ##__VA_ARGS__); \
 	} while (0)
 
 #define MAX_UCI_DEVICES (64)

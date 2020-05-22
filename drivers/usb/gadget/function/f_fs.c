@@ -49,8 +49,7 @@
 	dynamic_pr_debug("%s: " fmt, __func__, ##__VA_ARGS__); \
 } while (0)
 #else
-#define ffs_log(fmt, ...) \
-	ipc_log_string(ffs->ipc_log, "%s: " fmt,  __func__, ##__VA_ARGS__)
+#define ffs_log(fmt, ...) ((void)0)
 #endif
 
 /* Reference counter handling */

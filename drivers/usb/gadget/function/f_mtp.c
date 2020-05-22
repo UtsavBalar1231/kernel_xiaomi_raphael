@@ -47,12 +47,10 @@
 
 #ifdef CONFIG_DYNAMIC_DEBUG
 #define mtp_log(fmt, ...) do { \
-	ipc_log_string(_mtp_ipc_log, "%s: " fmt,  __func__, ##__VA_ARGS__); \
 	dynamic_pr_debug("%s: " fmt, __func__, ##__VA_ARGS__); \
 } while (0)
 #else
-#define mtp_log(fmt, ...) \
-	ipc_log_string(_mtp_ipc_log, "%s: " fmt,  __func__, ##__VA_ARGS__)
+#define mtp_log(fmt, ...) ((void)0)
 #endif
 
 #define MTP_BULK_BUFFER_SIZE       16384

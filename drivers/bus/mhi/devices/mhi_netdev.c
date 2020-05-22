@@ -36,39 +36,21 @@
 #define MSG_VERB(fmt, ...) do { \
 	if (mhi_netdev->msg_lvl <= MHI_MSG_LVL_VERBOSE) \
 		pr_err("[D][%s] " fmt, __func__, ##__VA_ARGS__);\
-	if (mhi_netdev->ipc_log && (*mhi_netdev->ipc_log_lvl <= \
-				    MHI_MSG_LVL_VERBOSE)) \
-		ipc_log_string(mhi_netdev->ipc_log, "[D][%s] " fmt, \
-			       __func__, ##__VA_ARGS__); \
 } while (0)
 
 #else
 
-#define MSG_VERB(fmt, ...) do { \
-	if (mhi_netdev->ipc_log && (*mhi_netdev->ipc_log_lvl <= \
-				    MHI_MSG_LVL_VERBOSE)) \
-		ipc_log_string(mhi_netdev->ipc_log, "[D][%s] " fmt, \
-			       __func__, ##__VA_ARGS__); \
-} while (0)
-
+#define MSG_VERB(fmt, ...) ((void)0)
 #endif
 
 #define MSG_LOG(fmt, ...) do { \
 	if (mhi_netdev->msg_lvl <= MHI_MSG_LVL_INFO) \
 		pr_err("[I][%s] " fmt, __func__, ##__VA_ARGS__);\
-	if (mhi_netdev->ipc_log && (*mhi_netdev->ipc_log_lvl <= \
-				    MHI_MSG_LVL_INFO)) \
-		ipc_log_string(mhi_netdev->ipc_log, "[I][%s] " fmt, \
-			       __func__, ##__VA_ARGS__); \
 } while (0)
 
 #define MSG_ERR(fmt, ...) do { \
 	if (mhi_netdev->msg_lvl <= MHI_MSG_LVL_ERROR) \
 		pr_err("[E][%s] " fmt, __func__, ##__VA_ARGS__); \
-	if (mhi_netdev->ipc_log && (*mhi_netdev->ipc_log_lvl <= \
-				    MHI_MSG_LVL_ERROR)) \
-		ipc_log_string(mhi_netdev->ipc_log, "[E][%s] " fmt, \
-			       __func__, ##__VA_ARGS__); \
 } while (0)
 
 #define MHI_ASSERT(cond, msg) do { \

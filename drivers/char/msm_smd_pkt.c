@@ -86,18 +86,11 @@ enum {
 	SMD_PKT_INFO = 1U << 0,
 };
 
-#define SMD_PKT_INFO(x, ...)                                          \
-do {                                                                    \
-	if (smd_pkt_debug_mask & SMD_PKT_INFO) {                    \
-		ipc_log_string(smd_pkt_ilctxt,                        \
-			"[%s]: "x, __func__, ##__VA_ARGS__);            \
-	}                                                               \
-} while (0)
+#define SMD_PKT_INFO(x, ...) ((void)0)
 
 #define SMD_PKT_ERR(x, ...)                                                 \
 do {                                                                          \
 	pr_err_ratelimited("[%s]: "x, __func__, ##__VA_ARGS__);               \
-	ipc_log_string(smd_pkt_ilctxt, "[%s]: "x, __func__, ##__VA_ARGS__); \
 } while (0)
 
 #define SMD_PKT_IOCTL_QUEUE_RX_INTENT \

@@ -39,17 +39,11 @@
 #define MSG_RAM_ALIGN_BYTES 3
 
 #define QMP_IPC_LOG_PAGE_CNT 2
-#define QMP_INFO(ctxt, x, ...)						  \
-do {									  \
-	if (ctxt)							  \
-		ipc_log_string(ctxt, "[%s]: "x, __func__, ##__VA_ARGS__); \
-} while (0)
+#define QMP_INFO(ctxt, x, ...) ((void)0)
 
 #define QMP_ERR(ctxt, x, ...)						  \
 do {									  \
 	pr_err_ratelimited("[%s]: "x, __func__, ##__VA_ARGS__);		  \
-	if (ctxt)							  \
-		ipc_log_string(ctxt, "[%s]: "x, __func__, ##__VA_ARGS__); \
 } while (0)
 
 /**

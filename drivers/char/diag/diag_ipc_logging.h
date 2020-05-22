@@ -30,16 +30,7 @@
 #ifdef CONFIG_IPC_LOGGING
 extern uint16_t diag_debug_mask;
 extern void *diag_ipc_log;
-
-#define DIAG_LOG(log_lvl, msg, ...)					\
-	do {								\
-		if (diag_ipc_log && (log_lvl & diag_debug_mask)) {	\
-			ipc_log_string(diag_ipc_log,			\
-				"[%s] " msg, __func__, ##__VA_ARGS__);	\
-		}							\
-	} while (0)
-#else
-#define DIAG_LOG(log_lvl, msg, ...)
 #endif
+#define DIAG_LOG(log_lvl, msg, ...) ((void)0)
 
 #endif
