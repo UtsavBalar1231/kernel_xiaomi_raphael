@@ -1,0 +1,1 @@
+source "net/wireguard/src/Kconfig"
