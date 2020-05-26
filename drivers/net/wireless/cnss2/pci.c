@@ -843,6 +843,7 @@ static int cnss_pci_force_wake_get(struct cnss_pci_data *pci_priv)
 
 	if (cnss_pci_is_device_awake(dev) != true) {
 		cnss_pr_err("Timed out to request force wake\n");
+		cnss_pci_force_wake_release(dev);
 		return -ETIMEDOUT;
 	}
 
@@ -2152,6 +2153,34 @@ void cnss_pci_fw_boot_timeout_hdlr(struct cnss_pci_data *pci_priv)
 			       CNSS_REASON_TIMEOUT);
 }
 
+int cnss_pci_get_iova(struct cnss_pci_data *pci_priv, u64 *addr, u64 *size)
+{
+	if (!pci_priv)
+		return -ENODEV;
+
+	if (!pci_priv->smmu_iova_len)
+		return -EINVAL;
+
+	*addr = pci_priv->smmu_iova_start;
+	*size = pci_priv->smmu_iova_len;
+
+	return 0;
+}
+
+int cnss_pci_get_iova_ipa(struct cnss_pci_data *pci_priv, u64 *addr, u64 *size)
+{
+	if (!pci_priv)
+		return -ENODEV;
+
+	if (!pci_priv->smmu_iova_ipa_len)
+		return -EINVAL;
+
+	*addr = pci_priv->smmu_iova_ipa_start;
+	*size = pci_priv->smmu_iova_ipa_len;
+
+	return 0;
+}
+
 struct dma_iommu_mapping *cnss_smmu_get_mapping(struct device *dev)
 {
 	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(to_pci_dev(dev));
@@ -2929,6 +2958,11 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 	if (!mhi_ctrl->log_buf)
 		cnss_pr_err("Unable to create CNSS MHI IPC log context\n");
 
+	mhi_ctrl->cntrl_log_buf = ipc_log_context_create(CNSS_IPC_LOG_PAGES,
+							 "cnss-mhi-cntrl", 0);
+	if (!mhi_ctrl->cntrl_log_buf)
+		cnss_pr_err("Unable to create CNSS MHICNTRL IPC log context\n");
+
 	ret = of_register_mhi_controller(mhi_ctrl);
 	if (ret) {
 		cnss_pr_err("Failed to register to MHI bus, err = %d\n", ret);
@@ -2944,6 +2978,7 @@ static void cnss_pci_unregister_mhi(struct cnss_pci_data *pci_priv)
 
 	mhi_unregister_mhi_controller(mhi_ctrl);
 	ipc_log_context_destroy(mhi_ctrl->log_buf);
+	ipc_log_context_destroy(mhi_ctrl->cntrl_log_buf);
 	kfree(mhi_ctrl->irq);
 }
 

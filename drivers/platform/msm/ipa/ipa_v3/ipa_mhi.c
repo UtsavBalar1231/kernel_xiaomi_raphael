@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,8 +60,8 @@
 #define IPA_MHI_FUNC_EXIT() \
 	IPA_MHI_DBG("EXIT\n")
 
-#define IPA_MHI_MAX_UL_CHANNELS 1
-#define IPA_MHI_MAX_DL_CHANNELS 2
+#define IPA_MHI_MAX_UL_CHANNELS 2
+#define IPA_MHI_MAX_DL_CHANNELS 3
 
 /* bit #40 in address should be asserted for MHI transfers over pcie */
 #define IPA_MHI_HOST_ADDR_COND(addr) \
@@ -104,6 +104,33 @@ bool ipa3_mhi_stop_gsi_channel(enum ipa_client_type client)
 	}
 
 	return false;
+}
+
+static int ipa3_mhi_send_endp_ind_to_modem(void)
+{
+	struct ipa_endp_desc_indication_msg_v01 req;
+	struct ipa_ep_id_type_v01 *ep_info;
+	int ipa_mhi_prod_ep_idx =
+		ipa3_get_ep_mapping(IPA_CLIENT_MHI_LOW_LAT_PROD);
+	int ipa_mhi_cons_ep_idx =
+		ipa3_get_ep_mapping(IPA_CLIENT_MHI_LOW_LAT_CONS);
+
+	memset(&req, 0, sizeof(struct ipa_endp_desc_indication_msg_v01));
+	req.ep_info_len = 2;
+	req.ep_info_valid = true;
+	req.num_eps_valid = true;
+	req.num_eps = 2;
+	ep_info = &req.ep_info[0];
+	ep_info->ep_id = ipa_mhi_cons_ep_idx;
+	ep_info->ic_type = DATA_IC_TYPE_MHI_V01;
+	ep_info->ep_type = DATA_EP_DESC_TYPE_EMB_FLOW_CTL_PROD_V01;
+	ep_info->ep_status = DATA_EP_STATUS_CONNECTED_V01;
+	ep_info = &req.ep_info[1];
+	ep_info->ep_id = ipa_mhi_prod_ep_idx;
+	ep_info->ic_type = DATA_IC_TYPE_MHI_V01;
+	ep_info->ep_type = DATA_EP_DESC_TYPE_EMB_FLOW_CTL_CONS_V01;
+	ep_info->ep_status = DATA_EP_STATUS_CONNECTED_V01;
+	return ipa3_qmi_send_endp_desc_indication(&req);
 }
 
 static int ipa3_mhi_reset_gsi_channel(enum ipa_client_type client)
@@ -196,6 +223,7 @@ static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 	struct ipa_mhi_msi_info *msi;
 	struct gsi_chan_props ch_props;
 	union __packed gsi_channel_scratch ch_scratch;
+	union __packed gsi_channel_scratch ch_scratch1;
 	struct ipa3_ep_context *ep;
 	const struct ipa_gsi_ep_config *ep_cfg;
 	struct ipa_ep_cfg_ctrl ep_cfg_ctrl;
@@ -339,8 +367,31 @@ static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 	} else {
 		ch_scratch.mhi.burst_mode_enabled = false;
 	}
-	res = gsi_write_channel_scratch(ep->gsi_chan_hdl,
-		ch_scratch);
+
+	if (ipa3_ctx->ipa_hw_type == IPA_HW_v4_5 &&
+		ipa3_ctx->platform_type == IPA_PLAT_TYPE_MDM) {
+		memset(&ch_scratch1, 0, sizeof(ch_scratch1));
+		ch_scratch1.mhi_v2.mhi_host_wp_addr_lo =
+			ch_scratch.mhi.mhi_host_wp_addr & 0xFFFFFFFF;
+		ch_scratch1.mhi_v2.mhi_host_wp_addr_hi =
+			(ch_scratch.mhi.mhi_host_wp_addr & 0x1FF00000000ll)
+			>> 32;
+		ch_scratch1.mhi_v2.polling_configuration =
+			ch_scratch.mhi.polling_configuration;
+		ch_scratch1.mhi_v2.assert_bit40 =
+			ch_scratch.mhi.assert_bit40;
+		ch_scratch1.mhi_v2.burst_mode_enabled =
+			ch_scratch.mhi.burst_mode_enabled;
+		ch_scratch1.mhi_v2.polling_mode =
+			ch_scratch.mhi.polling_mode;
+		ch_scratch1.mhi_v2.oob_mod_threshold =
+			ch_scratch.mhi.oob_mod_threshold;
+		res = gsi_write_channel_scratch(ep->gsi_chan_hdl,
+			ch_scratch1);
+	} else {
+		res = gsi_write_channel_scratch(ep->gsi_chan_hdl,
+			ch_scratch);
+	}
 	if (res) {
 		IPA_MHI_ERR("gsi_write_channel_scratch failed %d\n",
 			res);
@@ -447,6 +498,10 @@ int ipa3_connect_mhi_pipe(struct ipa_mhi_connect_params_internal *in,
 	int ipa_ep_idx;
 	int res;
 	enum ipa_client_type client;
+	int ipa_mhi_prod_ep_idx =
+		ipa3_get_ep_mapping(IPA_CLIENT_MHI_LOW_LAT_PROD);
+	int ipa_mhi_cons_ep_idx =
+		ipa3_get_ep_mapping(IPA_CLIENT_MHI_LOW_LAT_CONS);
 
 	IPA_MHI_FUNC_ENTRY();
 
@@ -516,6 +571,14 @@ int ipa3_connect_mhi_pipe(struct ipa_mhi_connect_params_internal *in,
 	ipa3_ctx->skip_ep_cfg_shadow[ipa_ep_idx] = ep->skip_ep_cfg;
 	IPA_MHI_DBG("client %d (ep: %d) connected\n", client,
 		ipa_ep_idx);
+
+	if ((client == IPA_CLIENT_MHI_LOW_LAT_PROD ||
+		client == IPA_CLIENT_MHI_LOW_LAT_CONS) &&
+		ipa_mhi_prod_ep_idx != -1 &&
+		ipa3_ctx->ep[ipa_mhi_prod_ep_idx].valid &&
+		ipa_mhi_cons_ep_idx != -1 &&
+		ipa3_ctx->ep[ipa_mhi_cons_ep_idx].valid)
+		ipa3_mhi_send_endp_ind_to_modem();
 
 	IPA_MHI_FUNC_EXIT();
 
@@ -645,6 +708,9 @@ int ipa3_mhi_resume_channels_internal(enum ipa_client_type client,
 
 		/* Use GSI update API to not affect non-SWI fields
 		 * inside the scratch while in suspend-resume operation
+		 */
+		/* polling_mode bit remains unchanged for mhi_v2 format,
+		 * no update needed for this effort
 		 */
 		res = gsi_update_mhi_channel_scratch(
 			ep->gsi_chan_hdl, ch_scratch.mhi);
