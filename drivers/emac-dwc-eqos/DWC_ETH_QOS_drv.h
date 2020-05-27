@@ -74,10 +74,10 @@ static netdev_features_t DWC_ETH_QOS_fix_features(
 INT DWC_ETH_QOS_configure_remotewakeup(struct net_device *dev,
 				       struct ifr_data_struct *req);
 
-static void DWC_ETH_QOS_program_dcb_algorithm(
+static int DWC_ETH_QOS_program_dcb_algorithm(
 	struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_struct *req);
 
-static void DWC_ETH_QOS_program_avb_algorithm(
+static int DWC_ETH_QOS_program_avb_algorithm(
 	struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_struct *req);
 
 static void DWC_ETH_QOS_config_tx_pbl(struct DWC_ETH_QOS_prv_data *pdata,
