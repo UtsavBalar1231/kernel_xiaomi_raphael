@@ -778,7 +778,6 @@ void hdd_ndi_drv_ndi_delete_rsp_handler(uint8_t vdev_id)
 	sta_id = sta_ctx->broadcast_staid;
 	if (sta_id < HDD_MAX_ADAPTERS) {
 		hdd_ctx->sta_to_adapter[sta_id] = NULL;
-		hdd_roam_deregister_sta(adapter, sta_id);
 		hdd_delete_peer(sta_ctx, sta_id);
 		sta_ctx->broadcast_staid = HDD_WLAN_INVALID_STA_ID;
 	}
@@ -944,12 +943,12 @@ void hdd_ndp_peer_departed_handler(uint8_t vdev_id, uint16_t sta_id,
 		return;
 	}
 
-	hdd_roam_deregister_sta(adapter, sta_id);
 	hdd_delete_peer(sta_ctx, sta_id);
 	hdd_ctx->sta_to_adapter[sta_id] = NULL;
 
 	if (last_peer) {
 		hdd_debug("No more ndp peers.");
 		hdd_cleanup_ndi(hdd_ctx, adapter);
+		qdf_event_set(&adapter->peer_cleanup_done);
 	}
 }
