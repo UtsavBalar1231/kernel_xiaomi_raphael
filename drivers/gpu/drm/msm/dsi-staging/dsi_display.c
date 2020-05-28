@@ -1262,7 +1262,7 @@ int dsi_display_set_power(struct drm_connector *connector,
         }
 
 	g_notify_data.data = &event;
-	pr_info("%s %d\n", __func__, event);
+	pr_debug("%s %d\n", __func__, event);
 	switch (power_mode) {
 	case SDE_MODE_DPMS_LP1:
 		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &g_notify_data);
