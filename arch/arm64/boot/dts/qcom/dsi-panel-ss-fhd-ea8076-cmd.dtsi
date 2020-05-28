@@ -57,8 +57,9 @@
 			17000 15500 30000 8000 3000>;
 		qcom,mdss-dsi-panel-peak-brightness = <4300000>;
 		qcom,mdss-dsi-panel-blackness-level = <3230>;
+		qcom,mdss-dsi-panel-fod-dimlayer-enabled;
 
-		qcom,dispparam-enabled;
+		qcom,dispparam-enabled;	
 		qcom,mdss-panel-on-dimming-delay = <120>;
 		/* IRQF_ONESHOT | IRQF_TRIGGER_FALLING */
 		/* trig-flags: falling-0x0002 rasing-0x0001 */
