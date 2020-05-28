@@ -1276,7 +1276,6 @@ static int msm_vidc_switch_vmid(int vmid, struct context_bank_info *cb)
 	uint32_t *sid_info = NULL;
 	int rc = 0;
 
-	dprintk(VIDC_DBG, "%s: In\n", __func__);
 	if (!cb) {
 		dprintk(VIDC_ERR, "%s: invalid context bank device\n",
 			__func__);
@@ -1404,7 +1403,7 @@ static int msm_vidc_setup_context_bank(struct context_bank_info *cb,
 	dprintk(VIDC_DBG, "Attached %s and created mapping cma status %d\n",
 			dev_name(dev), cma_enable);
 	dprintk(VIDC_DBG,
-		"Context bank name:%s, buffer_type: %#x, is_secure: %d,	 address range start: %#x, size: %#x, dev: %pK, mapping: %pK",
+		"Context bank name:%s, buffer_type: %#x, is_secure: %d, address range start: %#x, size: %#x, dev: %pK, mapping: %pK",
 		cb->name, cb->buffer_type, cb->is_secure, start_addr,
 		pool_size, cb->dev, cb->mapping);
 
@@ -1542,7 +1541,6 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 	}
 	cb->num_sids = j;
 
-	dprintk(VIDC_DBG, "%s: context bank has name %s\n", __func__, cb->name);
 	rc = of_property_read_u32_array(np, "virtual-addr-pool",
 			(u32 *)&cb->addr_range, 2);
 	if (rc) {
@@ -1556,6 +1554,9 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 			(u32 *)&cb->cma.addr_range, 2);
 
 	cb->cma.s1_bypass = of_property_read_bool(np, "qcom,cma-s1-bypass");
+	if (cb->cma.s1_bypass && !rc)
+		core->resources.cma_exist = true;
+
 	cb->is_secure = of_property_read_bool(np, "qcom,secure-context-bank");
 	dprintk(VIDC_DBG, "context bank %s : secure = %d\n",
 			cb->name, cb->is_secure);
@@ -1568,9 +1569,10 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 		goto err_setup_cb;
 	}
 	dprintk(VIDC_DBG,
-		"context bank %s address start = %x address size = %x buffer_type = %x\n",
-		cb->name, cb->addr_range.start,
-		cb->addr_range.size, cb->buffer_type);
+		"context bank %s address start = %x size = %x cma address start = %x size = %x s1 bypass = %d buffer_type = %x\n",
+		cb->name, cb->addr_range.start, cb->addr_range.size,
+		cb->cma.addr_range.start, cb->cma.addr_range.size,
+		cb->cma.s1_bypass, cb->buffer_type);
 
 	rc = msm_vidc_setup_context_bank(cb, dev, false);
 	if (rc) {

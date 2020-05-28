@@ -595,10 +595,11 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 	core->vdev[MSM_VIDC_ENCODER_CMA].type = MSM_VIDC_ENCODER_CMA;
 	core->vdev[MSM_VIDC_ENCODER_CMA].vdev.v4l2_dev = &core->v4l2_dev;
 	rc = video_register_device(&core->vdev[MSM_VIDC_ENCODER_CMA].vdev,
-				VFL_TYPE_GRABBER, nr + 2);
+				VFL_TYPE_GRABBER, nr + 3);
 	if (rc) {
 		dprintk(VIDC_ERR,
 				"Failed to register video cma encoder device");
+
 		goto err_enc_register;
 	}
 
@@ -608,6 +609,7 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 	if (rc) {
 		dprintk(VIDC_ERR,
 				"Failed to create link name sysfs for encoder cma");
+
 		goto err_enc_attr_link_name;
 	}
 

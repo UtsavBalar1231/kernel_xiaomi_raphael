@@ -1260,6 +1260,13 @@ void *msm_vidc_open(int core_id, int session_type)
 		goto err_invalid_core;
 	}
 
+	if ((session_type == MSM_VIDC_ENCODER_CMA) &&
+			!core->resources.cma_exist) {
+		dprintk(VIDC_ERR, "Failed cma not enabled\n");
+
+		goto err_invalid_core;
+
+	}
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst) {
 		dprintk(VIDC_ERR, "Failed to allocate memory\n");
@@ -1343,6 +1350,7 @@ void *msm_vidc_open(int core_id, int session_type)
 		if (!list_empty(&core->instances)) {
 			dprintk(VIDC_ERR,
 				"failed due to pending instances in core");
+
 			mutex_unlock(&core->lock);
 			goto fail_toggle_cma;
 		}
