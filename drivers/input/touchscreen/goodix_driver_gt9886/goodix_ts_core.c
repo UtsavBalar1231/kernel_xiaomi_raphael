@@ -70,6 +70,7 @@ extern int goodix_i2c_write(struct goodix_ts_device *dev, unsigned int reg, unsi
 #ifdef CONFIG_CPU_BOOST
 extern void touch_irq_boost(void);
 #endif
+extern void lpm_disable_for_input(bool on);
 
 struct goodix_module goodix_modules;
 struct goodix_ts_core *goodix_core_data;
@@ -736,6 +737,7 @@ static void release_all_touches(struct goodix_ts_core *core_data)
 	core_data->sleep_finger = core_data->touch_id;
 	core_data->touch_id = 0;
 	input_sync(core_data->input_dev);
+	lpm_disable_for_input(false);
 	mutex_unlock(&ts_dev->report_mutex);
 }
 
@@ -846,6 +848,7 @@ static void goodix_ts_sleep_work(struct work_struct *work)
 		r = wait_for_completion_timeout(&core_data->pm_resume_completion, msecs_to_jiffies(500));
 		if (!r) {
 			ts_info("pm_resume_completion timeout, i2c is closed");
+			lpm_disable_for_input(false);
 			return;
 		} else {
 			ts_info("pm_resume_completion be completed, handling irq");
@@ -860,6 +863,7 @@ static void goodix_ts_sleep_work(struct work_struct *work)
 		if (r == EVT_CANCEL_IRQEVT) {
 			ts_info("irq exit");
 			mutex_unlock(&goodix_modules.mutex);
+			lpm_disable_for_input(false);
 			return;
 		}
 	}
@@ -874,6 +878,7 @@ static void goodix_ts_sleep_work(struct work_struct *work)
 					&ts_event->event_data.touch_data);
 		}
 	}
+	lpm_disable_for_input(false);
 	ts_info("exit");
 }
 
@@ -907,6 +912,7 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 #ifdef CONFIG_CPU_BOOST
 	touch_irq_boost();
 #endif
+	lpm_disable_for_input(true);
 	if (core_data->tp_already_suspend) {
 		ts_info("device in suspend, schedule to work");
 		pm_wakeup_event(&core_data->pdev->dev, msecs_to_jiffies(300));
@@ -923,6 +929,7 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 		if (r == EVT_CANCEL_IRQEVT) {
 			ts_err("enter %s EVT_CANCEL_IRQEVT \n", __func__);
 			mutex_unlock(&goodix_modules.mutex);
+			lpm_disable_for_input(false);
 			goto handled;
 		}
 	}
@@ -940,6 +947,8 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 	/* clean irq flag */
 	ts_dev->hw_ops->write_trans(ts_dev, ts_dev->reg.coor, &irq_flag, 1);/*TS_REG_COORDS_BASE*/
 
+	if (!core_data->touch_id)
+		lpm_disable_for_input(false);
 handled:
 	pm_qos_update_request(&core_data->pm_touch_req, PM_QOS_DEFAULT_VALUE);
 	return IRQ_HANDLED;
