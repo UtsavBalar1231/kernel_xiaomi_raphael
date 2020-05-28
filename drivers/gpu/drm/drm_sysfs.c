@@ -375,6 +375,85 @@ static ssize_t disp_count_show(struct device *device,
 	return ret;
 }
 
+extern bool get_fod_ui_status(struct drm_connector *connector);
+static ssize_t fod_ui_ready_show(struct device *device,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	struct drm_connector *connector = NULL;
+	bool fod_ui_ready = false;
+
+	connector = to_drm_connector(device);
+	if (!connector)
+		return 0;
+
+	fod_ui_ready = get_fod_ui_status(connector);
+	return snprintf(buf, PAGE_SIZE, "%d\n", fod_ui_ready);
+}
+
+ssize_t xm_fod_dim_layer_alpha_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count);
+
+extern bool set_fod_dimlayer_status(struct drm_connector *connector, bool enable);
+static ssize_t dim_layer_enable_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct drm_connector *connector = NULL;
+	bool fod_dimlayer_status = true;
+	ssize_t ret = 0;
+
+	connector = to_drm_connector(dev);
+
+	if (!connector)
+		return ret;
+
+	ret = kstrtobool(buf, &fod_dimlayer_status);
+	ret = set_fod_dimlayer_status(connector, fod_dimlayer_status);
+
+	if (!set_fod_dimlayer_status(connector, fod_dimlayer_status))
+		return ret;
+
+	pr_info("set fod dimlayer %s", fod_dimlayer_status ? "true" : "false");
+	return count;
+}
+
+extern bool get_fod_dimlayer_status(struct drm_connector *connector);
+static ssize_t dim_layer_enable_show(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct drm_connector *connector = NULL;
+	bool fod_dimlayer_status = true;
+
+	connector = to_drm_connector(device);
+	if (!connector)
+		return 0;
+
+	fod_dimlayer_status = get_fod_dimlayer_status(connector);
+
+	return snprintf(buf, PAGE_SIZE, fod_dimlayer_status ? "enabled\n" : "disabled\n");
+}
+
+extern bool get_fod_dimlayer_hbm_enabled_status(struct drm_connector *connector);
+
+static ssize_t dimlayer_hbm_enabled_show(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct drm_connector *connector = NULL;
+	bool fod_dimlayer_hbm_enabled_status = false;
+
+	connector = to_drm_connector(device);
+	if (!connector)
+		return 0;
+
+	fod_dimlayer_hbm_enabled_status = get_fod_dimlayer_hbm_enabled_status(connector);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", fod_dimlayer_hbm_enabled_status);
+}
+
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
@@ -384,6 +463,10 @@ static DEVICE_ATTR_WO(disp_param);
 static DEVICE_ATTR_RO(doze_brightness);
 static DEVICE_ATTR_RW(mipi_reg);
 static DEVICE_ATTR_RW(disp_count);
+static DEVICE_ATTR_RW(dim_layer_enable);
+static DEVICE_ATTR(dim_alpha, S_IRUGO|S_IWUSR, NULL, xm_fod_dim_layer_alpha_store);
+static DEVICE_ATTR_RO(dimlayer_hbm_enabled);
+static DEVICE_ATTR_RO(fod_ui_ready);
 
 static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_status.attr,
@@ -395,6 +478,10 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_doze_brightness.attr,
 	&dev_attr_mipi_reg.attr,
 	&dev_attr_disp_count.attr,
+	&dev_attr_dim_layer_enable.attr,
+	&dev_attr_dimlayer_hbm_enabled.attr,
+	&dev_attr_dim_alpha.attr,
+	&dev_attr_fod_ui_ready.attr,
 	NULL
 };
 

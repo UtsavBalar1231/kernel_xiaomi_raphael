@@ -20,6 +20,10 @@ enum {
 	DRM_BLANK_POWERDOWN,
 };
 
+enum {
+	FOD_FINGERDOWN = 0,
+	FOD_FINGERUP,
+};
 
 struct drm_notify_data {
 	bool is_primary;

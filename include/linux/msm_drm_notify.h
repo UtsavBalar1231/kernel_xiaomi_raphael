@@ -42,6 +42,7 @@ enum msm_drm_display_id {
 struct msm_drm_notifier {
 	enum msm_drm_display_id id;
 	void *data;
+	bool is_primary;
 };
 
 int msm_drm_register_client(struct notifier_block *nb);
