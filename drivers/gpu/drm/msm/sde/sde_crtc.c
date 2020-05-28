@@ -5527,8 +5527,8 @@ static int sde_crtc_fod_atomic_check(struct sde_crtc_state *cstate,
 
 	if (fod_icon_plane_idx >= 0 || fod_press_plane_idx >= 0) {
 		cstate->dim_layer_status = true;
-		if (dim_layer_zpos > pstates[fod_icon_plane_idx].stage + 2)
-			dim_layer_zpos = pstates[fod_icon_plane_idx].stage + 2;
+		if (dim_layer_zpos > pstates[fod_icon_plane_idx].stage + 1)
+			dim_layer_zpos = pstates[fod_icon_plane_idx].stage + 1;
 
 		for (plane_idx = 0; plane_idx < cnt; plane_idx++) {
 			if (pstates[plane_idx].stage >= dim_layer_zpos)
