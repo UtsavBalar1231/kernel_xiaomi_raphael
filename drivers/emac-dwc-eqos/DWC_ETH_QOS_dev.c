@@ -1134,11 +1134,11 @@ static INT drop_tx_status_enabled(void)
  * \retval -1 Failure
  */
 
-static INT config_sub_second_increment(ULONG ptp_clock)
+static INT config_sub_second_increment(u64 ptp_clock)
 {
-	ULONG VARMAC_TCR;
-	double ss_inc = 0;
-	double sns_inc = 0;
+	ULONG VARMAC_TCR = 0;
+	u64 ss_inc = 0;
+	u64 sns_inc = 0;
 
 	MAC_TCR_RGRD(VARMAC_TCR);
 
@@ -1147,12 +1147,17 @@ static INT config_sub_second_increment(ULONG ptp_clock)
 	/*  where, ptp_clock = 50MHz if FINE correction */
 	/*  and ptp_clock = DWC_ETH_QOS_SYSCLOCK if COARSE correction */
 	if (GET_VALUE(VARMAC_TCR, MAC_TCR_TSCFUPDT_LPOS, MAC_TCR_TSCFUPDT_HPOS) == 1) {
-		EMACDBG("Using PTP clock %ld MHz\n", ptp_clock);
-		ss_inc = (double)1000000000.0 / (double)ptp_clock;
+		EMACDBG("Using PTP clock %lu MHz\n", ptp_clock);
+		ss_inc = div_u64((1 * 1000000000ull), ptp_clock);
+		sns_inc = 1000000000ull - (ss_inc * ptp_clock); //take remainder
+		sns_inc = div_u64((sns_inc * 256), ptp_clock); //sns_inc needs to be multiplied by 2^8, per spec.
+
 	}
 	else {
 		EMACDBG("Using SYSCLOCK for coarse correction\n");
-		ss_inc = (double)1000000000.0 / (double)DWC_ETH_QOS_SYSCLOCK;
+		ss_inc = div_u64((1 * 1000000000ull), DWC_ETH_QOS_SYSCLOCK);
+		sns_inc = 1000000000ull - (ss_inc * DWC_ETH_QOS_SYSCLOCK); //take remainder
+		sns_inc = div_u64((sns_inc * 256), DWC_ETH_QOS_SYSCLOCK); //sns_inc needs to be multiplied by 2^8, per spec.
 	}
 
 	/* 0.465ns accuracy */
@@ -1160,16 +1165,12 @@ static INT config_sub_second_increment(ULONG ptp_clock)
 			VARMAC_TCR, MAC_TCR_TSCTRLSSR_LPOS,
 			MAC_TCR_TSCTRLSSR_HPOS) == 0) {
 		EMACDBG("using 0.465 ns accuracy");
-		ss_inc /= 0.465;
+		ss_inc = div_u64((ss_inc * 1000), 465);
  	}
 
-	sns_inc = ss_inc - (int)ss_inc; // take remainder
-	sns_inc *= 256.0; // sns_inc needs to be multiplied by 2^8, per spec.
-	sns_inc += 0.5; // round to nearest int value.
-
-	MAC_SSIR_SSINC_UDFWR((int)ss_inc);
-	MAC_SSIR_SNSINC_UDFWR((int)sns_inc);
-	EMACDBG("ss_inc = %d, sns_inc = %d\n", (int)ss_inc, (int)sns_inc);
+	MAC_SSIR_SSINC_UDFWR(ss_inc);
+	MAC_SSIR_SNSINC_UDFWR(sns_inc);
+	EMACDBG("ss_inc = %lu, sns_inc = %lu\n", ss_inc, sns_inc);
 
 	return Y_SUCCESS;
     }

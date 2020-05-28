@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights
  * reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1013,7 +1013,7 @@ struct hw_if_struct {
 
 	/* for hw time stamping */
 	INT(*config_hw_time_stamping)(UINT);
-	INT(*config_sub_second_increment)(unsigned long ptp_clock);
+	INT(*config_sub_second_increment)(u64 ptp_clock);
 	INT(*config_default_addend)(struct DWC_ETH_QOS_prv_data *pdata, unsigned long ptp_clock);
 	INT(*init_systime)(UINT, UINT);
 	INT(*config_addend)(UINT);

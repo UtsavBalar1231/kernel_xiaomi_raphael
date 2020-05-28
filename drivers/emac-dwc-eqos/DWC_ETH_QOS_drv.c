@@ -5129,7 +5129,7 @@ static int ETH_PTPCLK_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ETH_PPS_
 
 	pdata->ptpclk_freq = eth_pps_cfg->ptpclk_freq;
 	ret = hw_if->config_default_addend(pdata, (ULONG)eth_pps_cfg->ptpclk_freq);
-	ret |= hw_if->config_sub_second_increment( (ULONG)eth_pps_cfg->ptpclk_freq);
+	ret |= hw_if->config_sub_second_increment(eth_pps_cfg->ptpclk_freq);
 
 	return ret;
 }
