@@ -705,12 +705,14 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 			if ((dsi_display->drm_dev && dsi_display->drm_dev->state == MSM_DRM_BLANK_LP1) ||
 				(dsi_display->drm_dev && dsi_display->drm_dev->state == MSM_DRM_BLANK_LP2)) {
 				if (dsi_display->panel->last_bl_lvl > dsi_display->panel->doze_backlight_threshold) {
+					dsi_display->panel->hbm_enabled = false;
 					dsi_display->panel->fod_dimlayer_hbm_enabled = false;
 					dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DOZE_HBM]);
 					dsi_display->drm_dev->doze_brightness = DOZE_BRIGHTNESS_HBM;
 				} else if (dsi_display->panel->last_bl_lvl < dsi_display->panel->doze_backlight_threshold
 							&& dsi_display->panel->last_bl_lvl > 0) {
 					dsi_display->panel->fod_dimlayer_hbm_enabled = false;
+					dsi_display->panel->hbm_enabled = false;
 					pr_debug("set fod_dimlayer_hbm_enabled state at hbm fod off doze lbm on is [%d]", dsi_display->panel->fod_dimlayer_hbm_enabled);
 					dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DOZE_LBM]);
 					dsi_display->drm_dev->doze_brightness = DOZE_BRIGHTNESS_LBM;
@@ -727,6 +729,7 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				}
 
 				dsi_display->panel->skip_dimmingon = STATE_DIM_RESTORE;
+				dsi_display->panel->hbm_enabled = false;
 				dsi_display->panel->fod_dimlayer_hbm_enabled = false;
 				pr_debug("HBM fod off\n");
 				sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "dimlayer_hbm_enabled");
@@ -759,6 +762,7 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 					rc = dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_HBM_FOD_ON]);
 				}
 				dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
+                                dsi_display->panel->hbm_enabled = true;
 				dsi_display->panel->fod_dimlayer_hbm_enabled = true;
 				pr_debug("HBM fod on\n");
 				sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "dimlayer_hbm_enabled");
