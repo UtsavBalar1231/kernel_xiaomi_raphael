@@ -637,8 +637,6 @@ int pm_suspend(suspend_state_t state)
 
 	pm_suspend_marker("entry");
 
-	pr_debug("suspend entry (%s)\n", mem_sleep_labels[state]);
-
 	error = enter_state(state);
 	if (error) {
 		suspend_stats.fail++;
