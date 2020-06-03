@@ -198,12 +198,12 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 	struct drm_device *dev = bridge->dev;
 	int event = 0;
 
-	if (dev->doze_state == MSM_DRM_BLANK_POWERDOWN) {
-		dev->doze_state = MSM_DRM_BLANK_UNBLANK;
+	if (dev->state == MSM_DRM_BLANK_POWERDOWN) {
+		dev->state = MSM_DRM_BLANK_UNBLANK;
 		pr_info("%s power on from power off\n", __func__);
 	}
 
-	event = dev->doze_state;
+	event = dev->state;
 
 	g_notify_data.data = &event;
 
@@ -223,7 +223,7 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		cancel_delayed_work_sync(&prim_panel_work);
 		__pm_relax(&prim_panel_wakelock);
 		if (dev->fp_quickon &&
-			(dev->doze_state == MSM_DRM_BLANK_LP1 || dev->doze_state == MSM_DRM_BLANK_LP2)) {
+			(dev->state == MSM_DRM_BLANK_LP1 || dev->state == MSM_DRM_BLANK_LP2)) {
 			event = MSM_DRM_BLANK_POWERDOWN;
 			msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &g_notify_data);
 			msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &g_notify_data);
@@ -364,6 +364,53 @@ static int dsi_bridge_get_panel_info(struct drm_bridge *bridge, char *buf)
 	return rc;
 }
 
+int dsi_panel_set_doze_backlight(struct dsi_display *display);
+
+ssize_t dsi_panel_get_doze_backlight(struct dsi_display *display, char *buf);
+
+int dsi_bridge_disp_set_doze_backlight(struct drm_connector *connector,
+			int doze_backlight)
+{
+	struct dsi_display *display = NULL;
+	struct dsi_bridge *c_bridge = NULL;
+
+	if (!connector || !connector->encoder || !connector->encoder->bridge) {
+		pr_err("Invalid connector/encoder/bridge ptr\n");
+		return -EINVAL;
+	}
+
+	c_bridge =  to_dsi_bridge(connector->encoder->bridge);
+	display = c_bridge->display;
+	if (!display || !display->panel || !display->drm_dev) {
+		pr_err("Invalid display/panel/drm_dev ptr\n");
+		return -EINVAL;
+	} else
+		display->drm_dev->doze_brightness = doze_backlight;
+
+	return dsi_panel_set_doze_backlight(display);
+}
+
+ssize_t dsi_bridge_disp_get_doze_backlight(struct drm_connector *connector,
+			char *buf)
+{
+	struct dsi_display *display = NULL;
+	struct dsi_bridge *c_bridge = NULL;
+
+	if (!connector || !connector->encoder || !connector->encoder->bridge) {
+		pr_err("Invalid connector/encoder/bridge ptr\n");
+		return -EINVAL;
+	}
+
+	c_bridge =  to_dsi_bridge(connector->encoder->bridge);
+	display = c_bridge->display;
+	if (!display || !display->panel) {
+		pr_err("Invalid display/panel ptr\n");
+		return -EINVAL;
+	}
+
+	return dsi_panel_get_doze_backlight(display, buf);
+}
+
 static void dsi_bridge_enable(struct drm_bridge *bridge)
 {
 	int rc = 0;
@@ -421,12 +468,12 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 	struct drm_device *dev = bridge->dev;
 	int event = 0;
 
-	if (dev->doze_state == MSM_DRM_BLANK_UNBLANK) {
-		dev->doze_state = MSM_DRM_BLANK_POWERDOWN;
+	if (dev->state == MSM_DRM_BLANK_UNBLANK) {
+		dev->state = MSM_DRM_BLANK_POWERDOWN;
 		pr_info("%s wrong doze state\n", __func__);
 	}
 
-	event = dev->doze_state;
+	event = dev->state;
 
 	g_notify_data.data = &event;
 
@@ -440,7 +487,7 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 		return;
 	}
 
-	if (dev->doze_state == MSM_DRM_BLANK_LP1 || dev->doze_state == MSM_DRM_BLANK_LP2) {
+	if (dev->state == MSM_DRM_BLANK_LP1 || dev->state == MSM_DRM_BLANK_LP2) {
 		pr_err("%s doze state can't power off panel\n", __func__);
 		event = MSM_DRM_BLANK_POWERDOWN;
 		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &g_notify_data);
