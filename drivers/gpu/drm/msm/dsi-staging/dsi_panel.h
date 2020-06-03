@@ -267,6 +267,9 @@ struct dsi_panel {
 	u64 hbm_duration;
 	u64 hbm_times;
 
+	u32 dc_threshold;
+	bool dc_enable;
+
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;
 };
