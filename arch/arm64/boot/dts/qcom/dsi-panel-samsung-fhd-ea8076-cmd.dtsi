@@ -83,17 +83,22 @@
 				qcom,mdss-dsi-panel-clockrate = <1100000000>;
 				qcom,mdss-dsi-panel-jitter = <0x5 0x1>;
 				qcom,mdss-dsi-on-command = [
-					/* delay 2ms for VCI1 power */
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* Test Key Enable: FC */
 					39 00 00 00 00 00 03 FC 5A 5A
+					/* delay 2ms for VCI1 power */
 					39 00 00 00 00 00 02 B0 0C
 					39 00 00 00 00 00 02 FF 10
 					39 00 00 00 00 00 02 B0 2F
 					39 00 00 00 00 00 02 D1 01
+					/* Test Key Disable: F0 */
 					39 00 00 00 00 00 03 F0 A5 A5
-					39 01 00 00 01 00 03 FC A5 A5
-					/* Sleep Out */
+					/* Test Key Disable: FC */
+					39 01 00 00 00 00 03 FC A5 A5
+					/* Sleep Out (Wait 10ms: 0x0A) */
 					05 01 00 00 0A 00 02 11 00
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
 					/* TE OUT(Vsync On) */
 					39 00 00 00 00 00 02 35 00
@@ -105,10 +110,13 @@
 					/* Edge Dimming */
 					39 00 00 00 00 00 02 B0 09
 					39 00 00 00 00 00 02 D8 00
+					/* Test Key Disable: F0 */
 					39 01 00 00 00 00 03 F0 A5 A5
 					/* Page Address Set */
 					39 01 00 00 00 00 05 2B 00 00 09 23
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* Test Key Enable: FC */
 					39 00 00 00 00 00 03 FC 5A 5A
 					/* ERR_FG Setting */
 					39 00 00 00 00 00 07 E1 00 00 02 02 42 02
@@ -117,45 +125,73 @@
 					39 00 00 00 00 00 02 E1 19
 					/* OFC Setting 82.6Mhz*/
 					39 00 00 00 00 00 0C E9 11 55 A6 75 A3 B8 BB 2A 00 1A B8
+					/* Test Key Disable: F0 */
 					39 00 00 00 00 00 03 F0 A5 A5
+					/* Test Key Disable: FC */
 					39 01 00 00 00 00 03 FC A5 A5
 					/* Brightness Control */
+					/* HBM Off */
 					39 00 00 00 00 00 02 53 20
+					/* Brightness Setting */
 					39 00 00 00 00 00 03 51 00 00
+					/* ACL OFF */
 					39 01 00 00 43 00 02 55 00
-					/* Display On */
-					05 01 00 00 00 00 02 29 00];
+					/* Display On (29h) */
+					05 01 00 00 00 00 02 29 00
+				];
 				qcom,mdss-dsi-off-command = [
+					/* Display Off */
 					05 01 00 00 00 00 02 28 00
-					05 01 00 00 78 00 02 10 00];
+					/* Sleep In */
+					05 01 00 00 78 00 02 10 00
+				];
 				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-doze-hbm-command = [
-					/* AOD ON Sequence (Normal To AOD HBM) */
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* HLPM VLOUT3 Setting */
 					39 00 00 00 00 00 02 D4 8B
+					/* HLPM SELECT 1 */
 					39 00 00 00 00 00 02 B0 A5
+					/* HLPM SELECT 2 */
 					39 00 00 00 00 00 02 C7 00
+					/* HLPM AOR 1 */
 					39 00 00 00 00 00 02 B0 69
+					/* HLPM AOR 2 */
 					39 00 00 00 00 00 03 B9 08 8F
+					/* HLPM On (0x22: 60nit) */
 					39 00 00 00 01 00 02 53 22
-					39 01 00 00 00 00 03 F0 A5 A5];
+					/* Test Key Disable: F0 */
+					39 01 00 00 00 00 03 F0 A5 A5
+				];
 				qcom,mdss-dsi-doze-lbm-command = [
-					/* AOD ON Sequence (Normal To AOD LBM) */
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* HLPM VLOUT3 Setting */
 					39 00 00 00 00 00 02 D4 8B
+					/* HLPM SELECT 1 */
 					39 00 00 00 00 00 02 B0 A5
+					/* HLPM SELECT 2 */
 					39 00 00 00 00 00 02 C7 00
+					/* HLPM AOR 1 */
 					39 00 00 00 00 00 02 B0 69
+					/* HLPM AOR 2 */
 					39 00 00 00 00 00 03 B9 08 8F
+					/* HLPM on (0x23: 2nit) */
 					39 00 00 00 00 00 02 53 23
-					39 01 00 00 00 00 03 F0 A5 A5];
+					/* Test Key Disable: F0 */
+					39 01 00 00 00 00 03 F0 A5 A5
+				];
 				qcom,mdss-dsi-nolp-command = [
-					/* AOD OFF Sequence (AOD To Normal) */
+					/* Display Off (Wait 34ms: 0x22) */
 					05 01 00 00 22 00 02 28 00
+					/* HBM off + Disable brightness dimming */
 					39 01 00 00 00 00 02 53 20
-					05 01 00 00 00 00 02 29 00];
+					/* Display on (29h) */
+					05 01 00 00 00 00 02 29 00
+				];
 				qcom,mdss-dsi-doze-hbm-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-doze-lbm-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-nolp-command-state = "dsi_lp_mode";

@@ -73,26 +73,39 @@
 		qcom,mdss-dsi-dispparam-elvss-dimming-read-command = [06 01 00 01 00 00 01 B7];
 		qcom,mdss-dsi-dispparam-elvss-dimming-read-command-state = "dsi_hs_mode";
 		qcom,mdss-dsi-dispparam-hbm-fod-off-command = [
+					/* HBM off + Disable brightness dimming */
 					39 01 00 00 00 00 02 53 20
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* Elvss Dimming Setting */
 					39 00 00 00 00 00 03 B7 01 4B
 					39 00 00 00 00 00 02 B0 03
 					39 00 00 00 00 00 02 B7 49
 					39 00 00 00 00 00 02 B0 07
 					39 00 00 00 00 00 02 B7 91
-					39 01 00 00 01 00 03 F0 A5 A5];
+					/* Test Key Disable: F0 */
+					39 01 00 00 01 00 03 F0 A5 A5
+				];
 		qcom,mdss-dsi-dispparam-hbm-fod-off-command-state = "dsi_hs_mode";
 		qcom,mdss-dsi-dispparam-hbm-fod-on-command = [
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* Elvss Dimming Setting */
 					39 00 00 00 00 00 02 B0 03
 					39 00 00 00 00 00 02 B7 C9
 					39 00 00 00 00 00 02 B0 07
 					39 00 00 00 00 00 02 B7 91
+					/* Test Key Disable: F0 */
 					39 00 00 00 00 00 03 F0 A5 A5
+					/* HBM on + Disable brightness dimming */
 					39 01 00 00 01 00 02 53 E0
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* Elvss Dimming Setting */
 					39 00 00 00 00 00 03 B7 01 43
-					39 01 00 00 01 00 03 F0 A5 A5];
+					/* Test Key Disable: F0 */
+					39 01 00 00 01 00 03 F0 A5 A5
+				];
 		qcom,mdss-dsi-dispparam-hbm-fod-on-command-state = "dsi_hs_mode";
 
 		qcom,mdss-dsi-display-timings {
@@ -114,27 +127,44 @@
 				qcom,mdss-dsi-panel-clockrate = <1100000000>;
 				qcom,mdss-dsi-panel-jitter = <0x5 0x1>;
 				qcom,mdss-dsi-on-command = [
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* Test Key Enable: FC */
 					39 00 00 00 00 00 03 FC 5A 5A
+					/* delay 2ms for VCI1 power */
 					39 00 00 00 00 00 02 B0 0C
 					39 00 00 00 00 00 02 FF 10
 					39 00 00 00 00 00 02 B0 2F
 					39 01 00 00 00 00 02 D1 01
+					/* Test Key Disable: F0 */
 					39 00 00 00 00 00 03 F0 A5 A5
+					/* Test Key Disable: FC */
 					39 01 00 00 00 00 03 FC A5 A5
+					/* Sleep Out (Wait 10ms: 0x0A) */
 					05 01 00 00 0A 00 02 11 00
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* TE OUT(Vsync On) */
 					39 00 00 00 00 00 02 35 00
+					/* DBV Smooth Transition */
 					39 00 00 00 00 00 03 B7 01 4B
+					/* ELVSS Dim Setting */
 					39 00 00 00 00 00 02 B0 06
 					39 00 00 00 00 00 02 B7 10
+					/* Test Key Disable: F0 */
 					39 01 00 00 00 00 03 F0 A5 A5
+					/* Page Address Set */
 					39 01 00 00 00 00 05 2B 00 00 09 23
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* Test Key Enable: FC */
 					39 00 00 00 00 00 03 FC 5A 5A
+					/* Set DDIC internal HFP */
 					39 00 00 00 00 00 02 B0 24
 					39 00 00 00 00 00 02 D1 33
+					/* FFC Setting: MIPI Speed 82.6Mhz */
 					39 00 00 00 00 00 0C E9 11 55 A6 75 A3 A6 37 BE 00 1A B8
+					/* Err_FG Setting */
 					39 00 00 00 00 00 0C D9 14 00 00 8F 6E 00 00 8F 2E 6E 34
 					39 00 00 00 00 00 6D C0 31 01 03 00 06 00 00 00 00 00 00 00 00 00 00 00 00 50 00 00 40 3D 00 5E 00 00 00 20 07 20 30 58 00 00 00 00 00 00 E0 0B 75 D8 00 00 00 00 FC 00 00 00 F6 97 0F 6D E6 CD 05 21 8B EC ED ED ED 0D 3F 60 00 67 FD 6D 51 BC DD DD 00 00 07 00 00 20 00 00 00 00 00 00 00 00 00 00 00 00 70 2F 00 00 03 2E 3C 20 E0 00 00 00 00 00 06 8C
 					39 01 00 00 00 00 02 C0 31
@@ -142,40 +172,73 @@
 					39 00 00 00 00 00 07 E2 00 00 00 00 00 00
 					39 00 00 00 00 00 02 B0 0C
 					39 00 00 00 00 00 02 E1 19
+					/* Test Key Disable: F0 */
 					39 00 00 00 00 00 03 F0 A5 A5
+					/* Test Key Disable: FC */
 					39 01 00 00 00 00 03 FC A5 A5
+					/* Brightness Control */
+					/* HBM Off */
 					39 00 00 00 00 00 02 53 20
+					/* Brightness Setting */
 					39 00 00 00 00 00 03 51 00 00
+					/* ACL OFF */
 					39 01 00 00 43 00 02 55 00
-					05 01 00 00 00 00 02 29 00];
+					/* Display On (29h) */
+					05 01 00 00 00 00 02 29 00
+				];
 				qcom,mdss-dsi-off-command = [
+					/* Display Off */
 					05 01 00 00 00 00 02 28 00
-					05 01 00 00 78 00 02 10 00];
+					/* Sleep In */
+					05 01 00 00 78 00 02 10 00
+				];
 				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-doze-hbm-command = [
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* HLPM VLOUT3 Setting */
 					39 00 00 00 00 00 02 D4 8B
+					/* HLPM SELECT 1 */
 					39 00 00 00 00 00 02 B0 A5
+					/* HLPM SELECT 2 */
 					39 00 00 00 00 00 02 C7 00
+					/* HLPM AOR 1 */
 					39 00 00 00 00 00 02 B0 69
+					/* HLPM AOR 2 */
 					39 00 00 00 00 00 03 B9 08 8F
+					/* HLPM On (0x22: 60nit) */
 					39 01 00 00 01 00 02 53 22
-					39 01 00 00 00 00 03 F0 A5 A5];
+					/* Test Key Disable: F0 */
+					39 01 00 00 00 00 03 F0 A5 A5
+				];
 				qcom,mdss-dsi-doze-lbm-command = [
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* HLPM VLOUT3 Setting */
 					39 00 00 00 00 00 02 D4 8B
+					/* HLPM SELECT 1 */
 					39 00 00 00 00 00 02 B0 A5
+					/* HLPM SELECT 2 */
 					39 00 00 00 00 00 02 C7 00
+					/* HLPM AOR 1 */
 					39 00 00 00 00 00 02 B0 69
+					/* HLPM AOR 2 */
 					39 00 00 00 00 00 03 B9 08 8F
+					/* HLPM on (0x23: 2nit) */
 					39 01 00 00 00 00 02 53 23
-					39 01 00 00 00 00 03 F0 A5 A5];
+					/* Test Key Disable: F0 */
+					39 01 00 00 00 00 03 F0 A5 A5
+				];
 				qcom,mdss-dsi-nolp-command = [
+					/* Display Off (Wait 34ms: 0x22) */
 					05 01 00 00 22 00 02 28 00
+					/* HBM off + Disable brightness dimming */
 					39 01 00 00 00 00 02 53 20
-					05 01 00 00 00 00 02 29 00];
+					/* Display on (29h) */
+					05 01 00 00 00 00 02 29 00
+				];
 				qcom,mdss-dsi-doze-hbm-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-doze-lbm-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-nolp-command-state = "dsi_lp_mode";
@@ -242,10 +305,14 @@
 					];
 				qcom,mdss-dsi-dispparam-crc-off-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-dispparam-elvss-dimming-off-command = [
+					/* Test Key Enable: F0 */
 					39 00 00 00 00 00 03 F0 5A 5A
+					/* Elvss Dimming Setting (0x91: ELVSS DIM OFF) */
 					39 00 00 00 00 00 02 B0 07
 					39 00 00 00 00 00 02 B7 91
-					39 01 00 00 01 00 03 F0 A5 A5];
+					/* Test Key Disable: F0 */
+					39 01 00 00 01 00 03 F0 A5 A5
+				];
 				qcom,mdss-dsi-dispparam-elvss-dimming-off-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-h-sync-pulse = <0>;
 			};
