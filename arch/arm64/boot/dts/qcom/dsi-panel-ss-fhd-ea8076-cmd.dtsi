@@ -60,7 +60,7 @@
 		qcom,mdss-dsi-panel-fod-dimlayer-enabled;
 
 		qcom,dispparam-enabled;	
-		qcom,mdss-panel-on-dimming-delay = <120>;
+		qcom,mdss-panel-on-dimming-delay = <90>;
 		qcom,mdss-dsi-panel-dc-threshold = <610>;
 		/* IRQF_ONESHOT | IRQF_TRIGGER_FALLING */
 		/* trig-flags: falling-0x0002 rasing-0x0001 */
