@@ -346,20 +346,17 @@ extern ssize_t mipi_reg_write(char *buf, size_t count);
 extern ssize_t mipi_reg_read(char *buf);
 
 static ssize_t mipi_reg_show(struct device *device,
-			    struct device_attribute *attr,
-			   char *buf)
+			  struct device_attribute *attr,
+			 char *buf)
 {
 	return mipi_reg_read(buf);
 }
 
 static ssize_t mipi_reg_store(struct device *device,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
+			 struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
-	int rc = 0;
-
-	rc = mipi_reg_write((char *)buf, count);
-	return rc;
+	return mipi_reg_write((char *)buf, count);
 }
 
 void drm_bridge_disp_count_set(struct drm_bridge *bridge, const char *buf);
