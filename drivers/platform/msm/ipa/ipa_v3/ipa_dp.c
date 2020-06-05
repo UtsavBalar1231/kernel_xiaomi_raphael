@@ -22,7 +22,7 @@
 #include "ipahal/ipahal.h"
 #include "ipahal/ipahal_fltrt.h"
 
-#define IPA_WAN_AGGR_PKT_CNT 5
+#define IPA_WAN_AGGR_PKT_CNT 1
 #define IPA_WAN_NAPI_MAX_FRAMES (NAPI_WEIGHT / IPA_WAN_AGGR_PKT_CNT)
 #define IPA_WAN_PAGE_ORDER 3
 #define IPA_LAST_DESC_CNT 0xFFFF

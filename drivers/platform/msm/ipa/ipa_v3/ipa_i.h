@@ -84,7 +84,7 @@
 
 #define IPA_MAX_NUM_REQ_CACHE 10
 
-#define NAPI_WEIGHT 60
+#define NAPI_WEIGHT 64
 
 /* Bit pattern for SW to identify in middle of PC saving */
 #define PC_SAVE_CONTEXT_SAVE_ENTERED            0xDEAFDEAF
