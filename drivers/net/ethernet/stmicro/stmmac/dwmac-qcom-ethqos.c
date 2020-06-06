@@ -40,6 +40,10 @@ static unsigned char dev_addr[ETH_ALEN] = {
 	0, 0x55, 0x7b, 0xb5, 0x7d, 0xf7};
 
 void *ipc_stmmac_log_ctxt;
+void *ipc_stmmac_log_ctxt_low;
+int stmmac_enable_ipc_low;
+#define MAX_PROC_SIZE 1024
+char tmp_buff[MAX_PROC_SIZE];
 static struct qmp_pkt pkt;
 static char qmp_buf[MAX_QMP_MSG_SIZE + 1] = {0};
 static struct ip_params pparams = {"", "", "", ""};
@@ -858,6 +862,7 @@ static int ethqos_configure(struct qcom_ethqos *ethqos)
 			dll_lock = rgmii_readl(ethqos, SDC4_STATUS);
 			if (dll_lock & SDC4_STATUS_DLL_LOCK)
 				break;
+			retry--;
 		} while (retry > 0);
 		if (!retry)
 			dev_err(&ethqos->pdev->dev,
@@ -1172,10 +1177,55 @@ static const struct file_operations fops_rgmii_reg_dump = {
 	.llseek = default_llseek,
 };
 
+static ssize_t write_ipc_stmmac_log_ctxt_low(struct file *file,
+					     const char __user *buf,
+					     size_t count, loff_t *data)
+{
+	int tmp = 0;
+
+	if (count > MAX_PROC_SIZE)
+		count = MAX_PROC_SIZE;
+	if (copy_from_user(tmp_buff, buf, count))
+		return -EFAULT;
+	if (sscanf(tmp_buff, "%du", &tmp) < 0) {
+		pr_err("sscanf failed\n");
+	} else {
+		if (tmp) {
+			if (!ipc_stmmac_log_ctxt_low) {
+				ipc_stmmac_log_ctxt_low =
+				ipc_log_context_create(IPCLOG_STATE_PAGES,
+						       "stmmac_low", 0);
+			}
+			if (!ipc_stmmac_log_ctxt_low) {
+				pr_err("failed to create ipc stmmac low context\n");
+				return -EFAULT;
+			}
+		} else {
+			if (ipc_stmmac_log_ctxt_low) {
+				ipc_log_context_destroy(
+							ipc_stmmac_log_ctxt_low
+						       );
+		}
+			ipc_stmmac_log_ctxt_low = NULL;
+		}
+	}
+
+	stmmac_enable_ipc_low = tmp;
+	return count;
+}
+
+static const struct file_operations fops_ipc_stmmac_log_low = {
+	.write = write_ipc_stmmac_log_ctxt_low,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 {
 	static struct dentry *phy_reg_dump;
 	static struct dentry *rgmii_reg_dump;
+	static struct dentry *ipc_stmmac_log_low;
 
 	if (!ethqos) {
 		ETHQOSERR("Null Param %s\n", __func__);
@@ -1204,6 +1254,16 @@ static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 		ETHQOSERR("Can't create rgmii_dump %d\n", (int)rgmii_reg_dump);
 		goto fail;
 	}
+
+	ipc_stmmac_log_low = debugfs_create_file("ipc_stmmac_log_low", 0220,
+						 ethqos->debugfs_dir, ethqos,
+						 &fops_ipc_stmmac_log_low);
+	if (!ipc_stmmac_log_low || IS_ERR(ipc_stmmac_log_low)) {
+		ETHQOSERR("Cannot create debugfs ipc_stmmac_log_low %d\n",
+			  (int)ipc_stmmac_log_low);
+		goto fail;
+	}
+
 	return 0;
 
 fail:
@@ -1404,6 +1464,8 @@ err_out:
 
 static void qcom_ethqos_phy_suspend_clks(struct qcom_ethqos *ethqos)
 {
+	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
+
 	ETHQOSINFO("Enter\n");
 
 	if (phy_intr_en)
@@ -1412,6 +1474,18 @@ static void qcom_ethqos_phy_suspend_clks(struct qcom_ethqos *ethqos)
 	ethqos->clks_suspended = 1;
 
 	ethqos_update_rgmii_clk_and_bus_cfg(ethqos, 0);
+
+	if (priv->plat->stmmac_clk)
+		clk_disable_unprepare(priv->plat->stmmac_clk);
+
+	if (priv->plat->pclk)
+		clk_disable_unprepare(priv->plat->pclk);
+
+	if (priv->plat->clk_ptp_ref)
+		clk_disable_unprepare(priv->plat->clk_ptp_ref);
+
+	if (ethqos->rgmii_clk)
+		clk_disable_unprepare(ethqos->rgmii_clk);
 
 	ETHQOSINFO("Exit\n");
 }
@@ -1438,7 +1512,21 @@ inline bool qcom_ethqos_is_phy_link_up(struct qcom_ethqos *ethqos)
 
 static void qcom_ethqos_phy_resume_clks(struct qcom_ethqos *ethqos)
 {
+	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
+
 	ETHQOSINFO("Enter\n");
+
+	if (priv->plat->stmmac_clk)
+		clk_prepare_enable(priv->plat->stmmac_clk);
+
+	if (priv->plat->pclk)
+		clk_prepare_enable(priv->plat->pclk);
+
+	if (priv->plat->clk_ptp_ref)
+		clk_prepare_enable(priv->plat->clk_ptp_ref);
+
+	if (ethqos->rgmii_clk)
+		clk_prepare_enable(ethqos->rgmii_clk);
 
 	if (qcom_ethqos_is_phy_link_up(ethqos))
 		ethqos_update_rgmii_clk_and_bus_cfg(ethqos, ethqos->speed);
@@ -1972,6 +2060,11 @@ static void __exit qcom_ethqos_exit_module(void)
 	if (!ipc_stmmac_log_ctxt)
 		ipc_log_context_destroy(ipc_stmmac_log_ctxt);
 
+	if (!ipc_stmmac_log_ctxt_low)
+		ipc_log_context_destroy(ipc_stmmac_log_ctxt_low);
+
+	ipc_stmmac_log_ctxt = NULL;
+	ipc_stmmac_log_ctxt_low = NULL;
 	ETHQOSINFO("\n");
 }
 
