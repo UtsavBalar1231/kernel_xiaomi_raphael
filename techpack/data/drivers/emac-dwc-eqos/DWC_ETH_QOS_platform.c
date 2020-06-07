@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -556,7 +556,8 @@ static void DWC_ETH_QOS_configure_gpio_pins(struct platform_device *pdev)
 			return;
 		}
 		EMACDBG("get pinctrl succeed\n");
-		dwc_eth_qos_res_data.pinctrl = pinctrl;
+		if(dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_1)
+			dwc_eth_qos_res_data.pinctrl = pinctrl;
 
 		if (dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_2_0 ||
 			dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_1_2 ||
@@ -751,26 +752,28 @@ static void DWC_ETH_QOS_configure_gpio_pins(struct platform_device *pdev)
 		else
 			EMACDBG("Set rgmii_rxc_state succeed\n");
 
-		dwc_eth_qos_res_data.rgmii_rxc_suspend_state =
+		if(dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_1) {
+			dwc_eth_qos_res_data.rgmii_rxc_suspend_state =
 			pinctrl_lookup_state(pinctrl, EMAC_RGMII_RXC_SUSPEND);
-		if (IS_ERR_OR_NULL(dwc_eth_qos_res_data.rgmii_rxc_suspend_state)) {
-			ret = PTR_ERR(dwc_eth_qos_res_data.rgmii_rxc_suspend_state);
-			EMACERR("Failed to get rgmii_rxc_suspend_state, err = %d\n", ret);
-			dwc_eth_qos_res_data.rgmii_rxc_suspend_state = NULL;
-		}
-		else {
-			EMACDBG("Get rgmii_rxc_suspend_state succeed\n");
-		}
+			if (IS_ERR_OR_NULL(dwc_eth_qos_res_data.rgmii_rxc_suspend_state)) {
+				ret = PTR_ERR(dwc_eth_qos_res_data.rgmii_rxc_suspend_state);
+				EMACERR("Failed to get rgmii_rxc_suspend_state, err = %d\n", ret);
+				dwc_eth_qos_res_data.rgmii_rxc_suspend_state = NULL;
+			}
+			else {
+				EMACDBG("Get rgmii_rxc_suspend_state succeed\n");
+			}
 
-		dwc_eth_qos_res_data.rgmii_rxc_resume_state =
+			dwc_eth_qos_res_data.rgmii_rxc_resume_state =
 			pinctrl_lookup_state(pinctrl, EMAC_RGMII_RXC_RESUME);
-		if (IS_ERR_OR_NULL(dwc_eth_qos_res_data.rgmii_rxc_resume_state)) {
-			ret = PTR_ERR(dwc_eth_qos_res_data.rgmii_rxc_resume_state);
-			EMACERR("Failed to get rgmii_rxc_resume_state, err = %d\n", ret);
-			dwc_eth_qos_res_data.rgmii_rxc_resume_state = NULL;
-		}
-		else {
-			EMACDBG("Get rgmii_rxc_resume_state succeed\n");
+			if (IS_ERR_OR_NULL(dwc_eth_qos_res_data.rgmii_rxc_resume_state)) {
+				ret = PTR_ERR(dwc_eth_qos_res_data.rgmii_rxc_resume_state);
+				EMACERR("Failed to get rgmii_rxc_resume_state, err = %d\n", ret);
+				dwc_eth_qos_res_data.rgmii_rxc_resume_state = NULL;
+			}
+			else {
+				EMACDBG("Get rgmii_rxc_resume_state succeed\n");
+			}
 		}
 
 		rgmii_rx_ctl_state = pinctrl_lookup_state(pinctrl, EMAC_RGMII_RX_CTL);
@@ -959,6 +962,15 @@ static int DWC_ETH_QOS_get_dts_config(struct platform_device *pdev)
 			dwc_eth_qos_res_data.phy_addr = -1;
 		}
 		EMACINFO("phy_addr = %d\n", dwc_eth_qos_res_data.phy_addr);
+	}
+
+	/*read qcom,phy-reset-delay-msecs value from dtsi */
+	if (of_property_read_u32_array(
+		pdev->dev.of_node,"qcom,phy-reset-delay-msecs",
+		dwc_eth_qos_res_data.phy_reset_delay_msecs,2)) {
+		//resource qcom,phy-reset-delay-msecs is not present, set delay to 10ms and 50 ms
+		dwc_eth_qos_res_data.phy_reset_delay_msecs[0] = 10;
+		dwc_eth_qos_res_data.phy_reset_delay_msecs[1] = 50;
 	}
 
 	return ret;
@@ -1533,12 +1545,19 @@ static int DWC_ETH_QOS_init_gpios(struct device *dev)
 					EMAC_GPIO_PHY_RESET_NAME);
 			goto gpio_error;
 		}
-		mdelay(1);
+		if (dwc_eth_qos_res_data.phy_reset_delay_msecs[0]) {
+			EMACDBG("phy Hw pre reset delay in msecs %d\n",dwc_eth_qos_res_data.phy_reset_delay_msecs[0]);
+			mdelay(dwc_eth_qos_res_data.phy_reset_delay_msecs[0]);
+		}
 
 		gpio_set_value(dwc_eth_qos_res_data.gpio_phy_reset, PHY_RESET_GPIO_HIGH);
 		EMACDBG("PHY is out of reset successfully\n");
-		/* Add delay of 50ms so that phy should get sufficient time*/
-		mdelay(50);
+
+		if (dwc_eth_qos_res_data.phy_reset_delay_msecs[1]) {
+			/* Add delay of 50ms so that phy should get sufficient time*/
+			EMACDBG("phy Hw post reset delay in msecs %d\n",dwc_eth_qos_res_data.phy_reset_delay_msecs[1]);
+			mdelay(dwc_eth_qos_res_data.phy_reset_delay_msecs[1]);
+		}
 	}
 
 	return ret;
@@ -2480,16 +2499,18 @@ static INT DWC_ETH_QOS_suspend(struct device *dev)
 
 	DWC_ETH_QOS_suspend_clks(pdata);
 
-	/* Suspend the PHY RXC clock. */
-	if (dwc_eth_qos_res_data.is_pinctrl_names &&
-		(dwc_eth_qos_res_data.rgmii_rxc_suspend_state != NULL)) {
-		/* Remove RXC clock source from Phy.*/
-		ret = pinctrl_select_state(dwc_eth_qos_res_data.pinctrl,
+	if(dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_1) {
+		/* Suspend the PHY RXC clock. */
+		if (dwc_eth_qos_res_data.is_pinctrl_names &&
+			(dwc_eth_qos_res_data.rgmii_rxc_suspend_state != NULL)) {
+			/* Remove RXC clock source from Phy.*/
+			ret = pinctrl_select_state(dwc_eth_qos_res_data.pinctrl,
 				dwc_eth_qos_res_data.rgmii_rxc_suspend_state);
-		if (ret)
-			EMACERR("Unable to set rgmii_rxc_suspend_state state, err = %d\n", ret);
-		else
-			EMACDBG("Set rgmii_rxc_suspend_state succeed\n");
+			if (ret)
+				EMACERR("Unable to set rgmii_rxc_suspend_state state, err = %d\n", ret);
+			else
+				EMACDBG("Set rgmii_rxc_suspend_state succeed\n");
+		}
 	}
 
 	EMACDBG("<--DWC_ETH_QOS_suspend ret = %d\n", ret);
@@ -2553,19 +2574,20 @@ static INT DWC_ETH_QOS_resume(struct device *dev)
 		return 0;
 	}
 
-	/* Resume the PhY RXC clock. */
-	if (dwc_eth_qos_res_data.is_pinctrl_names &&
-		(dwc_eth_qos_res_data.rgmii_rxc_resume_state != NULL)) {
+	if(dwc_eth_qos_res_data.emac_hw_version_type == EMAC_HW_v2_3_1) {
+		/* Resume the PhY RXC clock. */
+		if (dwc_eth_qos_res_data.is_pinctrl_names &&
+			(dwc_eth_qos_res_data.rgmii_rxc_resume_state != NULL)) {
 
-		/* Enable RXC clock source from Phy.*/
-		ret = pinctrl_select_state(dwc_eth_qos_res_data.pinctrl,
+			/* Enable RXC clock source from Phy.*/
+			ret = pinctrl_select_state(dwc_eth_qos_res_data.pinctrl,
 				dwc_eth_qos_res_data.rgmii_rxc_resume_state);
-		if (ret)
-			EMACERR("Unable to set rgmii_rxc_resume_state state, err = %d\n", ret);
-		else
-			EMACDBG("Set rgmii_rxc_resume_state succeed\n");
+			if (ret)
+				EMACERR("Unable to set rgmii_rxc_resume_state state, err = %d\n", ret);
+			else
+				EMACDBG("Set rgmii_rxc_resume_state succeed\n");
+		}
 	}
-
 	DWC_ETH_QOS_resume_clks(pdata);
 
 	ret = DWC_ETH_QOS_powerup(net_dev, DWC_ETH_QOS_DRIVER_CONTEXT);
@@ -2583,6 +2605,55 @@ static INT DWC_ETH_QOS_resume(struct device *dev)
 }
 
 #endif /* CONFIG_PM */
+
+static void DWC_ETH_QOS_hib_avb_restore(struct DWC_ETH_QOS_prv_data *pdata)
+{
+
+	struct hw_if_struct *hw_if = &pdata->hw_if;
+	struct timespec now;
+#ifdef CONFIG_PPS_OUTPUT
+	struct ifr_data_struct req = {0};
+	struct ETH_PPS_Config eth_pps_cfg = {0};
+#endif
+
+	/* Restore Hw control*/
+	if (pdata->hw_data.VARMAC_TCR != 0) {
+		pdata->hwts_tx_en = pdata->hw_data.hwts_tx_en;
+		pdata->hwts_rx_en = pdata->hw_data.hwts_rx_en;
+		EMACINFO("restoring HW control first\n");
+		hw_if->config_hw_time_stamping(pdata->hw_data.VARMAC_TCR);
+	}
+	/*Restore PPS*/
+#ifdef CONFIG_PPS_OUTPUT
+	if (pdata->res_data->pps_lpass_conn_en) {
+		eth_pps_cfg.ppsout_ch = 0;
+		eth_pps_cfg.ptpclk_freq = pdata->default_ptp_clock;
+		eth_pps_cfg.ppsout_freq = DWC_ETH_QOS_DEFAULT_LPASS_PPS_FREQUENCY;
+		eth_pps_cfg.ppsout_start = 1;
+		eth_pps_cfg.ppsout_duty = 50;
+		req.ptr = (void*)&eth_pps_cfg;
+
+		ETH_PPSOUT_Config(pdata, &eth_pps_cfg);
+	}
+#endif
+	/* initialize system time */
+	if (pdata->is_hw_restore_needed == 1) {
+		/* initialize system time */
+		getnstimeofday(&now);
+		hw_if->init_systime(now.tv_sec, now.tv_nsec);
+	}
+
+	/*AVB Algorithm restore*/
+	if (pdata->is_class_a_avb_algo_stored) {
+		EMACINFO("restoring calss a \n");
+		DWC_ETH_QOS_program_avb_algorithm_hw_register(pdata, pdata->l_avb_struct_class_a);
+	}
+	if (pdata->is_class_b_avb_algo_stored) {
+		EMACINFO("restoring calss b\n");
+		DWC_ETH_QOS_program_avb_algorithm_hw_register(pdata, pdata->l_avb_struct_class_b);
+	}
+}
+
 
 static int DWC_ETH_QOS_hib_restore(struct device *dev) {
 	struct DWC_ETH_QOS_prv_data *pdata = gDWC_ETH_QOS_prv_data;
@@ -2609,12 +2680,12 @@ static int DWC_ETH_QOS_hib_restore(struct device *dev) {
 
 	DWC_ETH_QOS_set_rgmii_func_clk_en();
 
-#ifdef DWC_ETH_QOS_CONFIG_PTP
-	DWC_ETH_QOS_ptp_init(pdata);
-#endif /* end of DWC_ETH_QOS_CONFIG_PTP */
-
 	/* issue software reset to device */
 	pdata->hw_if.exit();
+
+#ifdef DWC_ETH_QOS_CONFIG_PTP
+	DWC_ETH_QOS_enable_ptp_clk(&pdata->pdev->dev);
+#endif /* end of DWC_ETH_QOS_CONFIG_PTP */
 
 	if (!(pdata->dev->flags & IFF_UP)) {
 		pdata->dev->netdev_ops->ndo_open(pdata->dev);
@@ -2635,6 +2706,8 @@ static int DWC_ETH_QOS_hib_restore(struct device *dev) {
 		phy_ethtool_set_wol(pdata->phydev, &wol);
 	}
 
+	DWC_ETH_QOS_hib_avb_restore(pdata);
+
 	EMACINFO("end\n");
 
 	return ret;
@@ -2646,6 +2719,10 @@ static int DWC_ETH_QOS_hib_freeze(struct device *dev) {
 
 	if (of_device_is_compatible(dev->of_node, "qcom,emac-smmu-embedded"))
 		return 0;
+	/*Backup Hw control*/
+	MAC_TCR_RGRD(pdata->hw_data.VARMAC_TCR);
+	pdata->hw_data.hwts_tx_en = pdata->hwts_tx_en;
+	pdata->hw_data.hwts_rx_en = pdata->hwts_rx_en;
 
 	EMACINFO(" start\n");
 	if (pdata->dev->flags & IFF_UP) {
@@ -2654,7 +2731,7 @@ static int DWC_ETH_QOS_hib_freeze(struct device *dev) {
 	}
 
 #ifdef DWC_ETH_QOS_CONFIG_PTP
-	DWC_ETH_QOS_ptp_remove(pdata);
+	DWC_ETH_QOS_disable_ptp_clk(&pdata->pdev->dev);
 #endif /* end of DWC_ETH_QOS_CONFIG_PTP */
 
 	DWC_ETH_QOS_disable_clks(dev);
