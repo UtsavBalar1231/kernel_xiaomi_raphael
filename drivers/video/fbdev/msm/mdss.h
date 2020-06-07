@@ -580,10 +580,9 @@ struct irq_info *mdss_intr_line(void);
 void mdss_bus_bandwidth_ctrl(int enable);
 int mdss_iommu_ctrl(int enable);
 int mdss_bus_scale_set_quota(int client, u64 ab_quota, u64 ib_quota);
-int mdss_update_reg_bus_vote(struct reg_bus_client *bus_client,
-				u32 usecase_ndx);
+int mdss_update_reg_bus_vote(struct reg_bus_client *, u32 usecase_ndx);
 struct reg_bus_client *mdss_reg_bus_vote_client_create(char *client_name);
-void mdss_reg_bus_vote_client_destroy(struct reg_bus_client *bus_client);
+void mdss_reg_bus_vote_client_destroy(struct reg_bus_client *);
 
 struct mdss_util_intf {
 	bool mdp_probe_done;

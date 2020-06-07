@@ -1028,15 +1028,9 @@ static int stmmac_init_phy(struct net_device *dev)
 		phydev->speed = SPEED_100;
 		phydev->duplex = DUPLEX_FULL;
 
-		phydev->supported =
-			SUPPORTED_100baseT_Full | SUPPORTED_TP | SUPPORTED_MII |
-			SUPPORTED_10baseT_Full;
-		phydev->supported &= ~SUPPORTED_Autoneg;
-
 		phydev->advertising = phydev->supported;
-		phydev->advertising &= ~ADVERTISED_Autoneg;
+		phydev->advertising &= ~(SUPPORTED_1000baseT_Full);
 
-		phy_set_max_speed(phydev, SPEED_100);
 		pr_info(" qcom-ethqos: %s early eth setting successful\n",
 			__func__);
 
@@ -2060,6 +2054,13 @@ static void stmmac_tx_err(struct stmmac_priv *priv, u32 chan)
 	struct stmmac_tx_queue *tx_q = &priv->tx_queue[chan];
 	int i;
 
+	if (tx_q->skip_sw) {
+		ethqos_ipa_offload_event_handler(priv, EV_DEV_CLOSE);
+		ethqos_ipa_offload_event_handler(priv, EV_DEV_OPEN);
+		priv->dev->stats.tx_errors++;
+		return;
+	}
+
 	netif_tx_stop_queue(netdev_get_tx_queue(priv->dev, chan));
 
 	stmmac_stop_tx_dma(priv, chan);
@@ -2135,13 +2136,12 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 	struct stmmac_rx_queue *rx_q;
 
 	for (chan = 0; chan < tx_channel_count; chan++) {
-		if (priv->tx_queue[chan].skip_sw)
-			continue;
 		rx_q = &priv->rx_queue[chan];
 
 		status = priv->hw->dma->dma_interrupt(priv->ioaddr,
 						      &priv->xstats, chan);
-		if (likely((status & handle_rx)) || (status & handle_tx)) {
+		if ((likely((status & handle_rx)) || (status & handle_tx)) &&
+		    !rx_q->skip_sw) {
 			if (likely(napi_schedule_prep(&rx_q->napi))) {
 				stmmac_disable_dma_irq(priv, chan);
 				__napi_schedule(&rx_q->napi);
@@ -2624,6 +2624,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 			priv->hw->ps = 0;
 		}
 	}
+	priv->hw->crc_strip_en = priv->plat->crc_strip_en;
 
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->hw, dev);
@@ -2907,6 +2908,12 @@ static void stmmac_tso_allocator(struct stmmac_priv *priv, unsigned int des,
 			0, 1,
 			(last_segment) && (tmp_len <= TSO_MAX_BUFF_SIZE),
 			0, 0);
+
+		if (last_segment && tmp_len <= TSO_MAX_BUFF_SIZE) {
+			priv->tx_count_frames = 0;
+			priv->hw->desc->set_tx_ic(desc);
+			priv->xstats.tx_set_ic_bit++;
+		}
 
 		tmp_len -= TSO_MAX_BUFF_SIZE;
 	}

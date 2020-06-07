@@ -2045,12 +2045,13 @@
 		qcom,wlan-msa-memory = <0x100000>;
 		qcom,wlan-msa-fixed-region = <&wlan_msa_mem>;
 		qcom,smmu-s1-bypass;
-		qcom,smp2p_map_wlan_1_in {
-			interrupts-extended = <&smp2p_wlan_1_in 0 0>,
-						<&smp2p_wlan_1_in 1 0>;
-			interrupt-names = "qcom,smp2p-force-fatal-error",
-						"qcom,smp2p-early-crash-ind";
-		};
+                qcom,smp2p_map_wlan_1_in {
+                        interrupts-extended = <&smp2p_wlan_1_in 0 0>,
+                                              <&smp2p_wlan_1_in 1 0>;
+                        interrupt-names = "qcom,smp2p-force-fatal-error",
+                                          "qcom,smp2p-early-crash-ind";
+                };
+
 	};
 
 	qcom,lpass@15700000 {
@@ -2692,7 +2693,6 @@
 &gdsc_gpu_cx {
 	status = "ok";
 };
-
 
 #include "msm-arm-smmu-660.dtsi"
 #include "msm-arm-smmu-impl-defs-660.dtsi"

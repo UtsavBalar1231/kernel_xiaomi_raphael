@@ -244,13 +244,13 @@ static ssize_t mdss_dba_utils_sysfs_rda_hpd(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR(connected, 0444,
+static DEVICE_ATTR(connected, S_IRUGO,
 		mdss_dba_utils_sysfs_rda_connected, NULL);
 
-static DEVICE_ATTR(video_mode, 0444,
+static DEVICE_ATTR(video_mode, S_IRUGO,
 		mdss_dba_utils_sysfs_rda_video_mode, NULL);
 
-static DEVICE_ATTR(hpd, 0644, mdss_dba_utils_sysfs_rda_hpd,
+static DEVICE_ATTR(hpd, S_IRUGO | S_IWUSR, mdss_dba_utils_sysfs_rda_hpd,
 		mdss_dba_utils_sysfs_wta_hpd);
 
 static struct attribute *mdss_dba_utils_fs_attrs[] = {

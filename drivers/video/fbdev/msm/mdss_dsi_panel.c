@@ -993,7 +993,7 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 
 	pinfo = &pdata->panel_info;
 	if (pinfo->dcs_cmd_by_left && ctrl->ndx != DSI_CTRL_LEFT)
-		goto end;
+			goto end;
 
 	cmds = &ctrl->post_panel_on_cmds;
 	if (cmds->cmd_cnt) {
@@ -2785,7 +2785,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	pinfo->bpp = (!rc ? tmp : 24);
 	pinfo->mipi.mode = DSI_VIDEO_MODE;
 	data = of_get_property(np, "qcom,mdss-dsi-panel-type", NULL);
-	if (data && !strcmp(data, "dsi_cmd_mode"))
+	if (data && !strncmp(data, "dsi_cmd_mode", 12))
 		pinfo->mipi.mode = DSI_CMD_MODE;
 	pinfo->mipi.boot_mode = pinfo->mipi.mode;
 	tmp = 0;

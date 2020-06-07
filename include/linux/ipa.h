@@ -20,6 +20,8 @@
 #include "linux/msm_gsi.h"
 #include <linux/skbuff.h>
 #include <linux/types.h>
+#include <linux/if_ether.h>
+#include "linux/msm_gsi.h"
 #include <linux/msm-sps.h>
 
 #define IPA_APPS_MAX_BW_IN_MBPS 700

@@ -617,7 +617,7 @@ struct mdss_debug_base *get_dump_blk_addr(const char *blk_name)
 	list_for_each_entry_safe(blk_base, tmp, &mdd->base_list, head) {
 		if (strlen(blk_base->name) &&
 			!strcmp(blk_base->name, blk_name))
-			return blk_base;
+				return blk_base;
 	}
 
 	return NULL;

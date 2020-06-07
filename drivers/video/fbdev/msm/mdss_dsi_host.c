@@ -516,7 +516,7 @@ void mdss_dsi_sw_reset(struct mdss_dsi_ctrl_pdata *ctrl, bool restore)
 	 * dsi controller need to be disabled before
 	 * clocks turned on
 	 */
-	wmb();	/* make sure dsi controller is disabled */
+	wmb();	/* make sure dsi contoller is disabled */
 
 	/* turn esc, byte, dsi, pclk, sclk, hclk on */
 	MIPI_OUTP(ctrl->ctrl_base + 0x11c, 0x23f); /* DSI_CLK_CTRL */
@@ -918,10 +918,9 @@ static void mdss_dsi_ctl_phy_reset(struct mdss_dsi_ctrl_pdata *ctrl, u32 event)
 
 		/* DSI_SW_RESET */
 		MIPI_OUTP(ctrl->ctrl_base + 0x118, 0x1);
-		wmb(); /* ensure write is finished before progressing */
-
+		wmb();
 		MIPI_OUTP(ctrl->ctrl_base + 0x118, 0x0);
-		wmb(); /* ensure write is finished before progressing */
+		wmb();
 
 		/* Remove "Force On" all dynamic clocks */
 		MIPI_OUTP(ctrl->ctrl_base + 0x11c, 0x00);
@@ -2157,7 +2156,7 @@ skip_max_pkt_size:
 		mdss_dsi_long_read_resp(rp);
 		break;
 	default:
-		pr_warn("%s:Invalid response cmd\n", __func__);
+		pr_warning("%s:Invalid response cmd\n", __func__);
 		rp->len = 0;
 		rp->read_cnt = 0;
 	}
@@ -2634,8 +2633,8 @@ int mdss_dsi_cmdlist_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 
 	if (mdss_dsi_sync_wait_enable(ctrl)) {
 		ctrl->do_unicast = false;
-		if (!ctrl->cmd_sync_wait_trigger &&
-			req->flags & CMD_REQ_UNICAST)
+		 if (!ctrl->cmd_sync_wait_trigger &&
+					req->flags & CMD_REQ_UNICAST)
 			ctrl->do_unicast = true;
 	}
 

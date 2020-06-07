@@ -107,8 +107,12 @@
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,atoll")
 #define early_machine_is_atollp()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,atollp")
+#define early_machine_is_sdm660()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,sdm660")
 #define early_machine_is_atoll_ab()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,atoll-ab")
+#define early_machine_is_sda660()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,sda660")
 #define early_machine_is_sdm660()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,sdm660")
 #define early_machine_is_sda660()	\

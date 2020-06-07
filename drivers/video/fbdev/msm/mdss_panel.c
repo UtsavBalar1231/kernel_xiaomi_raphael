@@ -450,8 +450,10 @@ int mdss_panel_debugfs_setup(struct mdss_panel_info *panel_info, struct dentry
 {
 	struct mdss_panel_debugfs_info *debugfs_info;
 	debugfs_info = kzalloc(sizeof(*debugfs_info), GFP_KERNEL);
-	if (!debugfs_info)
+	if (!debugfs_info) {
+		pr_err("No memory to create panel debugfs info");
 		return -ENOMEM;
+	}
 
 	debugfs_info->parent = parent;
 	debugfs_info->root = debugfs_create_dir(intf_str, parent);
