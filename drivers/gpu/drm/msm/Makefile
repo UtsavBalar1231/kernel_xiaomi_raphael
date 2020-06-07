@@ -16,7 +16,6 @@ msm_drm-y := \
 	dp/dp_catalog.o \
 	dp/dp_catalog_v420.o \
 	dp/dp_catalog_v200.o \
-	dp/dp_catalog_v500.o \
 	dp/dp_aux.o \
 	dp/dp_panel.o \
 	dp/dp_link.o \
@@ -190,9 +189,7 @@ msm_drm-$(CONFIG_DRM_MSM) += \
 	sde/sde_hw_reg_dma_v1.o \
 	sde/sde_hw_dsc.o \
 	sde/sde_hw_ds.o \
-	sde/sde_hw_qdss.o \
-	sde/sde_hw_roi_misr.o \
-	sde/sde_fence_misr.o
+	sde/sde_hw_qdss.o
 
 msm_drm-$(CONFIG_DRM_SDE_WB) += sde/sde_wb.o \
 	sde/sde_encoder_phys_wb.o

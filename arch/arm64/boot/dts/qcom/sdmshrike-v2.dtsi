@@ -225,6 +225,7 @@
 	qcom,fullsize-va-map;
 	qcom,sde-min-core-ib-kbps = <0>;
 	qcom,sde-min-llcc-ib-kbps = <0>;
+	/delete-property/ qcom,sde-has-dest-scaler;
 };
 
 &clock_npucc {

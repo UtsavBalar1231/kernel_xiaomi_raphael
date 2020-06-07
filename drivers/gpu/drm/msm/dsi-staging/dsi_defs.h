@@ -96,6 +96,8 @@ enum dsi_op_mode {
  * @DSI_MODE_FLAG_VRR: Seamless transition is DynamicFPS.
  *                     New timing values are sent from DAL.
  * @DSI_MODE_FLAG_DYN_CLK: Seamless transition is dynamic clock change
+ * @DSI_MODE_FLAG_POMS:
+ *     Seamless transition is dynamic panel operating mode switch
  */
 enum dsi_mode_flags {
 	DSI_MODE_FLAG_SEAMLESS			= BIT(0),
@@ -104,6 +106,7 @@ enum dsi_mode_flags {
 	DSI_MODE_FLAG_DMS			= BIT(3),
 	DSI_MODE_FLAG_VRR			= BIT(4),
 	DSI_MODE_FLAG_DYN_CLK			= BIT(5),
+	DSI_MODE_FLAG_POMS			= BIT(6),
 };
 
 /**
@@ -235,6 +238,23 @@ enum dsi_dfps_type {
 	DSI_DFPS_IMMEDIATE_HFP,
 	DSI_DFPS_IMMEDIATE_VFP,
 	DSI_DFPS_MAX
+};
+
+/**
+ * enum dsi_dyn_clk_feature_type - Dynamic clock feature support type
+ * @DSI_DYN_CLK_TYPE_LEGACY:	Constant FPS is not supported
+ * @DSI_DYN_CLK_TYPE_CONST_FPS_ADJUST_HFP:	Constant FPS supported with
+ *		change in hfp
+ * @DSI_DYN_CLK_TYPE_CONST_FPS_ADJUST_VFP:	Constant FPS supported with
+ *		change in vfp
+ * @DSI_DYN_CLK_TYPE_MAX:
+ */
+
+enum dsi_dyn_clk_feature_type {
+	DSI_DYN_CLK_TYPE_LEGACY = 0,
+	DSI_DYN_CLK_TYPE_CONST_FPS_ADJUST_HFP,
+	DSI_DYN_CLK_TYPE_CONST_FPS_ADJUST_VFP,
+	DSI_DYN_CLK_TYPE_MAX
 };
 
 /**
@@ -487,34 +507,6 @@ struct dsi_host_common_cfg {
 };
 
 /**
- * struct dsi_data_type_config - Long/short Packet Data Type Configuration
- * @override:       Override the default Data Types per DSI-2 spec.
- * @vs:             Vertical Sync Start packet. Default 0x01.
- * @ve:             Vertical Sync End packet. Default 0x11.
- * @hs:             Horizontal Sync Start packet. Default 0x21.
- * @he:             Horizontal Sync End packet. Default 0x31.
- * @rgb565:         Packed RGB565 pixel stream packet. Default 0x0E.
- * @rgb666_packed:  Packed RGB666 pixel stream packet. Default 0x1E.
- * @rgb666:         Loosely packed RGB666 pixel stream packet. Default 0x2E.
- * @rgb888:         Packed RGB888 pixel stream packet. Default 0x3E.
- * @blank:          Blanking packet. Default 0x19.
- * @blank_data:     Blanking packet payload data. Default 0x00.
- */
-struct dsi_data_type_config {
-	bool override;
-	u8 vs;
-	u8 ve;
-	u8 hs;
-	u8 he;
-	u8 rgb565;
-	u8 rgb666_packed;
-	u8 rgb666;
-	u8 rgb888;
-	u8 blank;
-	u8 blank_data;
-};
-
-/**
  * struct dsi_video_engine_cfg - DSI video engine configuration
  * @last_line_interleave_en:   Allow command mode op interleaved on last line of
  *                             video stream.
@@ -530,7 +522,6 @@ struct dsi_data_type_config {
  * @vc_id:                     Virtual channel identifier.
  * @dma_sched_line:         Line number, after vactive end, at which command dma
  *			       needs to be triggered.
- * @data_type:                 Data Type for the video mode packets.
  */
 struct dsi_video_engine_cfg {
 	bool last_line_interleave_en;
@@ -543,7 +534,6 @@ struct dsi_video_engine_cfg {
 	enum dsi_video_traffic_mode traffic_mode;
 	u32 vc_id;
 	u32 dma_sched_line;
-	struct dsi_data_type_config data_type;
 };
 
 /**
@@ -630,11 +620,13 @@ struct dsi_display_mode_priv_info {
  * @timing:         Timing parameters for the panel.
  * @pixel_clk_khz:  Pixel clock in Khz.
  * @dsi_mode_flags: Flags to signal other drm components via private flags
+ * @panel_mode:     Panel operating mode
  * @priv_info:      Mode private info
  */
 struct dsi_display_mode {
 	struct dsi_mode_info timing;
 	u32 pixel_clk_khz;
+	enum dsi_op_mode panel_mode;
 	u32 dsi_mode_flags;
 	struct dsi_display_mode_priv_info *priv_info;
 };

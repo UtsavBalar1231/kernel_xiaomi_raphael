@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2019 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -27,10 +27,6 @@
 #include "sde_core_perf.h"
 #include "sde_hw_blk.h"
 #include "sde_hw_ds.h"
-#include "sde_hw_roi_misr.h"
-#include "sde_hw_dspp.h"
-#include "sde_fence_misr.h"
-#include <uapi/drm/sde_drm.h>
 
 #define SDE_CRTC_NAME_SIZE	12
 
@@ -91,7 +87,6 @@ struct sde_crtc_retire_event {
  * @hw_ctl:	CTL Path HW driver context
  * @hw_dspp:	DSPP HW driver context
  * @hw_ds:	DS HW driver context
- * @hw_roi_misr:	ROI_MISR HW driver context
  * @encoder:	Encoder attached to this lm & ctl
  * @mixer_op_mode: mixer blending operation mode
  */
@@ -100,7 +95,6 @@ struct sde_crtc_mixer {
 	struct sde_hw_ctl *hw_ctl;
 	struct sde_hw_dspp *hw_dspp;
 	struct sde_hw_ds *hw_ds;
-	struct sde_hw_roi_misr *hw_roi_misr;
 	struct drm_encoder *encoder;
 	u32 mixer_op_mode;
 };
@@ -130,18 +124,6 @@ struct sde_crtc_frame_event {
 	struct drm_connector *connector;
 	struct list_head list;
 	ktime_t ts;
-	u32 event;
-};
-
-/**
- * struct sde_crtc_misr_event: stores roi misr event for crtc processing
- * @work:	base work structure
- * @crtc:	Pointer to crtc handling this event
- * @event:	event identifier
- */
-struct sde_crtc_misr_event {
-	struct kthread_work work;
-	struct drm_crtc *crtc;
 	u32 event;
 };
 
@@ -245,23 +227,16 @@ struct sde_crtc_fps_info {
  * @rp_lock       : serialization lock for resource pool
  * @rp_head       : list of active resource pool
  * @plane_mask_old: keeps track of the planes used in the previous commit
- * @roi_misr_fence: list of roi_misr_fence for every commit
- * @misr_fence_lock: spinlock around misr fence handling code
- * @misr_event: static allocation of in-flight roi misr events
- * @roi_misr_hw_cfg: the roi misr config should be written to register
  */
 struct sde_crtc {
 	struct drm_crtc base;
 	char name[SDE_CRTC_NAME_SIZE];
 
-	/*
-	 * HW Resources reserved for the crtc, they can only
-	 * be accessed at commit stage.
-	 */
+	/* HW Resources reserved for the crtc */
 	u32 num_ctls;
 	u32 num_mixers;
 	bool mixers_swapped;
-	struct sde_crtc_mixer mixers[MAX_MIXERS_PER_CRTC];
+	struct sde_crtc_mixer mixers[CRTC_DUAL_MIXERS];
 
 	struct drm_pending_vblank_event *event;
 	u32 vsync_count;
@@ -330,12 +305,6 @@ struct sde_crtc {
 
 	/* blob for histogram data */
 	struct drm_property_blob *hist_blob;
-
-	/* roi misr fence support */
-	struct list_head roi_misr_fence;
-	spinlock_t misr_fence_lock;
-	struct sde_crtc_misr_event misr_event;
-	struct sde_roi_misr_hw_cfg roi_misr_hw_cfg[ROI_MISR_MAX_MISRS_PER_CRTC];
 };
 
 #define to_sde_crtc(x) container_of(x, struct sde_crtc, base)
@@ -395,18 +364,6 @@ struct sde_crtc_respool {
 };
 
 /**
- * sde_misr_state - sde misr state of current topology
- * @num_misrs: Number of roi misrs in current topology
- * @mixer_width: width of every mixer in current topology
- * @roi_range: misr roi range table
- */
-struct sde_misr_state {
-	u32 num_misrs;
-	u32 mixer_width;
-	struct drm_clip_rect roi_range[ROI_MISR_MAX_ROIS_PER_CRTC];
-};
-
-/**
  * struct sde_crtc_state - sde container for atomic crtc state
  * @base: Base drm crtc state structure
  * @connectors    : Currently associated drm connectors
@@ -415,8 +372,6 @@ struct sde_misr_state {
  * @is_ppsplit    : Whether current topology requires PPSplit special handling
  * @bw_control    : true if bw/clk controlled by core bw/clk properties
  * @bw_split_vote : true if bw controlled by llcc/dram bw properties
- * @topology_name : Current topology name
- * @num_mixers    : Number of mixers in current topology
  * @crtc_roi      : Current CRTC ROI. Possibly sub-rectangle of mode.
  *                  Origin top left of CRTC.
  * @lm_bounds     : LM boundaries based on current mode full resolution, no ROI.
@@ -443,8 +398,6 @@ struct sde_misr_state {
  * @padding_height: panel height after line padding
  * @padding_active: active lines in panel stacking pattern
  * @padding_dummy: dummy lines in panel stacking pattern
- * @roi_misr_cfg: roi misr configuration from user space
- * @misr_state: misr state of current topology
  */
 struct sde_crtc_state {
 	struct drm_crtc_state base;
@@ -456,12 +409,10 @@ struct sde_crtc_state {
 	bool bw_control;
 	bool bw_split_vote;
 
-	enum sde_rm_topology_name topology_name;
-	u32 num_mixers;
 	bool is_ppsplit;
 	struct sde_rect crtc_roi;
-	struct sde_rect lm_bounds[MAX_MIXERS_PER_CRTC];
-	struct sde_rect lm_roi[MAX_MIXERS_PER_CRTC];
+	struct sde_rect lm_bounds[CRTC_DUAL_MIXERS];
+	struct sde_rect lm_roi[CRTC_DUAL_MIXERS];
 	struct msm_roi_list user_roi_list;
 
 	struct msm_property_state property_state;
@@ -486,10 +437,6 @@ struct sde_crtc_state {
 	u32 padding_dummy;
 
 	struct sde_crtc_respool rp;
-
-	/* roi misr config data */
-	struct sde_roi_misr_usr_cfg roi_misr_cfg;
-	struct sde_misr_state misr_state;
 };
 
 enum sde_crtc_irq_state {
@@ -535,18 +482,19 @@ struct sde_crtc_irq_info {
  * Mixer width will be same as panel width(/2 for split)
  * unless destination scaler feature is enabled
  */
-static inline int sde_crtc_get_mixer_width(struct sde_crtc_state *cstate,
-		struct drm_display_mode *mode)
+static inline int sde_crtc_get_mixer_width(struct sde_crtc *sde_crtc,
+	struct sde_crtc_state *cstate, struct drm_display_mode *mode)
 {
 	u32 mixer_width;
 
-	if (!cstate || !mode)
+	if (!sde_crtc || !cstate || !mode)
 		return 0;
 
 	if (cstate->num_ds_enabled)
 		mixer_width = cstate->ds_cfg[0].lm_width;
 	else
-		mixer_width = mode->hdisplay / cstate->num_mixers;
+		mixer_width = (sde_crtc->num_mixers == CRTC_DUAL_MIXERS ?
+			mode->hdisplay / CRTC_DUAL_MIXERS : mode->hdisplay);
 
 	return mixer_width;
 }
@@ -556,10 +504,10 @@ static inline int sde_crtc_get_mixer_width(struct sde_crtc_state *cstate,
  * Mixer height will be same as panel height unless
  * destination scaler feature is enabled
  */
-static inline int sde_crtc_get_mixer_height(struct sde_crtc_state *cstate,
-		struct drm_display_mode *mode)
+static inline int sde_crtc_get_mixer_height(struct sde_crtc *sde_crtc,
+		struct sde_crtc_state *cstate, struct drm_display_mode *mode)
 {
-	if (!cstate || !mode)
+	if (!sde_crtc || !cstate || !mode)
 		return 0;
 
 	return (cstate->num_ds_enabled ?
@@ -910,39 +858,5 @@ int sde_crtc_calc_vpadding_param(struct drm_crtc_state *state,
  */
 int sde_crtc_get_num_datapath(struct drm_crtc *crtc,
 		struct drm_connector *connector);
-
-/**
- * sde_crtc_state_set_topology_name - set current topology name
- * @state: Pointer to crtc_state
- */
-static inline void sde_crtc_state_set_topology_name(
-		struct drm_crtc_state *state,
-		enum sde_rm_topology_name topology_name)
-{
-	struct sde_crtc_state *cstate = to_sde_crtc_state(state);
-
-	if (!state)
-		return;
-
-	cstate->topology_name = topology_name;
-
-	switch (topology_name) {
-	case SDE_RM_TOPOLOGY_DUALPIPE:
-	case SDE_RM_TOPOLOGY_DUALPIPE_DSC:
-	case SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE:
-	case SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC:
-	case SDE_RM_TOPOLOGY_DUALPIPE_DSCMERGE:
-		cstate->num_mixers = 2;
-		break;
-	case SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE:
-	case SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE:
-	case SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC:
-		cstate->num_mixers = 4;
-		break;
-	default:
-		cstate->num_mixers = 1;
-		break;
-	}
-}
 
 #endif /* _SDE_CRTC_H_ */

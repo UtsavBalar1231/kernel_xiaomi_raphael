@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -112,8 +112,6 @@ struct dp_catalog_ctrl {
 	void (*phy_reset)(struct dp_catalog_ctrl *ctrl);
 	void (*phy_lane_cfg)(struct dp_catalog_ctrl *ctrl, bool flipped,
 				u8 lane_cnt);
-	void (*set_phy_bond_mode)(struct dp_catalog_ctrl *ctrl,
-				enum dp_phy_bond_mode phy_bond_mode);
 	void (*update_vx_px)(struct dp_catalog_ctrl *ctrl, u8 v_level,
 				u8 p_level, bool high);
 	void (*get_interrupt)(struct dp_catalog_ctrl *ctrl);
@@ -223,7 +221,6 @@ struct dp_catalog_panel {
 
 	u32 misc_val;
 
-	u32 cell_idx;
 	enum dp_stream_id stream_id;
 
 	bool widebus_en;
@@ -252,7 +249,6 @@ struct dp_catalog_priv {
 };
 
 struct dp_catalog {
-	enum dp_phy_mode phy_mode;
 	struct dp_catalog_aux aux;
 	struct dp_catalog_ctrl ctrl;
 	struct dp_catalog_audio audio;
@@ -357,17 +353,13 @@ static inline void dp_write(char *exe_mode, struct dp_io_data *io_data,
 	}
 }
 
-struct dp_catalog *dp_catalog_get(struct device *dev, u32 cell_idx,
-		struct dp_parser *parser);
+struct dp_catalog *dp_catalog_get(struct device *dev, struct dp_parser *parser);
 void dp_catalog_put(struct dp_catalog *catalog);
 
 int dp_catalog_get_v420(struct device *dev, struct dp_catalog *catalog,
 		void *io);
 
 int dp_catalog_get_v200(struct device *dev, struct dp_catalog *catalog,
-		void *io);
-
-int dp_catalog_get_v500(struct device *dev, struct dp_catalog *catalog,
 		void *io);
 
 #endif /* _DP_CATALOG_H_ */

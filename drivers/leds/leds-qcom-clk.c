@@ -23,7 +23,7 @@
 
 struct led_qcom_clk_priv {
 	struct led_classdev cdev;
-	struct clk *src_clk;
+	struct clk *core;
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *gpio_active;
 	struct pinctrl_state *gpio_sleep;
@@ -41,7 +41,7 @@ static int qcom_clk_led_set(struct led_classdev *led_cdev,
 
 	if (brightness == LED_OFF) {
 		if (led_priv->clk_enabled) {
-			clk_disable_unprepare(led_priv->src_clk);
+			clk_disable_unprepare(led_priv->core);
 			pinctrl_select_state(led_priv->pinctrl,
 					led_priv->gpio_sleep);
 			led_priv->clk_enabled = false;
@@ -58,7 +58,7 @@ static int qcom_clk_led_set(struct led_classdev *led_cdev,
 			return rc;
 		}
 
-		rc = clk_prepare_enable(led_priv->src_clk);
+		rc = clk_prepare_enable(led_priv->core);
 		if (rc < 0) {
 			dev_err(led_cdev->dev, "Failed to enable clock rc=%d\n",
 					rc);
@@ -74,7 +74,7 @@ static int qcom_clk_led_set(struct led_classdev *led_cdev,
 	 * brightness is the period in which signal is active.
 	 */
 	led_priv->duty_cycle = brightness;
-	rc = clk_set_duty_cycle(led_priv->src_clk,
+	rc = clk_set_duty_cycle(led_priv->core,
 			led_priv->duty_cycle, CLK_DUTY_DEN);
 	if (rc < 0) {
 		dev_err(led_cdev->dev, "Failed to set duty cycle rc=%d\n",
@@ -85,7 +85,7 @@ static int qcom_clk_led_set(struct led_classdev *led_cdev,
 	return rc;
 
 err_set_duty:
-	clk_disable_unprepare(led_priv->src_clk);
+	clk_disable_unprepare(led_priv->core);
 	led_priv->clk_enabled = false;
 err_enable:
 	pinctrl_select_state(led_priv->pinctrl, led_priv->gpio_sleep);
@@ -108,11 +108,16 @@ static int qcom_clk_led_parse_dt(struct device *dev,
 		return ret;
 	}
 
-	led->src_clk = devm_clk_get(dev, "src_clk");
-	if (IS_ERR(led->src_clk)) {
-		ret = PTR_ERR(led->src_clk);
+	if (led->max_duty <= 0) {
+		dev_err(dev, "Max duty cycle should not be <= 0\n");
+		return -EINVAL;
+	}
+
+	led->core = devm_clk_get(dev, "core");
+	if (IS_ERR(led->core)) {
+		ret = PTR_ERR(led->core);
 		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get src_clk source\n");
+			dev_err(dev, "Failed to get core source\n");
 
 		return ret;
 	}
@@ -172,8 +177,8 @@ MODULE_DEVICE_TABLE(of, of_qcom_clk_leds_match);
 static struct platform_driver led_qcom_clk_driver = {
 	.probe		= led_qcom_clk_probe,
 	.driver		= {
-		.name	= "led_qcom_clk_pwm",
-		.of_match_table = of_qcom_clk_leds_match,
+		.name		= "led_qcom_clk_pwm",
+		.of_match_table	= of_qcom_clk_leds_match,
 	},
 };
 

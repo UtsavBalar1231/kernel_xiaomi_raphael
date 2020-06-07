@@ -395,27 +395,16 @@ void sde_hw_reset_ubwc(struct sde_hw_mdp *mdp, struct sde_mdss_cfg *m)
 }
 
 static void sde_hw_intf_dp_select(struct sde_hw_mdp *mdp,
-		u32 dp_intf_sel[DP_CTRL_MAX])
+		struct sde_mdss_cfg *m)
 {
 	struct sde_hw_blk_reg_map *c;
-	u32 reg;
-	int i, j;
 
 	if (!mdp)
 		return;
 
 	c = &mdp->hw;
 
-	reg = 0;
-	for (i = 0; i < 3; i++) {
-		for (j = 0; j < DP_CTRL_MAX; j++) {
-			if (dp_intf_sel[j] == i + 1)
-				reg |= ((i + 1) << (j * 3)) |
-					((j + 1) << (i * 3 + 6));
-		}
-	}
-
-	SDE_REG_WRITE(c, DP_PHY_INTF_SEL, reg);
+	SDE_REG_WRITE(c, DP_PHY_INTF_SEL, 0x41);
 }
 
 static void sde_hw_intf_audio_select(struct sde_hw_mdp *mdp)

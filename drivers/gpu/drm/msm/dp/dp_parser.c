@@ -193,9 +193,6 @@ static int dp_parser_misc(struct dp_parser *parser)
 	if (!parser->display_type)
 		parser->display_type = "unknown";
 
-	parser->force_bond_mode = of_property_read_bool(of_node,
-			"qcom,dp-force-bond-mode");
-
 	return 0;
 }
 
@@ -460,7 +457,7 @@ static int dp_parser_regulator(struct dp_parser *parser)
 	struct platform_device *pdev = parser->pdev;
 
 	/* Parse the regulator information */
-	for (i = DP_CORE_PM; i < DP_MAX_PM; i++) {
+	for (i = DP_CORE_PM; i <= DP_PHY_PM; i++) {
 		rc = dp_parser_get_vreg(parser, i);
 		if (rc) {
 			pr_err("get_dt_vreg_data failed for %s. rc=%d\n",
@@ -717,33 +714,12 @@ static int dp_parser_catalog(struct dp_parser *parser)
 {
 	int rc;
 	u32 version;
-	const char *st = NULL;
 	struct device *dev = &parser->pdev->dev;
 
 	rc = of_property_read_u32(dev->of_node, "qcom,phy-version", &version);
 
 	if (!rc)
 		parser->hw_cfg.phy_version = version;
-
-	/* phy-mode */
-	rc = of_property_read_string(dev->of_node, "qcom,phy-mode", &st);
-
-	if (!rc) {
-		if (!strcmp(st, "dp"))
-			parser->hw_cfg.phy_mode = DP_PHY_MODE_DP;
-		else if (!strcmp(st, "minidp"))
-			parser->hw_cfg.phy_mode = DP_PHY_MODE_MINIDP;
-		else if (!strcmp(st, "edp"))
-			parser->hw_cfg.phy_mode = DP_PHY_MODE_EDP;
-		else if (!strcmp(st, "edp-highswing"))
-			parser->hw_cfg.phy_mode = DP_PHY_MODE_EDP_HIGH_SWING;
-		else {
-			parser->hw_cfg.phy_mode = DP_PHY_MODE_UNKNOWN;
-			pr_warn("unknown phy-mode %s\n", st);
-		}
-	} else {
-		parser->hw_cfg.phy_mode = DP_PHY_MODE_UNKNOWN;
-	}
 
 	return 0;
 }
@@ -823,59 +799,6 @@ static void dp_parser_widebus(struct dp_parser *parser)
 			parser->has_widebus);
 }
 
-static int dp_parser_bond(struct dp_parser *parser)
-{
-	struct device *dev = &parser->pdev->dev;
-	int count, i;
-	int rc;
-
-	count = of_property_count_u32_elems(dev->of_node,
-			"qcom,bond-dual-ctrl");
-	if (count > 0) {
-		if (count != 2) {
-			pr_warn("dual bond ctrl num doesn't match\n");
-			goto next;
-		}
-		for (i = 0; i < 2; i++) {
-			rc = of_property_read_u32_index(dev->of_node,
-				"qcom,bond-dual-ctrl", i,
-				&parser->bond_cfg[DP_BOND_DUAL].ctrl[i]);
-			if (rc) {
-				pr_warn("failed to read bond index %d", i);
-				goto next;
-			}
-		}
-		parser->bond_cfg[DP_BOND_DUAL].enable = true;
-	}
-
-next:
-	count = of_property_count_u32_elems(dev->of_node,
-			"qcom,bond-tri-ctrl");
-	if (count > 0) {
-		if (count != 3) {
-			pr_warn("tri bond ctrl num doesn't match\n");
-			goto out;
-		}
-		for (i = 0; i < 3; i++) {
-			rc = of_property_read_u32_index(dev->of_node,
-				"qcom,bond-tri-ctrl", i,
-				&parser->bond_cfg[DP_BOND_TRIPLE].ctrl[i]);
-			if (rc) {
-				pr_warn("failed to read bond index %d", i);
-				goto out;
-			}
-		}
-		parser->bond_cfg[DP_BOND_TRIPLE].enable = true;
-	}
-
-out:
-	pr_debug("dual-bond:%d tri-bond:%d\n",
-			parser->bond_cfg[DP_BOND_DUAL].enable,
-			parser->bond_cfg[DP_BOND_TRIPLE].enable);
-
-	return 0;
-}
-
 static int dp_parser_parse(struct dp_parser *parser)
 {
 	int rc = 0;
@@ -923,10 +846,6 @@ static int dp_parser_parse(struct dp_parser *parser)
 		goto err;
 
 	rc = dp_parser_mst(parser);
-	if (rc)
-		goto err;
-
-	rc = dp_parser_bond(parser);
 	if (rc)
 		goto err;
 

@@ -193,7 +193,8 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
 	phys_addr_t kernel_end, ret;
 
 	/* pump up @end */
-	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
+	if (end == MEMBLOCK_ALLOC_ACCESSIBLE ||
+	    end == MEMBLOCK_ALLOC_KASAN)
 		end = memblock.current_limit;
 
 	/* avoid allocating the first page */
@@ -1311,13 +1312,15 @@ done:
 	ptr = phys_to_virt(alloc);
 	memset(ptr, 0, size);
 
-	/*
-	 * The min_count is set to 0 so that bootmem allocated blocks
-	 * are never reported as leaks. This is because many of these blocks
-	 * are only referred via the physical address which is not
-	 * looked up by kmemleak.
-	 */
-	kmemleak_alloc(ptr, size, 0, 0);
+	/* Skip kmemleak for kasan_init() due to high volume. */
+	if (max_addr != MEMBLOCK_ALLOC_KASAN)
+		/*
+		 * The min_count is set to 0 so that bootmem allocated
+		 * blocks are never reported as leaks. This is because many
+		 * of these blocks are only referred via the physical
+		 * address which is not looked up by kmemleak.
+		 */
+		kmemleak_alloc(ptr, size, 0, 0);
 
 	return ptr;
 }
@@ -1897,8 +1900,8 @@ static int __init early_dyn_memhotplug(char *p)
 	struct memblock_region *rgn;
 	int blk = 0;
 
-	while ((idx++) < memblock.memory.cnt) {
-		rgn = &memblock.memory.regions[idx];
+	while (idx < memblock.memory.cnt) {
+		rgn = &memblock.memory.regions[idx++];
 		addr = ALIGN(rgn->base, MIN_MEMORY_BLOCK_SIZE);
 		rgn_end = rgn->base + rgn->size;
 		while (addr + MIN_MEMORY_BLOCK_SIZE <= rgn_end) {

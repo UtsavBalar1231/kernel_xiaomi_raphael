@@ -936,8 +936,18 @@ static int handle_rx_console(struct uart_port *uport,
 				tty_insert_flip_char(tport, rx_char[c], flag);
 		}
 	}
-	if (!drop_rx)
+	if (!drop_rx) {
+		/*
+		 * Driver acquiring port->lock in isr function and calling
+		 * tty_flip_buffer_push() which in turn will wait for
+		 * another lock from framework __queue_work function.
+		 * release the port lock before calling tty_flip_buffer_push()
+		 * to avoid deadlock scenarios.
+		 */
+		spin_unlock(&uport->lock);
 		tty_flip_buffer_push(tport);
+		spin_lock(&uport->lock);
+	}
 	return 0;
 }
 #else
@@ -1701,7 +1711,6 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 	unsigned int dma_tx_status;
 	unsigned int dma_rx_status;
 	struct uart_port *uport = dev;
-	unsigned long flags;
 	unsigned int m_irq_en;
 	unsigned int geni_status;
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
@@ -1728,7 +1737,7 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 		return IRQ_HANDLED;
 	}
 
-	spin_lock_irqsave(&uport->lock, flags);
+	spin_lock(&uport->lock);
 	if (uart_console(uport) && uport->suspended) {
 		IPC_LOG_MSG(msm_port->console_log,
 			"%s. Console in suspend state\n", __func__);
@@ -1834,7 +1843,7 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 	}
 
 exit_geni_serial_isr:
-	spin_unlock_irqrestore(&uport->lock, flags);
+	spin_unlock(&uport->lock);
 	return IRQ_HANDLED;
 }
 
@@ -1992,8 +2001,9 @@ static int msm_geni_serial_port_setup(struct uart_port *uport)
 			goto exit_portsetup;
 		}
 
-		msm_port->rx_buf = dma_alloc_coherent(msm_port->wrapper_dev,
-				DMA_RX_BUF_SIZE, &dma_address, GFP_KERNEL);
+		msm_port->rx_buf =
+			geni_se_iommu_alloc_buf(msm_port->wrapper_dev,
+				&dma_address, DMA_RX_BUF_SIZE);
 		if (!msm_port->rx_buf) {
 			devm_kfree(uport->dev, msm_port->rx_fifo);
 			msm_port->rx_fifo = NULL;
@@ -2039,8 +2049,8 @@ static int msm_geni_serial_port_setup(struct uart_port *uport)
 	return 0;
 free_dma:
 	if (msm_port->rx_dma) {
-		dma_free_coherent(msm_port->wrapper_dev, DMA_RX_BUF_SIZE,
-					msm_port->rx_buf, msm_port->rx_dma);
+		geni_se_iommu_free_buf(msm_port->wrapper_dev,
+			&msm_port->rx_dma, msm_port->rx_buf, DMA_RX_BUF_SIZE);
 		msm_port->rx_dma = (dma_addr_t)NULL;
 	}
 exit_portsetup:
@@ -3089,8 +3099,8 @@ static int msm_geni_serial_remove(struct platform_device *pdev)
 	wakeup_source_trash(&port->geni_wake);
 	uart_remove_one_port(drv, &port->uport);
 	if (port->rx_dma) {
-		dma_free_coherent(port->wrapper_dev, DMA_RX_BUF_SIZE,
-					port->rx_buf, port->rx_dma);
+		geni_se_iommu_free_buf(port->wrapper_dev, &port->rx_dma,
+					port->rx_buf, DMA_RX_BUF_SIZE);
 		port->rx_dma = (dma_addr_t)NULL;
 	}
 	return 0;

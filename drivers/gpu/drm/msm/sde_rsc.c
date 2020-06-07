@@ -1951,5 +1951,5 @@ static void __exit sde_rsc_unregister(void)
 	platform_driver_unregister(&sde_rsc_platform_driver);
 }
 
-early_module_init(sde_rsc_register, EARLY_SUBSYS_2, EARLY_INIT_LEVEL4);
+module_init(sde_rsc_register);
 module_exit(sde_rsc_unregister);

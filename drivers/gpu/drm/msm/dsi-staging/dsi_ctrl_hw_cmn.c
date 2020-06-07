@@ -506,27 +506,6 @@ void dsi_ctrl_hw_cmn_video_engine_setup(struct dsi_ctrl_hw *ctrl,
 	reg |= (video_mode_format_map[common_cfg->dst_format] & 0x3) << 4;
 	DSI_W32(ctrl, DSI_VIDEO_MODE_CTRL, reg);
 
-	if (cfg->data_type.override) {
-		/* Setup sync packets Data Type */
-		reg = (cfg->data_type.vs & 0x3F) << 0;
-		reg |= (cfg->data_type.ve & 0x3F) << 8;
-		reg |= (cfg->data_type.hs & 0x3F) << 16;
-		reg |= (cfg->data_type.he & 0x3F) << 24;
-		DSI_W32(ctrl, DSI_VIDEO_MODE_SYNC_DATATYPE, reg);
-
-		/* Setup pixel stream packets Data Type */
-		reg = (cfg->data_type.rgb565 & 0x3F) << 0;
-		reg |= (cfg->data_type.rgb666_packed & 0x3F) << 8;
-		reg |= (cfg->data_type.rgb666 & 0x3F) << 16;
-		reg |= (cfg->data_type.rgb888 & 0x3F) << 24;
-		DSI_W32(ctrl, DSI_VIDEO_MODE_PIXEL_DATATYPE, reg);
-
-		/* Setup blanking packets Data Type */
-		reg = (cfg->data_type.blank_data & 0xFF) << 0;
-		reg |= (cfg->data_type.blank & 0x3F) << 8;
-		DSI_W32(ctrl, DSI_VIDEO_MODE_BLANKING_DATATYPE, reg);
-	}
-
 	reg = (common_cfg->swap_mode & 0x7) << 12;
 	reg |= (common_cfg->bit_swap_red ? BIT(0) : 0);
 	reg |= (common_cfg->bit_swap_green ? BIT(4) : 0);

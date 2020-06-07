@@ -1046,8 +1046,6 @@ static int dsi_panel_parse_color_swap(struct dsi_host_common_cfg *host,
 			host->swap_mode = DSI_COLOR_SWAP_RGB;
 		} else if (!strcmp(swap_mode, "rgb_swap_rbg")) {
 			host->swap_mode = DSI_COLOR_SWAP_RBG;
-		} else if (!strcmp(swap_mode, "rgb_swap_bgr")) {
-			host->swap_mode = DSI_COLOR_SWAP_BGR;
 		} else if (!strcmp(swap_mode, "rgb_swap_brg")) {
 			host->swap_mode = DSI_COLOR_SWAP_BRG;
 		} else if (!strcmp(swap_mode, "rgb_swap_grb")) {
@@ -1336,10 +1334,11 @@ static int dsi_panel_parse_qsync_caps(struct dsi_panel *panel,
 static int dsi_panel_parse_dyn_clk_caps(struct dsi_panel *panel)
 {
 	int rc = 0;
-	bool supported = false;
+	bool supported = false, skip_phy_timing_update = false;
 	struct dsi_dyn_clk_caps *dyn_clk_caps = &panel->dyn_clk_caps;
 	struct dsi_parser_utils *utils = &panel->utils;
 	const char *name = panel->name;
+	const char *type = NULL;
 
 	supported = utils->read_bool(utils->data, "qcom,dsi-dyn-clk-enable");
 
@@ -1370,8 +1369,34 @@ static int dsi_panel_parse_dyn_clk_caps(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
+	skip_phy_timing_update = utils->read_bool(utils->data,
+				"qcom,dsi-dyn-clk-skip-timing-update");
+	if (!skip_phy_timing_update)
+		dyn_clk_caps->skip_phy_timing_update = false;
+	else
+		dyn_clk_caps->skip_phy_timing_update = true;
+
 	dyn_clk_caps->dyn_clk_support = true;
 
+	type = utils->get_property(utils->data,
+				   "qcom,dsi-dyn-clk-type", NULL);
+	if (!type) {
+		dyn_clk_caps->type = DSI_DYN_CLK_TYPE_LEGACY;
+		dyn_clk_caps->maintain_const_fps = false;
+		return 0;
+	}
+
+	if (!strcmp(type, "constant-fps-adjust-hfp")) {
+		dyn_clk_caps->type = DSI_DYN_CLK_TYPE_CONST_FPS_ADJUST_HFP;
+		dyn_clk_caps->maintain_const_fps = true;
+	} else if (!strcmp(type, "constant-fps-adjust-vfp")) {
+		dyn_clk_caps->type = DSI_DYN_CLK_TYPE_CONST_FPS_ADJUST_VFP;
+		dyn_clk_caps->maintain_const_fps = true;
+	} else {
+		dyn_clk_caps->type = DSI_DYN_CLK_TYPE_LEGACY;
+		dyn_clk_caps->maintain_const_fps = false;
+	}
+	pr_debug("Dynamic clock type is %d\n", dyn_clk_caps->type);
 	return 0;
 }
 
@@ -1464,7 +1489,6 @@ static int dsi_panel_parse_video_host_config(struct dsi_video_engine_cfg *cfg,
 	u32 vc_id = 0;
 	u32 val = 0;
 	u32 line_no = 0;
-	bool override_data_type;
 
 	rc = utils->read_u32(utils->data, "qcom,mdss-dsi-h-sync-pulse", &val);
 	if (rc) {
@@ -1538,37 +1562,6 @@ static int dsi_panel_parse_video_host_config(struct dsi_video_engine_cfg *cfg,
 		cfg->dma_sched_line = line_no;
 	}
 
-	override_data_type = utils->read_bool(utils->data,
-						"qcom,mdss-csi-proxy");
-	if (override_data_type) {
-		/* Data Type follow CSI spec. */
-		pr_debug("[%s] enable the CSI proxy mode\n", name);
-		cfg->data_type.override = true;
-		cfg->data_type.vs = 0x01;  /* FE in CSI */
-		cfg->data_type.ve = 0x00;  /* FS in CSI */
-		cfg->data_type.hs = 0x08;  /* Generic Short Packet 1 in CSI */
-		cfg->data_type.he = 0x08;  /* Generic Short Packet 1 in CSI */
-		cfg->data_type.rgb565 = 0x22;  /* RGB565 in CSI */
-		cfg->data_type.rgb666_packed = 0x23;  /* RGB666 in CSI */
-		cfg->data_type.rgb666 = 0x13;  /* Generic Long Packet in CSI */
-		cfg->data_type.rgb888 = 0x24;  /* RGB888 in CSI */
-		cfg->data_type.blank = 0x11;  /* Blanking in CSI */
-		cfg->data_type.blank_data = 0x00;
-	} else {
-		/* Default Data Type follow DSI spec. */
-		cfg->data_type.override = false;
-		cfg->data_type.vs = 0x01;
-		cfg->data_type.ve = 0x11;
-		cfg->data_type.hs = 0x21;
-		cfg->data_type.he = 0x31;
-		cfg->data_type.rgb565 = 0x0E;
-		cfg->data_type.rgb666_packed = 0x1E;
-		cfg->data_type.rgb666 = 0x2E;
-		cfg->data_type.rgb888 = 0x3E;
-		cfg->data_type.blank = 0x19;
-		cfg->data_type.blank_data = 0x00;
-	}
-
 error:
 	return rc;
 }
@@ -1626,6 +1619,7 @@ static int dsi_panel_parse_panel_mode(struct dsi_panel *panel)
 {
 	int rc = 0;
 	struct dsi_parser_utils *utils = &panel->utils;
+	bool panel_mode_switch_enabled;
 	enum dsi_op_mode panel_mode;
 	const char *mode;
 
@@ -1644,7 +1638,12 @@ static int dsi_panel_parse_panel_mode(struct dsi_panel *panel)
 		goto error;
 	}
 
-	if (panel_mode == DSI_OP_VIDEO_MODE) {
+	panel_mode_switch_enabled = utils->read_bool(utils->data,
+			"qcom,mdss-dsi-panel-mode-switch");
+	pr_info("%s: panel operating mode switch feature %s\n", __func__,
+		(panel_mode_switch_enabled ? "enabled" : "disabled"));
+
+	if (panel_mode == DSI_OP_VIDEO_MODE || panel_mode_switch_enabled) {
 		rc = dsi_panel_parse_video_host_config(&panel->video_config,
 						       utils,
 						       panel->name);
@@ -1655,7 +1654,7 @@ static int dsi_panel_parse_panel_mode(struct dsi_panel *panel)
 		}
 	}
 
-	if (panel_mode == DSI_OP_CMD_MODE) {
+	if (panel_mode == DSI_OP_CMD_MODE || panel_mode_switch_enabled) {
 		rc = dsi_panel_parse_cmd_host_config(&panel->cmd_config,
 						     utils,
 						     panel->name);
@@ -1667,6 +1666,7 @@ static int dsi_panel_parse_panel_mode(struct dsi_panel *panel)
 	}
 
 	panel->panel_mode = panel_mode;
+	panel->panel_mode_switch_enabled = panel_mode_switch_enabled;
 error:
 	return rc;
 }
@@ -2938,6 +2938,31 @@ static int dsi_panel_parse_partial_update_caps(struct dsi_display_mode *mode,
 	return rc;
 }
 
+static int dsi_panel_parse_panel_mode_caps(struct dsi_display_mode *mode,
+			struct dsi_parser_utils *utils)
+{
+	bool vid_mode_support, cmd_mode_support;
+
+	if (!mode || !mode->priv_info) {
+		pr_err("invalid arguments\n");
+		return -EINVAL;
+	}
+
+	vid_mode_support = utils->read_bool(utils->data,
+				"qcom,mdss-dsi-video-mode");
+	cmd_mode_support = utils->read_bool(utils->data,
+				"qcom,mdss-dsi-cmd-mode");
+
+	if (cmd_mode_support)
+		mode->panel_mode = DSI_OP_CMD_MODE;
+	else if (vid_mode_support)
+		mode->panel_mode = DSI_OP_VIDEO_MODE;
+	else
+		return -EINVAL;
+
+	return 0;
+};
+
 static int dsi_panel_parse_dms_info(struct dsi_panel *panel)
 {
 	int dms_enabled;
@@ -3284,7 +3309,7 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 
 	rc = dsi_panel_parse_qsync_caps(panel, of_node);
 	if (rc)
-		pr_err("failed to parse qsync features, rc=%d\n", rc);
+		pr_debug("failed to parse qsync features, rc=%d\n", rc);
 
 	/* allow qsync support only if DFPS is with VFP approach */
 	if ((panel->dfps_caps.dfps_support) &&
@@ -3471,8 +3496,11 @@ int dsi_panel_get_mode_count(struct dsi_panel *panel)
 {
 	const u32 SINGLE_MODE_SUPPORT = 1;
 	struct dsi_parser_utils *utils;
-	struct device_node *timings_np;
+	struct device_node *timings_np, *child_np;
+	int num_dfps_rates, num_bit_clks;
+	int num_video_modes = 0, num_cmd_modes = 0;
 	int count, rc = 0;
+	void *utils_data = NULL;
 
 	if (!panel) {
 		pr_err("invalid params\n");
@@ -3499,12 +3527,37 @@ int dsi_panel_get_mode_count(struct dsi_panel *panel)
 		goto error;
 	}
 
-	/* No multiresolution support is available for video mode panels */
+	/* No multiresolution support is available for video mode panels.
+	 * Multi-mode is supported for video mode during POMS is enabled.
+	 */
 	if (panel->panel_mode != DSI_OP_CMD_MODE &&
-		!panel->host_config.ext_bridge_num)
+		!panel->host_config.ext_bridge_num &&
+		!panel->panel_mode_switch_enabled)
 		count = SINGLE_MODE_SUPPORT;
 
 	panel->num_timing_nodes = count;
+	dsi_for_each_child_node(timings_np, child_np) {
+		utils_data = child_np;
+		if (utils->read_bool(utils->data, "qcom,mdss-dsi-video-mode"))
+			num_video_modes++;
+		else if (utils->read_bool(utils->data,
+					"qcom,mdss-dsi-cmd-mode"))
+			num_cmd_modes++;
+		else if (panel->panel_mode == DSI_OP_VIDEO_MODE)
+			num_video_modes++;
+		else if (panel->panel_mode == DSI_OP_CMD_MODE)
+			num_cmd_modes++;
+	}
+
+	num_dfps_rates = !panel->dfps_caps.dfps_support ? 1 :
+					panel->dfps_caps.dfps_list_len;
+
+	num_bit_clks = !panel->dyn_clk_caps.dyn_clk_support ? 1 :
+					panel->dyn_clk_caps.bit_clk_list_len;
+
+	/* Inflate num_of_modes by fps and bit clks in dfps */
+	panel->num_display_modes = (num_cmd_modes * num_bit_clks) +
+			(num_video_modes * num_bit_clks * num_dfps_rates);
 
 error:
 	return rc;
@@ -3653,6 +3706,17 @@ int dsi_panel_get_mode(struct dsi_panel *panel,
 		 */
 		if (prv_info->dsc_enabled || prv_info->roi_caps.enabled)
 			prv_info->overlap_pixels = 0;
+
+		if (panel->panel_mode_switch_enabled) {
+			rc = dsi_panel_parse_panel_mode_caps(mode, utils);
+			if (rc) {
+				pr_err("PMS: failed to parse panel mode\n");
+				rc = 0;
+				mode->panel_mode = panel->panel_mode;
+			}
+		} else {
+			mode->panel_mode = panel->panel_mode;
+		}
 	}
 	goto done;
 
@@ -4047,6 +4111,79 @@ int dsi_panel_send_roi_dcs(struct dsi_panel *panel, int ctrl_idx,
 	dsi_panel_destroy_cmd_packets(set);
 	dsi_panel_dealloc_cmd_packets(set);
 
+	return rc;
+}
+
+int dsi_panel_pre_mode_switch_to_video(struct dsi_panel *panel)
+{
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("Invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_CMD_TO_VID_SWITCH);
+	if (rc)
+		pr_err("[%s] failed to send DSI_CMD_SET_CMD_TO_VID_SWITCH cmds, rc=%d\n",
+			panel->name, rc);
+	mutex_unlock(&panel->panel_lock);
+
+	return rc;
+}
+
+int dsi_panel_pre_mode_switch_to_cmd(struct dsi_panel *panel)
+{
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("Invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_VID_TO_CMD_SWITCH);
+	if (rc)
+		pr_err("[%s] failed to send DSI_CMD_SET_VID_TO_CMD_SWITCH cmds, rc=%d\n",
+			panel->name, rc);
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+int dsi_panel_mode_switch_to_cmd(struct dsi_panel *panel)
+{
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("Invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_POST_VID_TO_CMD_SWITCH);
+	if (rc)
+		pr_err("[%s] failed to send DSI_CMD_SET_POST_VID_TO_CMD_SWITCH cmds, rc=%d\n",
+			panel->name, rc);
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+int dsi_panel_mode_switch_to_vid(struct dsi_panel *panel)
+{
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("Invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_POST_CMD_TO_VID_SWITCH);
+	if (rc)
+		pr_err("[%s] failed to send DSI_CMD_SET_POST_CMD_TO_VID_SWITCH cmds, rc=%d\n",
+			panel->name, rc);
+	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 

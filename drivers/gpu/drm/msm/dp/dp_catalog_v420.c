@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -154,21 +154,8 @@ static void dp_catalog_panel_config_msa_v420(struct dp_catalog_panel *panel,
 	catalog = dp_catalog_get_priv_v420(panel);
 	io_data = catalog->io->dp_mmss_cc;
 
-	switch (panel->cell_idx) {
-	case 0:
-	default:
-		/* DP controller 0 */
-		if (panel->stream_id == DP_STREAM_1)
-			reg_off = MMSS_DP_PIXEL1_M_V420 - MMSS_DP_PIXEL_M_V420;
-		break;
-	case 1:
-		/* DP controller 1 */
-		if (panel->stream_id == DP_STREAM_0)
-			reg_off = MMSS_DP_PIXEL2_M_V420 - MMSS_DP_PIXEL_M_V420;
-		else
-			reg_off = MMSS_DP_PIXEL1_M_V420 - MMSS_DP_PIXEL_M_V420;
-		break;
-	}
+	if (panel->stream_id == DP_STREAM_1)
+		reg_off = MMSS_DP_PIXEL1_M_V420 - MMSS_DP_PIXEL_M_V420;
 
 	pixel_m = dp_read(catalog->exe_mode, io_data,
 			MMSS_DP_PIXEL_M_V420 + reg_off);
@@ -227,43 +214,7 @@ static void dp_catalog_ctrl_phy_lane_cfg_v420(struct dp_catalog_ctrl *ctrl,
 	io_data = catalog->io->dp_phy;
 
 	info |= (ln_cnt & 0x0F);
-	info |= ((orientation & 0x03) << 4);
-	pr_debug("Shared Info = 0x%x\n", info);
-
-	dp_write(catalog->exe_mode, io_data, DP_PHY_SPARE0_V420, info);
-}
-
-static void dp_catalog_ctrl_set_phy_bond_mode_v420(struct dp_catalog_ctrl *ctrl,
-		enum dp_phy_bond_mode phy_bond_mode)
-{
-	u32 info = 0x0;
-	struct dp_catalog_private_v420 *catalog;
-	struct dp_io_data *io_data;
-	u8 bond;
-
-	if (!ctrl) {
-		pr_err("invalid input\n");
-		return;
-	}
-
-	switch (phy_bond_mode) {
-	case DP_PHY_BOND_MODE_PLL_MASTER:
-		bond = 1;
-		break;
-	case DP_PHY_BOND_MODE_PLL_SLAVE:
-		bond = 2;
-		break;
-	default:
-		bond = 0;
-		break;
-	}
-
-	catalog = dp_catalog_get_priv_v420(ctrl);
-	io_data = catalog->io->dp_phy;
-
-	info = dp_read(catalog->exe_mode, io_data, DP_PHY_SPARE0_V420);
-	info &= 0x3F;
-	info |= ((bond & 0x03) << 6);
+	info |= ((orientation & 0x0F) << 4);
 	pr_debug("Shared Info = 0x%x\n", info);
 
 	dp_write(catalog->exe_mode, io_data, DP_PHY_SPARE0_V420, info);
@@ -397,8 +348,6 @@ int dp_catalog_get_v420(struct device *dev, struct dp_catalog *catalog,
 				dp_catalog_aux_clear_hw_interrupts_v420;
 	catalog->panel.config_msa  = dp_catalog_panel_config_msa_v420;
 	catalog->ctrl.phy_lane_cfg = dp_catalog_ctrl_phy_lane_cfg_v420;
-	catalog->ctrl.set_phy_bond_mode =
-				dp_catalog_ctrl_set_phy_bond_mode_v420;
 	catalog->ctrl.update_vx_px = dp_catalog_ctrl_update_vx_px_v420;
 	catalog->ctrl.lane_pnswap = dp_catalog_ctrl_lane_pnswap_v420;
 

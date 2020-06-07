@@ -838,5 +838,5 @@ static void __exit sde_wb_unregister(void)
 	platform_driver_unregister(&sde_wb_driver);
 }
 
-early_module_init(sde_wb_register, EARLY_SUBSYS_2, EARLY_INIT_LEVEL4);
+module_init(sde_wb_register);
 module_exit(sde_wb_unregister);

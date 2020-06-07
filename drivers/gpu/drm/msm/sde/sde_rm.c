@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -71,28 +71,8 @@ static const struct sde_rm_topology_def g_ctl_ver_1_top_table[] = {
 	{   SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC, 2, 1, 1, 1, false },
 	{   SDE_RM_TOPOLOGY_DUALPIPE_DSCMERGE,    2, 2, 1, 1, false },
 	{   SDE_RM_TOPOLOGY_PPSPLIT,              1, 0, 2, 1, true  },
-	{   SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE,     4, 0, 2, 1, false },
-	{   SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC, 4, 3, 2, 1, false },
-	{   SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE,    4, 4, 2, 1, false },
 };
 
-/**
- * define the number of MISRs be used under different topologies
- */
-static const struct sde_rm_misr_topology_def g_misr_table[] = {
-	{   SDE_RM_TOPOLOGY_NONE,                 0 },
-	{   SDE_RM_TOPOLOGY_SINGLEPIPE,           1 },
-	{   SDE_RM_TOPOLOGY_SINGLEPIPE_DSC,       1 },
-	{   SDE_RM_TOPOLOGY_DUALPIPE,             2 },
-	{   SDE_RM_TOPOLOGY_DUALPIPE_DSC,         2 },
-	{   SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE,     1 },
-	{   SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC, 1 },
-	{   SDE_RM_TOPOLOGY_DUALPIPE_DSCMERGE,    2 },
-	{   SDE_RM_TOPOLOGY_PPSPLIT,              0 },
-	{   SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE,     2 },
-	{   SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC, 2 },
-	{   SDE_RM_TOPOLOGY_QUADPIPE_DSCMERGE,    4 },
-};
 
 /**
  * struct sde_rm_requirements - Reservation requirements parameter bundle
@@ -210,49 +190,16 @@ void sde_rm_init_hw_iter(
 	iter->type = type;
 }
 
-enum sde_rm_topology_name sde_rm_get_topology_name(struct sde_rm *rm,
+enum sde_rm_topology_name sde_rm_get_topology_name(
 	struct msm_display_topology topology)
 {
 	int i;
 
 	for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
-		if (RM_IS_TOPOLOGY_MATCH(rm->topology_tbl[i], topology))
-			return rm->topology_tbl[i].top_name;
+		if (RM_IS_TOPOLOGY_MATCH(g_top_table[i], topology))
+			return g_top_table[i].top_name;
 
 	return SDE_RM_TOPOLOGY_NONE;
-}
-
-int sde_rm_get_topology_num_encoders(struct sde_rm *rm,
-	enum sde_rm_topology_name topology)
-{
-	int i;
-
-	for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
-		if (rm->topology_tbl[i].top_name == topology)
-			return rm->topology_tbl[i].num_comp_enc;
-
-	return 0;
-}
-
-int sde_rm_get_roi_misr_num(struct sde_rm *rm,
-		enum sde_rm_topology_name topology)
-{
-	int i;
-
-	for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
-		if ((rm->topology_tbl[i].top_name == topology)
-		    && (i < ARRAY_SIZE(g_misr_table)))
-			return g_misr_table[i].num_roi_misr;
-
-	return 0;
-}
-
-static bool sde_rm_is_3dmux_case(enum sde_rm_topology_name top_name)
-{
-	return (top_name == SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE
-			|| top_name == SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE_DSC
-			|| top_name == SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE
-			|| top_name == SDE_RM_TOPOLOGY_QUADPIPE_3DMERGE_DSC);
 }
 
 static bool _sde_rm_get_hw_locked(struct sde_rm *rm, struct sde_rm_hw_iter *i)
@@ -385,9 +332,6 @@ static void _sde_rm_hw_destroy(enum sde_hw_blk_type type, void *hw)
 	case SDE_HW_BLK_DSC:
 		sde_hw_dsc_destroy(hw);
 		break;
-	case SDE_HW_BLK_ROI_MISR:
-		sde_hw_roi_misr_destroy(hw);
-		break;
 	case SDE_HW_BLK_ROT:
 		sde_hw_rot_destroy(hw);
 		break;
@@ -481,9 +425,6 @@ static int _sde_rm_hw_blk_create(
 		break;
 	case SDE_HW_BLK_DSC:
 		hw = sde_hw_dsc_init(id, mmio, cat);
-		break;
-	case SDE_HW_BLK_ROI_MISR:
-		hw = sde_hw_roi_misr_init(id, mmio, cat);
 		break;
 	case SDE_HW_BLK_ROT:
 		hw = sde_hw_rot_init(id, mmio, cat);
@@ -626,15 +567,6 @@ int sde_rm_init(struct sde_rm *rm,
 		}
 	}
 
-	for (i = 0; i < cat->roi_misr_count; i++) {
-		rc = _sde_rm_hw_blk_create(rm, cat, mmio, SDE_HW_BLK_ROI_MISR,
-			cat->roi_misr[i].id, &cat->roi_misr[i]);
-		if (rc) {
-			SDE_ERROR("failed: roi misr hw not available\n");
-			goto fail;
-		}
-	}
-
 	for (i = 0; i < cat->intf_count; i++) {
 		if (cat->intf[i].type == INTF_NONE) {
 			SDE_DEBUG("skip intf %d with type none\n", i);
@@ -715,8 +647,6 @@ fail:
  *        NULL if dspp was not available, or not matching requirements.
  * @pp: output parameter, pingpong block attached to the layer mixer.
  *      NULL if dspp was not available, or not matching requirements.
- * @roi_misr: output parameter, roi misr block attached to the layer mixer.
- *      NULL if misr was not available, or not matching requirements.
  * @primary_lm: if non-null, this function check if lm is compatible primary_lm
  *              as well as satisfying all other requirements
  * @Return: true if lm matches all requirements, false otherwise
@@ -729,7 +659,6 @@ static bool _sde_rm_check_lm_and_get_connected_blks(
 		struct sde_rm_hw_blk **dspp,
 		struct sde_rm_hw_blk **ds,
 		struct sde_rm_hw_blk **pp,
-		struct sde_rm_hw_blk **roi_misr,
 		struct sde_rm_hw_blk *primary_lm)
 {
 	const struct sde_lm_cfg *lm_cfg = to_sde_hw_mixer(lm->hw)->cap;
@@ -741,15 +670,12 @@ static bool _sde_rm_check_lm_and_get_connected_blks(
 	*dspp = NULL;
 	*ds = NULL;
 	*pp = NULL;
-	*roi_misr = NULL;
 	display_pref = lm_cfg->features & BIT(SDE_DISP_PRIMARY_PREF);
 	cwb_pref = lm_cfg->features & BIT(SDE_DISP_CWB_PREF);
 
-	SDE_DEBUG("check lm %d: dspp %d ds %d pp %d roi_misr %d ",
+	SDE_DEBUG("check lm %d: dspp %d ds %d pp %d disp_pref: %d cwb_pref%d\n",
 		lm_cfg->id, lm_cfg->dspp, lm_cfg->ds,
-		lm_cfg->pingpong, lm_cfg->roi_misr);
-	SDE_DEBUG("disp_pref: %d cwb_pref%d\n",
-		display_pref, cwb_pref);
+		lm_cfg->pingpong, display_pref, cwb_pref);
 
 	/* Check if this layer mixer is a peer of the proposed primary LM */
 	if (primary_lm) {
@@ -780,8 +706,6 @@ static bool _sde_rm_check_lm_and_get_connected_blks(
 			ret = is_valid_dspp;
 		else if (RM_RQ_DS(reqs))
 			ret = is_valid_ds;
-		else if (reqs->topology->num_lm == CRTC_QUAD_MIXERS)
-			ret = !is_valid_ds;
 		else
 			ret = !(is_valid_dspp || is_valid_ds);
 
@@ -881,40 +805,6 @@ static bool _sde_rm_check_lm_and_get_connected_blks(
 		return false;
 	}
 
-	if (lm_cfg->roi_misr != ROI_MISR_MAX) {
-		sde_rm_init_hw_iter(&iter, 0, SDE_HW_BLK_ROI_MISR);
-		while (_sde_rm_get_hw_locked(rm, &iter)) {
-			if (iter.blk->id == lm_cfg->roi_misr) {
-				*roi_misr = iter.blk;
-				break;
-			}
-		}
-
-		if (!*roi_misr) {
-			SDE_ERROR("failed to get roi misr on lm %d\n",
-					lm_cfg->roi_misr);
-			return false;
-		}
-
-		if (RESERVED_BY_OTHER(*roi_misr, rsvp)) {
-			SDE_DEBUG("lm %d roi_misr %d already reserved\n",
-					lm->id, (*roi_misr)->id);
-			*dspp = NULL;
-			*ds = NULL;
-			*pp = NULL;
-			return false;
-		}
-
-		/**
-		 * in 3DMux case, we should set the seconde roi misr to null,
-		 * because it's not in the control path and only fisrt roi
-		 * misr is available.
-		 */
-		if (primary_lm
-		    && sde_rm_is_3dmux_case(reqs->topology->top_name))
-			*roi_misr = NULL;
-	}
-
 	pp_cfg = to_sde_hw_pingpong((*pp)->hw)->caps;
 	if ((reqs->topology->top_name == SDE_RM_TOPOLOGY_PPSPLIT) &&
 			!(test_bit(SDE_PINGPONG_SPLIT, &pp_cfg->features))) {
@@ -938,9 +828,7 @@ static int _sde_rm_reserve_lms(
 	struct sde_rm_hw_blk *dspp[MAX_BLOCKS];
 	struct sde_rm_hw_blk *ds[MAX_BLOCKS];
 	struct sde_rm_hw_blk *pp[MAX_BLOCKS];
-	struct sde_rm_hw_blk *roi_misr[MAX_BLOCKS];
 	struct sde_rm_hw_iter iter_i, iter_j;
-	u32 lm_mask = 0;
 	int lm_count = 0;
 	int i, rc = 0;
 
@@ -953,14 +841,13 @@ static int _sde_rm_reserve_lms(
 	sde_rm_init_hw_iter(&iter_i, 0, SDE_HW_BLK_LM);
 	while (lm_count != reqs->topology->num_lm &&
 			_sde_rm_get_hw_locked(rm, &iter_i)) {
-		if (lm_mask & (1 << iter_i.blk->id))
-			continue;
+		memset(&lm, 0, sizeof(lm));
+		memset(&dspp, 0, sizeof(dspp));
+		memset(&ds, 0, sizeof(ds));
+		memset(&pp, 0, sizeof(pp));
 
+		lm_count = 0;
 		lm[lm_count] = iter_i.blk;
-		dspp[lm_count] = NULL;
-		ds[lm_count] = NULL;
-		pp[lm_count] = NULL;
-		roi_misr[lm_count] = NULL;
 
 		SDE_DEBUG("blk id = %d, _lm_ids[%d] = %d\n",
 			iter_i.blk->id,
@@ -973,53 +860,35 @@ static int _sde_rm_reserve_lms(
 		if (!_sde_rm_check_lm_and_get_connected_blks(
 				rm, rsvp, reqs, lm[lm_count],
 				&dspp[lm_count], &ds[lm_count],
-				&pp[lm_count], &roi_misr[lm_count], NULL))
+				&pp[lm_count], NULL))
 			continue;
 
-		lm_mask |= (1 << iter_i.blk->id);
 		++lm_count;
-
-		/* Return if peer is not needed */
-		if (lm_count == reqs->topology->num_lm)
-			break;
 
 		/* Valid primary mixer found, find matching peers */
 		sde_rm_init_hw_iter(&iter_j, 0, SDE_HW_BLK_LM);
 
-		while (_sde_rm_get_hw_locked(rm, &iter_j)) {
-			if (lm_mask & (1 << iter_j.blk->id))
+		while (lm_count != reqs->topology->num_lm &&
+				_sde_rm_get_hw_locked(rm, &iter_j)) {
+			if (iter_i.blk == iter_j.blk)
 				continue;
-
-			lm[lm_count] = iter_j.blk;
-			dspp[lm_count] = NULL;
-			ds[lm_count] = NULL;
-			pp[lm_count] = NULL;
-			roi_misr[lm_count] = NULL;
 
 			if (!_sde_rm_check_lm_and_get_connected_blks(
 					rm, rsvp, reqs, iter_j.blk,
 					&dspp[lm_count], &ds[lm_count],
-					&pp[lm_count], &roi_misr[lm_count],
-					iter_i.blk))
+					&pp[lm_count], iter_i.blk))
 				continue;
 
+			lm[lm_count] = iter_j.blk;
 			SDE_DEBUG("blk id = %d, _lm_ids[%d] = %d\n",
-				iter_j.blk->id,
+				iter_i.blk->id,
 				lm_count,
 				_lm_ids ? _lm_ids[lm_count] : -1);
 
 			if (_lm_ids && (lm[lm_count])->id != _lm_ids[lm_count])
 				continue;
 
-			lm_mask |= (1 << iter_j.blk->id);
 			++lm_count;
-			break;
-		}
-
-		/* Rollback primary LM if peer is not found */
-		if (!iter_j.hw) {
-			lm_mask &= ~(1 << iter_i.blk->id);
-			--lm_count;
 		}
 	}
 
@@ -1028,7 +897,10 @@ static int _sde_rm_reserve_lms(
 		return -ENAVAIL;
 	}
 
-	for (i = 0; i < lm_count; i++) {
+	for (i = 0; i < ARRAY_SIZE(lm); i++) {
+		if (!lm[i])
+			break;
+
 		lm[i]->rsvp_nxt = rsvp;
 		pp[i]->rsvp_nxt = rsvp;
 		if (dspp[i])
@@ -1037,13 +909,9 @@ static int _sde_rm_reserve_lms(
 		if (ds[i])
 			ds[i]->rsvp_nxt = rsvp;
 
-		if (roi_misr[i])
-			roi_misr[i]->rsvp_nxt = rsvp;
-
 		SDE_EVT32(lm[i]->type, rsvp->enc_id, lm[i]->id, pp[i]->id,
 				dspp[i] ? dspp[i]->id : 0,
-				ds[i] ? ds[i]->id : 0,
-				roi_misr[i] ? roi_misr[i]->id : 0);
+				ds[i] ? ds[i]->id : 0);
 	}
 
 	if (reqs->topology->top_name == SDE_RM_TOPOLOGY_PPSPLIT) {
@@ -1777,8 +1645,7 @@ static struct drm_connector *_sde_rm_get_connector(
 	return NULL;
 }
 
-int sde_rm_update_topology(struct sde_rm *rm,
-	struct drm_connector_state *conn_state,
+int sde_rm_update_topology(struct drm_connector_state *conn_state,
 	struct msm_display_topology *topology)
 {
 	int i, ret = 0;
@@ -1791,8 +1658,8 @@ int sde_rm_update_topology(struct sde_rm *rm,
 	if (topology) {
 		top = *topology;
 		for (i = 0; i < SDE_RM_TOPOLOGY_MAX; i++)
-			if (RM_IS_TOPOLOGY_MATCH(rm->topology_tbl[i], top)) {
-				top_name = rm->topology_tbl[i].top_name;
+			if (RM_IS_TOPOLOGY_MATCH(g_top_table[i], top)) {
+				top_name = g_top_table[i].top_name;
 				break;
 			}
 	}

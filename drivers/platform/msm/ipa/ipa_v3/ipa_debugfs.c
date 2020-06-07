@@ -86,6 +86,9 @@ const char *ipa3_event_name[] = {
 	__stringify(WIGIG_FST_SWITCH),
 	__stringify(IPA_SOCKV5_ADD),
 	__stringify(IPA_SOCKV5_DEL),
+	__stringify(IPA_PDN_DEFAULT_MODE_CONFIG),
+	__stringify(IPA_PDN_IP_COLLISION_MODE_CONFIG),
+	__stringify(IPA_PDN_IP_PASSTHROUGH_MODE_CONFIG),
 };
 
 const char *ipa3_hdr_l2_type_name[] = {
@@ -2921,7 +2924,16 @@ struct dentry *ipa_debugfs_get_root(void)
 EXPORT_SYMBOL(ipa_debugfs_get_root);
 
 #else /* !CONFIG_DEBUG_FS */
+#define INVALID_NO_OF_CHAR (-1)
 void ipa3_debugfs_pre_init(void) {}
 void ipa3_debugfs_post_init(void) {}
 void ipa3_debugfs_remove(void) {}
+int _ipa_read_ep_reg_v3_0(char *buf, int max_len, int pipe)
+{
+	return INVALID_NO_OF_CHAR;
+}
+int _ipa_read_ep_reg_v4_0(char *buf, int max_len, int pipe)
+{
+	return INVALID_NO_OF_CHAR;
+}
 #endif

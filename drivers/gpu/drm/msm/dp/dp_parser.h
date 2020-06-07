@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,7 +22,6 @@
 #define DP_MAX_PIXEL_CLK_KHZ	675000
 #define DP_MAX_LINK_CLK_KHZ	810000
 #define MAX_DP_MST_STREAMS	2
-#define MAX_DP_BOND_NUM		3
 
 enum dp_pm_type {
 	DP_CORE_PM,
@@ -145,59 +144,8 @@ enum dp_phy_version {
 	DP_PHY_VERSION_UNKNOWN,
 	DP_PHY_VERSION_2_0_0 = 0x200,
 	DP_PHY_VERSION_4_2_0 = 0x420,
-	DP_PHY_VERSION_5_0_0 = 0x500,
 	DP_PHY_VERSION_MAX
 };
-
-/**
- * enum dp_phy_mode - mode of the dp phy
- * @DP_PHY_MODE_UNKNOWN: Unknown PHY mode
- * @DP_PHY_MODE_DP:      DP PHY mode
- * @DP_PHY_MODE_MINIDP:  MiniDP PHY mode
- * @DP_PHY_MODE_EDP:     eDP PHY mode
- * @DP_PHY_MODE_EDP_HIGH_SWING:   eDP PHY mode, high swing/pre-empahsis
- * @DP_PHY_MODE_MAX:     max PHY mode
- */
-enum dp_phy_mode {
-	DP_PHY_MODE_UNKNOWN = 0,
-	DP_PHY_MODE_DP,
-	DP_PHY_MODE_MINIDP,
-	DP_PHY_MODE_EDP,
-	DP_PHY_MODE_EDP_HIGH_SWING,
-	DP_PHY_MODE_MAX
-};
-
-/**
- * enum dp_phy_bond_mode - bond mode of the dp phy
- * @DP_PHY_BOND_MODE_NONE:        Non-bond mode
- * @DP_PHY_BOND_MODE_PLL_MASTER:  PLL bond mode master
- * @DP_PHY_BOND_MODE_PLL_SLAVE:   PLL bond mode slave
- * @DP_PHY_BOND_MODE_PCLK_MASTER: Pixel clock bond mode master
- * @DP_PHY_BOND_MODE_PCLK_SLAVE:  Pixel clock bond mode slave
- * @DP_PHY_BOND_MODE_MAX:         max bond mode
- */
-enum dp_phy_bond_mode {
-	DP_PHY_BOND_MODE_NONE = 0,
-	DP_PHY_BOND_MODE_PLL_MASTER,
-	DP_PHY_BOND_MODE_PLL_SLAVE,
-	DP_PHY_BOND_MODE_PCLK_MASTER,
-	DP_PHY_BOND_MODE_PCLK_SLAVE,
-	DP_PHY_BOND_MODE_MAX
-};
-
-#define IS_BOND_MODE(x)		((x) != DP_PHY_BOND_MODE_NONE)
-#define IS_PLL_BOND_MODE(x)	\
-	((x) == DP_PHY_BOND_MODE_PLL_MASTER \
-		|| (x) == DP_PHY_BOND_MODE_PLL_SLAVE)
-#define IS_PCLK_BOND_MODE(x)	\
-	((x) == DP_PHY_BOND_MODE_PCLK_MASTER \
-		|| (x) == DP_PHY_BOND_MODE_PCLK_SLAVE)
-#define IS_BOND_MODE_MASTER_PHY(x)	\
-	((x) == DP_PHY_BOND_MODE_PLL_MASTER \
-		|| (x) == DP_PHY_BOND_MODE_PCLK_MASTER)
-#define IS_BOND_MODE_SLAVE_PHY(x)	\
-	((x) == DP_PHY_BOND_MODE_PLL_SLAVE \
-		|| (x) == DP_PHY_BOND_MODE_PCLK_SLAVE)
 
 /**
  * struct dp_hw_cfg - DP HW specific configuration
@@ -206,18 +154,6 @@ enum dp_phy_bond_mode {
  */
 struct dp_hw_cfg {
 	enum dp_phy_version phy_version;
-	enum dp_phy_mode phy_mode;
-};
-
-enum dp_bond_type {
-	DP_BOND_DUAL,
-	DP_BOND_TRIPLE,
-	DP_BOND_MAX,
-};
-
-struct dp_bond_cfg {
-	bool enable;
-	u32 ctrl[MAX_DP_BOND_NUM];
 };
 
 static inline char *dp_phy_aux_config_type_to_string(u32 cfg_type)
@@ -272,7 +208,6 @@ static inline char *dp_phy_aux_config_type_to_string(u32 cfg_type)
  * @max_dp_dsc_blks: maximum DSC blks for DP interface
  * @max_dp_dsc_input_width_pixs: Maximum input width for DSC block
  * @has_widebus: widebus (2PPC) feature eanble status
- * @force_bond_mode: force dp in bond mode
  * @mst_fixed_port: mst port_num reserved for fixed topology
  * @mst_fixed_display_type: mst display_type reserved for fixed topology
  * @display_type: display type as defined in device tree.
@@ -288,7 +223,6 @@ struct dp_parser {
 	struct dp_pinctrl pinctrl;
 	struct dp_io io;
 	struct dp_display_data disp_data;
-	struct dp_bond_cfg bond_cfg[DP_BOND_MAX];
 
 	u8 l_map[4];
 	u8 l_pnswap;
@@ -309,7 +243,6 @@ struct dp_parser {
 	u32 max_dp_dsc_blks;
 	u32 max_dp_dsc_input_width_pixs;
 	bool lphw_hpd;
-	bool force_bond_mode;
 	u32 mst_fixed_port[MAX_DP_MST_STREAMS];
 	const char *mst_fixed_display_type[MAX_DP_MST_STREAMS];
 	const char *display_type;

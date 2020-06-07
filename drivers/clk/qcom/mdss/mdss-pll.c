@@ -144,8 +144,6 @@ static int mdss_pll_resource_parse(struct platform_device *pdev,
 		pll_res->pll_interface_type = MDSS_DP_PLL_14NM;
 	else if (!strcmp(compatible_stream, "qcom,mdss_hdmi_pll_28lpm"))
 		pll_res->pll_interface_type = MDSS_HDMI_PLL_28LPM;
-	else if (!strcmp(compatible_stream, "qcom,mdss_edp_pll_7nm"))
-		pll_res->pll_interface_type = MDSS_EDP_PLL_7NM;
 	else if (!strcmp(compatible_stream, "qcom,mdss_dsi_pll_sdm660")) {
 		pll_res->pll_interface_type = MDSS_DSI_PLL_14NM;
 		pll_res->target_id = MDSS_PLL_TARGET_SDM660;
@@ -198,8 +196,8 @@ static int mdss_pll_clock_register(struct platform_device *pdev,
 	case MDSS_HDMI_PLL_28LPM:
 		rc = hdmi_pll_clock_register_28lpm(pdev, pll_res);
 		break;
-	case MDSS_EDP_PLL_7NM:
-		rc = edp_pll_clock_register_7nm(pdev, pll_res);
+	case MDSS_DSI_PLL_12NM:
+		rc = dsi_pll_clock_register_12nm(pdev, pll_res);
 		break;
 	case MDSS_UNKNOWN_PLL:
 	default:
@@ -224,8 +222,6 @@ static int mdss_pll_probe(struct platform_device *pdev)
 	struct resource *tx0_base_reg, *tx1_base_reg;
 	struct resource *dynamic_pll_base_reg;
 	struct resource *gdsc_base_reg;
-	struct resource *usb_dp_com_base_reg;
-	struct resource *usb_pll_base_reg;
 	struct mdss_pll_resources *pll_res;
 
 	if (!pdev->dev.of_node) {
@@ -364,30 +360,6 @@ static int mdss_pll_probe(struct platform_device *pdev)
 		goto gdsc_io_error;
 	}
 
-	usb_dp_com_base_reg = platform_get_resource_byname(pdev,
-					IORESOURCE_MEM, "usb_dp_com");
-	if (usb_dp_com_base_reg) {
-		pll_res->usb_dp_com_base = ioremap(usb_dp_com_base_reg->start,
-				resource_size(usb_dp_com_base_reg));
-		if (!pll_res->usb_dp_com_base) {
-			pr_err("Unable to remap usb_dp_com base resources\n");
-			rc = -ENOMEM;
-			goto usb_dp_com_io_error;
-		}
-	}
-
-	usb_pll_base_reg = platform_get_resource_byname(pdev,
-					IORESOURCE_MEM, "usb_pll");
-	if (usb_pll_base_reg) {
-		pll_res->usb_pll_base = ioremap(usb_pll_base_reg->start,
-				resource_size(usb_pll_base_reg));
-		if (!pll_res->usb_pll_base) {
-			pr_err("Unable to remap usb_pll base resources\n");
-			rc = -ENOMEM;
-			goto usb_pll_io_error;
-		}
-	}
-
 	rc = mdss_pll_resource_init(pdev, pll_res);
 	if (rc) {
 		pr_err("Pll ndx=%d resource init failed rc=%d\n",
@@ -409,12 +381,6 @@ static int mdss_pll_probe(struct platform_device *pdev)
 clock_register_error:
 	mdss_pll_resource_deinit(pdev, pll_res);
 res_init_error:
-	if (pll_res->usb_pll_base)
-		iounmap(pll_res->usb_pll_base);
-usb_pll_io_error:
-	if (pll_res->usb_dp_com_base)
-		iounmap(pll_res->usb_dp_com_base);
-usb_dp_com_io_error:
 	if (pll_res->gdsc_base)
 		iounmap(pll_res->gdsc_base);
 gdsc_io_error:
@@ -470,8 +436,8 @@ static const struct of_device_id mdss_pll_dt_match[] = {
 	{.compatible = "qcom,mdss_dsi_pll_14nm"},
 	{.compatible = "qcom,mdss_dp_pll_14nm"},
 	{.compatible = "qcom,mdss_hdmi_pll_28lpm"},
-	{.compatible = "qcom,mdss_edp_pll_7nm"},
 	{.compatible = "qcom,mdss_dsi_pll_sdm660"},
+	{.compatible = "qcom,mdss_dsi_pll_12nm"},
 	{}
 };
 
@@ -496,7 +462,7 @@ static int __init mdss_pll_driver_init(void)
 
 	return rc;
 }
-early_fs_initcall(mdss_pll_driver_init, EARLY_SUBSYS_2, EARLY_INIT_LEVEL2);
+fs_initcall(mdss_pll_driver_init);
 
 static void __exit mdss_pll_driver_deinit(void)
 {

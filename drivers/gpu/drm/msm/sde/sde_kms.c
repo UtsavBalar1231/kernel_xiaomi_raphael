@@ -1311,8 +1311,6 @@ static int _sde_kms_get_displays(struct sde_kms *sde_kms)
 	sde_kms->dp_displays = NULL;
 	sde_kms->dp_display_count = dp_display_get_num_of_displays();
 	if (sde_kms->dp_display_count) {
-		int i;
-
 		sde_kms->dp_displays = kcalloc(sde_kms->dp_display_count,
 				sizeof(void *), GFP_KERNEL);
 		if (!sde_kms->dp_displays) {
@@ -1323,14 +1321,7 @@ static int _sde_kms_get_displays(struct sde_kms *sde_kms)
 			dp_display_get_displays(sde_kms->dp_displays,
 					sde_kms->dp_display_count);
 
-		for (i = 0; i < sde_kms->dp_display_count; i++) {
-			sde_kms->dp_stream_count +=
-				dp_display_get_num_of_streams(
-					sde_kms->dp_displays[i]);
-			sde_kms->dp_bond_count +=
-				dp_display_get_num_of_bonds(
-					sde_kms->dp_displays[i]);
-		}
+		sde_kms->dp_stream_count = dp_display_get_num_of_streams();
 	}
 	return 0;
 
@@ -1431,8 +1422,6 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.get_mode_info  = dp_connector_get_mode_info,
 		.post_open  = dp_connector_post_open,
 		.check_status = NULL,
-		.atomic_best_encoder = dp_connector_atomic_best_encoder,
-		.atomic_check = dp_connector_atomic_check,
 		.config_hdr = dp_connector_config_hdr,
 		.cmd_transfer = NULL,
 		.cont_splash_config = NULL,
@@ -1452,9 +1441,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 
 	max_encoders = sde_kms->dsi_display_count + sde_kms->wb_display_count +
 				sde_kms->dp_display_count +
-				sde_kms->dp_stream_count +
-				(sde_kms->dp_stream_count >> 1) +
-				sde_kms->dp_bond_count;
+				sde_kms->dp_stream_count;
 	if (max_encoders > ARRAY_SIZE(priv->encoders)) {
 		max_encoders = ARRAY_SIZE(priv->encoders);
 		SDE_ERROR("capping number of displays to %d", max_encoders);
@@ -1561,8 +1548,6 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 	for (i = 0; i < sde_kms->dp_display_count &&
 			priv->num_encoders < max_encoders; ++i) {
 		int idx;
-		int dp_stream_count;
-		u32 dp_intf_idx[DP_STREAM_MAX];
 
 		display = sde_kms->dp_displays[i];
 		encoder = NULL;
@@ -1605,15 +1590,9 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 
 		/* update display cap to MST_MODE for DP MST encoders */
 		info.capabilities |= MSM_DISPLAY_CAP_MST_MODE;
-		dp_stream_count = dp_display_get_num_of_streams(display);
-
-		/* make a copy of h_tile_instance */
-		for (idx = 0; idx < dp_stream_count; idx++)
-			dp_intf_idx[idx] = info.h_tile_instance[idx];
-
-		for (idx = 0; idx < dp_stream_count &&
-				priv->num_encoders < max_encoders; idx++) {
-			info.h_tile_instance[0] = dp_intf_idx[idx];
+		sde_kms->dp_stream_count = dp_display_get_num_of_streams();
+		for (idx = 0; idx < sde_kms->dp_stream_count; idx++) {
+			info.h_tile_instance[0] = idx;
 			encoder = sde_encoder_init(dev, &info);
 			if (IS_ERR_OR_NULL(encoder)) {
 				SDE_ERROR("dp mst encoder init failed %d\n", i);
@@ -1623,91 +1602,6 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 			rc = dp_mst_drm_bridge_init(display, encoder);
 			if (rc) {
 				SDE_ERROR("dp mst bridge %d init failed, %d\n",
-						i, rc);
-				sde_encoder_destroy(encoder);
-				continue;
-			}
-			priv->encoders[priv->num_encoders++] = encoder;
-		}
-
-		/* create super encoder and bridge */
-		if (dp_stream_count > 1 && priv->num_encoders < max_encoders) {
-			info.num_of_h_tiles = dp_stream_count;
-			for (idx = 0; idx < dp_stream_count; idx++)
-				info.h_tile_instance[idx] = dp_intf_idx[idx];
-
-			encoder = sde_encoder_init(dev, &info);
-			if (IS_ERR_OR_NULL(encoder)) {
-				SDE_ERROR("dp mst super enc init failed\n");
-				continue;
-			}
-
-			rc = dp_mst_drm_super_bridge_init(display, encoder);
-			if (rc) {
-				SDE_ERROR("dp mst bridge %d init failed, %d\n",
-						i, rc);
-				sde_encoder_destroy(encoder);
-				continue;
-			}
-			priv->encoders[priv->num_encoders++] = encoder;
-		}
-	}
-
-	/* create dp bond encoder */
-	for (i = 0; i < sde_kms->dp_display_count; ++i) {
-		int idx, type, h_idx;
-		int dp_bond_count;
-		struct dp_display_bond_displays bond_displays;
-		struct dp_display_info dp_info;
-
-		display = sde_kms->dp_displays[i];
-		dp_bond_count = dp_display_get_num_of_bonds(display);
-		if (!dp_bond_count)
-			continue;
-
-		for (type = 0; type < DP_BOND_MAX &&
-				priv->num_encoders < max_encoders; type++) {
-			rc = dp_display_get_bond_displays(display,
-					type, &bond_displays);
-			if (rc) {
-				SDE_ERROR("failed to get bond displays\n");
-				continue;
-			}
-
-			if (!bond_displays.dp_display_num)
-				continue;
-
-			memset(&info, 0x0, sizeof(info));
-			rc = dp_connector_get_info(NULL, &info, display);
-			if (rc) {
-				SDE_ERROR("dp get_info %d failed\n", i);
-				continue;
-			}
-
-			info.num_of_h_tiles = bond_displays.dp_display_num;
-			h_idx = 1;
-			for (idx = 0; idx < info.num_of_h_tiles; idx++) {
-				dp_display_get_info(
-						bond_displays.dp_display[idx],
-						&dp_info);
-				if (bond_displays.dp_display[idx] != display)
-					info.h_tile_instance[h_idx++] =
-							dp_info.intf_idx[0];
-				else
-					info.h_tile_instance[0] =
-							dp_info.intf_idx[0];
-			}
-
-			encoder = sde_encoder_init(dev, &info);
-			if (IS_ERR_OR_NULL(encoder)) {
-				SDE_ERROR("dp mst super enc init failed\n");
-				continue;
-			}
-
-			rc = dp_drm_bond_bridge_init(display, encoder,
-				type, &bond_displays);
-			if (rc) {
-				SDE_ERROR("bond bridge %d init failed, %d\n",
 						i, rc);
 				sde_encoder_destroy(encoder);
 				continue;
@@ -3242,24 +3136,9 @@ static void sde_kms_init_shared_hw(struct sde_kms *sde_kms)
 	if (!sde_kms || !sde_kms->hw_mdp || !sde_kms->catalog)
 		return;
 
-	if (sde_kms->hw_mdp->ops.intf_dp_select) {
-		struct dp_display_info dp_info = {0};
-		u32 dp_intf_sel[DP_CTRL_MAX] = {0};
-		int i;
-
-		for (i = 0; i < sde_kms->dp_display_count; i++) {
-			if (dp_display_get_info(sde_kms->dp_displays[i],
-					&dp_info))
-				continue;
-
-			if (dp_info.cell_idx < DP_CTRL_MAX)
-				dp_intf_sel[dp_info.cell_idx] =
-					dp_info.phy_idx + 1;
-		}
-
+	if (sde_kms->hw_mdp->ops.intf_dp_select)
 		sde_kms->hw_mdp->ops.intf_dp_select(sde_kms->hw_mdp,
-				dp_intf_sel);
-	}
+						sde_kms->catalog);
 
 	if (sde_kms->hw_mdp->ops.reset_ubwc)
 		sde_kms->hw_mdp->ops.reset_ubwc(sde_kms->hw_mdp,

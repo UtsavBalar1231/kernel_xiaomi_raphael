@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -637,33 +637,10 @@ static void sde_encoder_phys_vid_underrun_irq(void *arg, int irq_idx)
 			phys_enc);
 }
 
-static void sde_encoder_phys_vid_roi_misr_irq(void *arg, int irq_idx)
-{
-	struct sde_encoder_phys *phys_enc = arg;
-	bool event_status;
-
-	if (!phys_enc)
-		return;
-
-	/**
-	 * call helper function to collect signature,
-	 * update fence data and check event should be
-	 * sent or not
-	 */
-	event_status = sde_encoder_helper_roi_misr_update_fence(phys_enc);
-
-	if (event_status && phys_enc->parent_ops.handle_roi_misr_virt)
-		phys_enc->parent_ops.handle_roi_misr_virt(
-			phys_enc->parent,
-			SDE_ENCODER_MISR_EVENT_SIGNAL_ROI_MSIR_FENCE);
-}
-
 static void _sde_encoder_phys_vid_setup_irq_hw_idx(
 		struct sde_encoder_phys *phys_enc)
 {
 	struct sde_encoder_irq *irq;
-	int misr_idx;
-	int i;
 
 	/*
 	 * Initialize irq->hw_idx only when irq is not registered.
@@ -678,14 +655,6 @@ static void _sde_encoder_phys_vid_setup_irq_hw_idx(
 	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
 	if (irq->irq_idx < 0)
 		irq->hw_idx = phys_enc->intf_idx;
-
-	for (i = 0; i < MAX_ROIS_PER_PHYS; i++) {
-		misr_idx = i / ROI_MISR_MAX_ROIS_PER_MISR;
-		irq = &phys_enc->irq[MISR_ROI_MISMATCH_BASE_IDX + i];
-
-		if (phys_enc->hw_roi_misr[misr_idx] && (irq->irq_idx < 0))
-			irq->hw_idx = phys_enc->hw_roi_misr[misr_idx]->idx;
-	}
 }
 
 static void sde_encoder_phys_vid_cont_splash_mode_set(
@@ -815,43 +784,6 @@ end:
 	}
 	mutex_unlock(phys_enc->vblank_ctl_lock);
 	return ret;
-}
-
-static int sde_encoder_phys_vid_control_roi_misr_irq(
-		struct sde_encoder_phys *phys_enc,
-		int seqno, bool enable)
-{
-	int phy_misr_idx;
-	int base_irq_idx;
-	int ret;
-	int i;
-
-	/**
-	 * each physical encoder has a maximum of two MISRs
-	 * we can according to misr sequence number to
-	 * distinguish which MISR should be used in this
-	 * encoder, then get the related irq table
-	 */
-	phy_misr_idx =
-		(phys_enc->num_misrs == MAX_ROI_MISR_PER_PHYS)
-		? (seqno % MAX_ROI_MISR_PER_PHYS) : 0;
-
-	base_irq_idx = MISR_ROI_MISMATCH_BASE_IDX
-		+ phy_misr_idx * ROI_MISR_MAX_ROIS_PER_MISR;
-
-	for (i = 0; i < ROI_MISR_MAX_ROIS_PER_MISR; i++) {
-		ret = sde_encoder_helper_roi_misr_irq_enable(phys_enc,
-			base_irq_idx, i, enable);
-		if (ret)
-			return ret;
-
-		if (enable)
-			phys_enc->roi_misr_seqno[phy_misr_idx] = seqno;
-		else
-			phys_enc->roi_misr_seqno[phy_misr_idx] = -1;
-	}
-
-	return 0;
 }
 
 static bool sde_encoder_phys_vid_wait_dma_trigger(
@@ -1199,9 +1131,6 @@ static void sde_encoder_phys_vid_disable(struct sde_encoder_phys *phys_enc)
 	struct sde_encoder_phys_vid *vid_enc;
 	unsigned long lock_flags;
 	struct intf_status intf_status = {0};
-	struct sde_hw_roi_misr *hw_roi_misr;
-	int base_irq_idx;
-	int i, j;
 
 	if (!phys_enc || !phys_enc->parent || !phys_enc->parent->dev ||
 			!phys_enc->parent->dev->dev_private) {
@@ -1218,29 +1147,6 @@ static void sde_encoder_phys_vid_disable(struct sde_encoder_phys *phys_enc)
 	}
 
 	SDE_DEBUG_VIDENC(vid_enc, "\n");
-
-	for (i = 0; i < MAX_ROI_MISR_PER_PHYS; i++) {
-		hw_roi_misr = phys_enc->hw_roi_misr[i];
-		if (hw_roi_misr == NULL)
-				continue;
-
-		base_irq_idx = MISR_ROI_MISMATCH_BASE_IDX
-			+ i * ROI_MISR_MAX_ROIS_PER_MISR;
-
-		for(j = 0; j < ROI_MISR_MAX_ROIS_PER_MISR; j++)
-			sde_encoder_helper_roi_misr_irq_enable(phys_enc,
-				base_irq_idx, j, false);
-
-		if (hw_roi_misr->ops.reset_roi_misr)
-			hw_roi_misr->ops.reset_roi_misr(hw_roi_misr);
-
-		phys_enc->hw_ctl->ops.update_bitmask_dsc(
-				phys_enc->hw_ctl,
-				(enum sde_dsc)hw_roi_misr->idx,
-				true);
-	}
-
-	phys_enc->num_misrs = 0;
 
 	if (WARN_ON(!phys_enc->hw_intf->ops.enable_timing))
 		return;
@@ -1473,7 +1379,6 @@ static void sde_encoder_phys_vid_init_ops(struct sde_encoder_phys_ops *ops)
 	ops->destroy = sde_encoder_phys_vid_destroy;
 	ops->get_hw_resources = sde_encoder_phys_vid_get_hw_resources;
 	ops->control_vblank_irq = sde_encoder_phys_vid_control_vblank_irq;
-	ops->control_roi_misr_irq = sde_encoder_phys_vid_control_roi_misr_irq;
 	ops->wait_for_commit_done = sde_encoder_phys_vid_wait_for_vblank;
 	ops->wait_for_vblank = sde_encoder_phys_vid_wait_for_vblank_no_notify;
 	ops->wait_for_tx_complete = sde_encoder_phys_vid_wait_for_vblank;
@@ -1553,17 +1458,6 @@ struct sde_encoder_phys *sde_encoder_phys_vid_init(
 	irq->intr_type = SDE_IRQ_TYPE_INTF_UNDER_RUN;
 	irq->intr_idx = INTR_IDX_UNDERRUN;
 	irq->cb.func = sde_encoder_phys_vid_underrun_irq;
-
-	for (i = INTR_IDX_MISR_ROI0_MISMATCH; i < INTR_IDX_MAX; i++) {
-		irq = &phys_enc->irq[i];
-		irq->name = "roi_misr_mismatch";
-		irq->intr_type = SDE_IRQ_TYPE_ROI_MISR;
-		irq->intr_idx = i;
-		irq->cb.func = sde_encoder_phys_vid_roi_misr_irq;
-	}
-
-	for (i = 0; i < MAX_ROI_MISR_PER_PHYS; i++)
-		phys_enc->roi_misr_seqno[i] = -1;
 
 	atomic_set(&phys_enc->vblank_refcount, 0);
 	atomic_set(&phys_enc->pending_kickoff_cnt, 0);
