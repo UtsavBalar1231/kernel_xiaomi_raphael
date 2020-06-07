@@ -500,9 +500,9 @@ static int mdss_mdp_display_splash_image(struct msm_fb_data_type *mfd)
 	fbi = mfd->fbi;
 	sinfo = &mfd->splash_info;
 
-	if (fbi->var.xres < SPLASH_IMAGE_WIDTH ||
-		  fbi->var.yres < SPLASH_IMAGE_HEIGHT ||
-		  (fbi->var.bits_per_pixel >> 3) < SPLASH_IMAGE_BPP) {
+	if (SPLASH_IMAGE_WIDTH > fbi->var.xres ||
+		  SPLASH_IMAGE_HEIGHT > fbi->var.yres ||
+		  SPLASH_IMAGE_BPP > (fbi->var.bits_per_pixel >> 3)) {
 		pr_err("invalid splash parameter configuration\n");
 		rc = -EINVAL;
 		goto end;

@@ -494,8 +494,6 @@ static void tx_macro_tx_hpf_corner_freq_callback(struct work_struct *work)
 				hpf_cut_off_freq << 5);
 		snd_soc_update_bits(codec, hpf_gate_reg,
 						0x03, 0x02);
-		/* Minimum 1 clk cycle delay is required as per HW spec */
-		usleep_range(1000, 1010);
 		snd_soc_update_bits(codec, hpf_gate_reg,
 						0x03, 0x01);
 	} else {
@@ -920,12 +918,8 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 			if (!is_amic_enabled(codec, decimator))
 				snd_soc_update_bits(codec,
 					hpf_gate_reg, 0x03, 0x00);
-			/*
-			 * Minimum 1 clk cycle delay is required as per HW spec
-			 */
-			usleep_range(1000, 1010);
 			snd_soc_update_bits(codec,
-					hpf_gate_reg, 0x01, 0x01);
+					hpf_gate_reg, 0x03, 0x01);
 			/*
 			 * 6ms delay is required as per HW spec
 			 */
@@ -954,7 +948,8 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 				snd_soc_update_bits(codec, dec_cfg_reg,
 						    TX_HPF_CUT_OFF_FREQ_MASK,
 						    hpf_cut_off_freq << 5);
-				if (is_amic_enabled(codec, decimator))
+				if (is_amic_enabled(codec, decimator) <
+				    BOLERO_ADC_MAX)
 					snd_soc_update_bits(codec,
 							hpf_gate_reg,
 							0x03, 0x02);
@@ -1493,6 +1488,10 @@ static const struct snd_soc_dapm_widget tx_macro_dapm_widgets_v2[] = {
 	SND_SOC_DAPM_MIXER("TX_AIF3_CAP Mixer", SND_SOC_NOPM,
 		TX_MACRO_AIF3_CAP, 0,
 		tx_aif3_cap_mixer_v2, ARRAY_SIZE(tx_aif3_cap_mixer_v2)),
+
+	SND_SOC_DAPM_SUPPLY_S("TX_SWR_CLK", 0, SND_SOC_NOPM, 0, 0,
+			tx_macro_tx_swr_clk_event,
+			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_widget tx_macro_dapm_widgets_v3[] = {

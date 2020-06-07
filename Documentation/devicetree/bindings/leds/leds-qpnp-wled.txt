@@ -1,8 +1,8 @@
-Qualcomm Technologies QPNP WLED
+Qualcomm Technologies, Inc. QPNP WLED
 
-QPNP (Qualcomm Technologies Plug N Play) WLED (White Light
+QPNP (Qualcomm Technologies, Inc. Plug N Play) WLED (White Light
 Emitting Diode) driver is used for controlling display
-backlight that is part of PMIC on Qualcomm Technologies
+backlight that is part of PMIC on Qualcomm Technologies, Inc.
 reference platforms. The PMIC is connected to the host
 processor via SPMI bus.
 

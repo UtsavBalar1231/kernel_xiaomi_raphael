@@ -49,10 +49,6 @@
  */
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yapphdr.h"
-#ifdef CONFIG_PPS_OUTPUT
-extern int ETH_PPSOUT_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ETH_PPS_Config *eth_pps_cfg);
-extern void DWC_ETH_QOS_pps_timer_init(struct ifr_data_struct* req);
-#endif
 
 
 /*!

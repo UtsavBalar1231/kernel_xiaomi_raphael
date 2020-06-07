@@ -32,8 +32,10 @@ struct mdss_mdp_wfd *mdss_mdp_wfd_init(struct device *device,
 	struct mdss_mdp_wfd *wfd;
 
 	wfd = kzalloc(sizeof(struct mdss_mdp_wfd), GFP_KERNEL);
-	if (!wfd)
+	if (!wfd) {
+		pr_err("fail to allocate wfd session\n");
 		return ERR_PTR(-ENOMEM);
+	}
 
 	mutex_init(&wfd->lock);
 	INIT_LIST_HEAD(&wfd->data_queue);
@@ -49,7 +51,7 @@ void mdss_mdp_wfd_deinit(struct mdss_mdp_wfd *wfd)
 	struct mdss_mdp_wb_data *node, *temp;
 
 	list_for_each_entry_safe(node, temp, &wfd->data_queue, next)
-		mdss_mdp_wfd_remove_data(wfd, node);
+		 mdss_mdp_wfd_remove_data(wfd, node);
 
 	kfree(wfd);
 }

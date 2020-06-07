@@ -38,7 +38,7 @@ enum msm_camera_tz_io_region_t {
 };
 
 enum msm_camera_tz_cmd_id_t {
-	MSM_CAMERA_TZ_CMD_NONE,
+	MSM_CAMERA_TZ_CMD_NONE = 56000,
 	MSM_CAMERA_TZ_CMD_GET_IF_VERSION,
 	MSM_CAMERA_TZ_CMD_POWER_UP,
 	MSM_CAMERA_TZ_CMD_POWER_DOWN,

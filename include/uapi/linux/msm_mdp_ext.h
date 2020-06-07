@@ -465,7 +465,7 @@ struct mdp_output_layer {
 };
 
 /*
- * Destination scaling info structure holds setup parameters for upscaling
+ * Destination scaling info structure holds setup paramaters for upscaling
  * setting in the destination scaling block.
  */
 struct mdp_destination_scaler_data {

@@ -1221,6 +1221,14 @@ int cpr3_parse_common_ctrl_data(struct cpr3_controller *ctrl)
 	}
 
 	/*
+	 * Reset step_quot to default on each loop_en = 0 transition is
+	 * optional.
+	 */
+	ctrl->reset_step_quot_loop_en
+		= of_property_read_bool(ctrl->dev->of_node,
+					"qcom,cpr-reset-step-quot-loop-en");
+
+	/*
 	 * Regulator device handles are not necessary for CPRh controllers
 	 * since communication with the regulators is completely managed
 	 * in hardware.
@@ -2293,7 +2301,8 @@ static bool _cpr3_adjust_target_quotients(struct cpr3_regulator *vreg,
 					ro_scale[i * CPR3_RO_COUNT + j],
 					volt_adjust[i]);
 				if (quot_adjust) {
-					prev_quot = vreg->corner[i].target_quot[j];
+					prev_quot = vreg->corner[i].
+							target_quot[j];
 					vreg->corner[i].target_quot[j]
 						+= quot_adjust;
 					cpr3_debug(vreg, "adjusted corner %d RO%d target quot %s: %u --> %u (%d uV)\n",

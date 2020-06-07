@@ -696,7 +696,7 @@ int mdss_mdp_get_split_display_ctls(struct mdss_mdp_ctl **ctl,
 				 */
 				pr_err("%s cannot find master ctl\n",
 					__func__);
-				WARN_ON(!(*sctl));
+				BUG();
 			}
 			/*
 			 * We have both controllers but sctl has the Master,
@@ -859,7 +859,7 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 			/* we must be ON by the end of kickoff */
 			pr_err("%s unexpected power state during:%s\n",
 				__func__, get_sw_event_name(sw_event));
-			WARN_ON(1);
+			BUG();
 		}
 		mutex_unlock(&ctl->rsrc_lock);
 		break;
@@ -867,7 +867,7 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 		if (mdp5_data->resources_state != MDP_RSRC_CTL_STATE_ON) {
 			pr_err("%s unexpected power state during:%s\n",
 				__func__, get_sw_event_name(sw_event));
-			WARN_ON(1);
+			BUG();
 		}
 
 		/* Check that no pending kickoff is on-going */
@@ -888,7 +888,7 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 		 * 3. no autorefresh is enabled
 		 * 4. no commit is pending
 		 */
-		if ((status == PERF_STATUS_DONE) &&
+		if ((PERF_STATUS_DONE == status) &&
 			!ctx->intf_stopped &&
 			(ctx->autorefresh_state == MDP_AUTOREFRESH_OFF) &&
 			!ctl->mfd->atomic_commit_pending) {
@@ -3673,7 +3673,7 @@ static int mdss_mdp_cmd_intfs_setup(struct mdss_mdp_ctl *ctl,
 			 * panel always on state without MDSS every
 			 * power-collapsed (such as a case with any other
 			 * interfaces connected). In such cases, we need to
-			 * explicitly call the restore function to enable
+			 * explictly call the restore function to enable
 			 * tearcheck logic.
 			 */
 			mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON);

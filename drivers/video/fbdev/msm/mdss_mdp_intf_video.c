@@ -570,7 +570,6 @@ static void mdss_mdp_video_avr_ctrl_setup(struct mdss_mdp_video_ctx *ctx,
 	pr_debug("intf:%d avr_mode:%x avr_ctrl:%x\n",
 		ctx->intf_num, avr_mode, avr_ctrl);
 }
-
 static int mdss_mdp_video_timegen_setup(struct mdss_mdp_ctl *ctl,
 					struct intf_timing_params *p,
 					struct mdss_mdp_video_ctx *ctx)
@@ -893,7 +892,7 @@ static int mdss_mdp_video_set_lineptr(struct mdss_mdp_ctl *ctl,
 		return -ENODEV;
 	}
 
-	if (new_lineptr == 0) {
+	if (0 == new_lineptr) {
 		mdp_video_write(ctx,
 			MDSS_MDP_REG_INTF_PROG_LINE_INTR_CONF, UINT_MAX);
 	} else if (new_lineptr <= ctx->itp.yres) {

@@ -843,7 +843,6 @@ correct_plug_type:
 	    plug_type == MBHC_PLUG_TYPE_HEADPHONE))
 		if (mbhc->mbhc_cb->bcs_enable)
 			mbhc->mbhc_cb->bcs_enable(mbhc, true);
-
 	if (!wrk_complete) {
 		/*
 		 * If plug_tye is headset, we might have already reported either

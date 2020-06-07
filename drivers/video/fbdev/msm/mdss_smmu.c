@@ -39,12 +39,12 @@
 #define SZ_4G		0xF0000000
 static inline struct bus_type *mdss_mmu_get_bus(struct device *dev)
 {
-	return &platform_bus_type;
+        return &platform_bus_type;
 }
 
 static inline struct device *mdss_mmu_get_ctx(const char *name)
 {
-	return NULL;
+        return NULL;
 }
 
 static DEFINE_MUTEX(mdp_iommu_lock);
@@ -56,7 +56,7 @@ struct msm_smmu_notifier_data {
 	msm_smmu_handler_t callback;
 };
 
-static struct mdss_smmu_private *mdss_smmu_get_private(void)
+struct mdss_smmu_private *mdss_smmu_get_private(void)
 {
 	return &smmu_private;
 }
@@ -134,7 +134,7 @@ static inline bool all_devices_probed(struct mdss_smmu_private *prv)
 	return (d_cnt && (d_cnt == p_cnt) ? true : false);
 }
 
-static void mdss_iommu_notify_users(struct mdss_smmu_private *prv)
+void mdss_iommu_notify_users(struct mdss_smmu_private *prv)
 {
 	struct msm_smmu_notifier_data *notify;
 	struct mdss_smmu_client *client;
@@ -199,6 +199,7 @@ static int mdss_smmu_util_parse_dt_clock(struct platform_device *pdev,
 	mp->clk_config = devm_kzalloc(&pdev->dev,
 			sizeof(struct dss_clk) * mp->num_clk, GFP_KERNEL);
 	if (!mp->clk_config) {
+		pr_err("clock configuration allocation failed\n");
 		rc = -ENOMEM;
 		mp->num_clk = 0;
 		goto clk_err;
@@ -716,6 +717,7 @@ void mdss_smmu_device_create(struct device *dev)
 {
 	struct device_node *parent, *child;
 	struct mdss_smmu_private *prv = mdss_smmu_get_private();
+
 	parent = dev->of_node;
 	for_each_child_of_node(parent, child) {
 		char name[MDSS_SMMU_COMPAT_STR_LEN] = {};

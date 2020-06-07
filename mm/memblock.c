@@ -1589,7 +1589,7 @@ static int __init_memblock memblock_search(struct memblock_type *type,
 	return -1;
 }
 
-bool __init memblock_is_reserved(phys_addr_t addr)
+bool __init_memblock memblock_is_reserved(phys_addr_t addr)
 {
 	return memblock_search(&memblock.reserved, addr) != -1;
 }
@@ -1838,8 +1838,8 @@ static int __init early_dyn_memhotplug(char *p)
 	struct memblock_region *rgn;
 	int blk = 0;
 
-	while ((idx++) < memblock.memory.cnt) {
-		rgn = &memblock.memory.regions[idx];
+	while (idx < memblock.memory.cnt) {
+		rgn = &memblock.memory.regions[idx++];
 		addr = ALIGN(rgn->base, MIN_MEMORY_BLOCK_SIZE);
 		rgn_end = rgn->base + rgn->size;
 		while (addr + MIN_MEMORY_BLOCK_SIZE <= rgn_end) {

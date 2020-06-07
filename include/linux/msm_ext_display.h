@@ -32,6 +32,9 @@
 #define MSM_EXT_DISP_HPD_AUDIO BIT(0)
 #define MSM_EXT_DISP_HPD_VIDEO BIT(1)
 
+#define MSM_EXT_DISP_HPD_ASYNC_AUDIO BIT(2)
+#define MSM_EXT_DISP_HPD_ASYNC_VIDEO BIT(3)
+
 /**
  *  struct ext_disp_cable_notify - cable notify handler structure
  *  @link: a link for the linked list

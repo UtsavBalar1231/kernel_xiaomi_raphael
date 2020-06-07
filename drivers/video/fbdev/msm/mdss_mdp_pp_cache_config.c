@@ -494,6 +494,8 @@ static int pp_gamut_cache_params_v1_7(struct mdp_gamut_cfg_data *config,
 		tbl_gamut = vmalloc(GAMUT_TOTAL_TABLE_SIZE_V1_7 *
 				    sizeof(u32));
 	if (!tbl_gamut) {
+		pr_err("failed to allocate buffer for gamut size %zd",
+			(GAMUT_TOTAL_TABLE_SIZE_V1_7 * sizeof(u32)));
 		ret = -ENOMEM;
 		goto gamut_config_exit;
 	}
@@ -1294,6 +1296,7 @@ static int pp_pa_cache_params_pipe_v1_7(struct mdp_pa_v2_cfg_data *config,
 		pa_cache_data = kzalloc(sizeof(struct mdp_pa_data_v1_7),
 					GFP_KERNEL);
 		if (!pa_cache_data) {
+			pr_err("failed to allocate cache_data\n");
 			ret = -ENOMEM;
 			goto pa_cache_pipe_exit;
 		} else

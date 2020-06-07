@@ -281,7 +281,6 @@ static int mdss_mdp_destination_scaler_pre_validate(struct mdss_mdp_ctl *ctl,
 	struct mdss_data_type *mdata;
 	struct mdss_panel_info *pinfo;
 	u16 mxleft_w = 0, mxleft_h = 0, mxright_w = 0, mxright_h = 0;
-
 	mdata = ctl->mdata;
 
 	/*
@@ -1277,9 +1276,9 @@ static int __configure_pipe_params(struct msm_fb_data_type *mfd,
 		} else if ((mixer_mux == MDSS_MDP_MIXER_MUX_LEFT) &&
 		    ((layer->dst_rect.x + layer->dst_rect.w) > mixer->width)) {
 			if (layer->dst_rect.x >= mixer->width) {
-				pr_err("err dst_x can't lie in right half\n");
-				pr_err("%pS flags:0x%x dst x:%d w:%d lm_w:%d\n",
-					__builtin_return_address(0),
+				pr_err("%pS: err dst_x can't lie in right half",
+					__builtin_return_address(0));
+				pr_cont(" flags:0x%x dst x:%d w:%d lm_w:%d\n",
 					layer->flags, layer->dst_rect.x,
 					layer->dst_rect.w, mixer->width);
 				ret = -EINVAL;
@@ -2499,7 +2498,7 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 			}
 		}
 		rect_num = validate_info_list[i].multirect.num;
-		WARN_ON(rect_num >= MDSS_MDP_PIPE_MAX_RECTS);
+		BUG_ON(rect_num >= MDSS_MDP_PIPE_MAX_RECTS);
 
 		if (rec_ndx[rect_num] & layer_list[i].pipe_ndx) {
 			pr_err("duplicate layer found pipe_ndx=%d rect=%d (0x%x)\n",

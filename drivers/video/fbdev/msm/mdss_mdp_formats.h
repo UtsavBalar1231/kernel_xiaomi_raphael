@@ -19,7 +19,7 @@
 #include "mdss_mdp.h"
 
 	/*
-	 * Value of enum chosen to fit the number of bits
+	 * Value of enum choosen to fit the number of bits
 	 * expected by the HW programming.
 	 */
 enum {

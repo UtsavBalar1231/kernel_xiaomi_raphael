@@ -5,5 +5,6 @@ obj-$(CONFIG_ARCH_QCS403) += board-qcs403.o
 obj-$(CONFIG_ARCH_SDM429W) += board-sdm429w.o
 obj-$(CONFIG_ARCH_TRINKET) += board-trinket.o
 obj-$(CONFIG_ARCH_SDXPRAIRIE) += board-sdxprairie.o
+obj-$(CONFIG_ARCH_SDM660) += board-660.o
 obj-$(CONFIG_ARCH_MDM9607) += board-mdm9607.o
 obj-$(CONFIG_ARCH_SDM660) += board-660.o
