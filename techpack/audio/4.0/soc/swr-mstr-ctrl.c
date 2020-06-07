@@ -22,6 +22,7 @@
 #include <soc/swr-common.h>
 #include <linux/regmap.h>
 #include <dsp/msm-audio-event-notify.h>
+#include <dsp/digital-cdc-rsc-mgr.h>
 #include "swrm_registers.h"
 #include "swr-mstr-ctrl.h"
 
@@ -378,8 +379,8 @@ static int swrm_request_hw_vote(struct swr_mstr_ctrl *swrm,
 				}
 				if (++swrm->hw_core_clk_en == 1) {
 					ret =
-					   clk_prepare_enable(
-						swrm->lpass_core_hw_vote);
+					   digital_cdc_rsc_mgr_hw_vote_enable(
+							swrm->lpass_core_hw_vote);
 					if (ret < 0) {
 						dev_err(swrm->dev,
 							"%s:lpass core hw enable failed\n",
@@ -392,8 +393,8 @@ static int swrm_request_hw_vote(struct swr_mstr_ctrl *swrm,
 				if (swrm->hw_core_clk_en < 0)
 					swrm->hw_core_clk_en = 0;
 				else if (swrm->hw_core_clk_en == 0)
-					clk_disable_unprepare(
-						swrm->lpass_core_hw_vote);
+					digital_cdc_rsc_mgr_hw_vote_disable(
+							swrm->lpass_core_hw_vote);
 			}
 		}
 	}
@@ -410,8 +411,8 @@ static int swrm_request_hw_vote(struct swr_mstr_ctrl *swrm,
 				}
 				if (++swrm->aud_core_clk_en == 1) {
 					ret =
-					   clk_prepare_enable(
-						swrm->lpass_core_audio);
+					   digital_cdc_rsc_mgr_hw_vote_enable(
+							swrm->lpass_core_audio);
 					if (ret < 0) {
 						dev_err(swrm->dev,
 							"%s:lpass audio hw enable failed\n",
@@ -424,8 +425,8 @@ static int swrm_request_hw_vote(struct swr_mstr_ctrl *swrm,
 				if (swrm->aud_core_clk_en < 0)
 					swrm->aud_core_clk_en = 0;
 				else if (swrm->aud_core_clk_en == 0)
-					clk_disable_unprepare(
-						swrm->lpass_core_audio);
+					digital_cdc_rsc_mgr_hw_vote_disable(
+							swrm->lpass_core_audio);
 			}
 		}
 	}
@@ -615,10 +616,10 @@ static int swr_master_bulk_write(struct swr_mstr_ctrl *swrm, u32 *reg_addr,
 		for (i = 0; i < length; i++) {
 		/* wait for FIFO WR command to complete to avoid overflow */
 		/*
-		 * Reduce sleep from 100us to 10us to meet KPIs
+		 * Reduce sleep from 100us to 50us to meet KPIs
 		 * This still meets the hardware spec
 		 */
-			usleep_range(10, 12);
+			usleep_range(50, 55);
 			swr_master_write(swrm, reg_addr[i], val[i]);
 		}
 		mutex_unlock(&swrm->iolock);
@@ -1680,9 +1681,12 @@ static void swrm_enable_slave_irq(struct swr_mstr_ctrl *swrm)
 	}
 	dev_dbg(swrm->dev, "%s: slave status: 0x%x\n", __func__, status);
 	for (i = 0; i < (swrm->master.num_dev + 1); i++) {
-		if (status & SWRM_MCP_SLV_STATUS_MASK)
+		if (status & SWRM_MCP_SLV_STATUS_MASK) {
+			swrm_cmd_fifo_wr_cmd(swrm, 0xFF, i, 0x0,
+					SWRS_SCP_INT_STATUS_CLEAR_1);
 			swrm_cmd_fifo_wr_cmd(swrm, 0x4, i, 0x0,
-						SWRS_SCP_INT_STATUS_MASK_1);
+					SWRS_SCP_INT_STATUS_MASK_1);
+		}
 		status >>= 2;
 	}
 }
@@ -1987,6 +1991,17 @@ handle_irq:
 				dev_dbg(swrm->dev,
 					"%s: device %d got detached\n",
 					__func__, devnum);
+				if (devnum == 0) {
+					/*
+					 * enable host irq if device 0 detached
+					 * as hw will mask host_irq at slave
+					 * but will not unmask it afterwards.
+					 */
+					swrm_cmd_fifo_wr_cmd(swrm, 0xFF, devnum, 0x0,
+						SWRS_SCP_INT_STATUS_CLEAR_1);
+					swrm_cmd_fifo_wr_cmd(swrm, 0x4, devnum, 0x0,
+						SWRS_SCP_INT_STATUS_MASK_1);
+				}
 				break;
 			case SWR_ATTACHED_OK:
 				dev_dbg(swrm->dev,
@@ -3319,6 +3334,8 @@ int swrm_wcd_notify(struct platform_device *pdev, u32 id, void *data)
 			swrm_device_down(&pdev->dev);
 		mutex_lock(&swrm->devlock);
 		swrm->dev_up = false;
+		swrm->hw_core_clk_en = 0;
+		swrm->aud_core_clk_en = 0;
 		mutex_unlock(&swrm->devlock);
 		mutex_lock(&swrm->reslock);
 		swrm->state = SWR_MSTR_SSR;
