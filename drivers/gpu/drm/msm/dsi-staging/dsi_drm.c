@@ -14,6 +14,8 @@
 
 
 #define pr_fmt(fmt)	"dsi-drm:[%s] " fmt, __func__
+#include <linux/msm_drm_notify.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_bridge.h>
@@ -180,6 +182,8 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	int rc = 0;
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
+	struct msm_drm_notifier notify_data;
+	int power_mode;
 
 	if (!bridge) {
 		pr_err("Invalid params\n");
@@ -198,6 +202,11 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		__pm_relax(&prim_panel_wakelock);
 		return;
 	}
+
+	power_mode = sde_connector_get_lp(c_bridge->display->drm_conn);
+	notify_data.data = &power_mode;
+	notify_data.id = MSM_DRM_PRIMARY_DISPLAY;
+	msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &notify_data);
 
 	/* By this point mode should have been validated through mode_fixup */
 	rc = dsi_display_set_mode(c_bridge->display,
@@ -233,6 +242,8 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		(void)dsi_display_unprepare(c_bridge->display);
 	}
 	SDE_ATRACE_END("dsi_display_enable");
+
+	msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 
 	rc = dsi_display_splash_res_cleanup(c_bridge->display);
 	if (rc)
@@ -350,11 +361,18 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 {
 	int rc = 0;
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
+	struct msm_drm_notifier notify_data;
+	int power_mode;
 
 	if (!bridge) {
 		pr_err("Invalid params\n");
 		return;
 	}
+
+	power_mode = sde_connector_get_lp(c_bridge->display->drm_conn);
+	notify_data.data = &power_mode;
+	notify_data.id = MSM_DRM_PRIMARY_DISPLAY;
+	msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &notify_data);
 
 	SDE_ATRACE_BEGIN("dsi_bridge_post_disable");
 	SDE_ATRACE_BEGIN("dsi_display_disable");
@@ -378,6 +396,8 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 
 	if (c_bridge->display->is_prim_display)
 		atomic_set(&prim_panel_is_on, false);
+
+	msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 }
 
 static void prim_panel_off_delayed_work(struct work_struct *work)
