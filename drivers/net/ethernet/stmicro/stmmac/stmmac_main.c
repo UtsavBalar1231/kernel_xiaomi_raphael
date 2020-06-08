@@ -843,7 +843,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 
 		writel(ctrl, priv->ioaddr + MAC_CTRL_REG);
 
-		if (!priv->oldlink) {
+		if (!priv->oldlink || (priv->oldlink == -1)) {
 			new_state = true;
 			priv->oldlink = true;
 		}
@@ -954,7 +954,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	int interface = priv->plat->interface;
 	int max_speed = priv->plat->max_speed;
 	int ret = 0;
-	priv->oldlink = false;
+	priv->oldlink = -1;
 	priv->boot_kpi = false;
 	priv->speed = SPEED_UNKNOWN;
 	priv->oldduplex = DUPLEX_UNKNOWN;
@@ -1000,9 +1000,6 @@ static int stmmac_init_phy(struct net_device *dev)
 			return PTR_ERR(phydev);
 		}
 	}
-
-	pr_info(" qcom-ethqos: %s early eth setting stmmac init\n",
-				 __func__);
 
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
 	if ((interface == PHY_INTERFACE_MODE_MII) ||
@@ -1968,6 +1965,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 			} else {
 				priv->dev->stats.tx_packets++;
 				priv->xstats.tx_pkt_n++;
+				priv->xstats.q_tx_pkt_n[queue]++;
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER
 if (priv->dev->stats.tx_packets == 1)
 	place_marker("M - Ethernet first packet transmitted");
@@ -2054,6 +2052,13 @@ static void stmmac_tx_err(struct stmmac_priv *priv, u32 chan)
 	struct stmmac_tx_queue *tx_q = &priv->tx_queue[chan];
 	int i;
 
+	if (tx_q->skip_sw) {
+		ethqos_ipa_offload_event_handler(priv, EV_DEV_CLOSE);
+		ethqos_ipa_offload_event_handler(priv, EV_DEV_OPEN);
+		priv->dev->stats.tx_errors++;
+		return;
+	}
+
 	netif_tx_stop_queue(netdev_get_tx_queue(priv->dev, chan));
 
 	stmmac_stop_tx_dma(priv, chan);
@@ -2129,13 +2134,12 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 	struct stmmac_rx_queue *rx_q;
 
 	for (chan = 0; chan < tx_channel_count; chan++) {
-		if (priv->tx_queue[chan].skip_sw)
-			continue;
 		rx_q = &priv->rx_queue[chan];
 
 		status = priv->hw->dma->dma_interrupt(priv->ioaddr,
 						      &priv->xstats, chan);
-		if (likely((status & handle_rx)) || (status & handle_tx)) {
+		if ((likely((status & handle_rx)) || (status & handle_tx)) &&
+		    !rx_q->skip_sw) {
 			if (likely(napi_schedule_prep(&rx_q->napi))) {
 				stmmac_disable_dma_irq(priv, chan);
 				__napi_schedule(&rx_q->napi);
@@ -2619,6 +2623,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 		}
 	}
 	priv->hw->crc_strip_en = priv->plat->crc_strip_en;
+	priv->hw->acs_strip_en = 0;
 
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->hw, dev);
@@ -3601,8 +3606,13 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			 * feature is always disabled and packets need to be
 			 * stripped manually.
 			 */
-			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00) ||
-			    unlikely(status != llc_snap))
+			if ((likely(priv->synopsys_id >= DWMAC_CORE_4_00) &&
+			     ((unlikely(!priv->hw->crc_strip_en) &&
+			       status != llc_snap) ||
+			      (unlikely(!priv->hw->acs_strip_en) &&
+			       status == llc_snap))) ||
+			    (unlikely(priv->synopsys_id < DWMAC_CORE_4_00) &&
+			     unlikely(status != llc_snap)))
 				frame_len -= ETH_FCS_LEN;
 
 			if (netif_msg_rx_status(priv)) {
@@ -3697,6 +3707,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 	stmmac_rx_refill(priv, queue);
 
 	priv->xstats.rx_pkt_n += count;
+	priv->xstats.q_rx_pkt_n[queue] += count;
 
 	return count;
 }
@@ -4626,7 +4637,7 @@ int stmmac_suspend(struct device *dev)
 	}
 	mutex_unlock(&priv->lock);
 
-	priv->oldlink = false;
+	priv->oldlink = -1;
 	priv->speed = SPEED_UNKNOWN;
 	priv->oldduplex = DUPLEX_UNKNOWN;
 	return 0;

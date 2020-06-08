@@ -45,9 +45,6 @@
 	qcom,ext-disp = <&ext_disp>;
 	qcom,dp-hpd-gpio = <&ioexp 8 0>;
 	qcom,mst-fixed-topology-ports = <1 2>;
-	pinctrl-names = "mdss_dp_active", "mdss_dp_sleep";
-	pinctrl-0 = <&dp_hpd_cfg_pins>;
-	pinctrl-1 = <&dp_hpd_cfg_pins>;
 
 	vdda-1p2-supply = <&pm6155_1_l11>;
 	vdda-0p9-supply = <&pm6155_1_l5>;
@@ -295,21 +292,19 @@
 		 };
 	 };
 
-	 qcom,sde-shared-plane {
+	sde_shp: qcom,sde-shared-plane {
 		 compatible = "qcom,sde-shared-plane";
 		 qcom,add-planes {
 			 plane@0 {
 				 qcom,plane-name = "plane-4-splash";
 				 qcom,plane-parent = "plane-4";
 				 qcom,plane-init-active;
-				 qcom,plane-seamless-mode = "shared";
 			 };
 			 plane@1 {
 				 qcom,plane-name = "plane-3-splash";
 				 qcom,plane-parent = "plane-3";
 				 qcom,plane-init-active;
 				 qcom,plane-init-handoff;
-				 qcom,plane-seamless-mode = "shared";
 			 };
 		 };
 	 };
@@ -317,7 +312,7 @@
 	sde_card1: qcom,sde-kms-lease@0 {
 		   compatible = "qcom,sde-kms-lease";
 		   qcom,dev-name = "msm_drm";
-		   qcom,lease-connectors = "DSI-2","DP-1","DP-2","DP-3";
+		   qcom,lease-connectors = "shared-disp-0","DP-1","DP-2","DP-3";
 		   qcom,lease-planes = "plane-0","plane-1","plane-2","plane-3",
 					"plane-4", "plane-5", "plane-6",
 					"plane-7","plane-8","plane-9";
@@ -325,25 +320,23 @@
 	sde_card2: qcom,sde-kms-lease@1 {
 		   compatible = "qcom,sde-kms-lease";
 		   qcom,dev-name = "msm_drm2";
-		   qcom,lease-connectors = "DSI-4";
+		   qcom,lease-connectors = "shared-disp-2";
 		   qcom,lease-planes = "plane-4-splash";
 	   };
 	sde_card3: qcom,sde-kms-lease@2 {
 		   compatible = "qcom,sde-kms-lease";
 		   qcom,dev-name = "msm_drm3";
-		   qcom,lease-connectors = "DSI-3";
+		   qcom,lease-connectors = "shared-disp-1";
 		   qcom,lease-planes = "plane-3-splash";
 	   };
 
 };
 
-&mdss_dsi_phy0 {
-	qcom,panel-force-clock-lane-hs;
-};
-
 &mdss_mdp {
 	qcom,sde-reg-dma-version = <0>;
 	qcom,sde-crtc-num-pref = <5>;
-	connectors = <&sde_rscc &dsi_dp1 &sde_wb &sde_dp>;
+	connectors = <&sde_rscc &dsi_dp1 &sde_wb &sde_dp
+			&sde_sh0 &sde_sh1 &sde_sh2 &sde_shp
+			&sde_card1 &sde_card2 &sde_card3>;
 };
 
