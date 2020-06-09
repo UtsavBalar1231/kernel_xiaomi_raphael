@@ -4428,6 +4428,33 @@ int smblib_set_prop_sdp_current_max(struct smb_charger *chg,
 	return rc;
 }
 
+int smblib_get_prop_type_recheck(struct smb_charger *chg,
+				    union power_supply_propval *val)
+{
+	int status = 0;
+
+	if (chg->recheck_charger)
+		status |= BIT(0) << 8;
+
+	status |= chg->precheck_charger_type << 4;
+	status |= chg->real_charger_type;
+
+	val->intval = status;
+
+	return 0;
+}
+
+int smblib_set_prop_type_recheck(struct smb_charger *chg,
+				    const union power_supply_propval *val)
+{
+	if (val->intval == 0) {
+		cancel_delayed_work_sync(&chg->charger_type_recheck);
+		chg->recheck_charger = false;
+	}
+	return 0;
+}
+
+
 int smblib_set_prop_boost_current(struct smb_charger *chg,
 					const union power_supply_propval *val)
 {
@@ -5441,6 +5468,10 @@ void smblib_usb_plugin_hard_reset_locked(struct smb_charger *chg)
 			}
 		}
 
+		cancel_delayed_work_sync(&chg->charger_type_recheck);
+		chg->hvdcp_recheck_status = false;
+		chg->recheck_charger = false;
+		chg->precheck_charger_type = POWER_SUPPLY_TYPE_UNKNOWN;
 		/* Force 1500mA FCC on USB removal if fcc stepper is enabled */
 		if (chg->fcc_stepper_enable)
 			vote(chg->fcc_votable, FCC_STEPPER_VOTER,
@@ -5493,6 +5524,7 @@ void smblib_usb_plugin_locked(struct smb_charger *chg)
 		schedule_delayed_work(&chg->pl_enable_work,
 					msecs_to_jiffies(PL_DELAY_MS));
 	} else {
+		cancel_delayed_work_sync(&chg->charger_type_recheck);
 		/* Disable SW Thermal Regulation */
 		rc = smblib_set_sw_thermal_regulation(chg, false);
 		if (rc < 0)
@@ -5548,6 +5580,9 @@ void smblib_usb_plugin_locked(struct smb_charger *chg)
 		if (rc < 0)
 			smblib_err(chg, "Couldn't disable DPDM rc=%d\n", rc);
 
+		chg->hvdcp_recheck_status = false;
+		chg->recheck_charger = false;
+		chg->precheck_charger_type = POWER_SUPPLY_TYPE_UNKNOWN;
 		smblib_update_usb_type(chg);
 	}
 
@@ -5592,6 +5627,61 @@ static void smblib_handle_sdp_enumeration_done(struct smb_charger *chg,
 }
 
 #define APSD_EXTENDED_TIMEOUT_MS	400
+
+struct quick_charge adapter_cap[10] = {
+	{ POWER_SUPPLY_TYPE_USB,        QUICK_CHARGE_NORMAL },
+	{ POWER_SUPPLY_TYPE_USB_DCP,    QUICK_CHARGE_NORMAL },
+	{ POWER_SUPPLY_TYPE_USB_CDP,    QUICK_CHARGE_NORMAL },
+	{ POWER_SUPPLY_TYPE_USB_ACA,    QUICK_CHARGE_NORMAL },
+	{ POWER_SUPPLY_TYPE_USB_FLOAT,  QUICK_CHARGE_NORMAL },
+	{ POWER_SUPPLY_TYPE_USB_PD,       QUICK_CHARGE_FAST },
+	{ POWER_SUPPLY_TYPE_USB_HVDCP,    QUICK_CHARGE_FAST },
+	{ POWER_SUPPLY_TYPE_USB_HVDCP_3,  QUICK_CHARGE_FAST },
+	{ POWER_SUPPLY_TYPE_WIRELESS,     QUICK_CHARGE_FAST },
+	{0, 0},
+};
+
+int smblib_get_quick_charge_type(struct smb_charger *chg)
+{
+	int i = 0, rc;
+	union power_supply_propval pval = {0, };
+
+	if (!chg) {
+		dev_err(chg->dev, "get quick charge type faied\n");
+		return -EINVAL;
+	}
+
+	rc = smblib_get_prop_batt_health(chg, &pval);
+	if (rc < 0)
+		smblib_err(chg, "Couldn't get batt health rc=%d\n", rc);
+
+	if ((pval.intval == POWER_SUPPLY_HEALTH_COLD)
+			|| (pval.intval == POWER_SUPPLY_HEALTH_HOT))
+		return 0;
+
+	pr_err("[%s] real_charger_type=%d pd_verifed=%d qc_class_ab=%d\n", __func__, chg->real_charger_type, chg->pd_verifed, chg->qc_class_ab);
+	/* davinic do not need to report this type */
+	if ((chg->real_charger_type == POWER_SUPPLY_TYPE_USB_PD)
+				&& chg->pd_verifed && chg->qc_class_ab) {
+		return QUICK_CHARGE_TURBE;
+	}
+
+	if (chg->is_qc_class_b)
+		return QUICK_CHARGE_FLASH;
+
+	if ((chg->real_charger_type == POWER_SUPPLY_TYPE_USB_DCP) && chg->hvdcp_recheck_status)
+		return QUICK_CHARGE_FAST;
+
+	while (adapter_cap[i].adap_type != 0) {
+		if (chg->real_charger_type == adapter_cap[i].adap_type) {
+			return adapter_cap[i].adap_cap;
+		}
+		i++;
+	}
+
+	return 0;
+}
+
 /* triggers when HVDCP 3.0 authentication has finished */
 static void smblib_handle_hvdcp_3p0_auth_done(struct smb_charger *chg,
 					      bool rising)
@@ -7713,6 +7803,63 @@ static void smblib_dual_role_check_work(struct work_struct *work)
 	vote(chg->awake_votable, DR_SWAP_VOTER, false, 0);
 }
 
+static void smblib_charger_type_recheck(struct work_struct *work)
+{
+	struct smb_charger *chg = container_of(work, struct smb_charger,
+			charger_type_recheck.work);
+	int recheck_time = TYPE_RECHECK_TIME_5S;
+	static int last_charger_type, check_count;
+	int rc;
+
+	smblib_update_usb_type(chg);
+	smblib_dbg(chg, PR_OEM, "typec_mode:%d,last:%d: real charger type:%d\n",
+			chg->typec_mode, last_charger_type, chg->real_charger_type);
+
+	if (last_charger_type != chg->real_charger_type)
+		check_count--;
+	last_charger_type = chg->real_charger_type;
+
+	if ((chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP) ||
+			(chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP_3))
+		power_supply_changed(chg->usb_psy);
+
+	if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP_3 ||
+			chg->pd_active || (check_count >= TYPE_RECHECK_COUNT) ||
+			((chg->real_charger_type == POWER_SUPPLY_TYPE_USB_FLOAT) &&
+				(chg->typec_mode == POWER_SUPPLY_TYPEC_SINK_AUDIO_ADAPTER))) {
+		smblib_dbg(chg, PR_OEM, "hvdcp detect or check_count = %d break\n",
+				check_count);
+		check_count = 0;
+		return;
+	}
+
+	if (smblib_get_prop_dfp_mode(chg) != POWER_SUPPLY_TYPEC_NONE)
+		goto check_next;
+
+	if (!chg->recheck_charger)
+		chg->precheck_charger_type = chg->real_charger_type;
+	chg->recheck_charger = true;
+
+	/* need request hsusb phy dpdm to false then true for float charger */
+	if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_FLOAT) {
+		rc = smblib_request_dpdm(chg, false);
+		if (rc < 0)
+			smblib_err(chg, "Couldn't disable DPDM rc=%d\n", rc);
+
+		msleep(500);
+	}
+
+	if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP)
+		chg->hvdcp_recheck_status = true;
+
+	smblib_rerun_apsd_if_required(chg);
+
+check_next:
+	check_count++;
+	schedule_delayed_work(&chg->charger_type_recheck,
+				msecs_to_jiffies(recheck_time));
+}
+
 static int smblib_create_votables(struct smb_charger *chg)
 {
 	int rc = 0;
@@ -7897,6 +8044,7 @@ int smblib_init(struct smb_charger *chg)
 	INIT_DELAYED_WORK(&chg->bb_removal_work, smblib_bb_removal_work);
 	INIT_DELAYED_WORK(&chg->lpd_ra_open_work, smblib_lpd_ra_open_work);
 	INIT_DELAYED_WORK(&chg->lpd_detach_work, smblib_lpd_detach_work);
+	INIT_DELAYED_WORK(&chg->charger_type_recheck, smblib_charger_type_recheck);
 	INIT_DELAYED_WORK(&chg->thermal_regulation_work,
 					smblib_thermal_regulation_work);
 	INIT_DELAYED_WORK(&chg->usbov_dbc_work, smblib_usbov_dbc_work);
@@ -8056,6 +8204,7 @@ int smblib_deinit(struct smb_charger *chg)
 		cancel_delayed_work_sync(&chg->bb_removal_work);
 		cancel_delayed_work_sync(&chg->lpd_ra_open_work);
 		cancel_delayed_work_sync(&chg->lpd_detach_work);
+		cancel_delayed_work_sync(&chg->charger_type_recheck);
 		cancel_delayed_work_sync(&chg->thermal_regulation_work);
 		cancel_delayed_work_sync(&chg->usbov_dbc_work);
 		cancel_delayed_work_sync(&chg->role_reversal_check);
