@@ -1997,88 +1997,6 @@ exit:
 
 }
 
-static ssize_t goodix_lockdown_info_read(struct file *file, char __user *buf,
-				size_t count, loff_t *pos)
-{
-	int cnt = 0, ret = 0;
-	#define TP_INFO_MAX_LENGTH 50
-	char tmp[TP_INFO_MAX_LENGTH];
-
-	if (*pos != 0 || !goodix_core_data)
-		return 0;
-
-	cnt = snprintf(tmp, TP_INFO_MAX_LENGTH,
-			"0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",
-			goodix_core_data->lockdown_info[0], goodix_core_data->lockdown_info[1],
-			goodix_core_data->lockdown_info[2], goodix_core_data->lockdown_info[3],
-			goodix_core_data->lockdown_info[4], goodix_core_data->lockdown_info[5],
-			goodix_core_data->lockdown_info[6], goodix_core_data->lockdown_info[7]);
-	ret = copy_to_user(buf, tmp, cnt);
-	*pos += cnt;
-	if (ret != 0)
-		return 0;
-	else
-		return cnt;
-}
-
-static const struct file_operations goodix_lockdown_info_ops = {
-	.read = goodix_lockdown_info_read,
-};
-
-static ssize_t goodix_panel_color_show(struct device *dev,
-					struct device_attribute *attr, char *buf)
-{
-	if (!goodix_core_data)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "%c\n", goodix_core_data->lockdown_info[2]);
-}
-
-static ssize_t goodix_panel_vendor_show(struct device *dev,
-					struct device_attribute *attr, char *buf)
-{
-	if (!goodix_core_data)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "%c\n", goodix_core_data->lockdown_info[6]);
-}
-
-static ssize_t goodix_panel_display_show(struct device *dev,
-					struct device_attribute *attr, char *buf)
-{
-	if (!goodix_core_data)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "%c\n", goodix_core_data->lockdown_info[1]);
-}
-
-static ssize_t goodix_lockdown_info_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
-{
-	if (!goodix_core_data)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE,
-			"0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",
-			goodix_core_data->lockdown_info[0], goodix_core_data->lockdown_info[1],
-			goodix_core_data->lockdown_info[2], goodix_core_data->lockdown_info[3],
-			goodix_core_data->lockdown_info[4], goodix_core_data->lockdown_info[5],
-			goodix_core_data->lockdown_info[6], goodix_core_data->lockdown_info[7]);
-}
-
-static DEVICE_ATTR(lockdown_info, (S_IRUGO), goodix_lockdown_info_show, NULL);
-static DEVICE_ATTR(panel_vendor, (S_IRUGO), goodix_panel_vendor_show, NULL);
-static DEVICE_ATTR(panel_color, (S_IRUGO), goodix_panel_color_show, NULL);
-static DEVICE_ATTR(panel_display, (S_IRUGO), goodix_panel_display_show, NULL);
-
-static struct attribute *goodix_attr_group[] = {
-	&dev_attr_panel_vendor.attr,
-	&dev_attr_panel_color.attr,
-	&dev_attr_panel_display.attr,
-	&dev_attr_lockdown_info.attr,
-	NULL,
-};
-
 static void gtp_power_supply_work(struct work_struct *work)
 {
 	struct goodix_ts_core *core_data =
@@ -2220,9 +2138,6 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	core_data->tp_lockdown_info_proc =
-	    proc_create("tp_lockdown_info", 0664, NULL, &goodix_lockdown_info_ops);
-
 	/*unified protocl
 	 * start a thread to parse cfg_bin and init IC*/
 	r = goodix_start_cfg_bin(core_data);
@@ -2240,13 +2155,6 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	core_data->bl_notifier.notifier_call = goodix_bl_state_chg_callback;
 	if (backlight_register_notifier(&core_data->bl_notifier) < 0) {
 		ts_err("ERROR:register bl_notifier failed\n");
-		goto out;
-	}
-	core_data->attrs.attrs = goodix_attr_group;
-	r = sysfs_create_group(&client->dev.kobj, &core_data->attrs);
-	if (r) {
-		ts_err("ERROR: Cannot create sysfs structure!\n");
-		r = -ENODEV;
 		goto out;
 	}
 

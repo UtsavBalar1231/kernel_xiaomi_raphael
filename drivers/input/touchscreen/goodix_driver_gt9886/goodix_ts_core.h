@@ -78,7 +78,6 @@
 #define GOODIX_REQUEST_EVENT		0x40
 #define GOODIX_GESTURE_EVENT		0x20
 #define GOODIX_HOTKNOT_EVENT		0x10
-#define GOODIX_LOCKDOWN_SIZE		8
 
 #define CENTER_X					540
 #define CENTER_Y					2030
@@ -441,7 +440,6 @@ struct goodix_ts_core {
 	unsigned long sleep_finger;
 	unsigned long event_status;
 	unsigned int avdd_load;
-	unsigned char lockdown_info[GOODIX_LOCKDOWN_SIZE];
 
 	int power_on;
 	int irq;
@@ -459,7 +457,6 @@ struct goodix_ts_core {
 	struct proc_dir_entry *tp_selftest_proc;
 	struct proc_dir_entry *tp_data_dump_proc;
 	struct proc_dir_entry *tp_fw_version_proc;
-	struct proc_dir_entry *tp_lockdown_info_proc;
 #ifdef CONFIG_DRM
 	struct notifier_block msm_drm_notifier;
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
@@ -777,7 +774,6 @@ int goodix_gesture_enable(bool enable);
 
 int goodix_check_gesture_stat(bool enable);
 
-int goodix_get_lockdowninfo(struct goodix_ts_core *ts_core);
 extern int sync_read_rawdata(unsigned int reg,
 		unsigned char *data, unsigned int len);
 extern int goodix_tools_register(void);

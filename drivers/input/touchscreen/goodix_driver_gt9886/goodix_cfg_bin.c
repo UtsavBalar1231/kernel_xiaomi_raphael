@@ -19,25 +19,6 @@ int goodix_start_cfg_bin(struct goodix_ts_core *ts_core)
 	return 0;
 }
 
-int goodix_get_lockdowninfo(struct goodix_ts_core *ts_core)
-{
-	int ret = 0;
-	struct goodix_ts_device *ts_dev = ts_core->ts_dev;
-
-	ret = ts_dev->hw_ops->read(ts_dev, TS_LOCKDOWN_REG,
-				ts_core->lockdown_info, GOODIX_LOCKDOWN_SIZE);
-	if (ret) {
-		ts_err("can't get lockdown");
-		return -EINVAL;
-	}
-	ts_info("lockdown is:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x",
-			ts_core->lockdown_info[0], ts_core->lockdown_info[1],
-			ts_core->lockdown_info[2], ts_core->lockdown_info[3],
-			ts_core->lockdown_info[4], ts_core->lockdown_info[5],
-			ts_core->lockdown_info[6], ts_core->lockdown_info[7]);
-	return 0;
-}
-
 int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 {
 	u8 checksum;
@@ -257,8 +238,6 @@ int goodix_cfg_bin_proc(void *data)
 	core_data->early_suspend.suspend = goodix_ts_earlysuspend;
 	register_early_suspend(&core_data->early_suspend);
 #endif
-	goodix_get_lockdowninfo(core_data);
-
 	/* esd protector */
 	goodix_ts_esd_init(core_data);
 
