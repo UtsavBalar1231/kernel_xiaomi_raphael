@@ -96,8 +96,6 @@
 		qcom,sde-cdm-off = <0x7a200>;
 		qcom,sde-cdm-size = <0x224>;
 
-		qcom,sde-roi-misr-off = <0x82820 0x82880 0x828e0>;
-		qcom,sde-roi-misr-size = <0x60>;
 
 		qcom,sde-dither-off = <0x30e0 0x30e0 0x30e0 0x30e0>;
 		qcom,sde-dither-version = <0x00010000>;
@@ -210,7 +208,6 @@
 			qcom,sde-dspp-pcc = <0x1700 0x00040000>;
 			qcom,sde-dspp-gc = <0x17c0 0x00010008>;
 			qcom,sde-dspp-dither = <0x82c 0x00010007>;
-			qcom,sde-dspp-roi-misr = <0x1200 0x00010000>;
 		};
 
 		smmu_sde_sec: qcom,smmu_sde_sec_cb {
