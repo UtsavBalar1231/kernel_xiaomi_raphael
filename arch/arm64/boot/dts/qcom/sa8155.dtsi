@@ -63,6 +63,31 @@
 /* Add regulator nodes specific to SA8155 */
 #include "sa8155-regulator.dtsi"
 
+&early_devices {
+	devices = <&ufs_phy_gdsc &clock_rpmh &clock_gcc &ad_hoc_bus &ufs_ice
+		&ufsphy_mem &ufshc_mem &apps_rsc &cmd_db &ldoa10 &ldoc5 &ldoc8
+		&smpa4 &tlmm &ldoa5 &cxlvl &mxlvl &gfxlvl &bps_gdsc &ipe_0_gdsc
+		&ipe_1_gdsc &ife_0_gdsc &ife_1_gdsc &titan_top_gdsc &mvsc_gdsc
+		&mvs0_gdsc &mvs1_gdsc &qupv3_se4_i2c &qupv3_se10_i2c
+		&qupv3_se15_i2c &qupv3_se20_i2c &qupv3_2 &qupv3_1 &qupv3_0
+		&qupv3_3 &clock_cpucc &clock_camcc &clock_aop &clock_dispcc
+		&clock_gpucc &clock_gpucc &clock_scc &clock_videocc &gmu
+		&apps_smmu &kgsl_smmu &anoc_1_tbu &anoc_2_tbu &mnoc_hf_1_tbu
+		&compute_dsp_0_tbu &mnoc_hf_0_tbu &compute_dsp_1_tbu &adsp_tbu
+		&anoc_1_pcie_tbu &mnoc_sf_0_tbu &gfx_0_tbu &gfx_1_tbu &emac_gdsc
+		&pcie_0_gdsc &pcie_1_gdsc &ufs_card_gdsc &usb30_prim_gdsc
+		&usb30_sec_gdsc &hlos1_vote_aggre_noc_mmu_audio_tbu_gdsc
+		&hlos1_vote_aggre_noc_mmu_tbu1_gdsc &tcsr_mutex &smem
+		&hlos1_vote_aggre_noc_mmu_tbu2_gdsc
+		&hlos1_vote_aggre_noc_mmu_pcie_tbu_gdsc
+		&hlos1_vote_mmnoc_mmu_tbu_hf0_gdsc
+		&hlos1_vote_mmnoc_mmu_tbu_sf_gdsc
+		&hlos1_vote_mmnoc_mmu_tbu_hf1_gdsc
+		&hlos1_vote_turing_mmu_tbu0_gdsc
+		&hlos1_vote_turing_mmu_tbu1_gdsc
+		&mdss_core_gdsc &gpu_cx_gdsc &gpu_gx_gdsc &npu_core_gdsc>;
+};
+
 &slpi_tlmm {
 	status = "ok";
 };
