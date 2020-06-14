@@ -33,7 +33,6 @@ static struct fscrypt_mode available_modes[] = {
 		.cipher_str = "essiv(cbc(aes),sha256)",
 		.keysize = 16,
 		.ivsize = 16,
-		.blk_crypto_mode = BLK_ENCRYPTION_MODE_AES_128_CBC_ESSIV,
 	},
 	[FSCRYPT_MODE_AES_128_CTS] = {
 		.friendly_name = "AES-128-CTS-CBC",
@@ -46,7 +45,6 @@ static struct fscrypt_mode available_modes[] = {
 		.cipher_str = "adiantum(xchacha12,aes)",
 		.keysize = 32,
 		.ivsize = 32,
-		.blk_crypto_mode = BLK_ENCRYPTION_MODE_ADIANTUM,
 	},
 	[FSCRYPT_MODE_PRIVATE] = {
 		.friendly_name = "ICE",
@@ -77,9 +75,9 @@ select_encryption_mode(const union fscrypt_policy *policy,
 }
 
 /* Create a symmetric cipher object for the given encryption mode and key */
-static struct crypto_skcipher *
-fscrypt_allocate_skcipher(struct fscrypt_mode *mode, const u8 *raw_key,
-			  const struct inode *inode)
+struct crypto_skcipher *fscrypt_allocate_skcipher(struct fscrypt_mode *mode,
+						  const u8 *raw_key,
+						  const struct inode *inode)
 {
 	struct crypto_skcipher *tfm;
 	int err;
@@ -119,42 +117,21 @@ err_free_tfm:
 	return ERR_PTR(err);
 }
 
-/*
- * Prepare the crypto transform object or blk-crypto key in @prep_key, given the
- * raw key, encryption mode, and flag indicating which encryption implementation
- * (fs-layer or blk-crypto) will be used.
- */
-int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
-			const u8 *raw_key, const struct fscrypt_info *ci)
+/* Given the per-file key, set up the file's crypto transform object */
+int fscrypt_set_derived_key(struct fscrypt_info *ci, const u8 *derived_key)
 {
 	struct crypto_skcipher *tfm;
 
-	if (fscrypt_using_inline_encryption(ci))
-		return fscrypt_prepare_inline_crypt_key(prep_key, raw_key, ci);
+	if (fscrypt_should_use_inline_encryption(ci))
+		return fscrypt_set_inline_crypt_key(ci, derived_key);
 
-	tfm = fscrypt_allocate_skcipher(ci->ci_mode, raw_key, ci->ci_inode);
+	tfm = fscrypt_allocate_skcipher(ci->ci_mode, derived_key, ci->ci_inode);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
-	/*
-	 * Pairs with READ_ONCE() in fscrypt_is_key_prepared().  (Only matters
-	 * for the per-mode keys, which are shared by multiple inodes.)
-	 */
-	smp_store_release(&prep_key->tfm, tfm);
-	return 0;
-}
 
-/* Destroy a crypto transform object and/or blk-crypto key. */
-void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key)
-{
-	crypto_free_skcipher(prep_key->tfm);
-	fscrypt_destroy_inline_crypt_key(prep_key);
-}
-
-/* Given a per-file encryption key, set up the file's crypto transform object */
-int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci, const u8 *raw_key)
-{
+	ci->ci_ctfm = tfm;
 	ci->ci_owns_key = true;
-	return fscrypt_prepare_key(&ci->ci_key, derived_key, ci);
+	return 0;
 }
 
 static int setup_per_mode_key(struct fscrypt_info *ci,
@@ -162,12 +139,11 @@ static int setup_per_mode_key(struct fscrypt_info *ci,
 			      struct crypto_skcipher **tfms,
 			      u8 hkdf_context, bool include_fs_uuid)
 {
-	static DEFINE_MUTEX(mode_key_setup_mutex);
 	const struct inode *inode = ci->ci_inode;
 	const struct super_block *sb = inode->i_sb;
 	struct fscrypt_mode *mode = ci->ci_mode;
-	u8 mode_num = mode - available_modes;
-	struct fscrypt_prepared_key *prep_key;
+	const u8 mode_num = mode - fscrypt_modes;
+	struct crypto_skcipher *tfm, *prev_tfm;
 	u8 mode_key[FSCRYPT_MAX_KEY_SIZE];
 	u8 hkdf_info[sizeof(mode_num) + sizeof(sb->s_uuid)];
 	unsigned int hkdf_infolen = 0;
@@ -176,16 +152,10 @@ static int setup_per_mode_key(struct fscrypt_info *ci,
 	if (WARN_ON(mode_num > __FSCRYPT_MODE_MAX))
 		return -EINVAL;
 
-	prep_key = &keys[mode_num];
-	if (fscrypt_is_key_prepared(prep_key, ci)) {
-		ci->ci_key = *prep_key;
-		return 0;
-	}
-
-	mutex_lock(&mode_key_setup_mutex);
-
-	if (fscrypt_is_key_prepared(prep_key, ci))
-		goto done_unlock;
+	/* pairs with cmpxchg() below */
+	tfm = READ_ONCE(tfms[mode_num]);
+	if (likely(tfm != NULL))
+		goto done;
 
 	BUILD_BUG_ON(sizeof(mode_num) != 1);
 	BUILD_BUG_ON(sizeof(sb->s_uuid) != 16);
@@ -200,17 +170,21 @@ static int setup_per_mode_key(struct fscrypt_info *ci,
 				  hkdf_context, hkdf_info, hkdf_infolen,
 				  mode_key, mode->keysize);
 	if (err)
-		goto out_unlock;
-	err = fscrypt_prepare_key(prep_key, mode_key, ci);
+		return err;
+	tfm = fscrypt_allocate_skcipher(mode, mode_key, inode);
 	memzero_explicit(mode_key, mode->keysize);
-	if (err)
-		goto out_unlock;
-done_unlock:
-	ci->ci_key = *prep_key;
-	err = 0;
-out_unlock:
-	mutex_unlock(&mode_key_setup_mutex);
-	return err;
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
+
+	/* pairs with READ_ONCE() above */
+	prev_tfm = cmpxchg(&tfms[mode_num], NULL, tfm);
+	if (prev_tfm != NULL) {
+		crypto_free_skcipher(tfm);
+		tfm = prev_tfm;
+	}
+done:
+	ci->ci_ctfm = tfm;
+	return 0;
 }
 
 static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
@@ -244,6 +218,8 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 		 * the IVs.  This format is optimized for use with inline
 		 * encryption hardware compliant with the UFS or eMMC standards.
 		 */
+		if (fscrypt_should_use_inline_encryption(ci))
+			return fscrypt_setup_per_mode_inline_crypt_key(ci, mk);
 		return setup_per_mode_key(ci, mk, mk->mk_iv_ino_lblk_64_tfms,
 					  HKDF_CONTEXT_IV_INO_LBLK_64_KEY,
 					  true);
@@ -278,8 +254,6 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 	struct fscrypt_master_key *mk = NULL;
 	struct fscrypt_key_specifier mk_spec;
 	int err;
-
-	fscrypt_select_encryption_impl(ci);
 
 	switch (ci->ci_policy.version) {
 	case FSCRYPT_POLICY_V1:
@@ -372,8 +346,10 @@ static void put_crypt_info(struct fscrypt_info *ci)
 
 	if (ci->ci_direct_key)
 		fscrypt_put_direct_key(ci->ci_direct_key);
-	else if (ci->ci_owns_key)
-		fscrypt_destroy_prepared_key(&ci->ci_key);
+	else if (ci->ci_owns_key) {
+		crypto_free_skcipher(ci->ci_ctfm);
+		fscrypt_free_inline_crypt_key(ci);
+	}
 
 	key = ci->ci_master_key;
 	if (key) {

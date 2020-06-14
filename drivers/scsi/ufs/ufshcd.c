@@ -3435,15 +3435,13 @@ static int ufshcd_prepare_req_desc_hdr(struct ufs_hba *hba,
 		dword_0 |= UTP_REQ_DESC_INT_CMD;
 
 	/* Transfer request descriptor header fields */
-	if (ufshcd_lrbp_crypto_enabled(lrbp)) {
-#if IS_ENABLED(CONFIG_SCSI_UFS_CRYPTO)
+	if (lrbp->crypto_enable) {
 		dword_0 |= UTP_REQ_DESC_CRYPTO_ENABLE_CMD;
 		dword_0 |= lrbp->crypto_key_slot;
 		req_desc->header.dword_1 =
-			cpu_to_le32(lower_32_bits(lrbp->data_unit_num));
+			cpu_to_le32((u32)lrbp->data_unit_num);
 		req_desc->header.dword_3 =
-			cpu_to_le32(upper_32_bits(lrbp->data_unit_num));
-#endif /* CONFIG_SCSI_UFS_CRYPTO */
+			cpu_to_le32((u32)(lrbp->data_unit_num >> 32));
 	} else {
 		/* dword_1 and dword_3 are reserved, hence they are set to 0 */
 		req_desc->header.dword_1 = 0;
@@ -3934,9 +3932,7 @@ static int ufshcd_compose_dev_cmd(struct ufs_hba *hba,
 	lrbp->task_tag = tag;
 	lrbp->lun = 0; /* device management cmd is not specific to any LUN */
 	lrbp->intr_cmd = true; /* No interrupt aggregation */
-#if IS_ENABLED(CONFIG_SCSI_UFS_CRYPTO)
 	lrbp->crypto_enable = false; /* No crypto operations */
-#endif
 	hba->dev_cmd.type = cmd_type;
 
 	return ufshcd_comp_devman_upiu(hba, lrbp);
@@ -6163,8 +6159,8 @@ static int ufshcd_change_queue_depth(struct scsi_device *sdev, int depth)
  */
 static int ufshcd_slave_configure(struct scsi_device *sdev)
 {
-	struct ufs_hba *hba = shost_priv(sdev->host);
 	struct request_queue *q = sdev->request_queue;
+	struct ufs_hba *hba = shost_priv(sdev->host);
 
 	blk_queue_update_dma_pad(q, PRDT_DATA_BYTE_COUNT_PAD - 1);
 	blk_queue_max_segment_size(q, PRDT_DATA_BYTE_COUNT_MAX);
