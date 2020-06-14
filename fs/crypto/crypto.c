@@ -509,4 +509,22 @@ fail_free_queue:
 fail:
 	return -ENOMEM;
 }
-late_initcall(fscrypt_init)
+module_init(fscrypt_init)
+
+/**
+ * fscrypt_exit() - Shutdown the fs encryption system
+ */
+static void __exit fscrypt_exit(void)
+{
+	fscrypt_destroy();
+
+	if (fscrypt_read_workqueue)
+		destroy_workqueue(fscrypt_read_workqueue);
+	kmem_cache_destroy(fscrypt_ctx_cachep);
+	kmem_cache_destroy(fscrypt_info_cachep);
+
+	fscrypt_essiv_cleanup();
+}
+module_exit(fscrypt_exit);
+
+MODULE_LICENSE("GPL");
