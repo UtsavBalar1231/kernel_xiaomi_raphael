@@ -341,10 +341,9 @@ a little endian number, except that:
   is encrypted with AES-256 where the AES-256 key is the SHA-256 hash
   of the file's data encryption key.
 
-- In the "direct key" configuration (FSCRYPT_POLICY_FLAG_DIRECT_KEY
-  set in the fscrypt_policy), the file's nonce is also appended to the
-  IV.  Currently this is only allowed with the Adiantum encryption
-  mode.
+- In the "direct key" configuration (FS_POLICY_FLAG_DIRECT_KEY set in
+  the fscrypt_policy), the file's nonce is also appended to the IV.
+  Currently this is only allowed with the Adiantum encryption mode.
 
 Filenames encryption
 --------------------
@@ -395,14 +394,14 @@ has the specified encryption policy.  It takes in a pointer to a
 :c:type:`struct fscrypt_policy_v1` or a :c:type:`struct
 fscrypt_policy_v2`, defined as follows::
 
-    #define FSCRYPT_POLICY_V1               0
-    #define FSCRYPT_KEY_DESCRIPTOR_SIZE     8
-    struct fscrypt_policy_v1 {
+    #define FS_KEY_DESCRIPTOR_SIZE  8
+
+    struct fscrypt_policy {
             __u8 version;
             __u8 contents_encryption_mode;
             __u8 filenames_encryption_mode;
             __u8 flags;
-            __u8 master_key_descriptor[FSCRYPT_KEY_DESCRIPTOR_SIZE];
+            __u8 master_key_descriptor[FS_KEY_DESCRIPTOR_SIZE];
     };
     #define fscrypt_policy  fscrypt_policy_v1
 
@@ -426,19 +425,19 @@ This structure must be initialized as follows:
   new encrypted directories, use v2 policies.
 
 - ``contents_encryption_mode`` and ``filenames_encryption_mode`` must
-  be set to constants from ``<linux/fscrypt.h>`` which identify the
-  encryption modes to use.  If unsure, use FSCRYPT_MODE_AES_256_XTS
-  (1) for ``contents_encryption_mode`` and FSCRYPT_MODE_AES_256_CTS
-  (4) for ``filenames_encryption_mode``.
+  be set to constants from ``<linux/fs.h>`` which identify the
+  encryption modes to use.  If unsure, use
+  FS_ENCRYPTION_MODE_AES_256_XTS (1) for ``contents_encryption_mode``
+  and FS_ENCRYPTION_MODE_AES_256_CTS (4) for
+  ``filenames_encryption_mode``.
 
-- ``flags`` must contain a value from ``<linux/fscrypt.h>`` which
+- ``flags`` must contain a value from ``<linux/fs.h>`` which
   identifies the amount of NUL-padding to use when encrypting
-  filenames.  If unsure, use FSCRYPT_POLICY_FLAGS_PAD_32 (0x3).
-  Additionally, if the encryption modes are both
-  FSCRYPT_MODE_ADIANTUM, this can contain
-  FSCRYPT_POLICY_FLAG_DIRECT_KEY; see `DIRECT_KEY and per-mode keys`_.
-
-- For v2 encryption policies, ``__reserved`` must be zeroed.
+  filenames.  If unsure, use FS_POLICY_FLAGS_PAD_32 (0x3).
+  In addition, if the chosen encryption modes are both
+  FS_ENCRYPTION_MODE_ADIANTUM, this can contain
+  FS_POLICY_FLAG_DIRECT_KEY to specify that the master key should be
+  used directly, without key derivation.
 
 - For v1 encryption policies, ``master_key_descriptor`` specifies how
   to find the master key in a keyring; see `Adding keys`_.  It is up
@@ -719,12 +718,12 @@ followed by the 16-character lower case hex representation of the
 ``master_key_descriptor`` that was set in the encryption policy.  The
 key payload must conform to the following structure::
 
-    #define FSCRYPT_MAX_KEY_SIZE            64
+    #define FS_MAX_KEY_SIZE 64
 
     struct fscrypt_key {
-            __u32 mode;
-            __u8 raw[FSCRYPT_MAX_KEY_SIZE];
-            __u32 size;
+            u32 mode;
+            u8 raw[FS_MAX_KEY_SIZE];
+            u32 size;
     };
 
 ``mode`` is ignored; just set it to 0.  The actual key is provided in
@@ -1060,6 +1059,7 @@ setxattr() because of the special semantics of the encryption xattr.
 were to be added to or removed from anything other than an empty
 directory.)  These structs are defined as follows::
 
+    #define FS_KEY_DESCRIPTOR_SIZE  8
     #define FS_KEY_DERIVATION_NONCE_SIZE 16
 
     #define FSCRYPT_KEY_DESCRIPTOR_SIZE  8
@@ -1068,7 +1068,7 @@ directory.)  These structs are defined as follows::
             u8 contents_encryption_mode;
             u8 filenames_encryption_mode;
             u8 flags;
-            u8 master_key_descriptor[FSCRYPT_KEY_DESCRIPTOR_SIZE];
+            u8 master_key_descriptor[FS_KEY_DESCRIPTOR_SIZE];
             u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
     };
 
