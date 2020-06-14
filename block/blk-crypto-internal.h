@@ -36,7 +36,7 @@ static inline bool bio_crypt_fallback_crypted(const struct bio_crypt_ctx *bc)
 
 static inline int blk_crypto_fallback_submit_bio(struct bio **bio_ptr)
 {
-	pr_warn_once("crypto API fallback disabled; failing request\n");
+	pr_warn_once("blk-crypto crypto API fallback disabled; failing request");
 	(*bio_ptr)->bi_status = BLK_STS_NOTSUPP;
 	return -EIO;
 }
