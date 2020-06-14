@@ -279,8 +279,7 @@ int ufshcd_hba_init_crypto_spec(struct ufs_hba *hba,
 	hba->caps &= ~UFSHCD_CAP_CRYPTO;
 
 	/* Return 0 if crypto support isn't present */
-	if (!(hba->capabilities & MASK_CRYPTO_SUPPORT) ||
-	    (hba->quirks & UFSHCD_QUIRK_BROKEN_CRYPTO))
+	if (!(hba->capabilities & MASK_CRYPTO_SUPPORT))
 		goto out;
 
 	/*

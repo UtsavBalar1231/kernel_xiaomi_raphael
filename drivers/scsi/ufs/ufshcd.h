@@ -941,12 +941,6 @@ struct ufs_hba {
 	/* Auto hibern8 support is broken */
 	#define UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8		UFS_BIT(15)
 
-	/*
-	 * This quirk needs to be enabled if the host controller advertises
-	 * inline encryption support but it doesn't work correctly.
-	 */
-	#define UFSHCD_QUIRK_BROKEN_CRYPTO			UFS_BIT(16)
-
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
 	wait_queue_head_t tm_wq;
