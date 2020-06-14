@@ -127,45 +127,44 @@ static int fname_decrypt(struct inode *inode,
 	return 0;
 }
 
-static const char lookup_table[65] =
+static const char *lookup_table =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+,";
 
 #define BASE64_CHARS(nbytes)	DIV_ROUND_UP((nbytes) * 4, 3)
 
 /**
- * base64_encode() -
+ * digest_encode() -
  *
- * Encodes the input string using characters from the set [A-Za-z0-9+,].
+ * Encodes the input digest using characters from the set [a-zA-Z0-9_+].
  * The encoded string is roughly 4/3 times the size of the input string.
- *
- * Return: length of the encoded string
  */
-static int base64_encode(const u8 *src, int len, char *dst)
+static int digest_encode(const char *src, int len, char *dst)
 {
-	int i, bits = 0, ac = 0;
+	int i = 0, bits = 0, ac = 0;
 	char *cp = dst;
 
-	for (i = 0; i < len; i++) {
-		ac += src[i] << bits;
+	while (i < len) {
+		ac += (((unsigned char) src[i]) << bits);
 		bits += 8;
 		do {
 			*cp++ = lookup_table[ac & 0x3f];
 			ac >>= 6;
 			bits -= 6;
 		} while (bits >= 6);
+		i++;
 	}
 	if (bits)
 		*cp++ = lookup_table[ac & 0x3f];
 	return cp - dst;
 }
 
-static int base64_decode(const char *src, int len, u8 *dst)
+static int digest_decode(const char *src, int len, char *dst)
 {
-	int i, bits = 0, ac = 0;
+	int i = 0, bits = 0, ac = 0;
 	const char *p;
-	u8 *cp = dst;
+	char *cp = dst;
 
-	for (i = 0; i < len; i++) {
+	while (i < len) {
 		p = strchr(lookup_table, src[i]);
 		if (p == NULL || src[i] == 0)
 			return -2;
@@ -176,6 +175,7 @@ static int base64_decode(const char *src, int len, u8 *dst)
 			ac >>= 8;
 			bits -= 8;
 		}
+		i++;
 	}
 	if (ac)
 		return -1;
@@ -272,7 +272,7 @@ int fscrypt_fname_disk_to_usr(struct inode *inode,
 		return fname_decrypt(inode, iname, oname);
 
 	if (iname->len <= FSCRYPT_FNAME_MAX_UNDIGESTED_SIZE) {
-		oname->len = base64_encode(iname->name, iname->len,
+		oname->len = digest_encode(iname->name, iname->len,
 					   oname->name);
 		return 0;
 	}
@@ -287,7 +287,7 @@ int fscrypt_fname_disk_to_usr(struct inode *inode,
 	       FSCRYPT_FNAME_DIGEST(iname->name, iname->len),
 	       FSCRYPT_FNAME_DIGEST_SIZE);
 	oname->name[0] = '_';
-	oname->len = 1 + base64_encode((const u8 *)&digested_name,
+	oname->len = 1 + digest_encode((const char *)&digested_name,
 				       sizeof(digested_name), oname->name + 1);
 	return 0;
 }
@@ -380,8 +380,8 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 	if (fname->crypto_buf.name == NULL)
 		return -ENOMEM;
 
-	ret = base64_decode(iname->name + digested, iname->len - digested,
-			    fname->crypto_buf.name);
+	ret = digest_decode(iname->name + digested, iname->len - digested,
+				fname->crypto_buf.name);
 	if (ret < 0) {
 		ret = -ENOENT;
 		goto errout;
