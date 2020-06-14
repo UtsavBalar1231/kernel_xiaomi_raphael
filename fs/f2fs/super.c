@@ -1251,7 +1251,7 @@ static void f2fs_put_super(struct super_block *sb)
 	for (i = 0; i < NR_PAGE_TYPE; i++)
 		kvfree(sbi->write_io[i]);
 #ifdef CONFIG_UNICODE
-	utf8_unload(sb->s_encoding);
+	utf8_unload(sbi->s_encoding);
 #endif
 	kvfree(sbi);
 }
@@ -2457,54 +2457,13 @@ static bool f2fs_dummy_context(struct inode *inode)
 	return DUMMY_ENCRYPTION_ENABLED(F2FS_I_SB(inode));
 }
 
-static bool f2fs_has_stable_inodes(struct super_block *sb)
-{
-	return true;
-}
-
-static void f2fs_get_ino_and_lblk_bits(struct super_block *sb,
-				       int *ino_bits_ret, int *lblk_bits_ret)
-{
-	*ino_bits_ret = 8 * sizeof(nid_t);
-	*lblk_bits_ret = 8 * sizeof(block_t);
-}
-
-static bool f2fs_inline_crypt_enabled(struct super_block *sb)
-{
-	return F2FS_OPTION(F2FS_SB(sb)).inlinecrypt;
-}
-
-static int f2fs_get_num_devices(struct super_block *sb)
-{
-	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-
-	if (f2fs_is_multi_device(sbi))
-		return sbi->s_ndevs;
-	return 1;
-}
-
-static void f2fs_get_devices(struct super_block *sb,
-			     struct request_queue **devs)
-{
-	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-	int i;
-
-	for (i = 0; i < sbi->s_ndevs; i++)
-		devs[i] = bdev_get_queue(FDEV(i).bdev);
-}
-
 static const struct fscrypt_operations f2fs_cryptops = {
-	.key_prefix		= "f2fs:",
-	.get_context		= f2fs_get_context,
-	.set_context		= f2fs_set_context,
-	.dummy_context		= f2fs_dummy_context,
-	.empty_dir		= f2fs_empty_dir,
-	.max_namelen		= F2FS_NAME_LEN,
-	.has_stable_inodes	= f2fs_has_stable_inodes,
-	.get_ino_and_lblk_bits	= f2fs_get_ino_and_lblk_bits,
-	.inline_crypt_enabled	= f2fs_inline_crypt_enabled,
-	.get_num_devices	= f2fs_get_num_devices,
-	.get_devices		= f2fs_get_devices,
+	.key_prefix	= "f2fs:",
+	.get_context	= f2fs_get_context,
+	.set_context	= f2fs_set_context,
+	.dummy_context	= f2fs_dummy_context,
+	.empty_dir	= f2fs_empty_dir,
+	.max_namelen	= F2FS_NAME_LEN,
 };
 #endif
 
@@ -3325,10 +3284,16 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
 static int f2fs_setup_casefold(struct f2fs_sb_info *sbi)
 {
 #ifdef CONFIG_UNICODE
-	if (f2fs_sb_has_casefold(sbi) && !sbi->sb->s_encoding) {
+	if (f2fs_sb_has_casefold(sbi) && !sbi->s_encoding) {
 		const struct f2fs_sb_encodings *encoding_info;
 		struct unicode_map *encoding;
 		__u16 encoding_flags;
+
+		if (f2fs_sb_has_encrypt(sbi)) {
+			f2fs_err(sbi,
+				"Can't mount with encoding and encryption");
+			return -EINVAL;
+		}
 
 		if (f2fs_sb_read_encoding(sbi->raw_super, &encoding_info,
 					  &encoding_flags)) {
@@ -3350,8 +3315,9 @@ static int f2fs_setup_casefold(struct f2fs_sb_info *sbi)
 			 "%s-%s with flags 0x%hx", encoding_info->name,
 			 encoding_info->version?:"\b", encoding_flags);
 
-		sbi->sb->s_encoding = encoding;
-		sbi->sb->s_encoding_flags = encoding_flags;
+		sbi->s_encoding = encoding;
+		sbi->s_encoding_flags = encoding_flags;
+		sbi->sb->s_d_op = &f2fs_dentry_ops;
 	}
 #else
 	if (f2fs_sb_has_casefold(sbi)) {
@@ -3834,7 +3800,7 @@ free_bio_info:
 		kvfree(sbi->write_io[i]);
 
 #ifdef CONFIG_UNICODE
-	utf8_unload(sb->s_encoding);
+	utf8_unload(sbi->s_encoding);
 #endif
 free_options:
 #ifdef CONFIG_QUOTA
@@ -3962,6 +3928,7 @@ static int __init init_f2fs_fs(void)
 	err = f2fs_init_bioset();
 	if (err)
 		goto free_bio_enrty_cache;
+
 	err = f2fs_init_compress_mempool();
 	if (err)
 		goto free_bioset;
