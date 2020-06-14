@@ -365,16 +365,10 @@ static int io_submit_init_bio(struct ext4_io_submit *io,
 			      struct buffer_head *bh)
 {
 	struct bio *bio;
-	int err;
 
 	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 	if (!bio)
 		return -ENOMEM;
-	err = fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
-	if (err) {
-		bio_put(bio);
-		return err;
-	}
 	wbc_init_bio(io->io_wbc, bio);
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio_set_dev(bio, bh->b_bdev);
@@ -392,11 +386,7 @@ static int io_submit_add_bh(struct ext4_io_submit *io,
 {
 	int ret;
 
-	if (io->io_bio && (bh->b_blocknr != io->io_next_block
-#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-			   || !fscrypt_mergeable_bio_bh(io->io_bio, bh)
-#endif
-)) {
+	if (io->io_bio && bh->b_blocknr != io->io_next_block) {
 submit_and_retry:
 		ext4_io_submit(io);
 	}
@@ -482,7 +472,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 
 	bh = head = page_buffers(page);
 
-	if (fscrypt_inode_uses_fs_layer_crypto(inode) && nr_to_submit) {
+	if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode) && nr_to_submit) {
 		gfp_t gfp_flags = GFP_NOFS;
 
 		/*
