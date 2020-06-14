@@ -266,8 +266,15 @@ static const struct mmc_fixup sdio_fixup_methods[] = {
 
 	SDIO_FIXUP(SDIO_VENDOR_ID_QCA9377, SDIO_DEVICE_ID_QCA9377,
 		add_quirk, MMC_QUIRK_QCA9377_SETTINGS),
+
+	SDIO_FIXUP(SDIO_VENDOR_ID_TI_WL1251, SDIO_DEVICE_ID_TI_WL1251,
+		   add_quirk, MMC_QUIRK_NONSTD_FUNC_IF),
+
+	SDIO_FIXUP(SDIO_VENDOR_ID_TI_WL1251, SDIO_DEVICE_ID_TI_WL1251,
+		   add_quirk, MMC_QUIRK_DISABLE_CD),
 	END_FIXUP
 };
+
 
 static inline void mmc_fixup_device(struct mmc_card *card,
 				    const struct mmc_fixup *table)

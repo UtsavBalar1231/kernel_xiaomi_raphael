@@ -16,16 +16,14 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <uapi/linux/fscrypt.h>
 
 #define FS_CRYPTO_BLOCK_SIZE		16
-
-struct fscrypt_ctx;
 
 /* iv sector for security/pfe/pfk_fscrypt.c and f2fs */
 #define PG_DUN(i, p)                                            \
 	(((((u64)(i)->i_ino) & 0xffffffff) << 32) | ((p)->index & 0xffffffff))
 
+struct fscrypt_ctx;
 struct fscrypt_info;
 
 struct fscrypt_str {
@@ -48,7 +46,7 @@ struct fscrypt_name {
 #define fname_len(p)		((p)->disk_name.len)
 
 /* Maximum value for the third parameter of fscrypt_operations.set_context(). */
-#define FSCRYPT_SET_CONTEXT_MAX_SIZE	40
+#define FSCRYPT_SET_CONTEXT_MAX_SIZE	28
 
 #ifdef CONFIG_FS_ENCRYPTION
 /*
@@ -141,25 +139,13 @@ extern void fscrypt_free_bounce_page(struct page *bounce_page);
 /* policy.c */
 extern int fscrypt_ioctl_set_policy(struct file *, const void __user *);
 extern int fscrypt_ioctl_get_policy(struct file *, void __user *);
-extern int fscrypt_ioctl_get_policy_ex(struct file *, void __user *);
 extern int fscrypt_has_permitted_context(struct inode *, struct inode *);
 extern int fscrypt_inherit_context(struct inode *, struct inode *,
 					void *, bool);
-/* keyring.c */
-extern void fscrypt_sb_free(struct super_block *sb);
-extern int fscrypt_ioctl_add_key(struct file *filp, void __user *arg);
-extern int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg);
-extern int fscrypt_ioctl_remove_key_all_users(struct file *filp,
-					      void __user *arg);
-extern int fscrypt_ioctl_get_key_status(struct file *filp, void __user *arg);
-extern int fscrypt_register_key_removal_notifier(struct notifier_block *nb);
-extern int fscrypt_unregister_key_removal_notifier(struct notifier_block *nb);
-
-/* keysetup.c */
+/* keyinfo.c */
 extern int fscrypt_get_encryption_info(struct inode *);
 extern void fscrypt_put_encryption_info(struct inode *);
 extern void fscrypt_free_inode(struct inode *);
-extern int fscrypt_drop_inode(struct inode *inode);
 
 /* fname.c */
 extern int fscrypt_setup_filename(struct inode *, const struct qstr *,
@@ -367,12 +353,6 @@ static inline int fscrypt_ioctl_get_policy(struct file *filp, void __user *arg)
 	return -EOPNOTSUPP;
 }
 
-static inline int fscrypt_ioctl_get_policy_ex(struct file *filp,
-					      void __user *arg)
-{
-	return -EOPNOTSUPP;
-}
-
 static inline int fscrypt_has_permitted_context(struct inode *parent,
 						struct inode *child)
 {
@@ -386,46 +366,7 @@ static inline int fscrypt_inherit_context(struct inode *parent,
 	return -EOPNOTSUPP;
 }
 
-/* keyring.c */
-static inline void fscrypt_sb_free(struct super_block *sb)
-{
-}
-
-static inline int fscrypt_ioctl_add_key(struct file *filp, void __user *arg)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int fscrypt_ioctl_remove_key_all_users(struct file *filp,
-						     void __user *arg)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int fscrypt_ioctl_get_key_status(struct file *filp,
-					       void __user *arg)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int fscrypt_register_key_removal_notifier(
-						struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int fscrypt_unregister_key_removal_notifier(
-						struct notifier_block *nb)
-{
-	return 0;
-}
-
-/* keysetup.c */
+/* keyinfo.c */
 static inline int fscrypt_get_encryption_info(struct inode *inode)
 {
 	return -EOPNOTSUPP;
@@ -438,11 +379,6 @@ static inline void fscrypt_put_encryption_info(struct inode *inode)
 
 static inline void fscrypt_free_inode(struct inode *inode)
 {
-}
-
-static inline int fscrypt_drop_inode(struct inode *inode)
-{
-	return 0;
 }
 
  /* fname.c */

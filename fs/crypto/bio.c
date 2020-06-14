@@ -36,15 +36,15 @@ static void __fscrypt_decrypt_bio(struct bio *bio, bool done)
 		if (fscrypt_using_hardware_encryption(page->mapping->host)) {
 			SetPageUptodate(page);
 		} else {
-			int ret = fscrypt_decrypt_pagecache_blocks(page,
-						bv->bv_len, bv->bv_offset);
+			int ret = fscrypt_decrypt_pagecache_blocks(page, bv->bv_len,
+								   bv->bv_offset);
 			if (ret)
 				SetPageError(page);
 			else if (done)
 				SetPageUptodate(page);
 		}
-		if (done)
-			unlock_page(page);
+			if (done)
+				unlock_page(page);
 	}
 }
 
@@ -100,6 +100,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 		bio_set_dev(bio, inode->i_sb->s_bdev);
 		bio->bi_iter.bi_sector = pblk << (blockbits - 9);
 		bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_NOENCRYPT);
+
 		ret = bio_add_page(bio, ciphertext_page, blocksize, 0);
 		if (WARN_ON(ret != blocksize)) {
 			/* should never happen! */
