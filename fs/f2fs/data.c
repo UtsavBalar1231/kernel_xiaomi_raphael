@@ -459,36 +459,6 @@ static struct bio *__bio_alloc(struct f2fs_io_info *fio, int npages)
 	return bio;
 }
 
-static int f2fs_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
-				  pgoff_t first_idx,
-				  const struct f2fs_io_info *fio,
-				  gfp_t gfp_mask)
-{
-	/*
-	 * The f2fs garbage collector sets ->encrypted_page when it wants to
-	 * read/write raw data without encryption.
-	 */
-	if (fio && fio->encrypted_page)
-		return 0;
-
-	return fscrypt_set_bio_crypt_ctx(bio, inode, first_idx, gfp_mask);
-}
-
-static bool f2fs_crypt_mergeable_bio(struct bio *bio, const struct inode *inode,
-				     pgoff_t next_idx,
-				     const struct f2fs_io_info *fio)
-{
-	/*
-	 * The f2fs garbage collector sets ->encrypted_page when it wants to
-	 * read/write raw data without encryption.
-	 */
-	if (fio && fio->encrypted_page)
-		return true;
-
-	return fscrypt_mergeable_bio(bio, inode, next_idx);
-}
-#endif
-
 static inline void __submit_bio(struct f2fs_sb_info *sbi,
 				struct bio *bio, enum page_type type)
 {
@@ -702,7 +672,6 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	struct bio *bio;
 	struct page *page = fio->encrypted_page ?
 			fio->encrypted_page : fio->page;
-	int err;
 
 	if (!f2fs_is_valid_blkaddr(fio->sbi, fio->new_blkaddr,
 			fio->is_por ? META_POR : (__is_meta_io(fio) ?
@@ -718,13 +687,6 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	if (f2fs_may_encrypt_bio(inode, fio))
 		fscrypt_set_ice_dun(inode, bio, PG_DUN(inode, fio->page));
 	fscrypt_set_ice_skip(bio, fio->encrypted_page ? 1 : 0);
-
-	err = f2fs_set_bio_crypt_ctx(bio, fio->page->mapping->host,
-				     fio->page->index, fio, GFP_NOIO);
-	if (err) {
-		bio_put(bio);
-		return err;
-	}
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
 		bio_put(bio);
@@ -928,11 +890,6 @@ int f2fs_merge_page_bio(struct f2fs_io_info *fio)
 
 	if (bio && (!page_is_mergeable(fio->sbi, bio, *fio->last_block,
 				       fio->new_blkaddr)
-#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-		    || !f2fs_crypt_mergeable_bio(bio, fio->page->mapping->host,
-					      fio->page->index, fio)
-#endif
-))
 		f2fs_submit_merged_ipu_write(fio->sbi, &bio, NULL);
 	/* ICE support */
 	if (bio && !fscrypt_mergeable_bio(bio, dun,
@@ -943,9 +900,6 @@ alloc_new:
 	if (!bio) {
 		bio = __bio_alloc(fio, BIO_MAX_PAGES);
 		__attach_io_flag(fio);
-		f2fs_set_bio_crypt_ctx(bio, fio->page->mapping->host,
-				       fio->page->index, fio,
-				       GFP_NOIO | __GFP_NOFAIL);
 		bio_set_op_attrs(bio, fio->op, fio->op_flags);
 		if (bio_encrypted)
 			fscrypt_set_ice_dun(inode, bio, dun);
@@ -1014,14 +968,8 @@ next:
 
 	inc_page_count(sbi, WB_DATA_TYPE(bio_page));
 
-	if (io->bio &&
-	    (!io_is_mergeable(sbi, io->bio, io, fio, io->last_block_in_bio,
-			      fio->new_blkaddr)
-#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-	     || !f2fs_crypt_mergeable_bio(io->bio, fio->page->mapping->host,
-				       fio->page->index, fio)
-#endif
-))
+	if (io->bio && !io_is_mergeable(sbi, io->bio, io, fio,
+			io->last_block_in_bio, fio->new_blkaddr))
 		__submit_merged_bio(io);
 
 	/* ICE support */
@@ -1042,9 +990,6 @@ alloc_new:
 			fscrypt_set_ice_dun(inode, io->bio, dun);
 		fscrypt_set_ice_skip(io->bio, bi_crypt_skip);
 
-		f2fs_set_bio_crypt_ctx(io->bio, fio->page->mapping->host,
-				       fio->page->index, fio,
-				       GFP_NOIO | __GFP_NOFAIL);
 		io->fio = *fio;
 	}
 
@@ -1084,19 +1029,11 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 	struct bio *bio;
 	struct bio_post_read_ctx *ctx;
 	unsigned int post_read_steps = 0;
-	int err;
 
 	bio = f2fs_bio_alloc(sbi, min_t(int, nr_pages, BIO_MAX_PAGES),
 								for_write);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
-
-	err = f2fs_set_bio_crypt_ctx(bio, inode, first_idx, NULL, GFP_NOFS);
-	if (err) {
-		bio_put(bio);
-		return ERR_PTR(err);
-	}
-
 	f2fs_target_device(sbi, blkaddr, bio);
 	bio->bi_end_io = f2fs_read_end_io;
 	bio_set_op_attrs(bio, REQ_OP_READ,
@@ -1106,7 +1043,6 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 
 	if (f2fs_encrypted_file(inode) &&
 		!fscrypt_using_hardware_encryption(inode))
-	if (fscrypt_inode_uses_fs_layer_crypto(inode))
 		post_read_steps |= 1 << STEP_DECRYPT;
 	if (f2fs_compressed_file(inode))
 		post_read_steps |= 1 << STEP_DECOMPRESS_NOWQ;
@@ -2188,12 +2124,8 @@ zero_out:
 	 * This page will go to BIO.  Do we need to send this
 	 * BIO off first?
 	 */
-	if (bio && (!page_is_mergeable(F2FS_I_SB(inode), bio,
-				       *last_block_in_bio, block_nr)
-#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-		    || !f2fs_crypt_mergeable_bio(bio, inode, page->index, NULL)
-#endif
-)) {
+	if (bio && !page_is_mergeable(F2FS_I_SB(inode), bio,
+				*last_block_in_bio, block_nr)) {
 submit_and_realloc:
 		__submit_bio(F2FS_I_SB(inode), bio, DATA);
 		bio = NULL;
@@ -2334,11 +2266,7 @@ int f2fs_read_multi_pages(struct compress_ctx *cc, struct bio **bio_ret,
 						dn.ofs_in_node + i + 1);
 
 		if (bio && !page_is_mergeable(sbi, bio,
-					*last_block_in_bio, blkaddr
-#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-		    || !f2fs_crypt_mergeable_bio(bio, inode, page->index, NULL)
-#endif
-)) {
+					*last_block_in_bio, blkaddr)) {
 submit_and_realloc:
 			__submit_bio(sbi, bio, DATA);
 			bio = NULL;
@@ -2564,9 +2492,6 @@ int f2fs_encrypt_one_page(struct f2fs_io_info *fio)
 	/* wait for GCed page writeback via META_MAPPING */
 	f2fs_wait_on_block_writeback(inode, fio->old_blkaddr);
 
-	if (fscrypt_inode_uses_inline_crypto(inode))
-		return 0;
-
 retry_encrypt:
 	if (fscrypt_using_hardware_encryption(inode))
 		return 0;
@@ -2743,7 +2668,7 @@ got_it:
 			f2fs_unlock_op(fio->sbi);
 		err = f2fs_inplace_write_data(fio);
 		if (err) {
-			if (fscrypt_inode_uses_fs_layer_crypto(inode))
+			if (f2fs_encrypted_file(inode))
 				fscrypt_finalize_bounce_page(&fio->encrypted_page);
 			if (PageWriteback(page))
 				end_page_writeback(page);
