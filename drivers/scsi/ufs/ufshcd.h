@@ -389,7 +389,6 @@ struct ufs_hba_variant_ops {
  * @crypto_get_req_status: Check if crypto driver still holds request or not
  */
 
-struct keyslot_mgmt_ll_ops;
 struct ufs_hba_crypto_variant_ops {
 	int	(*crypto_req_setup)(struct ufs_hba *, struct ufshcd_lrb *lrbp,
 				    u8 *cc_index, bool *enable, u64 *dun);
@@ -399,24 +398,6 @@ struct ufs_hba_crypto_variant_ops {
 	int	(*crypto_engine_reset)(struct ufs_hba *);
 	int	(*crypto_engine_get_status)(struct ufs_hba *, u32 *);
 	int     (*crypto_get_req_status)(struct ufs_hba *);
-	void (*setup_rq_keyslot_manager)(struct ufs_hba *hba,
-					 struct request_queue *q);
-	void (*destroy_rq_keyslot_manager)(struct ufs_hba *hba,
-					   struct request_queue *q);
-	int (*hba_init_crypto)(struct ufs_hba *hba,
-			       const struct keyslot_mgmt_ll_ops *ksm_ops);
-	void (*enable)(struct ufs_hba *hba);
-	void (*disable)(struct ufs_hba *hba);
-	int (*suspend)(struct ufs_hba *hba, enum ufs_pm_op pm_op);
-	int (*resume)(struct ufs_hba *hba, enum ufs_pm_op pm_op);
-	int (*debug)(struct ufs_hba *hba);
-	int (*prepare_lrbp_crypto)(struct ufs_hba *hba,
-				   struct scsi_cmnd *cmd,
-				   struct ufshcd_lrb *lrbp);
-	int (*complete_lrbp_crypto)(struct ufs_hba *hba,
-				    struct scsi_cmnd *cmd,
-				    struct ufshcd_lrb *lrbp);
-	void *priv;
 };
 
 /**
@@ -435,7 +416,6 @@ struct ufs_hba_variant {
 	struct device				*dev;
 	const char				*name;
 	struct ufs_hba_variant_ops		*vops;
-	struct ufs_hba_crypto_variant_ops	*crypto_vops;
 	struct ufs_hba_pm_qos_variant_ops	*pm_qos_vops;
 };
 
@@ -849,7 +829,6 @@ struct ufs_hba {
 	u32 ufs_version;
 	struct ufs_hba_variant *var;
 	void *priv;
-	const struct ufs_hba_crypto_variant_ops *crypto_vops;
 	size_t sg_entry_size;
 	unsigned int irq;
 	bool is_irq_enabled;
