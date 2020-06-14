@@ -149,8 +149,6 @@ extern void fscrypt_sb_free(struct super_block *sb);
 extern int fscrypt_ioctl_add_key(struct file *filp, void __user *arg);
 extern int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg);
 extern int fscrypt_ioctl_get_key_status(struct file *filp, void __user *arg);
-extern int fscrypt_register_key_removal_notifier(struct notifier_block *nb);
-extern int fscrypt_unregister_key_removal_notifier(struct notifier_block *nb);
 
 /* keysetup.c */
 extern int fscrypt_get_encryption_info(struct inode *);
@@ -402,18 +400,6 @@ static inline int fscrypt_ioctl_get_key_status(struct file *filp,
 					       void __user *arg)
 {
 	return -EOPNOTSUPP;
-}
-
-static inline int fscrypt_register_key_removal_notifier(
-						struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int fscrypt_unregister_key_removal_notifier(
-						struct notifier_block *nb)
-{
-	return 0;
 }
 
 /* keysetup.c */
