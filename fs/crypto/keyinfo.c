@@ -22,8 +22,8 @@
 static struct crypto_shash *essiv_hash_tfm;
 
 /* Table of keys referenced by DIRECT_KEY policies */
-static DEFINE_HASHTABLE(fscrypt_direct_keys, 6); /* 6 bits = 64 buckets */
-static DEFINE_SPINLOCK(fscrypt_direct_keys_lock);
+static DEFINE_HASHTABLE(fscrypt_master_keys, 6); /* 6 bits = 64 buckets */
+static DEFINE_SPINLOCK(fscrypt_master_keys_lock);
 
 /*
  * Key derivation function.  This generates the derived key by encrypting the
@@ -285,46 +285,46 @@ err_free_tfm:
 }
 
 /* Master key referenced by DIRECT_KEY policy */
-struct fscrypt_direct_key {
-	struct hlist_node		dk_node;
-	refcount_t			dk_refcount;
-	const struct fscrypt_mode	*dk_mode;
-	struct crypto_skcipher		*dk_ctfm;
-	u8				dk_descriptor[FSCRYPT_KEY_DESCRIPTOR_SIZE];
-	u8				dk_raw[FSCRYPT_MAX_KEY_SIZE];
+struct fscrypt_master_key {
+	struct hlist_node mk_node;
+	refcount_t mk_refcount;
+	const struct fscrypt_mode *mk_mode;
+	struct crypto_skcipher *mk_ctfm;
+	u8 mk_descriptor[FSCRYPT_KEY_DESCRIPTOR_SIZE];
+	u8 mk_raw[FSCRYPT_MAX_KEY_SIZE];
 };
 
-static void free_direct_key(struct fscrypt_direct_key *dk)
+static void free_master_key(struct fscrypt_master_key *mk)
 {
-	if (dk) {
-		crypto_free_skcipher(dk->dk_ctfm);
-		kzfree(dk);
+	if (mk) {
+		crypto_free_skcipher(mk->mk_ctfm);
+		kzfree(mk);
 	}
 }
 
-static void put_direct_key(struct fscrypt_direct_key *dk)
+static void put_master_key(struct fscrypt_master_key *mk)
 {
-	if (!refcount_dec_and_lock(&dk->dk_refcount, &fscrypt_direct_keys_lock))
+	if (!refcount_dec_and_lock(&mk->mk_refcount, &fscrypt_master_keys_lock))
 		return;
-	hash_del(&dk->dk_node);
-	spin_unlock(&fscrypt_direct_keys_lock);
+	hash_del(&mk->mk_node);
+	spin_unlock(&fscrypt_master_keys_lock);
 
-	free_direct_key(dk);
+	free_master_key(mk);
 }
 
 /*
- * Find/insert the given key into the fscrypt_direct_keys table.  If found, it
- * is returned with elevated refcount, and 'to_insert' is freed if non-NULL.  If
- * not found, 'to_insert' is inserted and returned if it's non-NULL; otherwise
- * NULL is returned.
+ * Find/insert the given master key into the fscrypt_master_keys table.  If
+ * found, it is returned with elevated refcount, and 'to_insert' is freed if
+ * non-NULL.  If not found, 'to_insert' is inserted and returned if it's
+ * non-NULL; otherwise NULL is returned.
  */
-static struct fscrypt_direct_key *
-find_or_insert_direct_key(struct fscrypt_direct_key *to_insert,
+static struct fscrypt_master_key *
+find_or_insert_master_key(struct fscrypt_master_key *to_insert,
 			  const u8 *raw_key, const struct fscrypt_mode *mode,
 			  const struct fscrypt_info *ci)
 {
 	unsigned long hash_key;
-	struct fscrypt_direct_key *dk;
+	struct fscrypt_master_key *mk;
 
 	/*
 	 * Careful: to avoid potentially leaking secret key bytes via timing
@@ -335,60 +335,60 @@ find_or_insert_direct_key(struct fscrypt_direct_key *to_insert,
 	BUILD_BUG_ON(sizeof(hash_key) > FSCRYPT_KEY_DESCRIPTOR_SIZE);
 	memcpy(&hash_key, ci->ci_master_key_descriptor, sizeof(hash_key));
 
-	spin_lock(&fscrypt_direct_keys_lock);
-	hash_for_each_possible(fscrypt_direct_keys, dk, dk_node, hash_key) {
-		if (memcmp(ci->ci_master_key_descriptor, dk->dk_descriptor,
+	spin_lock(&fscrypt_master_keys_lock);
+	hash_for_each_possible(fscrypt_master_keys, mk, mk_node, hash_key) {
+		if (memcmp(ci->ci_master_key_descriptor, mk->mk_descriptor,
 			   FSCRYPT_KEY_DESCRIPTOR_SIZE) != 0)
 			continue;
-		if (mode != dk->dk_mode)
+		if (mode != mk->mk_mode)
 			continue;
-		if (crypto_memneq(raw_key, dk->dk_raw, mode->keysize))
+		if (crypto_memneq(raw_key, mk->mk_raw, mode->keysize))
 			continue;
 		/* using existing tfm with same (descriptor, mode, raw_key) */
-		refcount_inc(&dk->dk_refcount);
-		spin_unlock(&fscrypt_direct_keys_lock);
-		free_direct_key(to_insert);
-		return dk;
+		refcount_inc(&mk->mk_refcount);
+		spin_unlock(&fscrypt_master_keys_lock);
+		free_master_key(to_insert);
+		return mk;
 	}
 	if (to_insert)
-		hash_add(fscrypt_direct_keys, &to_insert->dk_node, hash_key);
-	spin_unlock(&fscrypt_direct_keys_lock);
+		hash_add(fscrypt_master_keys, &to_insert->mk_node, hash_key);
+	spin_unlock(&fscrypt_master_keys_lock);
 	return to_insert;
 }
 
 /* Prepare to encrypt directly using the master key in the given mode */
-static struct fscrypt_direct_key *
-fscrypt_get_direct_key(const struct fscrypt_info *ci, struct fscrypt_mode *mode,
+static struct fscrypt_master_key *
+fscrypt_get_master_key(const struct fscrypt_info *ci, struct fscrypt_mode *mode,
 		       const u8 *raw_key, const struct inode *inode)
 {
-	struct fscrypt_direct_key *dk;
+	struct fscrypt_master_key *mk;
 	int err;
 
 	/* Is there already a tfm for this key? */
-	dk = find_or_insert_direct_key(NULL, raw_key, mode, ci);
-	if (dk)
-		return dk;
+	mk = find_or_insert_master_key(NULL, raw_key, mode, ci);
+	if (mk)
+		return mk;
 
 	/* Nope, allocate one. */
-	dk = kzalloc(sizeof(*dk), GFP_NOFS);
-	if (!dk)
+	mk = kzalloc(sizeof(*mk), GFP_NOFS);
+	if (!mk)
 		return ERR_PTR(-ENOMEM);
-	refcount_set(&dk->dk_refcount, 1);
-	dk->dk_mode = mode;
-	dk->dk_ctfm = allocate_skcipher_for_mode(mode, raw_key, inode);
-	if (IS_ERR(dk->dk_ctfm)) {
-		err = PTR_ERR(dk->dk_ctfm);
-		dk->dk_ctfm = NULL;
-		goto err_free_dk;
+	refcount_set(&mk->mk_refcount, 1);
+	mk->mk_mode = mode;
+	mk->mk_ctfm = allocate_skcipher_for_mode(mode, raw_key, inode);
+	if (IS_ERR(mk->mk_ctfm)) {
+		err = PTR_ERR(mk->mk_ctfm);
+		mk->mk_ctfm = NULL;
+		goto err_free_mk;
 	}
-	memcpy(dk->dk_descriptor, ci->ci_master_key_descriptor,
+	memcpy(mk->mk_descriptor, ci->ci_master_key_descriptor,
 	       FSCRYPT_KEY_DESCRIPTOR_SIZE);
-	memcpy(dk->dk_raw, raw_key, mode->keysize);
+	memcpy(mk->mk_raw, raw_key, mode->keysize);
 
-	return find_or_insert_direct_key(dk, raw_key, mode, ci);
+	return find_or_insert_master_key(mk, raw_key, mode, ci);
 
-err_free_dk:
-	free_direct_key(dk);
+err_free_mk:
+	free_master_key(mk);
 	return ERR_PTR(err);
 }
 
@@ -468,22 +468,22 @@ static int setup_crypto_transform(struct fscrypt_info *ci,
 				  struct fscrypt_mode *mode,
 				  const u8 *raw_key, const struct inode *inode)
 {
-	struct fscrypt_direct_key *dk;
+	struct fscrypt_master_key *mk;
 	struct crypto_skcipher *ctfm;
 	int err;
 
 	if (ci->ci_flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
-		dk = fscrypt_get_direct_key(ci, mode, raw_key, inode);
-		if (IS_ERR(dk))
-			return PTR_ERR(dk);
-		ctfm = dk->dk_ctfm;
+		mk = fscrypt_get_master_key(ci, mode, raw_key, inode);
+		if (IS_ERR(mk))
+			return PTR_ERR(mk);
+		ctfm = mk->mk_ctfm;
 	} else {
-		dk = NULL;
+		mk = NULL;
 		ctfm = allocate_skcipher_for_mode(mode, raw_key, inode);
 		if (IS_ERR(ctfm))
 			return PTR_ERR(ctfm);
 	}
-	ci->ci_direct_key = dk;
+	ci->ci_master_key = mk;
 	ci->ci_ctfm = ctfm;
 
 	if (mode->needs_essiv) {
@@ -507,8 +507,8 @@ static void put_crypt_info(struct fscrypt_info *ci)
 	if (!ci)
 		return;
 
-	if (ci->ci_direct_key) {
-		put_direct_key(ci->ci_direct_key);
+	if (ci->ci_master_key) {
+		put_master_key(ci->ci_master_key);
 	} else {
 		crypto_free_skcipher(ci->ci_ctfm);
 		crypto_free_cipher(ci->ci_essiv_tfm);
