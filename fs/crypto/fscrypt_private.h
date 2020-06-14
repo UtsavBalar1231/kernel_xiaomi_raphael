@@ -4,8 +4,9 @@
  *
  * Copyright (C) 2015, Google, Inc.
  *
- * Originally written by Michael Halcrow, Ildar Muslukhov, and Uday Savagaonkar.
- * Heavily modified since then.
+ * This contains encryption key functions.
+ *
+ * Written by Michael Halcrow, Ildar Muslukhov, and Uday Savagaonkar, 2015.
  */
 
 #ifndef _FSCRYPT_PRIVATE_H
@@ -173,11 +174,5 @@ struct fscrypt_mode {
 	bool logged_impl_name;
 	bool needs_essiv;
 };
-
-static inline bool
-fscrypt_mode_supports_direct_key(const struct fscrypt_mode *mode)
-{
-	return mode->ivsize >= offsetofend(union fscrypt_iv, nonce);
-}
 
 #endif /* _FSCRYPT_PRIVATE_H */
