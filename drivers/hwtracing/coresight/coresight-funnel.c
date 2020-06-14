@@ -308,7 +308,6 @@ static int funnel_probe(struct device *dev, struct resource *res)
 	}
 
 	pm_runtime_put(dev);
-	dev_info(drvdata->dev, "FUNNEL initialized\n");
 	ret = 0;
 
 out_disable_clk:

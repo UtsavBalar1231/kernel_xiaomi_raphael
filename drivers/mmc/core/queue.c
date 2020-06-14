@@ -27,6 +27,7 @@
 #include "queue.h"
 #include "block.h"
 #include "core.h"
+#include "crypto.h"
 #include "card.h"
 
 /*
@@ -36,7 +37,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 {
 	struct mmc_queue *mq = q->queuedata;
 
-	if (mq && (mmc_card_removed(mq->card) || mmc_access_rpmb(mq)))
+	if (mq && mmc_card_removed(mq->card))
 		return BLKPREP_KILL;
 
 	req->rq_flags |= RQF_DONTPREP;
@@ -494,6 +495,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		goto cleanup_queue;
 	}
 
+	mmc_crypto_setup_queue(host, mq->queue);
 	return 0;
 
  cleanup_queue:

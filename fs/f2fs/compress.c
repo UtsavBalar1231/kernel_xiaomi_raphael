@@ -990,7 +990,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 	loff_t psize;
 	int i, err;
 
-	if (!f2fs_trylock_op(sbi))
+	if (!IS_NOQUOTA(inode) && !f2fs_trylock_op(sbi))
 		return -EAGAIN;
 
 	set_new_dnode(&dn, cc->inode, NULL, NULL, 0);
@@ -1036,7 +1036,8 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 			err = f2fs_encrypt_one_page(&fio);
 			if (err)
 				goto out_destroy_crypt;
-			cc->cpages[i] = fio.encrypted_page;
+			if (fscrypt_inode_uses_fs_layer_crypto(inode))
+				cc->cpages[i] = fio.encrypted_page;
 		}
 	}
 
@@ -1075,7 +1076,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 
 		f2fs_bug_on(fio.sbi, blkaddr == NULL_ADDR);
 
-		if (fio.encrypted)
+		if (fio.encrypted && fscrypt_inode_uses_fs_layer_crypto(inode))
 			fio.encrypted_page = cc->cpages[i - 1];
 		else
 			fio.compressed_page = cc->cpages[i - 1];
@@ -1097,7 +1098,8 @@ unlock_continue:
 		set_inode_flag(inode, FI_FIRST_BLOCK_WRITTEN);
 
 	f2fs_put_dnode(&dn);
-	f2fs_unlock_op(sbi);
+	if (!IS_NOQUOTA(inode))
+		f2fs_unlock_op(sbi);
 
 	spin_lock(&fi->i_size_lock);
 	if (fi->last_disk_size < psize)
@@ -1123,7 +1125,8 @@ out_put_cic:
 out_put_dnode:
 	f2fs_put_dnode(&dn);
 out_unlock_op:
-	f2fs_unlock_op(sbi);
+	if (!IS_NOQUOTA(inode))
+		f2fs_unlock_op(sbi);
 	return -EAGAIN;
 }
 
