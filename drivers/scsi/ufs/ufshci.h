@@ -90,6 +90,7 @@ enum {
 	MASK_64_ADDRESSING_SUPPORT		= 0x01000000,
 	MASK_OUT_OF_ORDER_DATA_DELIVERY_SUPPORT	= 0x02000000,
 	MASK_UIC_DME_TEST_MODE_SUPPORT		= 0x04000000,
+	MASK_CRYPTO_SUPPORT			= 0x10000000,
 };
 
 /* UFS Version 08h */
@@ -146,6 +147,7 @@ enum {
 #define DEVICE_FATAL_ERROR			UFS_BIT(11)
 #define CONTROLLER_FATAL_ERROR			UFS_BIT(16)
 #define SYSTEM_BUS_FATAL_ERROR			UFS_BIT(17)
+#define CRYPTO_ENGINE_FATAL_ERROR		UFS_BIT(18)
 
 #define UFSHCD_UIC_PWR_MASK	(UIC_HIBERNATE_ENTER |\
 				UIC_HIBERNATE_EXIT |\
@@ -156,11 +158,13 @@ enum {
 #define UFSHCD_ERROR_MASK	(UIC_ERROR | UIC_LINK_LOST |\
 				DEVICE_FATAL_ERROR |\
 				CONTROLLER_FATAL_ERROR |\
-				SYSTEM_BUS_FATAL_ERROR)
+				SYSTEM_BUS_FATAL_ERROR |\
+				CRYPTO_ENGINE_FATAL_ERROR)
 
 #define INT_FATAL_ERRORS	(DEVICE_FATAL_ERROR |\
 				CONTROLLER_FATAL_ERROR |\
-				SYSTEM_BUS_FATAL_ERROR)
+				SYSTEM_BUS_FATAL_ERROR |\
+				CRYPTO_ENGINE_FATAL_ERROR)
 
 /* HCS - Host Controller Status 30h */
 #define DEVICE_PRESENT				UFS_BIT(0)
@@ -383,6 +387,9 @@ enum {
 	OCS_PEER_COMM_FAILURE		= 0x5,
 	OCS_ABORTED			= 0x6,
 	OCS_FATAL_ERROR			= 0x7,
+	OCS_DEVICE_FATAL_ERROR		= 0x8,
+	OCS_INVALID_CRYPTO_CONFIG	= 0x9,
+	OCS_GENERAL_CRYPTO_ERROR	= 0xA,
 	OCS_INVALID_COMMAND_STATUS	= 0x0F,
 	MASK_OCS			= 0x0F,
 };
@@ -404,28 +411,21 @@ struct ufshcd_sg_entry {
 	__le32    upper_addr;
 	__le32    reserved;
 	__le32    size;
-	/*
-	 * followed by variant-specific fields if
-	 * hba->sg_entry_size != sizeof(struct ufshcd_sg_entry)
-	 */
 };
 
 /**
  * struct utp_transfer_cmd_desc - UFS Command Descriptor structure
  * @command_upiu: Command UPIU Frame address
  * @response_upiu: Response UPIU Frame address
- * @prd_table: Physical Region Descriptor: an array of SG_ALL struct
- *	ufshcd_sg_entry's.  Variant-specific fields may be present after each.
+ * @prd_table: Physical Region Descriptor
  */
 struct utp_transfer_cmd_desc {
 	u8 command_upiu[ALIGNED_UPIU_SIZE];
 	u8 response_upiu[ALIGNED_UPIU_SIZE];
-	u8 prd_table[];
+	struct ufshcd_sg_entry    prd_table[SG_ALL];
 };
 
 #define UTRD_CRYPTO_ENABLE	UFS_BIT(23)
-#define sizeof_utp_transfer_cmd_desc(hba)	\
-	(sizeof(struct utp_transfer_cmd_desc) + SG_ALL * (hba)->sg_entry_size)
 
 /**
  * struct request_desc_header - Descriptor Header common to both UTRD and UTMRD

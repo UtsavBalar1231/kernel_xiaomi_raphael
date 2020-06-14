@@ -1582,7 +1582,6 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 
 	if (host->disable_lpm)
 		hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
-
 }
 
 static void ufs_qcom_set_caps(struct ufs_hba *hba)

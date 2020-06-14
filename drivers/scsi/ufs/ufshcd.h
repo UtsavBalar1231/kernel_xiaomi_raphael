@@ -382,7 +382,6 @@ struct ufs_hba_variant_ops {
  * @crypto_engine_get_status: get errors status of the cryptographic engine
  * @crypto_get_req_status: Check if crypto driver still holds request or not
  */
-
 struct ufs_hba_crypto_variant_ops {
 	int	(*crypto_req_setup)(struct ufs_hba *, struct ufshcd_lrb *lrbp,
 				    u8 *cc_index, bool *enable, u64 *dun);
@@ -410,6 +409,7 @@ struct ufs_hba_variant {
 	struct device				*dev;
 	const char				*name;
 	struct ufs_hba_variant_ops		*vops;
+	struct ufs_hba_crypto_variant_ops	*crypto_vops;
 	struct ufs_hba_pm_qos_variant_ops	*pm_qos_vops;
 };
 
@@ -733,7 +733,6 @@ enum ufshcd_card_state {
  * @ufs_version: UFS Version to which controller complies
  * @var: pointer to variant specific data
  * @priv: pointer to variant specific private data
- * @sg_entry_size: size of struct ufshcd_sg_entry (may include variant fields)
  * @irq: Irq number of the controller
  * @active_uic_cmd: handle of active UIC command
  * @uic_cmd_mutex: mutex for uic command
@@ -753,7 +752,6 @@ enum ufshcd_card_state {
  * @uic_error: UFS interconnect layer error status
  * @saved_err: sticky error mask
  * @saved_uic_err: sticky UIC error mask
- * @silence_err_logs: flag to silence error logs
  * @dev_cmd: ufs device management command information
  * @last_dme_cmd_tstamp: time stamp of the last completed DME command
  * @auto_bkops_enabled: to track whether bkops is enabled in device
@@ -818,7 +816,6 @@ struct ufs_hba {
 	u32 ufs_version;
 	struct ufs_hba_variant *var;
 	void *priv;
-	size_t sg_entry_size;
 	unsigned int irq;
 	bool is_irq_enabled;
 	bool crash_on_err;
@@ -1052,7 +1049,6 @@ struct ufs_hba {
 	bool force_g4;
 	/* distinguish between resume and restore */
 	bool restore;
-
 };
 
 static inline void ufshcd_mark_shutdown_ongoing(struct ufs_hba *hba)
