@@ -163,7 +163,7 @@ extern bool fscrypt_fname_encrypted_size(const struct inode *inode,
 					 u32 orig_len, u32 max_len,
 					 u32 *encrypted_len_ret);
 
-/* keysetup.c */
+/* keyinfo.c */
 
 struct fscrypt_mode {
 	const char *friendly_name;
