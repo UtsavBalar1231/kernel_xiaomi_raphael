@@ -6,7 +6,6 @@ ccflags-y += -Ifs/f2fs
 fscrypto-y := crypto.o \
 	      fname.o \
 	      hooks.o \
-	      keyring.o \
 	      keysetup.o \
 	      fscrypt_ice.o \
 	      keysetup_v1.o \
