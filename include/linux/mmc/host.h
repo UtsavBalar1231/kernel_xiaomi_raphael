@@ -537,7 +537,6 @@ struct mmc_host {
 #define MMC_CAP2_SLEEP_AWAKE    (1 << 30)       /* Use Sleep/Awake (CMD5) */
 /* use max discard ignoring max_busy_timeout parameter */
 #define MMC_CAP2_MAX_DISCARD_SIZE       (1 << 31)
-#define MMC_CAP2_CRYPTO		(1 << 32)	/* Host supports inline encryption */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -665,9 +664,6 @@ struct mmc_host {
 	int			cqe_qdepth;
 	bool			cqe_enabled;
 	bool			cqe_on;
-#ifdef CONFIG_MMC_CRYPTO
-	struct keyslot_manager	*ksm;
-#endif /* CONFIG_MMC_CRYPTO */
 
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
 	struct {
