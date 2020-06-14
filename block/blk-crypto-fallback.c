@@ -192,8 +192,6 @@ static struct bio *blk_crypto_clone_bio(struct bio *bio_src)
 
 	bio_clone_blkcg_association(bio, bio_src);
 
-	bio_clone_skip_dm_default_key(bio, bio_src);
-
 	return bio;
 }
 
