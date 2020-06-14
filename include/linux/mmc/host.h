@@ -667,7 +667,6 @@ struct mmc_host {
 	bool			cqe_on;
 #ifdef CONFIG_MMC_CRYPTO
 	struct keyslot_manager	*ksm;
-	void *crypto_DO_NOT_USE[7];
 #endif /* CONFIG_MMC_CRYPTO */
 
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
