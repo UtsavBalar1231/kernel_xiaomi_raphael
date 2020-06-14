@@ -339,7 +339,6 @@ static void put_crypt_info(struct fscrypt_info *ci)
 			key_invalidate(key);
 		key_put(key);
 	}
-	memzero_explicit(ci, sizeof(*ci));
 	kmem_cache_free(fscrypt_info_cachep, ci);
 }
 
