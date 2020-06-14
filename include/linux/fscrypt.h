@@ -536,11 +536,6 @@ extern bool fscrypt_mergeable_bio(struct bio *bio, const struct inode *inode,
 extern bool fscrypt_mergeable_bio_bh(struct bio *bio,
 				     const struct buffer_head *next_bh);
 
-bool fscrypt_dio_supported(struct kiocb *iocb, struct iov_iter *iter);
-
-int fscrypt_limit_dio_pages(const struct inode *inode, loff_t pos,
-			    int nr_pages);
-
 #else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
 static inline bool fscrypt_inode_uses_inline_crypto(const struct inode *inode)
 {
@@ -576,19 +571,6 @@ static inline bool fscrypt_mergeable_bio_bh(struct bio *bio,
 }
 #endif
 
-static inline bool fscrypt_dio_supported(struct kiocb *iocb,
-					 struct iov_iter *iter)
-{
-	const struct inode *inode = file_inode(iocb->ki_filp);
-
-	return !fscrypt_needs_contents_encryption(inode);
-}
-
-static inline int fscrypt_limit_dio_pages(const struct inode *inode, loff_t pos,
-					  int nr_pages)
-{
-	return nr_pages;
-}
 #endif /* !CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
 
 #if IS_ENABLED(CONFIG_FS_ENCRYPTION) && IS_ENABLED(CONFIG_DM_INLINE_DEFAULT_KEY)
