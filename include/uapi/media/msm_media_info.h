@@ -1333,7 +1333,6 @@ invalid_input:
 static inline unsigned int VENUS_BUFFER_SIZE(
 	int color_fmt, int width, int height)
 {
-	const unsigned int extra_size = VENUS_EXTRADATA_SIZE(width, height);
 	unsigned int uv_alignment = 0, size = 0;
 	unsigned int y_plane, uv_plane, y_stride,
 		uv_stride, y_sclines, uv_sclines;
@@ -1375,7 +1374,7 @@ static inline unsigned int VENUS_BUFFER_SIZE(
 		size = MSM_MEDIA_ALIGN(size, 4096);
 		break;
 	case COLOR_FMT_NV12_UBWC:
-		/*y_sclines = VENUS_Y_SCANLINES(color_fmt, (height+1)>>1);
+		y_sclines = VENUS_Y_SCANLINES(color_fmt, (height+1)>>1);
 		y_ubwc_plane = MSM_MEDIA_ALIGN(y_stride * y_sclines, 4096);
 		uv_sclines = VENUS_UV_SCANLINES(color_fmt, (height+1)>>1);
 		uv_ubwc_plane = MSM_MEDIA_ALIGN(uv_stride * uv_sclines, 4096);
@@ -1393,7 +1392,7 @@ static inline unsigned int VENUS_BUFFER_SIZE(
 		size = (y_ubwc_plane + uv_ubwc_plane + y_meta_plane +
 			uv_meta_plane)*2;
 		size = MSM_MEDIA_ALIGN(size, 4096);
-		break;*/
+		break;
 	case COLOR_FMT_NV12_BPP10_UBWC:
 		y_ubwc_plane = MSM_MEDIA_ALIGN(y_stride * y_sclines, 4096);
 		uv_ubwc_plane = MSM_MEDIA_ALIGN(uv_stride * uv_sclines, 4096);
@@ -1407,8 +1406,7 @@ static inline unsigned int VENUS_BUFFER_SIZE(
 					uv_meta_scanlines, 4096);
 
 		size = y_ubwc_plane + uv_ubwc_plane + y_meta_plane +
-			uv_meta_plane + MSM_MEDIA_MAX(extra_size,
-			64 * y_stride);
+			uv_meta_plane;
 		size = MSM_MEDIA_ALIGN(size, 4096);
 		break;
 	case COLOR_FMT_P010_UBWC:
