@@ -630,7 +630,7 @@ out:
 	return ret;
 }
 
-void f2fs_decompress_pages(struct bio *bio, struct page *page, bool verity)
+void f2fs_decompress_pages(struct bio *bio, struct page *page)
 {
 	struct decompress_io_ctx *dic =
 			(struct decompress_io_ctx *)page_private(page);
@@ -693,14 +693,8 @@ destroy_decompress_ctx:
 	if (cops->destroy_decompress_ctx)
 		cops->destroy_decompress_ctx(dic);
 out_free_dic:
-	if (!verity)
-		f2fs_decompress_end_io(dic->rpages, dic->cluster_size,
-								ret, false);
-
 	trace_f2fs_decompress_pages_end(dic->inode, dic->cluster_idx,
 							dic->clen, ret);
-	if (!verity)
-		f2fs_free_dic(dic);
 }
 
 static bool is_page_in_cluster(struct compress_ctx *cc, pgoff_t index)
@@ -1441,7 +1435,7 @@ void f2fs_free_dic(struct decompress_io_ctx *dic)
 }
 
 void f2fs_decompress_end_io(struct page **rpages,
-			unsigned int cluster_size, bool err, bool verity)
+			unsigned int cluster_size, bool err)
 {
 	int i;
 
@@ -1454,10 +1448,9 @@ void f2fs_decompress_end_io(struct page **rpages,
 		if (err || PageError(rpage))
 			goto clear_uptodate;
 
-		if (!verity || fsverity_verify_page(rpage)) {
-			SetPageUptodate(rpage);
-			goto unlock;
-		}
+		SetPageUptodate(rpage);
+		goto unlock;
+
 clear_uptodate:
 		ClearPageUptodate(rpage);
 		ClearPageError(rpage);
