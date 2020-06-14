@@ -53,8 +53,6 @@ static inline void bio_crypt_advance(struct bio *bio, unsigned int bytes)
 	}
 }
 
-extern bool bio_crypt_swhandled(struct bio *bio);
-
 static inline bool bio_crypt_has_keyslot(struct bio *bio)
 {
 	return bio->bi_crypt_context->keyslot >= 0;
@@ -171,11 +169,6 @@ static inline void bio_crypt_set_ctx(struct bio *bio,
 				     u64 dun,
 				     unsigned int dun_bits,
 				     gfp_t gfp_mask) { }
-
-static inline bool bio_crypt_swhandled(struct bio *bio)
-{
-	return false;
-}
 
 static inline void bio_set_data_unit_num(struct bio *bio, u64 dun) { }
 
