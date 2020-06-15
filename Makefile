@@ -427,14 +427,6 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -pipe \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -std=gnu89
-ifeq ($(TARGET_BOARD_TYPE),auto)
-KBUILD_CFLAGS    += -DCONFIG_PLATFORM_AUTO
-endif
-
-ifeq ($(CONFIG_EARLY_INIT),true)
-KBUILD_CFLAGS    += -DCONFIG_EARLY_SERVICES
-endif
-
 KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=

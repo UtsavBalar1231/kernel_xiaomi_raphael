@@ -2345,8 +2345,6 @@ static void configure_usb_wakeup_interrupt(struct dwc3_msm *mdwc,
 	if (uirq && enable && !uirq->enable) {
 		dbg_event(0xFF, "PDC_IRQ_EN", uirq->irq);
 		dbg_event(0xFF, "PDC_IRQ_POL", polarity);
-		/* clear any pending interrupt */
-		irq_set_irqchip_state(uirq->irq, IRQCHIP_STATE_PENDING, 0);
 		irq_set_irq_type(uirq->irq, polarity);
 		enable_irq_wake(uirq->irq);
 		enable_irq(uirq->irq);
