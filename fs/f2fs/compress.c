@@ -18,11 +18,6 @@
 #include "node.h"
 #include <trace/events/f2fs.h>
 
-/* Some architectures don't have PAGE_KERNEL_RO */
-#ifndef PAGE_KERNEL_RO
-#define PAGE_KERNEL_RO PAGE_KERNEL
-#endif
-
 struct f2fs_compress_ops {
 	int (*init_compress_ctx)(struct compress_ctx *cc);
 	void (*destroy_compress_ctx)(struct compress_ctx *cc);
@@ -457,6 +452,31 @@ static const struct f2fs_compress_ops f2fs_zstd_ops = {
 };
 #endif
 
+#ifdef CONFIG_F2FS_FS_LZO
+#ifdef CONFIG_F2FS_FS_LZORLE
+static int lzorle_compress_pages(struct compress_ctx *cc)
+{
+	int ret;
+
+	ret = lzorle1x_1_compress(cc->rbuf, cc->rlen, cc->cbuf->cdata,
+					&cc->clen, cc->private);
+	if (ret != LZO_E_OK) {
+		printk_ratelimited("%sF2FS-fs (%s): lzo-rle compress failed, ret:%d\n",
+				KERN_ERR, F2FS_I_SB(cc->inode)->sb->s_id, ret);
+		return -EIO;
+	}
+	return 0;
+}
+
+static const struct f2fs_compress_ops f2fs_lzorle_ops = {
+	.init_compress_ctx	= lzo_init_compress_ctx,
+	.destroy_compress_ctx	= lzo_destroy_compress_ctx,
+	.compress_pages		= lzorle_compress_pages,
+	.decompress_pages	= lzo_decompress_pages,
+};
+#endif
+#endif
+
 static const struct f2fs_compress_ops *f2fs_cops[COMPRESS_MAX] = {
 #ifdef CONFIG_F2FS_FS_LZO
 	&f2fs_lzo_ops,
@@ -470,6 +490,11 @@ static const struct f2fs_compress_ops *f2fs_cops[COMPRESS_MAX] = {
 #endif
 #ifdef CONFIG_F2FS_FS_ZSTD
 	&f2fs_zstd_ops,
+#else
+	NULL,
+#endif
+#if defined(CONFIG_F2FS_FS_LZO) && defined(CONFIG_F2FS_FS_LZORLE)
+	&f2fs_lzorle_ops,
 #else
 	NULL,
 #endif
@@ -693,8 +718,12 @@ destroy_decompress_ctx:
 	if (cops->destroy_decompress_ctx)
 		cops->destroy_decompress_ctx(dic);
 out_free_dic:
+	f2fs_decompress_end_io(dic->rpages, dic->cluster_size, ret);
+
 	trace_f2fs_decompress_pages_end(dic->inode, dic->cluster_idx,
 							dic->clen, ret);
+
+	f2fs_free_dic(dic);
 }
 
 static bool is_page_in_cluster(struct compress_ctx *cc, pgoff_t index)
@@ -1445,16 +1474,12 @@ void f2fs_decompress_end_io(struct page **rpages,
 		if (!rpage)
 			continue;
 
-		if (err || PageError(rpage))
-			goto clear_uptodate;
-
-		SetPageUptodate(rpage);
-		goto unlock;
-
-clear_uptodate:
-		ClearPageUptodate(rpage);
-		ClearPageError(rpage);
-unlock:
+		if (err || PageError(rpage)) {
+			ClearPageUptodate(rpage);
+			ClearPageError(rpage);
+		} else {
+			SetPageError(rpage);
+		}
 		unlock_page(rpage);
 	}
 }
