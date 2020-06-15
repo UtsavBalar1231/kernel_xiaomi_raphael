@@ -1139,7 +1139,12 @@ static int f2fs_d_compare(const struct dentry *dentry, unsigned int len,
 	if (res >= 0)
 		return res;
 
-	return f2fs_ci_compare(inode, name, &qstr, false);
+	if (f2fs_has_strict_mode(sbi))
+		return -EINVAL;
+fallback:
+	if (len != name->len)
+		return 1;
+	return !!memcmp(str, name->name, len);
 }
 
 static int f2fs_d_hash(const struct dentry *dentry, struct qstr *str)

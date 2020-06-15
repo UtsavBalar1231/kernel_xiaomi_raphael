@@ -1145,7 +1145,6 @@ static void f2fs_umount_end(struct super_block *sb, int flags)
 	if ((flags & MNT_FORCE) || atomic_read(&sb->s_active) > 1) {
 		/* to write the latest kbytes_written */
 		if (!(sb->s_flags & MS_RDONLY)) {
-			struct f2fs_sb_info *sbi = F2FS_SB(sb);
 			struct cp_control cpc = {
 				.reason = CP_UMOUNT,
 			};
@@ -3919,13 +3918,11 @@ static int __init init_f2fs_fs(void)
 	err = f2fs_init_bioset();
 	if (err)
 		goto free_bio_enrty_cache;
+	f2fs_init_rapid_gc();
 
 	err = f2fs_init_compress_mempool();
 	if (err)
 		goto free_bioset;
-
-	f2fs_init_rapid_gc();
-
 	return 0;
 free_bioset:
 	f2fs_destroy_bioset();
@@ -3956,9 +3953,9 @@ fail:
 
 static void __exit exit_f2fs_fs(void)
 {
+	f2fs_destroy_rapid_gc();
 	f2fs_destroy_compress_mempool();
 	f2fs_destroy_bioset();
-	f2fs_destroy_rapid_gc();
 	f2fs_destroy_bio_entry_cache();
 	f2fs_destroy_post_read_processing();
 	f2fs_destroy_root_stats();
