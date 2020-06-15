@@ -353,7 +353,7 @@ EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
  * Validate dentries in encrypted directories to make sure we aren't potentially
  * caching stale dentries after a key has been added.
  */
-int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *dir;
 	int err;
