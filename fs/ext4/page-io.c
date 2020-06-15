@@ -485,7 +485,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	retry_encrypt:
 		if (!fscrypt_using_hardware_encryption(inode)) {
 			bounce_page = fscrypt_encrypt_pagecache_blocks(page, PAGE_SIZE,
-								       0, gfp_flags);
+							       0, gfp_flags);
 			if (IS_ERR(bounce_page)) {
 				ret = PTR_ERR(bounce_page);
 				if (ret == -ENOMEM &&
@@ -510,7 +510,8 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 			continue;
 		if (bounce_page)
 			io->io_flags |= EXT4_IO_ENCRYPTED;
-		ret = io_submit_add_bh(io, inode, bounce_page ?: page, bh);
+		ret = io_submit_add_bh(io, inode,
+				       bounce_page ?: page, bh);
 		if (ret) {
 			/*
 			 * We only get here on ENOMEM.  Not much else
