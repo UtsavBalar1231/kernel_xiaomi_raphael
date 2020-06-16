@@ -727,6 +727,7 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				}
 
 				dsi_display->panel->skip_dimmingon = STATE_DIM_RESTORE;
+				dsi_display->panel->fod_dimlayer_hbm_enabled = false;
 				pr_debug("HBM fod off\n");
 				sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "dimlayer_hbm_enabled");
 				pr_debug("notify hbm off to displayfeature\n");
@@ -738,7 +739,6 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 					sysfs_notify(&c_conn->bl_device->dev.kobj, NULL, "brightness_clone");
 				}
 			}
-			dsi_display->panel->fod_dimlayer_hbm_enabled = false;
 			mutex_unlock(&dsi_display->panel->panel_lock);
 			if (rc) {
 				pr_err("failed to send DSI_CMD_HBM_OFF cmds, rc=%d\n", rc);
@@ -758,6 +758,8 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				} else {
 					rc = dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_HBM_FOD_ON]);
 				}
+				dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
+				dsi_display->panel->fod_dimlayer_hbm_enabled = true;
 				pr_debug("HBM fod on\n");
 				sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "dimlayer_hbm_enabled");
 				pr_debug("notify hbm on to displayfeature\n");
@@ -773,8 +775,6 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 			pr_debug("fod set CRC OFF\n");
 			dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_CRC_OFF]);
 
-			dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
-			dsi_display->panel->fod_dimlayer_hbm_enabled = true;
 			mutex_unlock(&dsi_display->panel->panel_lock);
 			if (rc) {
 				pr_err("failed to send DSI_CMD_HBM_ON cmds, rc=%d\n", rc);
@@ -782,8 +782,8 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 			}
 		}
 	}
-	pr_debug("dim_layer_status:%d fod_dimlayer_hbm_enabled:%d\n", dim_layer_status, dsi_display->panel->fod_dimlayer_hbm_enabled);
-	return rc;
+	pr_debug("dim_layer_status:%d hbm_enabled:%d\n", dim_layer_status, dsi_display->panel->fod_dimlayer_hbm_enabled);
+	return 0;
 }
 
 int sde_connector_pre_kickoff(struct drm_connector *connector)
