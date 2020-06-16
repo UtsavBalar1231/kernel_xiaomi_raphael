@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,23 +10,5 @@
  * GNU General Public License for more details.
  */
 
-/dts-v1/;
-
-#include "sdmmagpiep.dtsi"
-
-/ {
-	model = "Qualcomm Technologies, Inc. SDMMAGPIEP SoC";
-	compatible = "qcom,sdmmagpiep";
-	qcom,pmic-name = "PM6150";
-	qcom,board-id = <0 0>;
-};
-
-&soc {
-	qcom,rmnet-ipa {
-		status = "disabled";
-	};
-};
-
-&ipa_hw {
-	status = "disabled";
-};
+#define CREATE_TRACE_POINTS
+#include "ipa_eth_trace.h"
