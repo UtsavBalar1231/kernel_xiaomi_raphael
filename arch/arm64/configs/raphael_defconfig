@@ -1620,7 +1620,7 @@ CONFIG_DUMMY=y
 # CONFIG_RMNET_IPLO is not set
 CONFIG_TUN=y
 # CONFIG_TUN_VNET_CROSS_LE is not set
-# CONFIG_VETH is not set
+CONFIG_VETH=y
 # CONFIG_NLMON is not set
 
 #
