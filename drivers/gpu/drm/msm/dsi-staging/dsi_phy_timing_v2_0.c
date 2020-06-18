@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,8 +14,7 @@
 #define pr_fmt(fmt) "dsi-phy-timing:" fmt
 #include "dsi_phy_timing_calc.h"
 
-void dsi_phy_hw_v2_0_get_default_phy_params(struct phy_clk_params *params,
-		bool is_cphy)
+void dsi_phy_hw_v2_0_get_default_phy_params(struct phy_clk_params *params)
 {
 	params->clk_prep_buf = 50;
 	params->clk_zero_buf = 2;
@@ -87,7 +86,7 @@ void dsi_phy_hw_v2_0_calc_hs_trail(struct phy_clk_params *clk_params,
 
 void dsi_phy_hw_v2_0_update_timing_params(
 	struct dsi_phy_per_lane_cfgs *timing,
-	struct phy_timing_desc *desc, bool is_cphy)
+	struct phy_timing_desc *desc)
 {
 	int i = 0;
 
