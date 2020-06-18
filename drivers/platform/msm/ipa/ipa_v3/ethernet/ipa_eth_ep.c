@@ -13,12 +13,15 @@
 #include <linux/if_vlan.h>
 
 #include "ipa_eth_i.h"
+#include "ipa_eth_trace.h"
 
 static void handle_ipa_receive(struct ipa_eth_channel *ch,
 			       unsigned long data)
 {
 	bool success = false;
 	struct sk_buff *skb = (struct sk_buff *) data;
+
+	trace_lan_rx_skb(ch, skb);
 
 	ch->exception_total++;
 
@@ -476,15 +479,11 @@ int ipa_eth_ep_register_upper_interface(
 	struct net_device *net_dev = upper_eth_dev->net_dev;
 	struct ipa_eth_device *eth_dev = upper_eth_dev->eth_dev;
 
+	if (upper_eth_dev->registered)
+		return 0;
+
 	ipa_eth_dev_log(eth_dev,
 		"Registering upper interface %s", net_dev->name);
-
-	if (upper_eth_dev->registered) {
-		ipa_eth_dev_log(eth_dev,
-			"Upper interface %s is already registered. Skipping.",
-			net_dev->name);
-		return 0;
-	}
 
 	rc = ipa_eth_ep_register_alt_interface(eth_dev, net_dev);
 	if (rc) {
@@ -505,15 +504,11 @@ int ipa_eth_ep_unregister_upper_interface(
 	struct net_device *net_dev = upper_eth_dev->net_dev;
 	struct ipa_eth_device *eth_dev = upper_eth_dev->eth_dev;
 
+	if (!upper_eth_dev->registered)
+		return 0;
+
 	ipa_eth_dev_log(eth_dev,
 		"Unegistering upper interface %s", net_dev->name);
-
-	if (!upper_eth_dev->registered) {
-		ipa_eth_dev_log(eth_dev,
-			"Upper interface %s is already unregistered. Skipping.",
-			net_dev->name);
-		return 0;
-	}
 
 	rc = ipa_eth_ep_deregister_alt_interface(eth_dev, net_dev);
 	if (rc) {

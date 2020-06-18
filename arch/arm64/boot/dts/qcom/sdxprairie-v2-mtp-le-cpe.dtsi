@@ -78,6 +78,7 @@
 
 &pcie_ep {
 	status = "ok";
+	qcom,pcie-perst-enum;
 };
 
 &mhi_device {
@@ -102,4 +103,8 @@
 	sound-tavil {
 		status = "disabled";
 	};
+};
+
+&mhi_device {
+	qcom,no-m0-timeout;
 };
