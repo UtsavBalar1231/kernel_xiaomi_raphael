@@ -1,4 +1,4 @@
-/* Copyright (c) 2020The Linux Foundation. All rights reserved.
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,13 +10,5 @@
  * GNU General Public License for more details.
  */
 
-/dts-v1/;
-
-#include "sa515m-v2-ttp.dtsi"
-
-/ {
-	model = "Qualcomm Technologies, Inc. SA515M TTP ";
-	compatible = "qcom,sa515m-ttp",
-		"qcom,sdxprairie","qcom,ttp";
-	qcom,board-id = <0x06010001 0x0>;
-};
+#define CREATE_TRACE_POINTS
+#include "ipa_eth_trace.h"
