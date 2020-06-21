@@ -214,8 +214,6 @@ And public attribution of xiaomi platforms(like F1 and so and)
 };
 
 &smb1390_charger {
-	/delete-property/ compatible;
-	compatible = "qcom,smb1390-charger-psy";
 	io-channels = <&pm8150b_vadc ADC_AMUX_THM2>;
 	io-channel-names = "cp_die_temp";
 	status = "ok";
