@@ -769,6 +769,12 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				pr_debug("notify hbm on to displayfeature\n");
 			}
 
+			if (dsi_display->panel->dc_enable) {
+				dsi_display->panel->dc_enable = false;
+				pr_debug("fod set CRC OFF\n");
+				dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_CRC_OFF]);
+			}
+
 			if (dsi_display->panel->fod_dimlayer_bl_block) {
 				dsi_display->panel->fod_dimlayer_bl_block = false;
 				pr_debug("the fod_dimlayer_bl_block state is [%d]\n", dsi_display->panel->fod_dimlayer_bl_block);
