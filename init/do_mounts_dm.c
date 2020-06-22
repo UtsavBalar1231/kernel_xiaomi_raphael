@@ -309,7 +309,7 @@ error:
  * You can assume the first device is /dev/dm-0, the next device is /dev/dm-1,
  * and so forth.
  */
-static int __init dm_setup(char *str)
+static int __maybe_unused __init dm_setup(char *str)
 {
 	struct dm_option opt;
 	unsigned long num_devices;
