@@ -760,9 +760,9 @@
 };
 
 &early_devices {
-	devices = <&ufs_phy_gdsc &clock_rpmh &clock_gcc &ad_hoc_bus &ufs_ice
-		&ufsphy_mem &ufshc_mem &apps_rsc &cmd_db &ldoa10 &ldoc5
-		&tlmm &ldoa5 &cxlvl &mxlvl &gfxlvl &bps_gdsc &ipe_0_gdsc
+	devices = <&qmp_aop &ufs_phy_gdsc &clock_rpmh &clock_gcc &ad_hoc_bus
+		&ufs_ice &ufsphy_mem &ufshc_mem &apps_rsc &cmd_db &ldoa10 &ldoc5
+		&tlmm &ldoa5 &mxlvl &cxlvl &gfxlvl &bps_gdsc &ipe_0_gdsc
 		&ipe_1_gdsc &ife_0_gdsc &ife_1_gdsc &titan_top_gdsc &mvsc_gdsc
 		&mvs0_gdsc &mvs1_gdsc &qupv3_se4_i2c &qupv3_se10_i2c
 		&qupv3_se15_i2c &qupv3_se20_i2c &qupv3_2 &qupv3_1 &qupv3_0
