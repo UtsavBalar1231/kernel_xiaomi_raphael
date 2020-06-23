@@ -476,6 +476,7 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 	struct dsi_display *dsi_display;
 	struct dsi_backlight_config *bl_config;
 	int rc = 0;
+	struct backlight_device *bl_dev;
 
 	if (!c_conn) {
 		SDE_ERROR("Invalid params sde_connector null\n");
@@ -490,11 +491,20 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 		return -EINVAL;
 	}
 
+	bl_dev = c_conn->bl_device;
+	if (!bl_dev) {
+		SDE_ERROR("Invalid params backlight_device null\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&bl_dev->update_lock);
+
 	bl_config = &dsi_display->panel->bl_config;
 
 	if (dsi_display->panel->bl_config.bl_update ==
 		BL_UPDATE_DELAY_UNTIL_FIRST_FRAME && !c_conn->allow_bl_update) {
 		c_conn->unset_bl_level = bl_config->bl_level;
+		mutex_unlock(&bl_dev->update_lock);
 		return 0;
 	}
 
@@ -518,6 +528,7 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 			dsi_display, bl_config->bl_level);
 	c_conn->unset_bl_level = 0;
 
+	mutex_unlock(&bl_dev->update_lock);
 	return rc;
 }
 
