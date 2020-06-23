@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.14.184 Kernel Configuration
+# Linux/arm64 4.14.185 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -186,6 +186,7 @@ CONFIG_RD_GZIP=y
 # CONFIG_RD_LZ4 is not set
 CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
 # CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
+# CONFIG_GCC_LTO is not set
 CONFIG_SYSCTL=y
 CONFIG_HAVE_UID16=y
 CONFIG_SYSCTL_EXCEPTION_TRACE=y
@@ -2316,7 +2317,6 @@ CONFIG_POWER_SUPPLY=y
 # CONFIG_CHARGER_SMB347 is not set
 # CONFIG_BATTERY_GAUGE_LTC2941 is not set
 # CONFIG_CHARGER_RT9455 is not set
-# CONFIG_CHARGER_NU1618 is not set
 
 #
 # Qualcomm Technologies, Inc. Charger and Fuel Gauge support
@@ -2326,7 +2326,6 @@ CONFIG_QPNP_FG_GEN4=y
 # CONFIG_QPNP_QG is not set
 # CONFIG_SMB1351_USB_CHARGER is not set
 # CONFIG_SMB1355_SLAVE_CHARGER is not set
-# CONFIG_IDT_P9220 is not set
 # CONFIG_QPNP_SMB2 is not set
 CONFIG_QPNP_SMB5=y
 # CONFIG_SMB138X_CHARGER is not set
