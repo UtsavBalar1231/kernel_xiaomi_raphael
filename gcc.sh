@@ -14,7 +14,8 @@ scripts/config --file ${OUT_DIR}/.config \
 	-d LTO_CLANG \
 	-d TOOLS_SUPPORT_RELR \
 	-d LD_LLD \
-	-d FORTIFY_SOURCE
+	-d FORTIFY_SOURCE \
+	-e GCC_LTO
 
 cd ${OUT_DIR}
 make O=${OUT_DIR} \
@@ -28,6 +29,9 @@ make ARCH=arm64 \
 	O=out \
 	CROSS_COMPILE="aarch64-elf-" \
 	CROSS_COMPILE_ARM32="arm-eabi-" \
+	AR="aarch64-elf-ar" \
+	OBJDUMP="aarch64-elf-objdump" \
+	STRIP="aarch64-elf-strip" \
 	-j4
 
 rm out/.version
