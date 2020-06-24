@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -421,7 +421,11 @@ static int geni_se_ssr_notify_block(struct notifier_block *n,
 				"SSR notification before power down\n");
 		break;
 	case SUBSYS_AFTER_POWERUP:
-		geni_se_ssc_qup_up(dev);
+		if (dev->ssr.probe_completed)
+			geni_se_ssc_qup_up(dev);
+		else
+			dev->ssr.probe_completed = true;
+
 		GENI_SE_DBG(dev->log_ctx, false, NULL,
 				"SSR notification after power up\n");
 		break;
@@ -1192,7 +1196,7 @@ int geni_se_resources_init(struct se_geni_rsc *rsc,
 
 	INIT_LIST_HEAD(&rsc->ab_list);
 	INIT_LIST_HEAD(&rsc->ib_list);
-	if (geni_se_dev->ssr.subsys_name) {
+	if (geni_se_dev->ssr.subsys_name && rsc->rsc_ssr.ssr_enable) {
 		INIT_LIST_HEAD(&rsc->rsc_ssr.active_list);
 		list_add(&rsc->rsc_ssr.active_list,
 				&geni_se_dev->ssr.active_list_head);
@@ -1681,6 +1685,16 @@ int geni_se_iommu_free_buf(struct device *wrapper_dev, dma_addr_t *iova,
 }
 EXPORT_SYMBOL(geni_se_iommu_free_buf);
 
+struct device *geni_get_iommu_dev(struct device *wrapper_dev)
+{
+	struct geni_se_device *geni_se_dev;
+
+	geni_se_dev = dev_get_drvdata(wrapper_dev);
+
+	return geni_se_dev->cb_dev;
+}
+EXPORT_SYMBOL(geni_get_iommu_dev);
+
 /**
  * geni_se_dump_dbg_regs() - Print relevant registers that capture most
  *			accurately the state of an SE.
@@ -1975,18 +1989,15 @@ static int geni_se_probe(struct platform_device *pdev)
 			"qcom,subsys-name", &geni_se_dev->ssr.subsys_name);
 	if (!ret) {
 		INIT_LIST_HEAD(&geni_se_dev->ssr.active_list_head);
+		geni_se_dev->ssr.probe_completed = false;
 		ret = geni_se_ssc_qup_ssr_reg(geni_se_dev);
 		if (ret) {
 			dev_err(dev, "Unable to register SSR notification\n");
 			return ret;
 		}
 
-		ret = sysfs_create_file(&geni_se_dev->dev->kobj,
+		sysfs_create_file(&geni_se_dev->dev->kobj,
 			 &dev_attr_ssc_qup_state.attr);
-		if (ret) {
-			dev_err(dev, "Unable to create sysfs file\n");
-			return ret;
-		}
 	}
 
 	device_enable_async_suspend(&pdev->dev);
