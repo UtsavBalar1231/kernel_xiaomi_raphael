@@ -368,14 +368,34 @@
 };
 
 &mhi_0 {
-	mhi,fw-name = "debug.mbn";
+	status = "disabled";
+};
+
+&mhi_1 {
+	status = "disabled";
 };
 
 &pcie0 {
 	status = "disabled";
 };
 
+&pcie_rc0 {
+	status = "disabled";
+};
+
+&pcie0_msi {
+	status = "disabled";
+};
+
 &pcie1 {
+	status = "disabled";
+};
+
+&pcie_rc1 {
+	status = "disabled";
+};
+
+&pcie1_msi {
 	status = "disabled";
 };
 
