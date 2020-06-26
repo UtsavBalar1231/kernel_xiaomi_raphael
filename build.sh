@@ -12,7 +12,8 @@ scripts/config --file ${OUT_DIR}/.config \
 	-d LTO \
 	-d LTO_CLANG \
 	-e TOOLS_SUPPORT_RELR \
-	-e LD_LLD
+	-e LD_LLD \
+	-e LLVM_POLLY
 
 cd ${OUT_DIR}
 make O=${OUT_DIR} \
