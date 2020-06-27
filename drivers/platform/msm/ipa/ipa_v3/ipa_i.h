@@ -70,6 +70,8 @@
 #define IPA_UC_WAII_MAX_SLEEP 1200
 #define IPA_HOLB_TMR_DIS 0x0
 #define IPA_HOLB_TMR_EN 0x1
+#define IPA_HOLB_TMR_VAL 65535
+#define IPA_HOLB_TMR_VAL_4_5 31
 /*
  * The transport descriptor size was changed to GSI_CHAN_RE_SIZE_16B, but
  * IPA users still use sps_iovec size as FIFO element size.
@@ -1838,6 +1840,7 @@ struct ipa3_app_clock_vote {
  * @app_vote: holds userspace application clock vote count
  * IPA context - holds all relevant info about IPA driver and its state
  * @coal_cmd_pyld: holds the coslescing close frame command payload
+ * @manual_fw_load: bool,if fw load is done manually
  */
 struct ipa3_context {
 	struct ipa3_char_device_context cdev;
@@ -2017,6 +2020,7 @@ struct ipa3_context {
 	struct mutex act_tbl_lock;
 	int uc_act_tbl_total;
 	int uc_act_tbl_next_index;
+	bool manual_fw_load;
 };
 
 struct ipa3_plat_drv_res {
@@ -2066,6 +2070,7 @@ struct ipa3_plat_drv_res {
 	u32 secure_debug_check_action;
 	bool ipa_mhi_proxy;
 	bool ipa_wan_skb_page;
+	bool manual_fw_load;
 };
 
 /**
@@ -2872,6 +2877,7 @@ int ipa3_query_intf(struct ipa_ioc_query_intf *lookup);
 int ipa3_query_intf_tx_props(struct ipa_ioc_query_intf_tx_props *tx);
 int ipa3_query_intf_rx_props(struct ipa_ioc_query_intf_rx_props *rx);
 int ipa3_query_intf_ext_props(struct ipa_ioc_query_intf_ext_props *ext);
+int ipa3_get_max_pdn(void);
 
 void wwan_cleanup(void);
 

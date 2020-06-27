@@ -30,8 +30,22 @@
 #include "stmmac_ptp.h"
 #include "dwmac-qcom-ipa-offload.h"
 
-static unsigned long tlmm_central_base_addr;
+static void __iomem *tlmm_central_base_addr;
 bool phy_intr_en;
+
+static struct ethqos_emac_por emac_por[] = {
+	{ .offset = RGMII_IO_MACRO_CONFIG,	.value = 0x0 },
+	{ .offset = SDCC_HC_REG_DLL_CONFIG,	.value = 0x0 },
+	{ .offset = SDCC_HC_REG_DDR_CONFIG,	.value = 0x0 },
+	{ .offset = SDCC_HC_REG_DLL_CONFIG2,	.value = 0x0 },
+	{ .offset = SDCC_USR_CTL,		.value = 0x0 },
+	{ .offset = RGMII_IO_MACRO_CONFIG2,	.value = 0x0},
+};
+
+static struct ethqos_emac_driver_data emac_por_data = {
+	.por = emac_por,
+	.num_por = ARRAY_SIZE(emac_por),
+};
 
 struct qcom_ethqos *pethqos;
 
@@ -40,9 +54,28 @@ static unsigned char dev_addr[ETH_ALEN] = {
 	0, 0x55, 0x7b, 0xb5, 0x7d, 0xf7};
 
 void *ipc_stmmac_log_ctxt;
+void *ipc_stmmac_log_ctxt_low;
+int stmmac_enable_ipc_low;
+#define MAX_PROC_SIZE 1024
+char tmp_buff[MAX_PROC_SIZE];
 static struct qmp_pkt pkt;
 static char qmp_buf[MAX_QMP_MSG_SIZE + 1] = {0};
 static struct ip_params pparams = {"", "", "", ""};
+
+static void qcom_ethqos_read_iomacro_por_values(struct qcom_ethqos *ethqos)
+{
+	int i;
+
+	ethqos->por = emac_por_data.por;
+	ethqos->num_por = emac_por_data.num_por;
+
+	/* Read to POR values and enable clk */
+	for (i = 0; i < ethqos->num_por; i++)
+		ethqos->por[i].value =
+			readl_relaxed(
+				ethqos->rgmii_base +
+				ethqos->por[i].offset);
+}
 
 static inline unsigned int dwmac_qcom_get_eth_type(unsigned char *buf)
 {
@@ -317,7 +350,7 @@ static int qcom_ethqos_add_ipaddr(struct ip_params *ip_info,
 	struct net *net = dev_net(dev);
 
 	if (!net || !net->genl_sock || !net->genl_sock->sk_socket) {
-		ETHQOSINFO("Sock is null, unable to assign ipv4 address\n");
+		ETHQOSERR("Sock is null, unable to assign ipv4 address\n");
 		return res;
 	}
 	/*For valid Ipv4 address*/
@@ -858,6 +891,7 @@ static int ethqos_configure(struct qcom_ethqos *ethqos)
 			dll_lock = rgmii_readl(ethqos, SDC4_STATUS);
 			if (dll_lock & SDC4_STATUS_DLL_LOCK)
 				break;
+			retry--;
 		} while (retry > 0);
 		if (!retry)
 			dev_err(&ethqos->pdev->dev,
@@ -967,6 +1001,8 @@ static void ethqos_handle_phy_interrupt(struct qcom_ethqos *ethqos)
 			phy_mac_interrupt(dev->phydev, LINK_DOWN);
 		} else if (!(phy_intr_status & AUTONEG_STATE_MASK)) {
 			ETHQOSDBG("Intr for link down with auto-neg err\n");
+		} else if (phy_intr_status & PHY_WOL) {
+			ETHQOSDBG("Interrupt received for WoL packet\n");
 		}
 	} else {
 		phy_intr_status =
@@ -1038,7 +1074,7 @@ static void ethqos_pps_irq_config(struct qcom_ethqos *ethqos)
 }
 
 static const struct of_device_id qcom_ethqos_match[] = {
-	{ .compatible = "qcom,sdxprairie-ethqos", .data = &emac_v2_3_2_por},
+	{ .compatible = "qcom,sdxprairie-ethqos",},
 	{ .compatible = "qcom,emac-smmu-embedded", },
 	{ .compatible = "qcom,stmmac-ethqos", },
 	{}
@@ -1172,10 +1208,55 @@ static const struct file_operations fops_rgmii_reg_dump = {
 	.llseek = default_llseek,
 };
 
+static ssize_t write_ipc_stmmac_log_ctxt_low(struct file *file,
+					     const char __user *buf,
+					     size_t count, loff_t *data)
+{
+	int tmp = 0;
+
+	if (count > MAX_PROC_SIZE)
+		count = MAX_PROC_SIZE;
+	if (copy_from_user(tmp_buff, buf, count))
+		return -EFAULT;
+	if (sscanf(tmp_buff, "%du", &tmp) < 0) {
+		pr_err("sscanf failed\n");
+	} else {
+		if (tmp) {
+			if (!ipc_stmmac_log_ctxt_low) {
+				ipc_stmmac_log_ctxt_low =
+				ipc_log_context_create(IPCLOG_STATE_PAGES,
+						       "stmmac_low", 0);
+			}
+			if (!ipc_stmmac_log_ctxt_low) {
+				pr_err("failed to create ipc stmmac low context\n");
+				return -EFAULT;
+			}
+		} else {
+			if (ipc_stmmac_log_ctxt_low) {
+				ipc_log_context_destroy(
+							ipc_stmmac_log_ctxt_low
+						       );
+		}
+			ipc_stmmac_log_ctxt_low = NULL;
+		}
+	}
+
+	stmmac_enable_ipc_low = tmp;
+	return count;
+}
+
+static const struct file_operations fops_ipc_stmmac_log_low = {
+	.write = write_ipc_stmmac_log_ctxt_low,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 {
 	static struct dentry *phy_reg_dump;
 	static struct dentry *rgmii_reg_dump;
+	static struct dentry *ipc_stmmac_log_low;
 
 	if (!ethqos) {
 		ETHQOSERR("Null Param %s\n", __func__);
@@ -1204,6 +1285,16 @@ static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 		ETHQOSERR("Can't create rgmii_dump %d\n", (int)rgmii_reg_dump);
 		goto fail;
 	}
+
+	ipc_stmmac_log_low = debugfs_create_file("ipc_stmmac_log_low", 0220,
+						 ethqos->debugfs_dir, ethqos,
+						 &fops_ipc_stmmac_log_low);
+	if (!ipc_stmmac_log_low || IS_ERR(ipc_stmmac_log_low)) {
+		ETHQOSERR("Cannot create debugfs ipc_stmmac_log_low %d\n",
+			  (int)ipc_stmmac_log_low);
+		goto fail;
+	}
+
 	return 0;
 
 fail:
@@ -1346,7 +1437,7 @@ static int ethqos_update_rgmii_tx_drv_strength(struct qcom_ethqos *ethqos)
 	    ethqos->pdev, IORESOURCE_MEM, "tlmm-central-base");
 
 	if (!resource) {
-		ETHQOSINFO("Resource tlmm-central-base not found\n");
+		ETHQOSERR("Resource tlmm-central-base not found\n");
 		goto err_out;
 	}
 
@@ -1355,9 +1446,9 @@ static int ethqos_update_rgmii_tx_drv_strength(struct qcom_ethqos *ethqos)
 	ETHQOSDBG("tlmm_central_base = 0x%x, size = 0x%x\n",
 		  tlmm_central_base, tlmm_central_size);
 
-	tlmm_central_base_addr = (unsigned long)ioremap(
+	tlmm_central_base_addr = ioremap(
 	   tlmm_central_base, tlmm_central_size);
-	if ((void __iomem *)!tlmm_central_base_addr) {
+	if (!tlmm_central_base_addr) {
 		ETHQOSERR("cannot map dwc_tlmm_central reg memory, aborting\n");
 		ret = -EIO;
 		goto err_out;
@@ -1397,13 +1488,15 @@ static int ethqos_update_rgmii_tx_drv_strength(struct qcom_ethqos *ethqos)
 
 err_out:
 	if (tlmm_central_base_addr)
-		iounmap((void __iomem *)tlmm_central_base_addr);
+		iounmap(tlmm_central_base_addr);
 
 	return ret;
 }
 
 static void qcom_ethqos_phy_suspend_clks(struct qcom_ethqos *ethqos)
 {
+	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
+
 	ETHQOSINFO("Enter\n");
 
 	if (phy_intr_en)
@@ -1412,6 +1505,18 @@ static void qcom_ethqos_phy_suspend_clks(struct qcom_ethqos *ethqos)
 	ethqos->clks_suspended = 1;
 
 	ethqos_update_rgmii_clk_and_bus_cfg(ethqos, 0);
+
+	if (priv->plat->stmmac_clk)
+		clk_disable_unprepare(priv->plat->stmmac_clk);
+
+	if (priv->plat->pclk)
+		clk_disable_unprepare(priv->plat->pclk);
+
+	if (priv->plat->clk_ptp_ref)
+		clk_disable_unprepare(priv->plat->clk_ptp_ref);
+
+	if (ethqos->rgmii_clk)
+		clk_disable_unprepare(ethqos->rgmii_clk);
 
 	ETHQOSINFO("Exit\n");
 }
@@ -1433,12 +1538,27 @@ inline bool qcom_ethqos_is_phy_link_up(struct qcom_ethqos *ethqos)
 	 */
 	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
 
-	return (priv->dev->phydev && priv->dev->phydev->link);
+	return ((priv->oldlink != -1) &&
+		(priv->dev->phydev && priv->dev->phydev->link));
 }
 
 static void qcom_ethqos_phy_resume_clks(struct qcom_ethqos *ethqos)
 {
+	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
+
 	ETHQOSINFO("Enter\n");
+
+	if (priv->plat->stmmac_clk)
+		clk_prepare_enable(priv->plat->stmmac_clk);
+
+	if (priv->plat->pclk)
+		clk_prepare_enable(priv->plat->pclk);
+
+	if (priv->plat->clk_ptp_ref)
+		clk_prepare_enable(priv->plat->clk_ptp_ref);
+
+	if (ethqos->rgmii_clk)
+		clk_prepare_enable(ethqos->rgmii_clk);
 
 	if (qcom_ethqos_is_phy_link_up(ethqos))
 		ethqos_update_rgmii_clk_and_bus_cfg(ethqos, ethqos->speed);
@@ -1499,11 +1619,11 @@ void qcom_ethqos_request_phy_wol(struct plat_stmmacenet_data *plat)
 
 		wol.supported = 0;
 		wol.wolopts = 0;
-		ETHQOSINFO("phydev addr: 0x%pK\n", priv->phydev);
+		ETHQOSDBG("phydev addr: %x\n", priv->phydev);
 		phy_ethtool_get_wol(priv->phydev, &wol);
 		ethqos->phy_wol_supported = wol.supported;
-		ETHQOSINFO("Get WoL[0x%x] in %s\n", wol.supported,
-			   priv->phydev->drv->name);
+		ETHQOSDBG("Get WoL[0x%x] in %s\n", wol.supported,
+			  priv->phydev->drv->name);
 
 	/* Try to enable supported Wake-on-LAN features in PHY*/
 		if (wol.supported) {
@@ -1518,9 +1638,9 @@ void qcom_ethqos_request_phy_wol(struct plat_stmmacenet_data *plat)
 				enable_irq_wake(ethqos->phy_intr);
 				device_set_wakeup_enable(&ethqos->pdev->dev, 1);
 
-				ETHQOSINFO("Enabled WoL[0x%x] in %s\n",
-					   wol.wolopts,
-					   priv->phydev->drv->name);
+				ETHQOSDBG("Enabled WoL[0x%x] in %s\n",
+					  wol.wolopts,
+					  priv->phydev->drv->name);
 			} else {
 				ETHQOSINFO("Disabled WoL[0x%x] in %s\n",
 					   wol.wolopts,
@@ -1538,7 +1658,7 @@ static void ethqos_is_ipv4_NW_stack_ready(struct work_struct *work)
 	struct net_device *ndev = NULL;
 	int ret;
 
-	ETHQOSINFO("\n");
+	ETHQOSDBG("Enter\n");
 	dwork = container_of(work, struct delayed_work, work);
 	ethqos = container_of(dwork, struct qcom_ethqos, ipv4_addr_assign_wq);
 
@@ -1568,7 +1688,7 @@ static void ethqos_is_ipv6_NW_stack_ready(struct work_struct *work)
 	struct net_device *ndev = NULL;
 	int ret;
 
-	ETHQOSINFO("\n");
+	ETHQOSDBG("Enter\n");
 	dwork = container_of(work, struct delayed_work, work);
 	ethqos = container_of(dwork, struct qcom_ethqos, ipv6_addr_assign_wq);
 
@@ -1637,6 +1757,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	struct stmmac_priv *priv;
 	int ret;
 
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "qcom,emac-smmu-embedded"))
+		return stmmac_emb_smmu_cb_probe(pdev);
+
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER
 	place_marker("M - Ethernet probe start");
 #endif
@@ -1646,11 +1770,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (!ipc_stmmac_log_ctxt)
 		ETHQOSERR("Error creating logging context for emac\n");
 	else
-		ETHQOSINFO("IPC logging has been enabled for emac\n");
-
-	if (of_device_is_compatible(pdev->dev.of_node,
-				    "qcom,emac-smmu-embedded"))
-		return stmmac_emb_smmu_cb_probe(pdev);
+		ETHQOSDBG("IPC logging has been enabled for emac\n");
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
 	if (ret)
 		return ret;
@@ -1679,8 +1799,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		ret = PTR_ERR(ethqos->rgmii_base);
 		goto err_mem;
 	}
-
-	ethqos->por = of_device_get_match_data(&pdev->dev);
 
 	ethqos->rgmii_clk = devm_clk_get(&pdev->dev, "rgmii");
 	if (!ethqos->rgmii_clk) {
@@ -1789,18 +1907,11 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	pethqos = ethqos;
 	ethqos_create_debugfs(ethqos);
 
+	qcom_ethqos_read_iomacro_por_values(ethqos);
+
 	ndev = dev_get_drvdata(&ethqos->pdev->dev);
 	priv = netdev_priv(ndev);
 
-	if (priv->phydev && priv->phydev->drv &&
-	    priv->phydev->drv->config_intr &&
-		!priv->phydev->drv->config_intr(priv->phydev)) {
-		qcom_ethqos_request_phy_wol(priv->plat);
-		priv->phydev->irq = PHY_IGNORE_INTERRUPT;
-		priv->phydev->interrupts =  PHY_INTERRUPT_ENABLED;
-	} else {
-		ETHQOSERR("config_phy_intr configuration failed");
-	}
 	if (ethqos->early_eth_enabled) {
 		/* Initialize work*/
 		INIT_WORK(&ethqos->early_eth,
@@ -1950,29 +2061,34 @@ static int __init qcom_ethqos_init_module(void)
 {
 	int ret = 0;
 
-	ETHQOSINFO("\n");
+	ETHQOSDBG("Enter\n");
 
 	ret = platform_driver_register(&qcom_ethqos_driver);
 	if (ret < 0) {
-		ETHQOSINFO("qcom-ethqos: Driver registration failed");
+		ETHQOSERR("qcom-ethqos: Driver registration failed");
 		return ret;
 	}
 
-	ETHQOSINFO("\n");
+	ETHQOSDBG("Exit\n");
 
 	return ret;
 }
 
 static void __exit qcom_ethqos_exit_module(void)
 {
-	ETHQOSINFO("\n");
+	ETHQOSDBG("Enter\n");
 
 	platform_driver_unregister(&qcom_ethqos_driver);
 
 	if (!ipc_stmmac_log_ctxt)
 		ipc_log_context_destroy(ipc_stmmac_log_ctxt);
 
-	ETHQOSINFO("\n");
+	if (!ipc_stmmac_log_ctxt_low)
+		ipc_log_context_destroy(ipc_stmmac_log_ctxt_low);
+
+	ipc_stmmac_log_ctxt = NULL;
+	ipc_stmmac_log_ctxt_low = NULL;
+	ETHQOSDBG("Exit\n");
 }
 
 /*!

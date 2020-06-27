@@ -24,20 +24,20 @@
 	qcom,msm-name = "SA8195P";
 	qcom,msm-id = <405 0x20000>;
 
-	reserved_memory: reserved-memory {
-
-		pmem_shared: pmem_shared_region@a0000000 {
-			reg = <0x0 0xa0000000 0x0 0x20000000>;
-			label = "pmem_shared_mem";
-		};
-	};
-
 	aliases {
 		sdhc2 = &sdhc_2; /* SDC2 SD Card slot */
 	};
 };
 
 &soc {
+	pdc: interrupt-controller@0xb220000{
+		compatible = "qcom,pdc-virt";
+		reg = <0xb220000 0x400>;
+		#interrupt-cells = <3>;
+		interrupt-controller;
+		qcom,pdc-pins = <7 519>, <8 520>, <9 521>, <10 522>, <11 523>;
+	};
+
 	clock_virt: qcom,virtio-gcc {
 		compatible = "virtio,mmio";
 		reg = <0x1c200000 0x1000>;
@@ -68,6 +68,18 @@
 
 		pcie_0_gdsc: pcie_0_gdsc {
 			regulator-name = "pcie_0_gdsc";
+		};
+
+		pcie_1_gdsc: pcie_1_gdsc {
+			regulator-name = "pcie_1_gdsc";
+		};
+
+		pcie_2_gdsc: pcie_2_gdsc {
+			regulator-name = "pcie_2_gdsc";
+		};
+
+		pcie_3_gdsc: pcie_3_gdsc {
+			regulator-name = "pcie_3_gdsc";
 		};
 
 		L2A: pm8195_1_l2: regulator-pm8195-1-l2 {
@@ -751,6 +763,66 @@
 			<1 618 0 300000>;  /* 75 MHz */
 		clocks = <&clock_virt GCC_PRNG_AHB_CLK>;
 		clock-names = "iface_clk";
+	};
+
+	tcsr_compute_signal_glb: syscon@0x1fd8000 {
+		compatible = "syscon";
+		reg = <0x1fd8000 0x1000>;
+	};
+
+	tcsr_compute_signal_sender0: syscon@0x1fd9000 {
+		compatible = "syscon";
+		reg = <0x1fd9000 0x1000>;
+	};
+
+	tcsr_compute_signal_sender1: syscon@0x1fdd000 {
+		compatible = "syscon";
+		reg = <0x1fdd000 0x1000>;
+	};
+
+	tcsr_compute_signal_receiver0: syscon@0x1fdb000 {
+		compatible = "syscon";
+		reg = <0x1fdb000 0x1000>;
+	};
+
+	tcsr_compute_signal_receiver1: syscon@0x1fdf000 {
+		compatible = "syscon";
+		reg = <0x1fdf000 0x1000>;
+	};
+
+	hgsl_tcsr_sender0: hgsl_tcsr_sender0 {
+		compatible = "qcom,hgsl-tcsr-sender";
+		syscon = <&tcsr_compute_signal_sender0>;
+		syscon-glb = <&tcsr_compute_signal_glb>;
+	};
+
+	hgsl_tcsr_sender1: hgsl_tcsr_sender1 {
+		compatible = "qcom,hgsl-tcsr-sender";
+		syscon = <&tcsr_compute_signal_sender1>;
+		syscon-glb = <&tcsr_compute_signal_glb>;
+	};
+
+	hgsl_tcsr_receiver0: hgsl_tcsr_receiver0 {
+		compatible = "qcom,hgsl-tcsr-receiver";
+		syscon = <&tcsr_compute_signal_receiver0>;
+		interrupts = <0 238 0>;
+	};
+
+	hgsl_tcsr_receiver1: hgsl_tcsr_receiver1 {
+		compatible = "qcom,hgsl-tcsr-receiver";
+		syscon = <&tcsr_compute_signal_receiver1>;
+		interrupts = <0 239 0>;
+	};
+
+	msm_gpu_hyp: qcom,hgsl@0x2c00000 {
+		compatible = "qcom,hgsl";
+		reg = <0x2c00000 0x8>, <0x2c8f000 0x4>;
+		reg-names = "hgsl_reg_hwinf", "hgsl_reg_gmucx";
+
+		qcom,glb-db-senders = <&hgsl_tcsr_sender0
+					&hgsl_tcsr_sender1>;
+		qcom,glb-db-receivers = <&hgsl_tcsr_receiver0
+					&hgsl_tcsr_receiver1>;
 	};
 };
 

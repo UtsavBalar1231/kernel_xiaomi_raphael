@@ -73,6 +73,7 @@ enum print_reason {
 #define MOISTURE_VOTER			"MOISTURE_VOTER"
 #define FG_ESR_VOTER			"FG_ESR_VOTER"
 #define FCC_STEPPER_VOTER		"FCC_STEPPER_VOTER"
+#define PD_NOT_SUPPORTED_VOTER		"PD_NOT_SUPPORTED_VOTER"
 
 #define VCONN_MAX_ATTEMPTS	3
 #define OTG_MAX_ATTEMPTS	3
@@ -246,6 +247,7 @@ struct smb_charger {
 	struct smb_iio		iio;
 	int			*debug_mask;
 	int			*try_sink_enabled;
+	int			*audio_headset_drp_wait_ms;
 	enum smb_mode		mode;
 	struct smb_chg_freq	chg_freq;
 	struct charger_param    chg_param;
@@ -355,6 +357,8 @@ struct smb_charger {
 	bool			otg_present;
 	bool			disable_stat_sw_override;
 	bool			fcc_stepper_enable;
+	bool			ufp_only_mode;
+	bool			is_audio_adapter;
 
 	/* workaround flag */
 	u32			wa_flags;
@@ -547,6 +551,7 @@ int smblib_set_prop_pr_swap_in_progress(struct smb_charger *chg,
 int smblib_stat_sw_override_cfg(struct smb_charger *chg, bool override);
 void smblib_usb_typec_change(struct smb_charger *chg);
 int smblib_toggle_stat(struct smb_charger *chg, int reset);
+int smblib_force_ufp(struct smb_charger *chg);
 
 int smblib_init(struct smb_charger *chg);
 int smblib_deinit(struct smb_charger *chg);

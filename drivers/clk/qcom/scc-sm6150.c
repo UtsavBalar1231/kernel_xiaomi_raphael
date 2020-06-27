@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -484,8 +484,6 @@ static struct clk_branch scc_qupv3_se5_clk = {
 };
 
 static struct clk_regmap *scc_sm6150_clocks[] = {
-	[SCC_PLL_OUT_AUX2] = &scc_pll_out_aux2.clkr,
-	[SCC_PLL_OUT_AUX] = &scc_pll_out_aux.clkr,
 	[SCC_MAIN_RCG_CLK_SRC] = &scc_main_rcg_clk_src.clkr,
 	[SCC_QUPV3_2XCORE_CLK] = &scc_qupv3_2xcore_clk.clkr,
 	[SCC_QUPV3_CORE_CLK] = &scc_qupv3_core_clk.clkr,
@@ -540,26 +538,10 @@ static const struct of_device_id scc_sm6150_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, scc_sm6150_match_table);
 
-static int scc_sa6150_resume(struct device *dev)
-{
-	struct regmap *regmap = dev_get_drvdata(dev);
-
-	clk_alpha_pll_configure(&scc_pll_out_aux2, regmap,
-			scc_pll_out_aux2.config);
-
-	return 0;
-}
-
-static const struct dev_pm_ops scc_sa6150_pm_ops = {
-	.restore_early = scc_sa6150_resume,
-};
-
 static void scc_sm6150_fixup_sa6155(struct platform_device *pdev)
 {
 	vdd_scc_cx.num_levels = VDD_NUM_SA6155;
 	vdd_scc_cx.cur_level = VDD_NUM_SA6155;
-
-	pdev->dev.driver->pm =  &scc_sa6150_pm_ops;
 }
 
 static int scc_sm6150_probe(struct platform_device *pdev)
