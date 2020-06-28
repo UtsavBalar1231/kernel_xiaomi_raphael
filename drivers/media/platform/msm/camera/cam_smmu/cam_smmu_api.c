@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/dma-buf.h>
 #include <asm/dma-iommu.h>
+#include <linux/dma-iommu.h>
 #include <linux/dma-direction.h>
 #include <linux/of_platform.h>
 #include <linux/iommu.h>
@@ -3254,6 +3255,8 @@ static int cam_smmu_setup_cb(struct cam_context_bank_info *cb,
 			rc = -ENODEV;
 			goto end;
 		}
+
+		iommu_dma_enable_best_fit_algo(dev);
 
 		iommu_cb_set.non_fatal_fault = smmu_fatal_flag;
 		if (iommu_domain_set_attr(cb->mapping->domain,

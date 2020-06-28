@@ -358,6 +358,23 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 }
 EXPORT_SYMBOL(iommu_dma_init_domain);
 
+/*
+ * Should be called prior to using dma-apis.
+ */
+int iommu_dma_enable_best_fit_algo(struct device *dev)
+{
+	struct iommu_domain *domain;
+	struct iova_domain *iovad;
+
+	domain = iommu_get_domain_for_dev(dev);
+	if (!domain || !domain->iova_cookie)
+		return -EINVAL;
+
+	iovad = &((struct iommu_dma_cookie *)domain->iova_cookie)->iovad;
+	iovad->best_fit = true;
+	return 0;
+}
+
 /**
  * dma_info_to_prot - Translate DMA API directions and attributes to IOMMU API
  *                    page flags.

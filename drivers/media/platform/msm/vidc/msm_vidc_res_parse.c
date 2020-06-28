@@ -12,6 +12,7 @@
  */
 
 #include <asm/dma-iommu.h>
+#include <linux/dma-iommu.h>
 #include <linux/iommu.h>
 #include <linux/of.h>
 #include <linux/slab.h>
@@ -1091,6 +1092,12 @@ static int msm_vidc_setup_context_bank(struct msm_vidc_platform_resources *res,
 		goto release_mapping;
 	}
 
+	/*
+	 * When memory is fragmented, below configuration increases the
+	 * possibility to get a mapping for buffer in the configured CB.
+	 */
+	if (!strcmp(cb->name, "venus_ns"))
+		iommu_dma_enable_best_fit_algo(cb->dev);
 	/*
 	 * configure device segment size and segment boundary to ensure
 	 * iommu mapping returns one mapping (which is required for partial

@@ -1321,7 +1321,8 @@ static int msm_vidc_decide_work_mode_ar50(struct msm_vidc_inst *inst)
 				V4L2_CID_MPEG_VIDEO_BITRATE_MODE);
 		if (rc_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR ||
 		    rc_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_MBR ||
-		    rc_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_MBR_VFR)
+		    rc_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_MBR_VFR ||
+		    rc_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CQ)
 			pdata.video_work_mode = VIDC_WORK_MODE_2;
 	} else {
 		return -EINVAL;

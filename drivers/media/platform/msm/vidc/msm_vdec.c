@@ -703,7 +703,7 @@ int msm_vdec_s_fmt(struct msm_vidc_inst *inst, struct v4l2_format *f)
 		if (inst->fmts[OUTPUT_PORT].fourcc == V4L2_PIX_FMT_VP9) {
 			if (msm_vidc_check_for_vp9d_overload(inst->core)) {
 				dprintk(VIDC_ERR, "VP9 Decode overload\n");
-				rc = -ENOTSUPP;
+				rc = -ENOMEM;
 				goto err_invalid_fmt;
 			}
 		}
