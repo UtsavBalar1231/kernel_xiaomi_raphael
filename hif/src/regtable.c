@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -126,6 +126,14 @@ void hif_target_register_tbl_attach(struct hif_softc *scn, u32 target_type)
 		break;
 #endif
 
+#if defined(QCN9000_HEADERS_DEF)
+	case TARGET_TYPE_QCN9000:
+		scn->targetdef = QCN9000_TARGETDEF;
+		scn->target_ce_def = QCN9000_CE_TARGETDEF;
+		HIF_TRACE("%s: TARGET_TYPE_QCN9000", __func__);
+		break;
+#endif
+
 #if defined(QCA6390_HEADERS_DEF)
 	case TARGET_TYPE_QCA6390:
 		scn->targetdef = QCA6390_TARGETdef;
@@ -134,6 +142,21 @@ void hif_target_register_tbl_attach(struct hif_softc *scn, u32 target_type)
 		break;
 #endif /* QCA6390_HEADERS_DEF */
 
+#if defined(QCA6490_HEADERS_DEF)
+	case TARGET_TYPE_QCA6490:
+		scn->targetdef = QCA6490_TARGETdef;
+		scn->target_ce_def = QCA6490_CE_TARGETdef;
+		HIF_TRACE("%s: TARGET_TYPE_QCA6490", __func__);
+		break;
+#endif /* QCA6490_HEADERS_DEF */
+
+#if defined(QCA6750_HEADERS_DEF)
+	case TARGET_TYPE_QCA6750:
+		scn->targetdef = QCA6750_TARGETdef;
+		scn->target_ce_def = QCA6750_CE_TARGETdef;
+		HIF_TRACE("%s: TARGET_TYPE_QCA6750", __func__);
+		break;
+#endif /* QCA6750_HEADERS_DEF */
 	default:
 		break;
 	}
@@ -222,6 +245,11 @@ void hif_register_tbl_attach(struct hif_softc *scn, u32 hif_type)
 		scn->hostdef = QCA6290_HOSTdef;
 		break;
 #endif
+#if defined(QCN9000_HEADERS_DEF)
+	case HIF_TYPE_QCN9000:
+		scn->hostdef = QCN9000_HOSTDEF;
+		break;
+#endif
 
 #if defined(QCA6390_HEADERS_DEF)
 	case HIF_TYPE_QCA6390:
@@ -230,6 +258,19 @@ void hif_register_tbl_attach(struct hif_softc *scn, u32 hif_type)
 		break;
 #endif /* QCA6390_HEADERS_DEF */
 
+#if defined(QCA6490_HEADERS_DEF)
+	case HIF_TYPE_QCA6490:
+		scn->hostdef = QCA6490_HOSTdef;
+		HIF_TRACE("%s: HIF_TYPE_QCA6490", __func__);
+		break;
+#endif /* QCA6490_HEADERS_DEF */
+
+#if defined(QCA6750_HEADERS_DEF)
+	case TARGET_TYPE_QCA6750:
+		scn->hostdef = QCA6750_HOSTdef;
+		HIF_TRACE("%s: TARGET_TYPE_QCA6750", __func__);
+			break;
+#endif /* QCA6750_HEADERS_DEF */
 	default:
 		break;
 	}

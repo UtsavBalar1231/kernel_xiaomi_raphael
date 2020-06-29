@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -97,7 +97,7 @@ struct dfs_emulate_bang_radar_test_cmd {
  * @vdev_id: Physical device identifier
  * @chan_freq: Channel number
  * @chan_width: Channel Width
- * @center_freq: Center Frequency channel number
+ * @center_freq: Center channel number
  * @ocac_status: off channel cac status
  */
 struct vdev_adfs_complete_status {
@@ -122,6 +122,7 @@ extern struct dfs_to_mlme global_dfs_to_mlme;
  * @dfs_ch_vhtop_ch_freq_seg2: Channel Center frequency2.
  */
 #ifdef DFS_COMPONENT_ENABLE
+#ifdef CONFIG_CHAN_NUM_API
 QDF_STATUS tgt_dfs_set_current_channel(struct wlan_objmgr_pdev *pdev,
 		uint16_t dfs_ch_freq,
 		uint64_t dfs_ch_flags,
@@ -129,6 +130,34 @@ QDF_STATUS tgt_dfs_set_current_channel(struct wlan_objmgr_pdev *pdev,
 		uint8_t dfs_ch_ieee,
 		uint8_t dfs_ch_vhtop_ch_freq_seg1,
 		uint8_t dfs_ch_vhtop_ch_freq_seg2);
+#endif
+
+/**
+ * tgt_dfs_set_current_channel_for_freq() - Fill dfs channel structure from
+ *                                          dfs_channel structure.
+ * @pdev: Pointer to DFS pdev object.
+ * @dfs_ch_freq: Frequency in Mhz.
+ * @dfs_ch_flags: Channel flags.
+ * @dfs_ch_flagext: Extended channel flags.
+ * @dfs_ch_ieee: IEEE channel number.
+ * @dfs_ch_vhtop_ch_freq_seg1: Channel Center frequency1.
+ * @dfs_ch_vhtop_ch_freq_seg2: Channel Center frequency2.
+ * @dfs_ch_mhz_freq_seg1:  Channel center frequency of primary segment in MHZ.
+ * @dfs_ch_mhz_freq_seg2:  Channel center frequency of secondary segment in MHZ
+ *                         applicable only for 80+80MHZ mode of operation.
+ */
+#ifdef CONFIG_CHAN_FREQ_API
+QDF_STATUS
+tgt_dfs_set_current_channel_for_freq(struct wlan_objmgr_pdev *pdev,
+				     uint16_t dfs_ch_freq,
+				     uint64_t dfs_ch_flags,
+				     uint16_t dfs_ch_flagext,
+				     uint8_t dfs_ch_ieee,
+				     uint8_t dfs_ch_vhtop_ch_freq_seg1,
+				     uint8_t dfs_ch_vhtop_ch_freq_seg2,
+				     uint16_t dfs_ch_mhz_freq_seg1,
+				     uint16_t dfs_ch_mhz_freq_seg2);
+#endif
 
 /**
  * tgt_dfs_radar_enable() - Enables the radar.
@@ -350,6 +379,7 @@ QDF_STATUS tgt_dfs_ocac_complete(struct wlan_objmgr_pdev *pdev,
  * wrapper function for  dfs_find_vht80_chan_for_precacdfs_cancel_cac_timer().
  * This function called from outside of dfs component.
  */
+#ifdef CONFIG_CHAN_NUM_API
 QDF_STATUS tgt_dfs_find_vht80_chan_for_precac(struct wlan_objmgr_pdev *pdev,
 		uint32_t chan_mode,
 		uint8_t ch_freq_seg1,
@@ -358,6 +388,32 @@ QDF_STATUS tgt_dfs_find_vht80_chan_for_precac(struct wlan_objmgr_pdev *pdev,
 		uint32_t *phy_mode,
 		bool *dfs_set_cfreq2,
 		bool *set_agile);
+#endif
+
+/**
+ * tgt_dfs_find_vht80_precac_chan_freq() - Find VHT80 channel for precac
+ * @pdev: Pointer to DFS pdev object.
+ * @chan_mode: Channel mode.
+ * @ch_freq_seg1_mhz: Segment1 channel freq in MHZ.
+ * @cfreq1: cfreq1.
+ * @cfreq2: cfreq2.
+ * @phy_mode: Precac phymode.
+ * @dfs_set_cfreq2: Precac cfreq2
+ * @set_agile: Agile mode flag.
+ *
+ * wrapper function for  dfs_find_vht80_chan_for_precac_for_freq().
+ */
+#ifdef CONFIG_CHAN_FREQ_API
+QDF_STATUS
+tgt_dfs_find_vht80_precac_chan_freq(struct wlan_objmgr_pdev *pdev,
+				    uint32_t chan_mode,
+				    uint16_t ch_freq_mhz_seg1,
+				    uint32_t *cfreq1,
+				    uint32_t *cfreq2,
+				    uint32_t *phy_mode,
+				    bool *dfs_set_cfreq2,
+				    bool *set_agile);
+#endif
 
 /**
  * tgt_dfs_cac_complete() - Process cac complete indication.
@@ -528,4 +584,97 @@ tgt_dfs_send_subchan_marking(struct wlan_objmgr_pdev *pdev, bool subchanmark)
 	return QDF_STATUS_SUCCESS;
 }
 #endif
+#ifdef QCA_SUPPORT_AGILE_DFS
+/**
+ * tgt_dfs_set_fw_adfs_support() - Set FW aDFS support in dfs object.
+ * @pdev: Pointer to pdev object.
+ * @fw_adfs_support_160: aDFS enabled when pdev is on 160/80P80MHz.
+ * @fw_adfs_support_non_160: aDFS enabled when pdev is on 20/40/80MHz.
+ *
+ * Return: void.
+ */
+void tgt_dfs_set_fw_adfs_support(struct wlan_objmgr_pdev *pdev,
+				 bool fw_adfs_support_160,
+				 bool fw_adfs_support_non_160);
+#else
+static inline
+void tgt_dfs_set_fw_adfs_support(struct wlan_objmgr_pdev *pdev,
+				 bool fw_adfs_support_160,
+				 bool fw_adfs_support_non_160)
+{
+}
+#endif
+
+/**
+ * tgt_dfs_init_tmp_psoc_nol() - Init temporary psoc NOL structure.
+ * @pdev: Pointer to pdev object.
+ * @num_radios: Number of radios in the psoc.
+ *
+ * Return: void.
+ */
+void tgt_dfs_init_tmp_psoc_nol(struct wlan_objmgr_pdev *pdev,
+			       uint8_t num_radios);
+
+/**
+ * tgt_dfs_deinit_tmp_psoc_nol() - De-init temporary psoc NOL structure.
+ * @pdev: Pointer to pdev object.
+ *
+ * Return: void.
+ */
+void tgt_dfs_deinit_tmp_psoc_nol(struct wlan_objmgr_pdev *pdev);
+
+/**
+ * tgt_dfs_save_dfs_nol_in_psoc() - Save NOL data of given pdev.
+ * @pdev: Pointer to pdev object.
+ * @pdev_id: The pdev ID which will have the NOL data.
+ * @low_5ghz_freq: The low 5GHz frequency value of the target pdev id.
+ * @high_5ghz_freq: The high 5GHz frequency value of the target pdev id.
+ *
+ * Based on the frequency of the NOL channel, copy it to the target pdev_id
+ * structure in psoc.
+ *
+ * Return: void.
+ */
+void tgt_dfs_save_dfs_nol_in_psoc(struct wlan_objmgr_pdev *pdev,
+				  uint8_t pdev_id,
+				  uint16_t low_5ghz_freq,
+				  uint16_t high_5ghz_freq);
+
+/**
+ * tgt_dfs_reinit_nol_from_psoc_copy() - Reinit saved NOL data to corresponding
+ * pdevs.
+ * @pdev: Pointer to pdev object.
+ * @pdev_id: pdev_id of the given pdev.
+ *
+ * Return: void.
+ */
+void tgt_dfs_reinit_nol_from_psoc_copy(struct wlan_objmgr_pdev *pdev,
+				       uint8_t pdev_id);
+
+/**
+ * tgt_dfs_reinit_precac_lists() - Reinit preCAC lists.
+ * @src_pdev: Source pdev object from which the preCAC list is copied.
+ * @dest_pdev: Destination pdev object to which the preCAC list is copied.
+ * @low_5g_freq: Low 5G frequency value of the destination DFS.
+ * @high_5g_freq: High 5G frequency value of the destination DFS.
+ *
+ * Copy all the preCAC list entries from the source pdev object to the
+ * destination pdev object which fall within the frequency range of
+ * low_5g_freq and high_5g_freq.
+ *
+ * Return: None (void).
+ */
+void tgt_dfs_reinit_precac_lists(struct wlan_objmgr_pdev *src_pdev,
+				 struct wlan_objmgr_pdev *dest_pdev,
+				 uint16_t low_5g_freq,
+				 uint16_t high_5g_freq);
+
+/**
+ * tgt_dfs_complete_deferred_tasks() - Process HW mode switch completion and
+ * handle deferred tasks.
+ * @pdev: Pointer to primary pdev object.
+ *
+ * Return: void.
+ */
+void tgt_dfs_complete_deferred_tasks(struct wlan_objmgr_pdev *pdev);
 #endif /* _WLAN_DFS_TGT_API_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016-2019 The Linux Foundation.  All rights reserved.
+ * Copyright (c) 2013, 2016-2020 The Linux Foundation.  All rights reserved.
  * Copyright (c) 2005-2006 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,16 +29,18 @@
 #include <qdf_lock.h>        /* qdf_spinlock */
 #include <qdf_time.h>
 #include <qdf_timer.h>
+#include <qdf_str.h>         /* qdf_str_lcopy */
 
 #include <wlan_dfs_ioctl.h>
 #include "dfs_structs.h"
 #include "dfs_channel.h"
 #include "dfs_ioctl_private.h"
 #include <i_qdf_types.h>     /* For qdf_packed*/
-#include <queue.h>           /* For STAILQ_ENTRY */
+#include "queue.h"           /* For STAILQ_ENTRY */
 #include <wlan_objmgr_psoc_obj.h>
 #include <wlan_objmgr_pdev_obj.h>
 #include <osdep.h>
+#include <wlan_cmn.h>
 
 /* File Line and Submodule String */
 #define FLSM(x, str)   #str " : " FL(x)
@@ -195,6 +197,12 @@
 #define WLAN_DFS_DATA_STRUCT_LOCK_DESTROY(_dfs) \
 	qdf_spinlock_destroy(&(_dfs)->dfs_data_struct_lock)
 
+/* Wrappers to call MLME radar during mode switch lock. */
+#define DFS_RADAR_MODE_SWITCH_LOCK(_dfs) \
+	dfs_mlme_acquire_radar_mode_switch_lock((_dfs)->dfs_pdev_obj)
+#define DFS_RADAR_MODE_SWITCH_UNLOCK(_dfs) \
+	dfs_mlme_release_radar_mode_switch_lock((_dfs)->dfs_pdev_obj)
+
 /* Mask for time stamp from descriptor */
 #define DFS_TSMASK    0xFFFFFFFF
 /* Shift for time stamp from descriptor */
@@ -319,14 +327,8 @@
 #define NUM_BINS 128
 #define THOUSAND 1000
 
-/* ETSI11_WORLD regdmn pair id */
-#define ETSI11_WORLD_REGDMN_PAIR_ID 0x26
-#define ETSI12_WORLD_REGDMN_PAIR_ID 0x28
-#define ETSI13_WORLD_REGDMN_PAIR_ID 0x27
-#define ETSI14_WORLD_REGDMN_PAIR_ID 0x29
-
 /* Array offset to ETSI legacy pulse */
-#define ETSI_LEGACY_PULSE_ARR_OFFSET 2
+#define ETSI_LEGACY_PULSE_ARR_OFFSET 4
 
 #define ETSI_RADAR_EN302_502_FREQ_LOWER 5725
 #define ETSI_RADAR_EN302_502_FREQ_UPPER 5865
@@ -400,6 +402,11 @@
  * in host. NOL timer can be configured by user. NOL in FW (for FO) is disabled.
  */
 #define USENOL_ENABLE_NOL_HOST_DISABLE_NOL_FW 2
+
+/* Non Agile detector IDs */
+#define DETECTOR_ID_0 0
+#define DETECTOR_ID_1 1
+/* Agile detector ID */
 #define AGILE_DETECTOR_ID 2
 
 /**
@@ -688,9 +695,14 @@ struct dfs_filtertype {
  * @dfs_ch_flags:               Channel flags.
  * @dfs_ch_flagext:             Extended channel flags.
  * @dfs_ch_ieee:                IEEE channel number.
- * @dfs_ch_vhtop_ch_freq_seg1:  Channel Center frequency.
- * @dfs_ch_vhtop_ch_freq_seg2:  Channel Center frequency applicable for 80+80MHz
- *                          mode of operation.
+ * @dfs_ch_vhtop_ch_freq_seg1:  IEEE Channel Center of primary segment
+ * @dfs_ch_vhtop_ch_freq_seg2:  IEEE Channel Center applicable for 80+80MHz
+ *                              mode of operation.
+ * @dfs_ch_mhz_freq_seg1:       Channel center frequency of primary segment in
+ *                              MHZ.
+ * @dfs_ch_mhz_freq_seg2:       Channel center frequency of secondary segment
+ *                              in MHZ applicable only for 80+80MHZ mode of
+ *                              operation.
  */
 struct dfs_channel {
 	uint16_t       dfs_ch_freq;
@@ -699,6 +711,8 @@ struct dfs_channel {
 	uint8_t        dfs_ch_ieee;
 	uint8_t        dfs_ch_vhtop_ch_freq_seg1;
 	uint8_t        dfs_ch_vhtop_ch_freq_seg2;
+	uint16_t       dfs_ch_mhz_freq_seg1;
+	uint16_t       dfs_ch_mhz_freq_seg2;
 };
 
 /**
@@ -890,6 +904,20 @@ struct dfs_event_log {
 #define FREQ_OFFSET_BOUNDARY_FOR_80MHZ 40
 
 /**
+ * struct dfs_mode_switch_defer_params - Parameters storing DFS information
+ * before defer, as part of HW mode switch.
+ *
+ * @radar_params: Deferred radar parameters.
+ * @is_cac_completed: Boolean representing CAC completion event.
+ * @is_radar_detected: Boolean representing radar event.
+ */
+struct dfs_mode_switch_defer_params {
+	struct radar_found_info *radar_params;
+	bool is_cac_completed;
+	bool is_radar_detected;
+};
+
+/**
  * struct wlan_dfs -                 The main dfs structure.
  * @dfs_debug_mask:                  Current debug bitmask.
  * @dfs_curchan_radindex:            Current channel radar index.
@@ -931,13 +959,22 @@ struct dfs_event_log {
  *                                   received.
  * @is_radar_during_precac:          Radar found during precac.
  * @dfs_precac_lock:                 Lock to protect precac lists.
- * @dfs_precac_enable:               Enable the precac.
  * @dfs_precac_secondary_freq:       Second segment freq for precac.
- * @dfs_precac_primary_freq:         Primary freq.
+ *                                   Applicable to only legacy chips.
+ * @dfs_precac_secondary_freq_mhz:   Second segment freq in MHZ for precac.
+ *                                   Applicable to only legacy chips.
+ * @dfs_precac_primary_freq:         PreCAC Primary freq applicable only to
+ *                                   legacy chips.
+ * @dfs_precac_primary_freq_mhz:     PreCAC Primary freq in MHZ applicable only
+ *                                   to legacy chips.
  * @dfs_defer_precac_channel_change: Defer precac channel change.
  * @dfs_precac_inter_chan:           Intermediate non-DFS channel used while
  *                                   doing precac.
+ * @dfs_precac_inter_chan_freq:      Intermediate non-DFS freq used while
+ *                                   doing precac.
  * @dfs_autoswitch_des_chan:         Desired channel which has to be used
+ *                                   after precac.
+ * @dfs_autoswitch_des_chan_freq:    Desired freq which has to be used
  *                                   after precac.
  * @dfs_autoswitch_des_mode:         Desired PHY mode which has to be used
  *                                   after precac.
@@ -979,13 +1016,14 @@ struct dfs_event_log {
  *                                   not be re-done.
  * @dfs_precac_timeout_override:     Overridden precac timeout.
  * @dfs_num_precac_freqs:            Number of PreCAC VHT80 frequencies.
- * @dfs_precac_required_list:        PreCAC required list.
- * @dfs_precac_done_list:            PreCAC done list.
- * @dfs_precac_nol_list:             PreCAC NOL List.
+ * @dfs_precac_list:                 PreCAC list (contains individual trees).
+ * @dfs_precac_chwidth:              PreCAC channel width enum.
  * @dfs_curchan:                     DFS current channel.
+ * @dfs_prevchan:                    DFS previous channel.
  * @dfs_cac_started_chan:            CAC started channel.
  * @dfs_pdev_obj:                    DFS pdev object.
  * @dfs_is_offload_enabled:          Set if DFS offload enabled.
+ * @dfs_agile_precac_freq_mhz:       Freq in MHZ configured on Agile DFS engine.
  * @dfs_use_nol:                     Use the NOL when radar found(default: TRUE)
  * @dfs_nol_lock:                    Lock to protect nol list.
  * @tx_leakage_threshold:            Tx leakage threshold for dfs.
@@ -1031,8 +1069,21 @@ struct dfs_event_log {
  * @dfs_nol_ie_bitmap:               The bitmap of radar affected subchannels
  *                                   in the current channel list
  *                                   to be sent in NOL IE with RCSA.
- * @dfs_is_rcsa_ie_sent              To send or to not send RCSA IE.
- * @dfs_is_nol_ie_sent               To send or to not send NOL IE.
+ * @dfs_is_rcsa_ie_sent:             To send or to not send RCSA IE.
+ * @dfs_is_nol_ie_sent:              To send or to not send NOL IE.
+ * @dfs_legacy_precac_ucfg:          User configuration for legacy preCAC in
+ *                                   partial offload chipsets.
+ * @dfs_agile_precac_ucfg:           User configuration for agile preCAC.
+ * @dfs_fw_adfs_support_non_160:     Target Agile DFS support for non-160 BWs.
+ * @dfs_fw_adfs_support_160:         Target Agile DFS support for 160 BW.
+ * @dfs_allow_hw_pulses:             Allow/Block HW pulses. When synthetic
+ *                                   pulses are injected, the HW pulses should
+ *                                   be blocked and this variable should be
+ *                                   false so that HW pulses and synthetic
+ *                                   pulses do not get mixed up.
+ *                                   defer timer running.
+ * @dfs_defer_params:                DFS deferred event parameters (allocated
+ *                                   only for the duration of defer alone).
  */
 struct wlan_dfs {
 	uint32_t       dfs_debug_mask;
@@ -1079,13 +1130,27 @@ struct wlan_dfs {
 	bool           is_radar_during_precac;
 	qdf_spinlock_t dfs_precac_lock;
 	bool           dfs_precac_enable;
+#ifdef CONFIG_CHAN_NUM_API
 	uint8_t        dfs_precac_secondary_freq;
 	uint8_t        dfs_precac_primary_freq;
+#endif
+#ifdef CONFIG_CHAN_FREQ_API
+	uint16_t        dfs_precac_secondary_freq_mhz;
+	uint16_t        dfs_precac_primary_freq_mhz;
+#endif
 	uint8_t        dfs_defer_precac_channel_change;
 #ifdef WLAN_DFS_PRECAC_AUTO_CHAN_SUPPORT
+#ifdef CONFIG_CHAN_NUM_API
 	uint8_t        dfs_precac_inter_chan;
 	uint8_t        dfs_autoswitch_des_chan;
+#endif
 	enum wlan_phymode dfs_autoswitch_des_mode;
+#endif
+#ifdef WLAN_DFS_PRECAC_AUTO_CHAN_SUPPORT
+#ifdef CONFIG_CHAN_FREQ_API
+	uint16_t       dfs_precac_inter_chan_freq;
+	uint16_t       dfs_autoswitch_des_chan_freq;
+#endif
 #endif
 	uint8_t        dfs_pre_cac_timeout_channel_change:1;
 	qdf_timer_t    wlan_dfs_task_timer;
@@ -1126,22 +1191,22 @@ struct wlan_dfs {
 #if defined(WLAN_DFS_FULL_OFFLOAD) && defined(QCA_DFS_NOL_OFFLOAD)
 	uint8_t        dfs_disable_radar_marking;
 #endif
-	TAILQ_HEAD(, dfs_precac_entry) dfs_precac_required_list;
-	TAILQ_HEAD(, dfs_precac_entry) dfs_precac_done_list;
-	TAILQ_HEAD(, dfs_precac_entry) dfs_precac_nol_list;
-
-#ifdef QCA_SUPPORT_ETSI_PRECAC_DFS
-	TAILQ_HEAD(, dfs_etsi_precac_entry) dfs_etsiprecac_required_list;
-	TAILQ_HEAD(, dfs_etsi_precac_entry) dfs_etsiprecac_done_list;
-#endif
+	TAILQ_HEAD(, dfs_precac_entry) dfs_precac_list;
+	enum phy_ch_width dfs_precac_chwidth;
 
 	struct dfs_channel *dfs_curchan;
+	struct dfs_channel *dfs_prevchan;
 	struct dfs_channel dfs_cac_started_chan;
 	struct wlan_objmgr_pdev *dfs_pdev_obj;
 	struct dfs_soc_priv_obj *dfs_soc_obj;
 #if defined(QCA_SUPPORT_AGILE_DFS) || defined(ATH_SUPPORT_ZERO_CAC_DFS)
 	uint8_t dfs_psoc_idx;
+#endif
+#ifdef CONFIG_CHAN_NUM_API
 	uint8_t        dfs_agile_precac_freq;
+#endif
+#ifdef CONFIG_CHAN_FREQ_API
+	uint16_t       dfs_agile_precac_freq_mhz;
 #endif
 	bool           dfs_is_offload_enabled;
 	int            dfs_use_nol;
@@ -1175,7 +1240,14 @@ struct wlan_dfs {
 	uint8_t        dfs_nol_ie_bitmap;
 	bool           dfs_is_rcsa_ie_sent;
 	bool           dfs_is_nol_ie_sent;
-	bool           dfs_agile_precac_enable;
+	uint8_t        dfs_legacy_precac_ucfg:1,
+		       dfs_agile_precac_ucfg:1,
+		       dfs_fw_adfs_support_non_160:1,
+		       dfs_fw_adfs_support_160:1;
+#if defined(WLAN_DFS_PARTIAL_OFFLOAD) && defined(WLAN_DFS_SYNTHETIC_RADAR)
+	bool           dfs_allow_hw_pulses;
+#endif
+	struct dfs_mode_switch_defer_params dfs_defer_params;
 };
 
 #if defined(QCA_SUPPORT_AGILE_DFS) || defined(ATH_SUPPORT_ZERO_CAC_DFS)
@@ -1206,6 +1278,7 @@ struct wlan_dfs_priv {
  * @dfs_precac_timer: agile precac timer
  * @dfs_precac_timer_running: precac timer running flag
  * @ocac_status: Off channel CAC complete status
+ * @dfs_nol_ctx: dfs NOL data for all radios.
  */
 struct dfs_soc_priv_obj {
 	struct wlan_objmgr_psoc *psoc;
@@ -1220,6 +1293,7 @@ struct dfs_soc_priv_obj {
 	bool precac_state_started;
 	bool ocac_status;
 #endif
+	struct dfsreq_nolinfo *dfs_psoc_nolinfo;
 };
 
 /**
@@ -1951,9 +2025,23 @@ void dfs_detach(struct wlan_dfs *dfs);
  * @prevchan_ieee: Prevchan number.
  * @prevchan_flags: Prevchan flags.
  */
+#ifdef CONFIG_CHAN_NUM_API
 void dfs_cac_valid_reset(struct wlan_dfs *dfs,
 		uint8_t prevchan_ieee,
 		uint32_t prevchan_flags);
+#endif
+
+/**
+ * dfs_cac_valid_reset_for_freq() - Cancels the dfs_cac_valid_timer timer.
+ * @dfs: Pointer to wlan_dfs structure.
+ * @prevchan_chan: Prevchan frequency
+ * @prevchan_flags: Prevchan flags.
+ */
+#ifdef CONFIG_CHAN_FREQ_API
+void dfs_cac_valid_reset_for_freq(struct wlan_dfs *dfs,
+				  uint16_t prevchan_freq,
+				  uint32_t prevchan_flags);
+#endif
 
 /**
  * dfs_cac_stop() - Clear the AP CAC timer.
@@ -1972,39 +2060,6 @@ void dfs_cancel_cac_timer(struct wlan_dfs *dfs);
  * @dfs: Pointer to wlan_dfs structure.
  */
 void dfs_start_cac_timer(struct wlan_dfs *dfs);
-
-/**
- * dfs_is_subset_channel() - Check if the new_chan is subset of the old_chan.
- * @dfs: Pointer to wlan_dfs structure.
- * @old_chan: Pointer to old channel.
- * @new_chan: Pointer to new channel.
- *
- * Return: true if the new channel is subset of or same as the old channel,
- * else false.
- */
-bool dfs_is_subset_channel(struct wlan_dfs *dfs,
-			   struct dfs_channel *old_chan,
-			   struct dfs_channel *new_chan);
-
-/**
- * dfs_is_curchan_subset_of_cac_started_chan() - Check if the dfs current
- * channel is subset of cac started channel.
- * @dfs: Pointer to wlan_dfs structure.
- *
- * If the current channel and the cac_started_chan is same or
- * if the current channel is subset of the cac_started_chan then
- * this function returns true.
- *
- * Return: true if current channel is same or subset of  cac started channel,
- * else false.
- */
-bool dfs_is_curchan_subset_of_cac_started_chan(struct wlan_dfs *dfs);
-
-/**
- * dfs_clear_cac_started_chan() - Clear dfs cac started channel.
- * @dfs: Pointer to wlan_dfs structure.
- */
-void dfs_clear_cac_started_chan(struct wlan_dfs *dfs);
 
 /**
  * dfs_set_update_nol_flag() - Sets update_nol flag.
@@ -2160,16 +2215,10 @@ int dfs_get_debug_info(struct wlan_dfs *dfs,
 		void *data);
 
 /**
- * dfs_cac_timer_init() - Initialize cac timers.
+ * dfs_cac_timer_attach() - Initialize cac timers.
  * @dfs: Pointer to wlan_dfs structure.
  */
-void dfs_cac_timer_init(struct wlan_dfs *dfs);
-
-/**
- * dfs_cac_attach() - Initialize dfs cac variables.
- * @dfs: Pointer to wlan_dfs structure.
- */
-void dfs_cac_attach(struct wlan_dfs *dfs);
+void dfs_cac_timer_attach(struct wlan_dfs *dfs);
 
 /**
  * dfs_cac_timer_reset() - Cancel dfs cac timers.
@@ -2345,6 +2394,7 @@ static inline bool dfs_is_en302_502_applicable(struct wlan_dfs *dfs)
  * @dfs_ch_vhtop_ch_freq_seg1: Channel Center frequency1.
  * @dfs_ch_vhtop_ch_freq_seg2: Channel Center frequency2.
  */
+#ifdef CONFIG_CHAN_NUM_API
 void dfs_set_current_channel(struct wlan_dfs *dfs,
 		uint16_t dfs_ch_freq,
 		uint64_t dfs_ch_flags,
@@ -2352,7 +2402,33 @@ void dfs_set_current_channel(struct wlan_dfs *dfs,
 		uint8_t dfs_ch_ieee,
 		uint8_t dfs_ch_vhtop_ch_freq_seg1,
 		uint8_t dfs_ch_vhtop_ch_freq_seg2);
+#endif
 
+#ifdef CONFIG_CHAN_FREQ_API
+/**
+ * dfs_set_current_channel_for_freq() - Set DFS current channel.
+ * @dfs: Pointer to wlan_dfs structure.
+ * @dfs_chan_freq: Frequency in Mhz.
+ * @dfs_chan_flags: Channel flags.
+ * @dfs_chan_flagext: Extended channel flags.
+ * @dfs_chan_ieee: IEEE channel number.
+ * @dfs_chan_vhtop_freq_seg1: Channel Center frequency1.
+ * @dfs_chan_vhtop_freq_seg2: Channel Center frequency2.
+ * @dfs_chan_mhz_freq_seg1: Channel center frequency of primary segment in MHZ.
+ * @dfs_chan_mhz_freq_seg2: Channel center frequency of secondary segment in MHZ
+ *                          applicable only for 80+80MHZ mode of operation.
+ */
+void dfs_set_current_channel_for_freq(struct wlan_dfs *dfs,
+				      uint16_t dfs_chan_freq,
+				      uint64_t dfs_chan_flags,
+				      uint16_t dfs_chan_flagext,
+				      uint8_t dfs_chan_ieee,
+				      uint8_t dfs_chan_vhtop_freq_seg1,
+				      uint8_t dfs_chan_vhtop_freq_seg2,
+				      uint16_t dfs_chan_mhz_freq_seg1,
+				      uint16_t dfs_chan_mhz_freq_seg2);
+
+#endif
 /**
  * dfs_get_nol_chfreq_and_chwidth() - Get channel freq and width from NOL list.
  * @dfs_nol: Pointer to NOL channel entry.
@@ -2587,16 +2663,20 @@ bool dfs_process_nol_ie_bitmap(struct wlan_dfs *dfs, uint8_t nol_ie_bandwidth,
 			       uint8_t nol_ie_bitmap);
 
 /**
- * dfs_check_for_cac_start() - Check for DFS CAC start conditions.
+ * dfs_is_cac_required() - Check if DFS CAC is required for the current channel.
  * @dfs: Pointer to wlan_dfs structure.
+ * @cur_chan: Pointer to current channel of dfs_channel structure.
+ * @prev_chan: Pointer to previous channel of dfs_channel structure.
  * @continue_current_cac: If AP can start CAC then this variable indicates
  * whether to continue with the current CAC or restart the CAC. This variable
  * is valid only if this function returns true.
  *
- * Return: true if AP can start or continue the current CAC, else false.
+ * Return: true if AP requires CAC or can continue current CAC, else false.
  */
-bool dfs_check_for_cac_start(struct wlan_dfs *dfs,
-			     bool *continue_current_cac);
+bool dfs_is_cac_required(struct wlan_dfs *dfs,
+			 struct dfs_channel *cur_chan,
+			 struct dfs_channel *prev_chan,
+			 bool *continue_current_cac);
 
 /**
  * dfs_task_testtimer_reset() - stop dfs test timer.
@@ -2649,4 +2729,103 @@ static inline int dfs_is_disable_radar_marking_set(struct wlan_dfs *dfs,
 #if defined(WLAN_DFS_FULL_OFFLOAD) && defined(QCA_DFS_NOL_OFFLOAD)
 bool dfs_get_disable_radar_marking(struct wlan_dfs *dfs);
 #endif
+
+/**
+ * dfs_reset_agile_config() - Reset the ADFS config variables.
+ * @dfs: Pointer to dfs_soc_priv_obj.
+ */
+#ifdef QCA_SUPPORT_AGILE_DFS
+void dfs_reset_agile_config(struct dfs_soc_priv_obj *dfs_soc);
+#endif
+
+/**
+ * dfs_reinit_timers() - Reinit timers in DFS.
+ * @dfs: Pointer to wlan_dfs.
+ */
+int dfs_reinit_timers(struct wlan_dfs *dfs);
+
+/**
+ * dfs_reset_dfs_prevchan() - Reset DFS previous channel structure.
+ * @dfs: Pointer to wlan_dfs object.
+ *
+ * Return: None.
+ */
+void dfs_reset_dfs_prevchan(struct wlan_dfs *dfs);
+
+/**
+ * dfs_init_tmp_psoc_nol() - Init temporary psoc NOL structure.
+ * @dfs: Pointer to wlan_dfs object.
+ * @num_radios: Num of radios in the PSOC.
+ *
+ * Return: void.
+ */
+void dfs_init_tmp_psoc_nol(struct wlan_dfs *dfs, uint8_t num_radios);
+
+/**
+ * dfs_deinit_tmp_psoc_nol() - De-init temporary psoc NOL structure.
+ * @dfs: Pointer to wlan_dfs object.
+ *
+ * Return: void.
+ */
+void dfs_deinit_tmp_psoc_nol(struct wlan_dfs *dfs);
+
+/**
+ * dfs_save_dfs_nol_in_psoc() - Save NOL data of given pdev.
+ * @dfs: Pointer to wlan_dfs object.
+ * @pdev_id: The pdev ID which will have the NOL data.
+ * @low_5ghz_freq: The low 5GHz frequency value of the target pdev id.
+ * @high_5ghz_freq: The high 5GHz frequency value of the target pdev id.
+ *
+ * Based on the frequency of the NOL channel, copy it to the target pdev_id
+ * structure in psoc.
+ *
+ * Return: void.
+ */
+void dfs_save_dfs_nol_in_psoc(struct wlan_dfs *dfs,
+			      uint8_t pdev_id,
+			      uint16_t low_5ghz_freq,
+			      uint16_t high_5ghz_freq);
+
+/**
+ * dfs_reinit_nol_from_psoc_copy() - Reinit saved NOL data to corresponding
+ * DFS object.
+ * @dfs: Pointer to wlan_dfs object.
+ * @pdev_id: pdev_id of the given dfs object.
+ *
+ * Return: void.
+ */
+void dfs_reinit_nol_from_psoc_copy(struct wlan_dfs *dfs, uint8_t pdev_id);
+
+/**
+ * dfs_is_hw_mode_switch_in_progress() - Check if HW mode switch in progress.
+ * @dfs: Pointer to wlan_dfs object.
+ *
+ * Return: True if mode switch is in progress, else false.
+ */
+bool dfs_is_hw_mode_switch_in_progress(struct wlan_dfs *dfs);
+
+/**
+ * dfs_start_mode_switch_defer_timer() - start mode switch defer timer.
+ * @dfs: Pointer to wlan_dfs object.
+ *
+ * Return: void.
+ */
+void dfs_start_mode_switch_defer_timer(struct wlan_dfs *dfs);
+
+/**
+ * dfs_complete_deferred_tasks() - Process mode switch completion event and
+ * handle deffered tasks.
+ * @dfs: Pointer to wlan_dfs object.
+ *
+ * Return: void.
+ */
+void dfs_complete_deferred_tasks(struct wlan_dfs *dfs);
+
+/**
+ * dfs_process_cac_completion() - Process DFS CAC completion event.
+ * @dfs: Pointer to wlan_dfs object.
+ *
+ * Return: void.
+ */
+void dfs_process_cac_completion(struct wlan_dfs *dfs);
 #endif  /* _DFS_H_ */

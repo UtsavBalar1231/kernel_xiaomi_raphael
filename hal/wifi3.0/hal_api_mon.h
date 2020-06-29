@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -148,17 +148,31 @@
 #define HAL_RX_GET_MSDU_AGGREGATION(rx_desc, rs)
 #endif
 
+/* Max MPDUs per status buffer */
+#define HAL_RX_MAX_MPDU 256
+#define HAL_RX_NUM_WORDS_PER_PPDU_BITMAP (HAL_RX_MAX_MPDU >> 5)
+
+/* Max pilot count */
+#define HAL_RX_MAX_SU_EVM_COUNT 32
+
+/*
+ * Struct hal_rx_su_evm_info - SU evm info
+ * @number_of_symbols: number of symbols
+ * @nss_count:         nss count
+ * @pilot_count:       pilot count
+ * @pilot_evm:         Array of pilot evm values
+ */
+struct hal_rx_su_evm_info {
+	uint32_t number_of_symbols;
+	uint8_t  nss_count;
+	uint8_t  pilot_count;
+	uint32_t pilot_evm[HAL_RX_MAX_SU_EVM_COUNT];
+};
+
 enum {
 	DP_PPDU_STATUS_START,
 	DP_PPDU_STATUS_DONE,
 };
-
-static inline
-uint32_t HAL_RX_MON_HW_RX_DESC_SIZE(void)
-{
-	/* return the HW_RX_DESC size */
-	return sizeof(struct rx_pkt_tlvs);
-}
 
 static inline
 uint8_t *HAL_RX_MON_DEST_GET_DESC(uint8_t *data)
@@ -170,7 +184,8 @@ static inline
 uint32_t HAL_RX_DESC_GET_MPDU_LENGTH_ERR(void *hw_desc_addr)
 {
 	struct rx_attention *rx_attn;
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
+	struct rx_mon_pkt_tlvs *rx_desc =
+		(struct rx_mon_pkt_tlvs *)hw_desc_addr;
 
 	rx_attn = &rx_desc->attn_tlv.rx_attn;
 
@@ -181,7 +196,8 @@ static inline
 uint32_t HAL_RX_DESC_GET_MPDU_FCS_ERR(void *hw_desc_addr)
 {
 	struct rx_attention *rx_attn;
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
+	struct rx_mon_pkt_tlvs *rx_desc =
+		(struct rx_mon_pkt_tlvs *)hw_desc_addr;
 
 	rx_attn = &rx_desc->attn_tlv.rx_attn;
 
@@ -198,7 +214,8 @@ uint32_t HAL_RX_DESC_GET_MPDU_FCS_ERR(void *hw_desc_addr)
 static inline
 bool HAL_RX_HW_DESC_MPDU_VALID(void *hw_desc_addr)
 {
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
+	struct rx_mon_pkt_tlvs *rx_desc =
+		(struct rx_mon_pkt_tlvs *)hw_desc_addr;
 	uint32_t tlv_tag;
 
 	tlv_tag = HAL_RX_GET_USER_TLV32_TYPE(
@@ -207,17 +224,6 @@ bool HAL_RX_HW_DESC_MPDU_VALID(void *hw_desc_addr)
 	return tlv_tag == WIFIRX_MPDU_START_E ? true : false;
 }
 
-static inline
-uint32_t HAL_RX_HW_DESC_GET_PPDUID_GET(void *hw_desc_addr)
-{
-	struct rx_mpdu_info *rx_mpdu_info;
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
-
-	rx_mpdu_info =
-		&rx_desc->mpdu_start_tlv.rx_mpdu_start.rx_mpdu_info_details;
-
-	return HAL_RX_GET(rx_mpdu_info, RX_MPDU_INFO_0, PHY_PPDU_ID);
-}
 
 /* TODO: Move all Rx descriptor functions to hal_rx.h to avoid duplication */
 
@@ -253,10 +259,9 @@ uint32_t HAL_RX_HW_DESC_GET_PPDUID_GET(void *hw_desc_addr)
  * Return: void
  */
 static inline
-void hal_rx_reo_ent_buf_paddr_get(void *rx_desc,
-	struct hal_buf_info *buf_info,
-	void **pp_buf_addr_info,
-	uint32_t *msdu_cnt
+void hal_rx_reo_ent_buf_paddr_get(hal_rxdma_desc_t rx_desc,
+				  struct hal_buf_info *buf_info,
+				  uint32_t *msdu_cnt
 )
 {
 	struct reo_entrance_ring *reo_ent_ring =
@@ -282,18 +287,17 @@ void hal_rx_reo_ent_buf_paddr_get(void *rx_desc,
 		(HAL_RX_BUFFER_ADDR_39_32_GET(buf_addr_info)) << 32));
 
 	buf_info->sw_cookie = HAL_RX_BUF_COOKIE_GET(buf_addr_info);
+	buf_info->rbm = HAL_RX_BUF_RBM_GET(buf_addr_info);
 
 	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
 		"[%s][%d] ReoAddr=%pK, addrInfo=%pK, paddr=0x%llx, loopcnt=%d",
 		__func__, __LINE__, reo_ent_ring, buf_addr_info,
 	(unsigned long long)buf_info->paddr, loop_cnt);
-
-	*pp_buf_addr_info = (void *)buf_addr_info;
 }
 
 static inline
 void hal_rx_mon_next_link_desc_get(void *rx_msdu_link_desc,
-	struct hal_buf_info *buf_info, void **pp_buf_addr_info)
+			struct hal_buf_info *buf_info)
 {
 	struct rx_msdu_link *msdu_link =
 		(struct rx_msdu_link *)rx_msdu_link_desc;
@@ -307,8 +311,7 @@ void hal_rx_mon_next_link_desc_get(void *rx_msdu_link_desc,
 		(HAL_RX_BUFFER_ADDR_39_32_GET(buf_addr_info)) << 32));
 
 	buf_info->sw_cookie = HAL_RX_BUF_COOKIE_GET(buf_addr_info);
-
-	*pp_buf_addr_info = (void *)buf_addr_info;
+	buf_info->rbm = HAL_RX_BUF_RBM_GET(buf_addr_info);
 }
 
 /**
@@ -321,8 +324,10 @@ void hal_rx_mon_next_link_desc_get(void *rx_msdu_link_desc,
  * Return: void
  */
 
-static inline void hal_rx_mon_msdu_link_desc_set(struct hal_soc *soc,
-			void *src_srng_desc, void *buf_addr_info)
+static inline
+void hal_rx_mon_msdu_link_desc_set(hal_soc_handle_t hal_soc_hdl,
+				   void *src_srng_desc,
+				   hal_buff_addrinfo_t buf_addr_info)
 {
 	struct buffer_addr_info *wbm_srng_buffer_addr_info =
 			(struct buffer_addr_info *)src_srng_desc;
@@ -390,16 +395,37 @@ enum {
 	HAL_RX_MON_PPDU_END,
 };
 
+/* struct hal_rx_ppdu_common_info  - common ppdu info
+ * @ppdu_id - ppdu id number
+ * @ppdu_timestamp - timestamp at ppdu received
+ * @mpdu_cnt_fcs_ok - mpdu count in ppdu with fcs ok
+ * @mpdu_cnt_fcs_err - mpdu count in ppdu with fcs err
+ * @mpdu_fcs_ok_bitmap - fcs ok mpdu count in ppdu bitmap
+ * @last_ppdu_id - last received ppdu id
+ * @mpdu_cnt - total mpdu count
+ * @num_users - num users
+ */
 struct hal_rx_ppdu_common_info {
 	uint32_t ppdu_id;
 	uint32_t ppdu_timestamp;
 	uint32_t mpdu_cnt_fcs_ok;
 	uint32_t mpdu_cnt_fcs_err;
+	uint32_t mpdu_fcs_ok_bitmap[HAL_RX_NUM_WORDS_PER_PPDU_BITMAP];
+	uint32_t last_ppdu_id;
+	uint32_t mpdu_cnt;
+	uint8_t num_users;
 };
 
+/**
+ * struct hal_rx_msdu_payload_info - msdu payload info
+ * @first_msdu_payload: pointer to first msdu payload
+ * @payload_len: payload len
+ * @nbuf: status network buffer to which msdu belongs to
+ */
 struct hal_rx_msdu_payload_info {
 	uint8_t *first_msdu_payload;
 	uint32_t payload_len;
+	qdf_nbuf_t nbuf;
 };
 
 /**
@@ -409,6 +435,7 @@ struct hal_rx_msdu_payload_info {
  * @to_ds_flag: flag indicate to_ds bit
  * @mac_addr2_valid: flag indicate if mac_addr2 is valid
  * @mac_addr2: mac address2 in wh
+ * @mcast_bcast: multicast/broadcast
  */
 struct hal_rx_nac_info {
 	uint8_t fc_valid;
@@ -416,21 +443,123 @@ struct hal_rx_nac_info {
 	uint8_t to_ds_flag;
 	uint8_t mac_addr2_valid;
 	uint8_t mac_addr2[QDF_MAC_ADDR_SIZE];
+	uint8_t mcast_bcast;
 };
 
 /**
  * struct hal_rx_ppdu_msdu_info - struct for msdu info from HW TLVs
- * @cce_metadata: cached metadata value received in the MSDU_END TLV
+ * @cce_metadata: cached CCE metadata value received in the MSDU_END TLV
+ * @is_flow_idx_timeout: flag to indicate if flow search timeout occurred
+ * @is_flow_idx_invalid: flag to indicate if flow idx is valid or not
+ * @fse_metadata: cached FSE metadata value received in the MSDU END TLV
+ * @flow_idx: flow idx matched in FSE received in the MSDU END TLV
  */
 struct hal_rx_ppdu_msdu_info {
 	uint16_t cce_metadata;
+	bool is_flow_idx_timeout;
+	bool is_flow_idx_invalid;
+	uint32_t fse_metadata;
+	uint32_t flow_idx;
+};
+
+#if defined(WLAN_CFR_ENABLE) && defined(WLAN_ENH_CFR_ENABLE)
+/**
+ * struct hal_rx_ppdu_cfr_user_info - struct for storing peer info extracted
+ * from HW TLVs, this will be used for correlating CFR data with multiple peers
+ * in MU PPDUs
+ *
+ * @peer_macaddr: macaddr of the peer
+ * @ast_index: AST index of the peer
+ */
+struct hal_rx_ppdu_cfr_user_info {
+	uint8_t peer_macaddr[QDF_MAC_ADDR_SIZE];
+	uint32_t ast_index;
+};
+
+/**
+ * struct hal_rx_ppdu_cfr_info - struct for storing ppdu info extracted from HW
+ * TLVs, this will be used for CFR correlation
+ *
+ * @bb_captured_channel : Set by RXPCU when MACRX_FREEZE_CAPTURE_CHANNEL TLV is
+ * sent to PHY, SW checks it to correlate current PPDU TLVs with uploaded
+ * channel information.
+ *
+ * @bb_captured_timeout : Set by RxPCU to indicate channel capture condition is
+ * met, but MACRX_FREEZE_CAPTURE_CHANNEL is not sent to PHY due to AST delay,
+ * which means the rx_frame_falling edge to FREEZE TLV ready time exceeds
+ * the threshold time defined by RXPCU register FREEZE_TLV_DELAY_CNT_THRESH.
+ * Bb_captured_reason is still valid in this case.
+ *
+ * @rx_location_info_valid: Indicates whether CFR DMA address in the PPDU TLV
+ * is valid
+ * <enum 0 rx_location_info_is_not_valid>
+ * <enum 1 rx_location_info_is_valid>
+ * <legal all>
+ *
+ * @bb_captured_reason : Copy capture_reason of MACRX_FREEZE_CAPTURE_CHANNEL
+ * TLV to here for FW usage. Valid when bb_captured_channel or
+ * bb_captured_timeout is set.
+ * <enum 0 freeze_reason_TM>
+ * <enum 1 freeze_reason_FTM>
+ * <enum 2 freeze_reason_ACK_resp_to_TM_FTM>
+ * <enum 3 freeze_reason_TA_RA_TYPE_FILTER>
+ * <enum 4 freeze_reason_NDPA_NDP>
+ * <enum 5 freeze_reason_ALL_PACKET>
+ * <legal 0-5>
+ *
+ * @rtt_che_buffer_pointer_low32 : The low 32 bits of the 40 bits pointer to
+ * external RTT channel information buffer
+ *
+ * @rtt_che_buffer_pointer_high8 : The high 8 bits of the 40 bits pointer to
+ * external RTT channel information buffer
+ *
+ * @chan_capture_status : capture status reported by ucode
+ * a. CAPTURE_IDLE: FW has disabled "REPETITIVE_CHE_CAPTURE_CTRL"
+ * b. CAPTURE_BUSY: previous PPDU’s channel capture upload DMA ongoing. (Note
+ * that this upload is triggered after receiving freeze_channel_capture TLV
+ * after last PPDU is rx)
+ * c. CAPTURE_ACTIVE: channel capture is enabled and no previous channel
+ * capture ongoing
+ * d. CAPTURE_NO_BUFFER: next buffer in IPC ring not available
+ *
+ * @cfr_user_info: Peer mac for upto 4 MU users
+ */
+
+struct hal_rx_ppdu_cfr_info {
+	bool bb_captured_channel;
+	bool bb_captured_timeout;
+	uint8_t bb_captured_reason;
+	bool rx_location_info_valid;
+	uint8_t chan_capture_status;
+	uint8_t rtt_che_buffer_pointer_high8;
+	uint32_t rtt_che_buffer_pointer_low32;
+	struct hal_rx_ppdu_cfr_user_info cfr_user_info[HAL_MAX_UL_MU_USERS];
+};
+#else
+struct hal_rx_ppdu_cfr_info {};
+#endif
+
+struct mon_rx_info {
+	uint8_t  qos_control_info_valid;
+	uint16_t qos_control;
+	uint8_t mac_addr1_valid;
+	uint8_t mac_addr1[QDF_MAC_ADDR_SIZE];
+};
+
+struct mon_rx_user_info {
+	uint16_t qos_control;
+	uint8_t qos_control_info_valid;
+	uint32_t bar_frame:1;
 };
 
 struct hal_rx_ppdu_info {
 	struct hal_rx_ppdu_common_info com_info;
 	struct mon_rx_status rx_status;
 	struct mon_rx_user_status rx_user_status[HAL_MAX_UL_MU_USERS];
+	struct mon_rx_info rx_info;
+	struct mon_rx_user_info rx_user_info[HAL_MAX_UL_MU_USERS];
 	struct hal_rx_msdu_payload_info msdu_info;
+	struct hal_rx_msdu_payload_info fcs_ok_msdu_info;
 	struct hal_rx_nac_info nac_info;
 	/* status ring PPDU start and end state */
 	uint32_t rx_state;
@@ -442,7 +571,18 @@ struct hal_rx_ppdu_info {
 	uint32_t hdr_len;
 	/* MPDU FCS error */
 	bool fcs_err;
+	/* Id to indicate how to process mpdu */
+	uint8_t sw_frame_group_id;
 	struct hal_rx_ppdu_msdu_info rx_msdu_info[HAL_MAX_UL_MU_USERS];
+	/* first msdu payload for all mpdus in ppdu */
+	struct hal_rx_msdu_payload_info ppdu_msdu_info[HAL_RX_MAX_MPDU];
+	/* evm info */
+	struct hal_rx_su_evm_info evm_info;
+	/**
+	 * Will be used to store ppdu info extracted from HW TLVs,
+	 * and for CFR correlation as well
+	 */
+	struct hal_rx_ppdu_cfr_info cfr_info;
 };
 
 static inline uint32_t
@@ -491,19 +631,27 @@ static inline void hal_rx_proc_phyrx_other_receive_info_tlv(struct hal_soc *hal_
  * hal_rx_status_get_tlv_info() - process receive info TLV
  * @rx_tlv_hdr: pointer to TLV header
  * @ppdu_info: pointer to ppdu_info
+ * @hal_soc: HAL soc handle
+ * @nbuf: PPDU status netowrk buffer
  *
  * Return: HAL_TLV_STATUS_PPDU_NOT_DONE or HAL_TLV_STATUS_PPDU_DONE from tlv
  */
 static inline uint32_t
 hal_rx_status_get_tlv_info(void *rx_tlv_hdr, void *ppdu_info,
-			   struct hal_soc *hal_soc)
+			   hal_soc_handle_t hal_soc_hdl,
+			   qdf_nbuf_t nbuf)
 {
-	return hal_soc->ops->hal_rx_status_get_tlv_info(rx_tlv_hdr,
-							ppdu_info, hal_soc);
+	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
+
+	return hal_soc->ops->hal_rx_status_get_tlv_info(
+						rx_tlv_hdr,
+						ppdu_info,
+						hal_soc_hdl,
+						nbuf);
 }
 
 static inline
-uint32_t hal_get_rx_status_done_tlv_size(void *hal_soc)
+uint32_t hal_get_rx_status_done_tlv_size(hal_soc_handle_t hal_soc_hdl)
 {
 	return HAL_RX_TLV32_HDR_SIZE;
 }

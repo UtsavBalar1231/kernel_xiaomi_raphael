@@ -134,6 +134,7 @@
 #define WLAN_IBSS_IE_MAX_LEN                     2
 #define WLAN_REQUEST_IE_MAX_LEN                  255
 #define WLAN_RM_CAPABILITY_IE_MAX_LEN            5
+#define WLAN_RNR_IE_MIN_LEN                      5
 
 /* HT capability flags */
 #define WLAN_HTCAP_C_ADVCODING             0x0001
@@ -178,6 +179,19 @@
 /* 80 + 80 MHz Operating Channel  (revised signalling) */
 #define WLAN_VHTOP_CHWIDTH_REVSIG_80_80  1
 
+#define WLAN_HEOP_FIXED_PARAM_LENGTH       7
+#define WLAN_HEOP_VHTOP_LENGTH             3
+#define WLAN_HEOP_CO_LOCATED_BSS_LENGTH    1
+
+#define WLAN_HEOP_VHTOP_PRESENT_MASK       0x00004000  /* B14 */
+#define WLAN_HEOP_CO_LOCATED_BSS_MASK      0x00008000  /* B15 */
+#define WLAN_HEOP_6GHZ_INFO_PRESENT_MASK   0X00020000  /* B17 */
+
+#define WLAN_HE_6GHZ_CHWIDTH_20           0 /* 20MHz Oper Ch width */
+#define WLAN_HE_6GHZ_CHWIDTH_40           1 /* 40MHz Oper Ch width */
+#define WLAN_HE_6GHZ_CHWIDTH_80           2 /* 80MHz Oper Ch width */
+#define WLAN_HE_6GHZ_CHWIDTH_160_80_80    3 /* 160/80+80 MHz Oper Ch width */
+
 #define WLAN_RATE_VAL              0x7f
 
 #define WLAN_RV(v)     ((v) & WLAN_RATE_VAL)
@@ -198,6 +212,20 @@
 	WLAN_VHTOP_CHWIDTH_REVSIG_80_80) && \
 	((vhtop)->vht_op_ch_freq_seg2 != 0) && \
 	(abs((vhtop)->vht_op_ch_freq_seg2 - (vhtop)->vht_op_ch_freq_seg1) > 8))
+
+/* Check if channel width is HE160 in HE 6ghz params */
+#define WLAN_IS_HE160(he_6g_param) (((he_6g_param)->width == \
+	WLAN_HE_6GHZ_CHWIDTH_160_80_80) && \
+	((he_6g_param)->chan_freq_seg1 != 0) && \
+	(abs((he_6g_param)->chan_freq_seg1 - \
+	(he_6g_param)->chan_freq_seg0) == 8))
+
+/* Check if channel width is HE80p80 in HE 6ghz params */
+#define WLAN_IS_HE80_80(he_6g_param) (((he_6g_param)->width == \
+	WLAN_HE_6GHZ_CHWIDTH_160_80_80) && \
+	((he_6g_param)->chan_freq_seg1 != 0) && \
+	(abs((he_6g_param)->chan_freq_seg1 - \
+	(he_6g_param)->chan_freq_seg0) > 8))
 
 #define LE_READ_2(p) \
 	((uint16_t)\
@@ -378,6 +406,7 @@ enum element_ie {
 	WLAN_ELEMID_AID              = 197,
 	WLAN_ELEMID_QUIET_CHANNEL    = 198,
 	WLAN_ELEMID_OP_MODE_NOTIFY   = 199,
+	WLAN_ELEMID_REDUCED_NEIGHBOR_REPORT = 201,
 	WLAN_ELEMID_VENDOR           = 221,
 	WLAN_ELEMID_FILS_INDICATION  = 240,
 	WLAN_ELEMID_RSNXE            = 244,
@@ -390,6 +419,7 @@ enum element_ie {
  * @WLAN_EXTN_ELEMID_HECAP:  HE capabilities IE
  * @WLAN_EXTN_ELEMID_HEOP:   HE Operation IE
  * @WLAN_EXTN_ELEMID_MUEDCA: MU-EDCA IE
+ * @WLAN_EXTN_ELEMID_HE_6G_CAP: HE 6GHz Band Capabilities IE
  * @WLAN_EXTN_ELEMID_SRP:    spatial reuse parameter IE
  */
 enum extn_element_ie {
@@ -398,6 +428,7 @@ enum extn_element_ie {
 	WLAN_EXTN_ELEMID_HEOP        = 36,
 	WLAN_EXTN_ELEMID_MUEDCA      = 38,
 	WLAN_EXTN_ELEMID_SRP         = 39,
+	WLAN_EXTN_ELEMID_HE_6G_CAP   = 59,
 	WLAN_EXTN_ELEMID_ESP         = 11,
 };
 
@@ -958,6 +989,26 @@ struct wlan_ie_vhtop {
 	uint8_t vht_op_ch_freq_seg1;
 	uint8_t vht_op_ch_freq_seg2;
 	uint16_t vhtop_basic_mcs_set;
+} qdf_packed;
+
+/**
+ * struct he_oper_6g_param: 6 Ghz params for HE
+ * @primary_channel: HE 6GHz Primary channel number
+ * @width: HE 6GHz BSS Channel Width
+ * @duplicate_beacon: HE 6GHz Duplicate beacon field
+ * @reserved: Reserved bits
+ * @chan_freq_seg0: HE 6GHz Channel Centre Frequency Segment 0
+ * @chan_freq_seg1: HE 6GHz Channel Centre Frequency Segment 1
+ * @minimum_rate: HE 6GHz Minimum Rate
+ */
+struct he_oper_6g_param {
+	uint8_t primary_channel;
+	uint8_t width:2,
+		duplicate_beacon:1,
+		reserved:5;
+	uint8_t chan_freq_seg0;
+	uint8_t chan_freq_seg1;
+	uint8_t minimum_rate;
 } qdf_packed;
 
 /**

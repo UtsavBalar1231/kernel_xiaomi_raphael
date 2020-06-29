@@ -548,8 +548,10 @@ static uint8_t tdls_get_wmi_offchannel_bw(uint16_t tdls_off_ch_bw_offset)
 		break;
 	case BW80:
 		off_chan_bw = WMI_TDLS_OFFCHAN_80MHZ;
+		break;
 	case BWALL:
 		off_chan_bw = WMI_TDLS_OFFCHAN_160MHZ;
+		break;
 	default:
 		WMI_LOGD(FL("unknown tdls offchannel bw offset %d"),
 			 tdls_off_ch_bw_offset);
@@ -591,6 +593,7 @@ static QDF_STATUS send_set_tdls_offchan_mode_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->offchan_mode =
 		tdls_get_wmi_offchannel_mode(chan_switch_params->tdls_sw_mode);
 	cmd->is_peer_responder = chan_switch_params->is_responder;
+	cmd->offchan_freq = chan_switch_params->tdls_off_chan_freq;
 	cmd->offchan_num = chan_switch_params->tdls_off_ch;
 	cmd->offchan_bw_bitmap =
 		tdls_get_wmi_offchannel_bw(
@@ -603,11 +606,12 @@ static QDF_STATUS send_set_tdls_offchan_mode_cmd_tlv(wmi_unified_t wmi_handle,
 
 	WMI_LOGD(FL(
 		 "vdev_id: %d, off channel mode: %d, off channel Num: %d, "
-		 "off channel offset: 0x%x, is_peer_responder: %d, operating class: %d"
-		  ),
+		 "off channel frequency: %u off channel offset: 0x%x, "
+		 " is_peer_responder: %d, operating class: %d"),
 		 cmd->vdev_id,
 		 cmd->offchan_mode,
 		 cmd->offchan_num,
+		 cmd->offchan_freq,
 		 cmd->offchan_bw_bitmap,
 		 cmd->is_peer_responder,
 		 cmd->offchan_oper_class);
@@ -669,6 +673,8 @@ send_update_fw_tdls_state_cmd_tlv(wmi_unified_t wmi_handle,
 		tdls_param->teardown_notification_ms;
 	cmd->tdls_peer_kickout_threshold =
 		tdls_param->tdls_peer_kickout_threshold;
+	cmd->tdls_discovery_wake_timeout =
+		tdls_param->tdls_discovery_wake_timeout;
 
 	WMI_LOGD("%s: vdev %d tdls_state: %d, state: %d, "
 		 "notification_interval_ms: %d, "
@@ -683,8 +689,9 @@ send_update_fw_tdls_state_cmd_tlv(wmi_unified_t wmi_handle,
 		 "tdls_puapsd_inactivity_time: %d, "
 		 "tdls_puapsd_rx_frame_threshold: %d, "
 		 "teardown_notification_ms: %d, "
-		 "tdls_peer_kickout_threshold: %d",
-		 __func__, tdls_param->vdev_id, tdls_state, cmd->state,
+		 "tdls_peer_kickout_threshold: %d, "
+		 "tdls_discovery_wake_timeout: %d",
+		 __func__,tdls_param->vdev_id, tdls_state, cmd->state,
 		 cmd->notification_interval_ms,
 		 cmd->tx_discovery_threshold,
 		 cmd->tx_teardown_threshold,
@@ -697,7 +704,8 @@ send_update_fw_tdls_state_cmd_tlv(wmi_unified_t wmi_handle,
 		 cmd->tdls_puapsd_inactivity_time_ms,
 		 cmd->tdls_puapsd_rx_frame_threshold,
 		 cmd->teardown_notification_ms,
-		 cmd->tdls_peer_kickout_threshold);
+		 cmd->tdls_peer_kickout_threshold,
+		 cmd->tdls_discovery_wake_timeout);
 
 	wmi_mtrace(WMI_TDLS_SET_STATE_CMDID, cmd->vdev_id, 0);
 	if (wmi_unified_cmd_send(wmi_handle, wmi_buf, len,
@@ -792,15 +800,16 @@ send_update_tdls_peer_state_cmd_tlv(wmi_unified_t wmi_handle,
 	peer_cap->peer_chan_len = in_peer_cap->peer_chanlen;
 	peer_cap->peer_operclass_len = in_peer_cap->peer_oper_classlen;
 
-	WMI_LOGD("%s: peer_operclass_len: %d",
-		 __func__, peer_cap->peer_operclass_len);
+	WMI_LOGD("peer_operclass_len: %d", peer_cap->peer_operclass_len);
 	for (i = 0; i < WMI_TDLS_MAX_SUPP_OPER_CLASSES; i++) {
 		peer_cap->peer_operclass[i] = in_peer_cap->peer_oper_class[i];
-		WMI_LOGD("%s: peer_operclass[%d]: %d",
-			 __func__, i, peer_cap->peer_operclass[i]);
 	}
+	qdf_trace_hex_dump(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
+			   (uint8_t *)peer_cap->peer_operclass,
+			   WMI_TDLS_MAX_SUPP_OPER_CLASSES);
 
 	peer_cap->is_peer_responder = in_peer_cap->is_peer_responder;
+	peer_cap->pref_offchan_freq = in_peer_cap->pref_offchan_freq;
 	peer_cap->pref_offchan_num = in_peer_cap->pref_off_channum;
 	peer_cap->pref_offchan_bw = in_peer_cap->pref_off_chan_bandwidth;
 
@@ -808,12 +817,13 @@ send_update_tdls_peer_state_cmd_tlv(wmi_unified_t wmi_handle,
 		("%s: peer_qos: 0x%x, buff_sta_support: %d, off_chan_support: %d, "
 		 "peer_curr_operclass: %d, self_curr_operclass: %d, peer_chan_len: "
 		 "%d, peer_operclass_len: %d, is_peer_responder: %d, pref_offchan_num:"
-		 " %d, pref_offchan_bw: %d",
+		 " %d, pref_offchan_bw: %d, pref_offchan_freq: %u",
 		 __func__, peer_cap->peer_qos, peer_cap->buff_sta_support,
 		 peer_cap->off_chan_support, peer_cap->peer_curr_operclass,
 		 peer_cap->self_curr_operclass, peer_cap->peer_chan_len,
 		 peer_cap->peer_operclass_len, peer_cap->is_peer_responder,
-		 peer_cap->pref_offchan_num, peer_cap->pref_offchan_bw);
+		 peer_cap->pref_offchan_num, peer_cap->pref_offchan_bw,
+		 peer_cap->pref_offchan_freq);
 
 	/* next fill variable size array of peer chan info */
 	buf_ptr += sizeof(wmi_tdls_peer_capabilities);
@@ -1073,6 +1083,7 @@ static QDF_STATUS send_set_base_macaddr_indicate_cmd_tlv(wmi_unified_t wmi_handl
 			       (wmi_pdev_set_base_macaddr_cmd_fixed_param));
 	WMI_CHAR_ARRAY_TO_MAC_ADDR(custom_addr, &cmd->base_macaddr);
 	cmd->pdev_id = wmi_handle->ops->convert_pdev_id_host_to_target(
+							wmi_handle,
 							WMI_HOST_PDEV_ID_SOC);
 	wmi_mtrace(WMI_PDEV_SET_BASE_MACADDR_CMDID, NO_SESSION, 0);
 	err = wmi_unified_cmd_send(wmi_handle, buf,
@@ -1181,143 +1192,6 @@ void wmi_blacklist_mgr_attach_tlv(struct wmi_unified *wmi_handle)
 	ops->send_reject_ap_list_cmd = send_reject_ap_list_cmd_tlv;
 }
 #endif
-
-#ifdef WLAN_FEATURE_DISA
-/**
- * send_encrypt_decrypt_send_cmd() - send encrypt/decrypt cmd to fw
- * @wmi_handle: wmi handle
- * @params: encrypt/decrypt params
- *
- * Return: QDF_STATUS_SUCCESS for success or error code
- */
-static
-QDF_STATUS send_encrypt_decrypt_send_cmd_tlv(wmi_unified_t wmi_handle,
-		struct disa_encrypt_decrypt_req_params *encrypt_decrypt_params)
-{
-	wmi_vdev_encrypt_decrypt_data_req_cmd_fixed_param *cmd;
-	wmi_buf_t wmi_buf;
-	uint8_t *buf_ptr;
-	QDF_STATUS ret;
-	uint32_t len;
-
-	WMI_LOGD(FL("Send encrypt decrypt cmd"));
-
-	len = sizeof(*cmd) +
-		roundup(encrypt_decrypt_params->data_len, sizeof(uint32_t)) +
-		WMI_TLV_HDR_SIZE;
-	wmi_buf = wmi_buf_alloc(wmi_handle, len);
-	if (!wmi_buf) {
-		return QDF_STATUS_E_NOMEM;
-	}
-
-	buf_ptr = wmi_buf_data(wmi_buf);
-	cmd = (wmi_vdev_encrypt_decrypt_data_req_cmd_fixed_param *)buf_ptr;
-
-	WMITLV_SET_HDR(&cmd->tlv_header,
-		WMITLV_TAG_STRUC_wmi_vdev_encrypt_decrypt_data_req_cmd_fixed_param,
-		WMITLV_GET_STRUCT_TLVLEN(
-			wmi_vdev_encrypt_decrypt_data_req_cmd_fixed_param));
-
-	cmd->vdev_id = encrypt_decrypt_params->vdev_id;
-	cmd->key_flag = encrypt_decrypt_params->key_flag;
-	cmd->key_idx = encrypt_decrypt_params->key_idx;
-	cmd->key_cipher = encrypt_decrypt_params->key_cipher;
-	cmd->key_len = encrypt_decrypt_params->key_len;
-	cmd->key_txmic_len = encrypt_decrypt_params->key_txmic_len;
-	cmd->key_rxmic_len = encrypt_decrypt_params->key_rxmic_len;
-
-	qdf_mem_copy(cmd->key_data, encrypt_decrypt_params->key_data,
-		     encrypt_decrypt_params->key_len);
-
-	qdf_mem_copy(cmd->mac_hdr, encrypt_decrypt_params->mac_header,
-		     MAX_MAC_HEADER_LEN);
-
-	cmd->data_len = encrypt_decrypt_params->data_len;
-
-	if (cmd->data_len) {
-		buf_ptr += sizeof(*cmd);
-		WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_BYTE,
-			       roundup(encrypt_decrypt_params->data_len,
-				       sizeof(uint32_t)));
-		buf_ptr += WMI_TLV_HDR_SIZE;
-		qdf_mem_copy(buf_ptr, encrypt_decrypt_params->data,
-			     encrypt_decrypt_params->data_len);
-	}
-
-	/* This conversion is to facilitate data to FW in little endian */
-	cmd->pn[5] = encrypt_decrypt_params->pn[0];
-	cmd->pn[4] = encrypt_decrypt_params->pn[1];
-	cmd->pn[3] = encrypt_decrypt_params->pn[2];
-	cmd->pn[2] = encrypt_decrypt_params->pn[3];
-	cmd->pn[1] = encrypt_decrypt_params->pn[4];
-	cmd->pn[0] = encrypt_decrypt_params->pn[5];
-
-	wmi_mtrace(WMI_VDEV_ENCRYPT_DECRYPT_DATA_REQ_CMDID, cmd->vdev_id, 0);
-	ret = wmi_unified_cmd_send(wmi_handle,
-				   wmi_buf, len,
-				   WMI_VDEV_ENCRYPT_DECRYPT_DATA_REQ_CMDID);
-	if (QDF_IS_STATUS_ERROR(ret)) {
-		WMI_LOGE("Failed to send ENCRYPT DECRYPT cmd: %d", ret);
-		wmi_buf_free(wmi_buf);
-	}
-
-	return ret;
-}
-
-/**
- * extract_encrypt_decrypt_resp_event_tlv() - extract encrypt decrypt resp
- *	params from event
- * @wmi_handle: wmi handle
- * @evt_buf: pointer to event buffer
- * @resp: Pointer to hold resp parameters
- *
- * Return: QDF_STATUS_SUCCESS for success or error code
- */
-static
-QDF_STATUS extract_encrypt_decrypt_resp_event_tlv(wmi_unified_t wmi_handle,
-	void *evt_buf, struct disa_encrypt_decrypt_resp_params *resp)
-{
-	WMI_VDEV_ENCRYPT_DECRYPT_DATA_RESP_EVENTID_param_tlvs *param_buf;
-	wmi_vdev_encrypt_decrypt_data_resp_event_fixed_param *data_event;
-
-	param_buf = evt_buf;
-	if (!param_buf) {
-		WMI_LOGE("encrypt decrypt resp evt_buf is NULL");
-		return QDF_STATUS_E_INVAL;
-	}
-
-	data_event = param_buf->fixed_param;
-
-	resp->vdev_id = data_event->vdev_id;
-	resp->status = data_event->status;
-
-	if ((data_event->data_length > param_buf->num_enc80211_frame) ||
-	    (data_event->data_length > WMI_SVC_MSG_MAX_SIZE - WMI_TLV_HDR_SIZE -
-	     sizeof(*data_event))) {
-		WMI_LOGE("FW msg data_len %d more than TLV hdr %d",
-			 data_event->data_length,
-			 param_buf->num_enc80211_frame);
-		return QDF_STATUS_E_INVAL;
-	}
-
-	resp->data_len = data_event->data_length;
-
-	if (resp->data_len)
-		resp->data = (uint8_t *)param_buf->enc80211_frame;
-
-	return QDF_STATUS_SUCCESS;
-}
-
-void wmi_disa_attach_tlv(struct wmi_unified *wmi_handle)
-{
-	struct wmi_ops *ops = wmi_handle->ops;
-
-	ops->send_encrypt_decrypt_send_cmd =
-		send_encrypt_decrypt_send_cmd_tlv;
-	ops->extract_encrypt_decrypt_resp_event =
-		extract_encrypt_decrypt_resp_event_tlv;
-}
-#endif /* WLAN_FEATURE_DISA */
 
 /**
  * send_sar_limit_cmd_tlv() - send sar limit cmd to fw
@@ -2072,6 +1946,7 @@ static QDF_STATUS send_pdev_set_pcl_cmd_tlv(wmi_unified_t wmi_handle,
 		WMITLV_GET_STRUCT_TLVLEN(wmi_pdev_set_pcl_cmd_fixed_param));
 
 	cmd->pdev_id = wmi_handle->ops->convert_pdev_id_host_to_target(
+							wmi_handle,
 							WMI_HOST_PDEV_ID_SOC);
 	cmd->num_chan = chan_len;
 	buf_ptr += sizeof(wmi_pdev_set_pcl_cmd_fixed_param);
@@ -2087,56 +1962,6 @@ static QDF_STATUS send_pdev_set_pcl_cmd_tlv(wmi_unified_t wmi_handle,
 		wmi_buf_free(buf);
 		return QDF_STATUS_E_FAILURE;
 	}
-	return QDF_STATUS_SUCCESS;
-}
-
-/**
- * send_pdev_set_hw_mode_cmd_tlv() - Send WMI_PDEV_SET_HW_MODE_CMDID to FW
- * @wmi_handle: wmi handle
- * @msg: Structure containing the following parameters
- *
- * - hw_mode_index: The HW_Mode field is a enumerated type that is selected
- * from the HW_Mode table, which is returned in the WMI_SERVICE_READY_EVENTID.
- *
- * Provides notification to the WLAN firmware that host driver is requesting a
- * HardWare (HW) Mode change. This command is needed to support iHelium in the
- * configurations that include the Dual Band Simultaneous (DBS) feature.
- *
- * Return: Success if the cmd is sent successfully to the firmware
- */
-static QDF_STATUS send_pdev_set_hw_mode_cmd_tlv(wmi_unified_t wmi_handle,
-						uint32_t hw_mode_index)
-{
-	wmi_pdev_set_hw_mode_cmd_fixed_param *cmd;
-	wmi_buf_t buf;
-	uint32_t len;
-
-	len = sizeof(*cmd);
-
-	buf = wmi_buf_alloc(wmi_handle, len);
-	if (!buf) {
-		return QDF_STATUS_E_NOMEM;
-	}
-
-	cmd = (wmi_pdev_set_hw_mode_cmd_fixed_param *) wmi_buf_data(buf);
-	WMITLV_SET_HDR(&cmd->tlv_header,
-		WMITLV_TAG_STRUC_wmi_pdev_set_hw_mode_cmd_fixed_param,
-		WMITLV_GET_STRUCT_TLVLEN(wmi_pdev_set_hw_mode_cmd_fixed_param));
-
-	cmd->pdev_id = wmi_handle->ops->convert_pdev_id_host_to_target(
-							WMI_HOST_PDEV_ID_SOC);
-	cmd->hw_mode_index = hw_mode_index;
-	WMI_LOGI("%s: HW mode index:%d", __func__, cmd->hw_mode_index);
-
-	wmi_mtrace(WMI_PDEV_SET_HW_MODE_CMDID, NO_SESSION, 0);
-	if (wmi_unified_cmd_send(wmi_handle, buf, len,
-				 WMI_PDEV_SET_HW_MODE_CMDID)) {
-		WMI_LOGE("%s: Failed to send WMI_PDEV_SET_HW_MODE_CMDID",
-			 __func__);
-		wmi_buf_free(buf);
-		return QDF_STATUS_E_FAILURE;
-	}
-
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -2172,6 +1997,7 @@ QDF_STATUS send_pdev_set_dual_mac_config_cmd_tlv(wmi_unified_t wmi_handle,
 			wmi_pdev_set_mac_config_cmd_fixed_param));
 
 	cmd->pdev_id = wmi_handle->ops->convert_pdev_id_host_to_target(
+							wmi_handle,
 							WMI_HOST_PDEV_ID_SOC);
 	cmd->concurrent_scan_config_bits = msg->scan_config;
 	cmd->fw_mode_config_bits = msg->fw_mode_config;
@@ -2578,7 +2404,6 @@ void wmi_sta_attach_tlv(wmi_unified_t wmi_handle)
 	ops->send_process_ch_avoid_update_cmd =
 		send_process_ch_avoid_update_cmd_tlv;
 	ops->send_pdev_set_pcl_cmd = send_pdev_set_pcl_cmd_tlv;
-	ops->send_pdev_set_hw_mode_cmd = send_pdev_set_hw_mode_cmd_tlv;
 	ops->send_adapt_dwelltime_params_cmd =
 		send_adapt_dwelltime_params_cmd_tlv;
 	ops->send_dbs_scan_sel_params_cmd =
@@ -2588,7 +2413,6 @@ void wmi_sta_attach_tlv(wmi_unified_t wmi_handle)
 	ops->send_peer_unmap_conf_cmd = send_peer_unmap_conf_cmd_tlv;
 
 	wmi_tdls_attach_tlv(wmi_handle);
-	wmi_disa_attach_tlv(wmi_handle);
 	wmi_policy_mgr_attach_tlv(wmi_handle);
 	wmi_blacklist_mgr_attach_tlv(wmi_handle);
 }

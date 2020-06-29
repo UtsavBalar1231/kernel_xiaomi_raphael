@@ -26,7 +26,6 @@
 #include "hif_debug.h"
 #include "epping_main.h"
 #include "hif_main.h"
-#include "qwlan_version.h"
 #include "usb_api.h"
 
 #define DELAY_FOR_TARGET_READY 200	/* 200ms */
@@ -195,8 +194,6 @@ QDF_STATUS hif_usb_enable_bus(struct hif_softc *scn,
 	u32 hif_type;
 	u32 target_type;
 
-	usb_get_dev(usbdev);
-
 	if (!scn) {
 		HIF_ERROR("%s: hif_ctx is NULL", __func__);
 		goto err_usb;
@@ -230,6 +227,7 @@ QDF_STATUS hif_usb_enable_bus(struct hif_softc *scn,
 	 * by CNSS driver.
 	 */
 	if (target_type != TARGET_TYPE_QCN7605) {
+		usb_get_dev(usbdev);
 		if ((usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0),
 				     USB_REQ_SET_CONFIGURATION, 0, 1, 0,
 				     NULL, 0, HZ)) < 0) {
@@ -272,7 +270,8 @@ err_reset:
 		unregister_reboot_notifier(&sc->reboot_notifier);
 err_usb:
 	ret = QDF_STATUS_E_FAILURE;
-	usb_put_dev(usbdev);
+	if (target_type != TARGET_TYPE_QCN7605)
+		usb_put_dev(usbdev);
 	return ret;
 }
 
@@ -306,7 +305,8 @@ void hif_usb_disable_bus(struct hif_softc *hif_ctx)
 	/* disable lpm to avoid following cold reset will
 	 * cause xHCI U1/U2 timeout
 	 */
-	usb_disable_lpm(udev);
+	if (tgt_info->target_type != TARGET_TYPE_QCN7605)
+		usb_disable_lpm(udev);
 
 	/* wait for disable lpm */
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -319,10 +319,10 @@ void hif_usb_disable_bus(struct hif_softc *hif_ctx)
 	if (g_usb_sc->suspend_state)
 		hif_bus_resume(GET_HIF_OPAQUE_HDL(hif_ctx));
 
-	if (tgt_info->target_type != TARGET_TYPE_QCN7605)
+	if (tgt_info->target_type != TARGET_TYPE_QCN7605) {
 		unregister_reboot_notifier(&sc->reboot_notifier);
-
-	usb_put_dev(interface_to_usbdev(interface));
+		usb_put_dev(udev);
+	}
 
 	hif_usb_device_deinit(sc);
 
@@ -532,8 +532,7 @@ int hif_usb_bus_configure(struct hif_softc *scn)
 	else
 		mode = PLD_MISSION;
 
-	return pld_wlan_enable(scn->qdf_dev->dev, &cfg,
-			       mode, QWLAN_VERSIONSTR);
+	return pld_wlan_enable(scn->qdf_dev->dev, &cfg, mode);
 }
 #else
 /**
@@ -706,7 +705,6 @@ void hif_usb_ramdump_handler(struct hif_opaque_softc *scn)
 
 	if (pattern == FW_ASSERT_PATTERN) {
 		HIF_ERROR("Firmware crash detected...\n");
-		HIF_ERROR("Host SW version: %s\n", QWLAN_VERSIONSTR);
 		HIF_ERROR("target_type: %d.target_version %d. target_revision%d.",
 			tgt_info->target_type,
 			tgt_info->target_version,
@@ -722,7 +720,7 @@ void hif_usb_ramdump_handler(struct hif_opaque_softc *scn)
 		reg = (uint32_t *) (data + 4);
 		start_addr = *reg++;
 		if (sc->fw_ram_dumping == 0) {
-			pr_err("Firmware stack dump:");
+			qdf_nofl_err("Firmware stack dump:");
 			sc->fw_ram_dumping = 1;
 			fw_stack_addr = start_addr;
 		}
@@ -731,13 +729,13 @@ void hif_usb_ramdump_handler(struct hif_opaque_softc *scn)
 		for (i = 0; i < (len - 8); i += 16) {
 			if ((*reg == FW_REG_END_PATTERN) && (i == len - 12)) {
 				sc->fw_ram_dumping = 0;
-				pr_err("Stack start address = %#08x\n",
-					fw_stack_addr);
+				qdf_nofl_err("Stack start address = %#08x",
+					     fw_stack_addr);
 				break;
 			}
 			hex_dump_to_buffer(reg, remaining, 16, 4, str_buf,
 						sizeof(str_buf), false);
-			pr_err("%#08x: %s\n", start_addr + i, str_buf);
+			qdf_nofl_err("%#08x: %s", start_addr + i, str_buf);
 			remaining -= 16;
 			reg += 4;
 		}

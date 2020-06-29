@@ -30,12 +30,6 @@
 #include "wlan_objmgr_cmn.h"
 #include "qdf_nbuf.h"
 
-#ifdef CONFIG_MCL
-#define MGMT_DESC_POOL_MAX 64
-#else
-#define MGMT_DESC_POOL_MAX 512
-#endif
-
 #define mgmt_txrx_alert(params...) \
 	QDF_TRACE_FATAL(QDF_MODULE_ID_MGMT_TXRX, params)
 #define mgmt_txrx_err(params...) \
@@ -244,6 +238,20 @@ enum rrm_actioncode {
 	RRM_LINK_MEASUREMENT_RPT,
 	RRM_NEIGHBOR_REQ,
 	RRM_NEIGHBOR_RPT,
+};
+
+/**
+ * enum ft_actioncode - ft action frames
+ * @FT_FAST_BSS_TRNST_REQ: ft request frame
+ * @FT_FAST_BSS_TRNST_RES: ft response frame
+ * @FT_FAST_BSS_TRNST_CONFIRM: ft confirm frame
+ * @FT_FAST_BSS_TRNST_ACK: ft ACK frame
+ */
+enum ft_actioncode {
+	FT_FAST_BSS_TRNST_REQ = 1,
+	FT_FAST_BSS_TRNST_RES,
+	FT_FAST_BSS_TRNST_CONFIRM,
+	FT_FAST_BSS_TRNST_ACK,
 };
 
 /**
@@ -608,6 +616,10 @@ enum mgmt_frame_type {
 	MGMT_ACTION_RRM_LINK_MEASUREMENT_RPT,
 	MGMT_ACTION_RRM_NEIGHBOR_REQ,
 	MGMT_ACTION_RRM_NEIGHBOR_RPT,
+	MGMT_ACTION_FT_REQUEST,
+	MGMT_ACTION_FT_RESPONSE,
+	MGMT_ACTION_FT_CONFIRM,
+	MGMT_ACTION_FT_ACK,
 	MGMT_ACTION_HT_NOTIFY_CHANWIDTH,
 	MGMT_ACTION_HT_SMPS,
 	MGMT_ACTION_HT_PSMP,
@@ -689,6 +701,7 @@ enum mgmt_frame_type {
 #define WLAN_NOISE_FLOOR_DBM_DEFAULT            -96
 /**
  * struct mgmt_rx_event_params - host mgmt header params
+ * @chan_freq: channel frequency on which this frame is received
  * @channel: channel on which this frame is received
  * @snr: snr information used to call rssi
  * @rssi_ctl[WLAN_MGMT_TXRX_HOST_MAX_ANTENNA]: RSSI of PRI 20MHz for each chain
@@ -705,6 +718,7 @@ enum mgmt_frame_type {
  *             (win specific, will be removed in phase 4)
  */
 struct mgmt_rx_event_params {
+	uint32_t    chan_freq;
 	uint32_t    channel;
 	uint32_t    snr;
 	uint8_t     rssi_ctl[WLAN_MGMT_TXRX_HOST_MAX_ANTENNA];

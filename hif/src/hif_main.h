@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -39,11 +39,19 @@
 #include "hif.h"
 #include "multibus.h"
 #include "hif_unit_test_suspend_i.h"
+#ifdef HIF_CE_LOG_INFO
+#include "qdf_notifier.h"
+#endif
 
 #define HIF_MIN_SLEEP_INACTIVITY_TIME_MS     50
 #define HIF_SLEEP_INACTIVITY_TIMER_PERIOD_MS 60
 
 #define HIF_MAX_BUDGET 0xFFFF
+
+#define HIF_STATS_INC(_handle, _field, _delta) \
+{ \
+	(_handle)->stats._field += _delta; \
+}
 
 /*
  * This macro implementation is exposed for efficiency only.
@@ -80,8 +88,17 @@
 #define AR6320_FW_3_2  (0x32)
 #define QCA6290_EMULATION_DEVICE_ID (0xabcd)
 #define QCA6290_DEVICE_ID (0x1100)
+#define QCN9000_DEVICE_ID (0x1104)
 #define QCA6390_EMULATION_DEVICE_ID (0x0108)
 #define QCA6390_DEVICE_ID (0x1101)
+/* TODO: change IDs for HastingsPrime */
+#define QCA6490_EMULATION_DEVICE_ID (0x010a)
+#define QCA6490_DEVICE_ID (0x1103)
+
+/* TODO: change IDs for Moselle */
+#define QCA6750_EMULATION_DEVICE_ID (0x010c)
+#define QCA6750_DEVICE_ID (0x1105)
+
 #define ADRASTEA_DEVICE_ID_P2_E12 (0x7021)
 #define AR9887_DEVICE_ID    (0x0050)
 #define AR900B_DEVICE_ID    (0x0040)
@@ -98,8 +115,10 @@
 #define QCA6018_DEVICE_ID (0xfffd) /* Todo: replace this with actual number */
 /* Genoa */
 #define QCN7605_DEVICE_ID  (0x1102) /* Genoa PCIe device ID*/
-#define QCN7605_COMPOSITE  (0x9900)
-#define QCN7605_STANDALONE  (0x9901)
+#define QCN7605_COMPOSITE  (0x9901)
+#define QCN7605_STANDALONE  (0x9900)
+#define QCN7605_STANDALONE_V2  (0x9902)
+#define QCN7605_COMPOSITE_V2  (0x9903)
 
 #define RUMIM2M_DEVICE_ID_NODE0	0xabc0
 #define RUMIM2M_DEVICE_ID_NODE1	0xabc1
@@ -109,6 +128,7 @@
 #define RUMIM2M_DEVICE_ID_NODE5	0xaa11
 
 #define HIF_GET_PCI_SOFTC(scn) ((struct hif_pci_softc *)scn)
+#define HIF_GET_IPCI_SOFTC(scn) ((struct hif_ipci_softc *)scn)
 #define HIF_GET_CE_STATE(scn) ((struct HIF_CE_state *)scn)
 #define HIF_GET_SDIO_SOFTC(scn) ((struct hif_sdio_softc *)scn)
 #define HIF_GET_USB_SOFTC(scn) ((struct hif_usb_softc *)scn)
@@ -137,6 +157,16 @@ struct ce_desc_hist {
 };
 #endif /*defined(HIF_CONFIG_SLUB_DEBUG_ON) || defined(HIF_CE_DEBUG_DATA_BUF)*/
 
+/**
+ * struct hif_cfg() - store ini config parameters in hif layer
+ * @ce_status_ring_timer_threshold: ce status ring timer threshold
+ * @ce_status_ring_batch_count_threshold: ce status ring batch count threshold
+ */
+struct hif_cfg {
+	uint16_t ce_status_ring_timer_threshold;
+	uint8_t ce_status_ring_batch_count_threshold;
+};
+
 struct hif_softc {
 	struct hif_opaque_softc osc;
 	struct hif_config_info hif_config;
@@ -149,6 +179,7 @@ struct hif_softc {
 	bool hif_init_done;
 	bool request_irq_done;
 	bool ext_grp_irq_configured;
+	uint8_t ce_latency_stats;
 	/* Packet statistics */
 	struct hif_ce_stats pkt_stats;
 	enum hif_target_status target_status;
@@ -191,6 +222,7 @@ struct hif_softc {
 	struct hif_ut_suspend_context ut_suspend_ctx;
 	uint32_t hif_attribute;
 	int wake_irq;
+	int disable_wake_irq;
 	void (*initial_wakeup_cb)(void *);
 	void *initial_wakeup_priv;
 #ifdef REMOVE_PKT_LOG
@@ -205,13 +237,21 @@ struct hif_softc {
 #if defined(HIF_CONFIG_SLUB_DEBUG_ON) || defined(HIF_CE_DEBUG_DATA_BUF)
 	struct ce_desc_hist hif_ce_desc_hist;
 #endif /*defined(HIF_CONFIG_SLUB_DEBUG_ON) || defined(HIF_CE_DEBUG_DATA_BUF)*/
-
 #ifdef IPA_OFFLOAD
 	qdf_shared_mem_t *ipa_ce_ring;
 #endif
+	struct hif_cfg ini_cfg;
+#ifdef HIF_CPU_PERF_AFFINE_MASK
+	/* The CPU hotplug event registration handle */
+	struct qdf_cpuhp_handler *cpuhp_event_handle;
+#endif
+#ifdef HIF_CE_LOG_INFO
+	qdf_notif_block hif_recovery_notifier;
+#endif
 };
 
-static inline void *hif_get_hal_handle(void *hif_hdl)
+static inline
+void *hif_get_hal_handle(struct hif_opaque_softc *hif_hdl)
 {
 	struct hif_softc *sc = (struct hif_softc *)hif_hdl;
 
@@ -220,6 +260,25 @@ static inline void *hif_get_hal_handle(void *hif_hdl)
 
 	return sc->hal_soc;
 }
+
+/**
+ * Max waiting time during Runtime PM suspend to finish all
+ * the tasks. This is in the multiple of 10ms.
+ */
+#define HIF_TASK_DRAIN_WAIT_CNT 25
+
+/**
+ * hif_try_complete_tasks() - Try to complete all the pending tasks
+ * @scn: HIF context
+ *
+ * Try to complete all the pending datapath tasks, i.e. tasklets,
+ * DP group tasklets and works which are queued, in a given time
+ * slot.
+ *
+ * Returns: QDF_STATUS_SUCCESS if all the tasks were completed
+ *	QDF error code, if the time slot exhausted
+ */
+QDF_STATUS hif_try_complete_tasks(struct hif_softc *scn);
 
 #ifdef QCA_NSS_WIFI_OFFLOAD_SUPPORT
 static inline bool hif_is_nss_wifi_enabled(struct hif_softc *sc)

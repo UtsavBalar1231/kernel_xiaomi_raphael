@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -249,6 +249,32 @@ mgmt_get_rrm_action_subtype(uint8_t action_code)
 		break;
 	case RRM_NEIGHBOR_RPT:
 		frm_type = MGMT_ACTION_RRM_NEIGHBOR_RPT;
+		break;
+	default:
+		frm_type = MGMT_FRM_UNSPECIFIED;
+		break;
+	}
+
+	return frm_type;
+}
+
+static enum mgmt_frame_type
+mgmt_get_ft_action_subtype(uint8_t action_code)
+{
+	enum mgmt_frame_type frm_type;
+
+	switch (action_code) {
+	case FT_FAST_BSS_TRNST_REQ:
+		frm_type = MGMT_ACTION_FT_REQUEST;
+		break;
+	case FT_FAST_BSS_TRNST_RES:
+		frm_type = MGMT_ACTION_FT_RESPONSE;
+		break;
+	case FT_FAST_BSS_TRNST_CONFIRM:
+		frm_type = MGMT_ACTION_FT_CONFIRM;
+		break;
+	case FT_FAST_BSS_TRNST_ACK:
+		frm_type = MGMT_ACTION_FT_ACK;
 		break;
 	default:
 		frm_type = MGMT_FRM_UNSPECIFIED;
@@ -710,6 +736,9 @@ mgmt_txrx_get_action_frm_subtype(uint8_t *mpdu_data_ptr)
 		frm_type = mgmt_get_spec_mgmt_action_subtype(
 						action_hdr->action_code);
 		break;
+	case ACTION_FAST_BSS_TRNST:
+		frm_type = mgmt_get_ft_action_subtype(action_hdr->action_code);
+		break;
 	case ACTION_CATEGORY_QOS:
 		frm_type = mgmt_get_qos_action_subtype(action_hdr->action_code);
 		break;
@@ -995,8 +1024,8 @@ QDF_STATUS tgt_mgmt_txrx_rx_frame_handler(
 
 	frm_type = mgmt_txrx_get_frm_type(mgmt_subtype, mpdu_data_ptr);
 	if (frm_type == MGMT_FRM_UNSPECIFIED) {
-		mgmt_txrx_err_rl("Unspecified mgmt frame type fc: %x %x",
-				 wh->i_fc[0], wh->i_fc[1]);
+		mgmt_txrx_debug_rl("Unspecified mgmt frame type fc: %x %x",
+				   wh->i_fc[0], wh->i_fc[1]);
 		qdf_nbuf_free(buf);
 		return QDF_STATUS_E_FAILURE;
 	}

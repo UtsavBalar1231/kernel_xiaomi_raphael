@@ -1194,9 +1194,9 @@ bool scm_filter_match(struct wlan_objmgr_psoc *psoc,
 
 	match = false;
 	for (i = 0; i < filter->num_of_channels; i++) {
-		if (!filter->channel_list[i] || (
-		   (filter->channel_list[i] ==
-		   db_entry->channel.chan_idx))) {
+		if (!filter->chan_freq_list[i] ||
+		    filter->chan_freq_list[i] ==
+		    db_entry->channel.chan_freq) {
 			match = true;
 			break;
 		}
@@ -1254,6 +1254,5 @@ bool scm_filter_match(struct wlan_objmgr_psoc *psoc,
 			  db_entry->bssid.bytes);
 		return false;
 	}
-
 	return true;
 }

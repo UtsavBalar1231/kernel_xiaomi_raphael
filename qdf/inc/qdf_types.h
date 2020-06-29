@@ -24,12 +24,6 @@
 #if !defined(__QDF_TYPES_H)
 #define __QDF_TYPES_H
 
-#ifndef CONFIG_MCL
-#if !defined(__printf)
-#define __printf(a, b)
-#endif
-#endif
-
 #define qdf_must_check __qdf_must_check
 
 /* Include Files */
@@ -42,6 +36,9 @@
 
 /* Preprocessor definitions and constants */
 #define QDF_MAX_SGLIST 4
+
+#define CPU_CLUSTER_TYPE_LITTLE 0
+#define CPU_CLUSTER_TYPE_PERF 1
 
 /**
  * struct qdf_sglist - scatter-gather list
@@ -110,6 +107,15 @@ typedef void *qdf_pm_t;
  */
 typedef void *qdf_handle_t;
 
+/**
+ * typedef qdf_freq_t - define frequency as a 16 bit/32 bit
+ * unsigned integer depending on the requirement
+ */
+#ifdef CONFIG_16_BIT_FREQ_TYPE
+typedef uint16_t qdf_freq_t;
+#else
+typedef uint32_t qdf_freq_t;
+#endif
 /**
  * typedef qdf_device_t - Platform/bus generic handle.
  * Used for bus specific functions.
@@ -196,7 +202,7 @@ typedef struct qdf_shared_mem {
 	qdf_dma_mem_context(memctx);
 } qdf_shared_mem_t;
 
-#define qdf_iomem_t __qdf_iomem_t;
+#define qdf_iomem_t __qdf_iomem_t
 
 /**
  * typedef enum QDF_TIMER_TYPE - QDF timer type
@@ -372,7 +378,12 @@ typedef bool (*qdf_irqlocked_func_t)(void *);
  * @QDF_MODULE_ID_TX_CAPTURE: Tx capture enhancement feature ID
  * @QDF_MODULE_ID_INTEROP_ISSUES_AP: interop issues ap module ID
  * @QDF_MODULE_ID_BLACKLIST_MGR: Blacklist Manager module
+ * @QDF_MODULE_ID_QLD: QCA Live Debug module ID
+ * @QDF_MODULE_ID_DYNAMIC_MODE_CHG: Dynamic mode change module ID
+ * @QDF_MODULE_ID_COEX: Coex related config module ID
+ * @QDF_MODULE_ID_FTM_TIME_SYNC: FTM Time sync module ID
  * @QDF_MODULE_ID_PKT_CAPTURE: PACKET CAPTURE module ID
+ * @QDF_MODULE_ID_MON_FILTER: Monitor filter related config module ID
  * @QDF_MODULE_ID_ANY: anything
  * @QDF_MODULE_ID_MAX: Max place holder module ID
  */
@@ -489,7 +500,12 @@ typedef enum {
 	QDF_MODULE_ID_TX_CAPTURE,
 	QDF_MODULE_ID_INTEROP_ISSUES_AP,
 	QDF_MODULE_ID_BLACKLIST_MGR,
+	QDF_MODULE_ID_QLD,
+	QDF_MODULE_ID_DYNAMIC_MODE_CHG,
+	QDF_MODULE_ID_COEX,
+	QDF_MODULE_ID_FTM_TIME_SYNC,
 	QDF_MODULE_ID_PKT_CAPTURE,
+	QDF_MODULE_ID_MON_FILTER,
 	QDF_MODULE_ID_ANY,
 	QDF_MODULE_ID_MAX,
 } QDF_MODULE_ID;
@@ -593,11 +609,14 @@ const char *qdf_opmode_str(const enum QDF_OPMODE opmode);
  * enum QDF_GLOBAL_MODE - global mode when driver is loaded.
  *
  * @QDF_GLOBAL_MISSION_MODE: mission mode (STA, SAP...)
+ * @QDF_GLOBAL_WALTEST_MODE: WAL Test Mode
  * @QDF_GLOBAL_MONITOR_MODE: Monitor Mode
  * @QDF_GLOBAL_FTM_MODE: FTM mode
  * @QDF_GLOBAL_IBSS_MODE: IBSS mode
+ * @QDF_GLOBAL_COLDBOOT_CALIB_MODEL: Cold Boot Calibration Mode
  * @QDF_GLOBAL_EPPING_MODE: EPPING mode
  * @QDF_GLOBAL_QVIT_MODE: QVIT global mode
+ * @QDF_GLOBAL_FTM_COLDBOOT_CALIB_MODE: Cold Boot Calibration in FTM Mode
  * @QDF_GLOBAL_MAX_MODE: Max place holder
  */
 enum QDF_GLOBAL_MODE {
@@ -609,43 +628,11 @@ enum QDF_GLOBAL_MODE {
 	QDF_GLOBAL_COLDBOOT_CALIB_MODE = 7,
 	QDF_GLOBAL_EPPING_MODE = 8,
 	QDF_GLOBAL_QVIT_MODE = 9,
+	QDF_GLOBAL_FTM_COLDBOOT_CALIB_MODE = 10,
 	QDF_GLOBAL_MAX_MODE
 };
 
 #define  QDF_IS_EPPING_ENABLED(mode) (mode == QDF_GLOBAL_EPPING_MODE)
-
-/**
- * qdf_trace_msg()- logging API
- * @module: Module identifier. A member of the QDF_MODULE_ID enumeration that
- *	    identifies the module issuing the trace message.
- * @level: Trace level. A member of the QDF_TRACE_LEVEL enumeration indicating
- *	   the severity of the condition causing the trace message to be issued.
- *	   More severe conditions are more likely to be logged.
- * @str_format: Format string. The message to be logged. This format string
- *	       contains printf-like replacement parameters, which follow this
- *	       parameter in the variable argument list.
- *
- * Users wishing to add tracing information to their code should use
- * QDF_TRACE.  QDF_TRACE() will compile into a call to qdf_trace_msg() when
- * tracing is enabled.
- *
- * Return: nothing
- *
- * implemented in qdf_trace.c
- */
-void __printf(3, 4) qdf_trace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-				  const char *str_format, ...);
-/**
- * qdf_vtrace_msg() - the va_list version of qdf_trace_msg
- * @module: the calling module's Id
- * @level: the logging level to log using
- * @str_format: the log format string
- * @val: the va_list containing the values to format according to str_format
- *
- * Return: None
- */
-void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-		    const char *str_format, va_list val);
 
 #ifdef QDF_TRACE_PRINT_ENABLE
 #define qdf_print(args...) QDF_TRACE_INFO(QDF_MODULE_ID_ANY, ## args)
@@ -706,7 +693,6 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 #define qdf_rl_nofl_debug(params...) \
 	QDF_TRACE_DEBUG_RL_NO_FL(QDF_MODULE_ID_QDF, ## params)
 
-#define qdf_vprint    __qdf_vprint
 #define qdf_snprint   __qdf_snprint
 
 #define qdf_kstrtoint __qdf_kstrtoint
@@ -1283,19 +1269,37 @@ enum qdf_suspend_type {
  * @QDF_SUSPEND_TIMEOUT: Timeout for an ACK from FW for suspend request
  * @QDF_RESUME_TIMEOUT: Timeout for an ACK from FW for resume request
  * @QDF_WMI_EXCEED_MAX_PENDING_CMDS: wmi exceed max pending cmd
+ * @QDF_AP_STA_CONNECT_REQ_TIMEOUT: SAP peer assoc timeout from FW
+ * @QDF_STA_AP_CONNECT_REQ_TIMEOUT: STA peer assoc timeout from FW
+ * @QDF_MAC_HW_MODE_CHANGE_TIMEOUT: HW mode change timeout from FW
+ * @QDF_MAC_HW_MODE_CONFIG_TIMEOUT: HW dual mac cfg timeout from FW
+ * @QDF_VDEV_START_RESPONSE_TIMED_OUT: Start response timeout from FW
+ * @QDF_VDEV_RESTART_RESPONSE_TIMED_OUT: Restart response timeout from FW
+ * @QDF_VDEV_STOP_RESPONSE_TIMED_OUT: Stop response timeout from FW
+ * @QDF_VDEV_DELETE_RESPONSE_TIMED_OUT: Delete response timeout from FW
+ * @QDF_VDEV_PEER_DELETE_ALL_RESPONSE_TIMED_OUT: Peer delete all resp timeout
  */
 enum qdf_hang_reason {
-	QDF_REASON_UNSPECIFIED = 0,
-	QDF_RX_HASH_NO_ENTRY_FOUND = 1,
-	QDF_PEER_DELETION_TIMEDOUT = 2,
-	QDF_PEER_UNMAP_TIMEDOUT = 3,
-	QDF_SCAN_REQ_EXPIRED = 4,
-	QDF_SCAN_ATTEMPT_FAILURES = 5,
-	QDF_GET_MSG_BUFF_FAILURE = 6,
-	QDF_ACTIVE_LIST_TIMEOUT = 7,
-	QDF_SUSPEND_TIMEOUT = 8,
-	QDF_RESUME_TIMEOUT = 9,
-	QDF_WMI_EXCEED_MAX_PENDING_CMDS = 10,
+	QDF_REASON_UNSPECIFIED,
+	QDF_RX_HASH_NO_ENTRY_FOUND,
+	QDF_PEER_DELETION_TIMEDOUT,
+	QDF_PEER_UNMAP_TIMEDOUT,
+	QDF_SCAN_REQ_EXPIRED,
+	QDF_SCAN_ATTEMPT_FAILURES,
+	QDF_GET_MSG_BUFF_FAILURE,
+	QDF_ACTIVE_LIST_TIMEOUT,
+	QDF_SUSPEND_TIMEOUT,
+	QDF_RESUME_TIMEOUT,
+	QDF_WMI_EXCEED_MAX_PENDING_CMDS,
+	QDF_AP_STA_CONNECT_REQ_TIMEOUT,
+	QDF_STA_AP_CONNECT_REQ_TIMEOUT,
+	QDF_MAC_HW_MODE_CHANGE_TIMEOUT,
+	QDF_MAC_HW_MODE_CONFIG_TIMEOUT,
+	QDF_VDEV_START_RESPONSE_TIMED_OUT,
+	QDF_VDEV_RESTART_RESPONSE_TIMED_OUT,
+	QDF_VDEV_STOP_RESPONSE_TIMED_OUT,
+	QDF_VDEV_DELETE_RESPONSE_TIMED_OUT,
+	QDF_VDEV_PEER_DELETE_ALL_RESPONSE_TIMED_OUT,
 };
 
 /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -90,8 +90,8 @@ dp_tx_flow_pool_reattach(struct dp_tx_desc_pool_s *pool)
 
 	if (pool->avail_desc > pool->start_th[DP_TH_BE_BK])
 		pool->status = FLOW_POOL_ACTIVE_UNPAUSED;
-	if (pool->avail_desc <= pool->start_th[DP_TH_BE_BK] &&
-	    pool->avail_desc > pool->start_th[DP_TH_VI])
+	else if (pool->avail_desc <= pool->start_th[DP_TH_BE_BK] &&
+		 pool->avail_desc > pool->start_th[DP_TH_VI])
 		pool->status = FLOW_POOL_BE_BK_PAUSED;
 	else if (pool->avail_desc <= pool->start_th[DP_TH_VI] &&
 		 pool->avail_desc > pool->start_th[DP_TH_VO])
@@ -173,9 +173,9 @@ dp_tx_flow_pool_dump_threshold(struct dp_tx_desc_pool_s *pool)
  *
  * Return: none
  */
-void dp_tx_dump_flow_pool_info(void *ctx)
+void dp_tx_dump_flow_pool_info(struct cdp_soc_t *soc_hdl)
 {
-	struct dp_soc *soc = ctx;
+	struct dp_soc *soc = cdp_soc_t_to_dp_soc(soc_hdl);
 	struct dp_txrx_pool_stats *pool_stats = &soc->pool_stats;
 	struct dp_tx_desc_pool_s *pool = NULL;
 	struct dp_tx_desc_pool_s tmp_pool;
@@ -307,6 +307,8 @@ struct dp_tx_desc_pool_s *dp_tx_create_flow_pool(struct dp_soc *soc,
 int dp_tx_delete_flow_pool(struct dp_soc *soc, struct dp_tx_desc_pool_s *pool,
 	bool force)
 {
+	struct dp_vdev *vdev;
+
 	if (!soc || !pool) {
 		dp_err("pool or soc is NULL");
 		QDF_ASSERT(0);
@@ -333,6 +335,11 @@ int dp_tx_delete_flow_pool(struct dp_soc *soc, struct dp_tx_desc_pool_s *pool,
 	if (pool->avail_desc < pool->pool_size) {
 		pool->status = FLOW_POOL_INVALID;
 		qdf_spin_unlock_bh(&pool->flow_pool_lock);
+		/* Reset TX desc associated to this Vdev as NULL */
+		vdev = dp_get_vdev_from_soc_vdev_id_wifi3(soc,
+							  pool->flow_pool_id);
+		if (vdev)
+			dp_tx_desc_flush(vdev->pdev, vdev, false);
 		dp_err("avail desc less than pool size");
 		return -EAGAIN;
 	}
@@ -357,8 +364,7 @@ static void dp_tx_flow_pool_vdev_map(struct dp_pdev *pdev,
 	struct dp_vdev *vdev;
 	struct dp_soc *soc = pdev->soc;
 
-	vdev = (struct dp_vdev *)cdp_get_vdev_from_vdev_id((void *)soc,
-					(struct cdp_pdev *)pdev, vdev_id);
+	vdev = dp_get_vdev_from_soc_vdev_id_wifi3(soc, vdev_id);
 	if (!vdev) {
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
 		   "%s: invalid vdev_id %d",
@@ -387,8 +393,7 @@ static void dp_tx_flow_pool_vdev_unmap(struct dp_pdev *pdev,
 	struct dp_vdev *vdev;
 	struct dp_soc *soc = pdev->soc;
 
-	vdev = (struct dp_vdev *)cdp_get_vdev_from_vdev_id((void *)soc,
-					(struct cdp_pdev *)pdev, vdev_id);
+	vdev = dp_get_vdev_from_soc_vdev_id_wifi3(soc, vdev_id);
 	if (!vdev) {
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
 		   "%s: invalid vdev_id %d",
@@ -516,12 +521,12 @@ void dp_tx_flow_control_init(struct dp_soc *soc)
 }
 
 /**
- * dp_tx_flow_control_deinit() - Deregister fw based tx flow control
+ * dp_tx_desc_pool_dealloc() - De-allocate tx desc pool
  * @tx_desc_pool: Handle to flow_pool
  *
  * Return: none
  */
-void dp_tx_flow_control_deinit(struct dp_soc *soc)
+static inline void dp_tx_desc_pool_dealloc(struct dp_soc *soc)
 {
 	struct dp_tx_desc_pool_s *tx_desc_pool;
 	int i;
@@ -531,11 +536,20 @@ void dp_tx_flow_control_deinit(struct dp_soc *soc)
 		if (!tx_desc_pool->desc_pages.num_pages)
 			continue;
 
-		if (dp_tx_desc_pool_free(soc, i)) {
-			QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_INFO,
-				  "%s Tx Desc Pool Free failed", __func__);
-		}
+		if (dp_tx_desc_pool_free(soc, i) != QDF_STATUS_SUCCESS)
+			dp_err("Tx Desc Pool:%d Free failed", i);
 	}
+}
+
+/**
+ * dp_tx_flow_control_deinit() - Deregister fw based tx flow control
+ * @tx_desc_pool: Handle to flow_pool
+ *
+ * Return: none
+ */
+void dp_tx_flow_control_deinit(struct dp_soc *soc)
+{
+	dp_tx_desc_pool_dealloc(soc);
 
 	qdf_spinlock_destroy(&soc->flow_pool_array_lock);
 }
@@ -562,19 +576,35 @@ QDF_STATUS dp_txrx_register_pause_cb(struct cdp_soc_t *handle,
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS dp_tx_flow_pool_map(struct cdp_soc_t *handle, struct cdp_pdev *pdev,
-				uint8_t vdev_id)
+QDF_STATUS dp_tx_flow_pool_map(struct cdp_soc_t *handle, uint8_t pdev_id,
+			       uint8_t vdev_id)
 {
-	struct dp_soc *soc = (struct dp_soc *)handle;
-	int tx_ring_size = wlan_cfg_tx_ring_size(soc->wlan_cfg_ctx);
+	struct dp_soc *soc = cdp_soc_t_to_dp_soc(handle);
+	struct dp_pdev *pdev =
+		dp_get_pdev_from_soc_pdev_id_wifi3(soc, pdev_id);
+	int tx_ring_size = wlan_cfg_get_num_tx_desc(soc->wlan_cfg_ctx);
 
-	return (dp_tx_flow_pool_map_handler((struct dp_pdev *)pdev, vdev_id,
-				FLOW_TYPE_VDEV,	vdev_id, tx_ring_size));
+	if (!pdev) {
+		dp_err("pdev is NULL");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	return dp_tx_flow_pool_map_handler(pdev, vdev_id, FLOW_TYPE_VDEV,
+					   vdev_id, tx_ring_size);
 }
 
-void dp_tx_flow_pool_unmap(struct cdp_soc_t *soc, struct cdp_pdev *pdev,
+void dp_tx_flow_pool_unmap(struct cdp_soc_t *handle, uint8_t pdev_id,
 			   uint8_t vdev_id)
 {
-	return(dp_tx_flow_pool_unmap_handler((struct dp_pdev *)pdev, vdev_id,
-				FLOW_TYPE_VDEV, vdev_id));
+	struct dp_soc *soc = cdp_soc_t_to_dp_soc(handle);
+	struct dp_pdev *pdev =
+		dp_get_pdev_from_soc_pdev_id_wifi3(soc, pdev_id);
+
+	if (!pdev) {
+		dp_err("pdev is NULL");
+		return;
+	}
+
+	return dp_tx_flow_pool_unmap_handler(pdev, vdev_id,
+					     FLOW_TYPE_VDEV, vdev_id);
 }

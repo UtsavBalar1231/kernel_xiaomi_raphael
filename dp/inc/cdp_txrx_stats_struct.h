@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -23,9 +23,9 @@
  */
 #ifndef _CDP_TXRX_STATS_STRUCT_H_
 #define _CDP_TXRX_STATS_STRUCT_H_
-#ifdef CONFIG_MCL
-#include <wlan_defs.h>
-#endif
+
+#include <qdf_types.h>
+
 #define TXRX_STATS_LEVEL_OFF   0
 #define TXRX_STATS_LEVEL_BASIC 1
 #define TXRX_STATS_LEVEL_FULL  2
@@ -73,6 +73,8 @@
 
 #define CDP_MAX_RX_RINGS 4  /* max rx rings */
 #define CDP_MAX_TX_COMP_RINGS 3  /* max tx completion rings */
+#define CDP_MAX_TX_TQM_STATUS 9  /* max tx tqm completion status */
+#define CDP_MAX_TX_HTT_STATUS 7  /* max tx htt completion status */
 
 /* TID level VoW stats macros
  * to add and get stats
@@ -114,7 +116,84 @@
 
 #define INVALID_RSSI 255
 
+#define CDP_RSSI_MULTIPLIER BIT(8)
+#define CDP_RSSI_MUL(x, mul) ((x) * (mul))
+#define CDP_RSSI_RND(x, mul) ((((x) % (mul)) >= ((mul) / 2)) ?\
+	((x) + ((mul) - 1)) / (mul) : (x) / (mul))
+
+#define CDP_RSSI_OUT(x) (CDP_RSSI_RND((x), CDP_RSSI_MULTIPLIER))
+#define CDP_RSSI_IN(x)  (CDP_RSSI_MUL((x), CDP_RSSI_MULTIPLIER))
+#define CDP_RSSI_AVG(x, y) ((((x) << 2) + (y) - (x)) >> 2)
+
+#define CDP_RSSI_UPDATE_AVG(x, y) x = CDP_RSSI_AVG((x), CDP_RSSI_IN((y)))
+
+/*Max SU EVM count */
+#define DP_RX_MAX_SU_EVM_COUNT 32
+
 #define WDI_EVENT_BASE 0x100
+
+#define CDP_TXRX_RATECODE_MCS_MASK 0xF
+#define CDP_TXRX_RATECODE_NSS_MASK 0x3
+#define CDP_TXRX_RATECODE_NSS_LSB 4
+#define CDP_TXRX_RATECODE_PREM_MASK 0x3
+#define CDP_TXRX_RATECODE_PREM_LSB 6
+
+/* Below BW_GAIN should be added to the SNR value of every ppdu based on the
+ * bandwidth. This table is obtained from HALPHY.
+ * BW         BW_Gain
+ * 20          0
+ * 40          3dBm
+ * 80          6dBm
+ * 160/80P80   9dBm
+ */
+
+#define PKT_BW_GAIN_20MHZ 0
+#define PKT_BW_GAIN_40MHZ 3
+#define PKT_BW_GAIN_80MHZ 6
+#define PKT_BW_GAIN_160MHZ 9
+
+/*
+ * cdp_tx_transmit_type: Transmit type index
+ * SU: SU Transmit type index
+ * MU_MIMO: MU_MIMO Transmit type index
+ * MU_OFDMA: MU_OFDMA Transmit type index
+ * MU_MIMO_OFDMA: MU MIMO OFDMA Transmit type index
+ */
+enum cdp_tx_transmit_type {
+	SU = 0,
+	MU_MIMO,
+	MU_OFDMA,
+	MU_MIMO_OFDMA,
+};
+
+/*
+ * cdp_ru_index: Different RU index
+ *
+ * RU_26_INDEX : 26-tone Resource Unit index
+ * RU_52_INDEX : 52-tone Resource Unit index
+ * RU_106_INDEX: 106-tone Resource Unit index
+ * RU_242_INDEX: 242-tone Resource Unit index
+ * RU_484_INDEX: 484-tone Resource Unit index
+ * RU_996_INDEX: 996-tone Resource Unit index
+ */
+enum cdp_ru_index {
+	RU_26_INDEX = 0,
+	RU_52_INDEX,
+	RU_106_INDEX,
+	RU_242_INDEX,
+	RU_484_INDEX,
+	RU_996_INDEX,
+};
+
+#ifdef FEATURE_TSO_STATS
+/* Number of TSO Packet Statistics captured */
+#define CDP_MAX_TSO_PACKETS 5
+/* Information for Number of Segments for a TSO Packet captured */
+#define CDP_MAX_TSO_SEGMENTS 2
+/* Information for Number of Fragments for a TSO Segment captured */
+#define CDP_MAX_TSO_FRAGMENTS 6
+#endif /* FEATURE_TSO_STATS */
+
 /* Different Packet Types */
 enum cdp_packet_type {
 	DOT11_A = 0,
@@ -123,6 +202,18 @@ enum cdp_packet_type {
 	DOT11_AC = 3,
 	DOT11_AX = 4,
 	DOT11_MAX = 5,
+};
+
+/*
+ * cdp_mu_packet_type: MU Rx type index
+ * RX_TYPE_MU_MIMO: MU MIMO Rx type index
+ * RX_TYPE_MU_OFDMA: MU OFDMA Rx type index
+ * MU_MIMO_OFDMA: MU Rx MAX type index
+ */
+enum cdp_mu_packet_type {
+	RX_TYPE_MU_MIMO = 0,
+	RX_TYPE_MU_OFDMA = 1,
+	RX_TYPE_MU_MAX = 2,
 };
 
 enum WDI_EVENT {
@@ -203,6 +294,78 @@ enum cdp_txrx_tidq_stats {
 
 struct cdp_tidq_stats {
 	uint32_t stats[TIDQ_STATS_MAX];
+};
+
+#if defined(WLAN_CFR_ENABLE) && defined(WLAN_ENH_CFR_ENABLE)
+/**
+ * struct cdp_rx_ppdu_cfr_info - struct for storing ppdu info extracted from HW
+ * TLVs, this will be used for CFR correlation
+ *
+ * @bb_captured_channel : Set by RXPCU when MACRX_FREEZE_CAPTURE_CHANNEL TLV is
+ * sent to PHY, SW checks it to correlate current PPDU TLVs with uploaded
+ * channel information.
+ *
+ * @bb_captured_timeout : Set by RxPCU to indicate channel capture condition is
+ * met, but MACRX_FREEZE_CAPTURE_CHANNEL is not sent to PHY due to AST delay,
+ * which means the rx_frame_falling edge to FREEZE TLV ready time exceeds
+ * the threshold time defined by RXPCU register FREEZE_TLV_DELAY_CNT_THRESH.
+ * Bb_captured_reason is still valid in this case.
+ *
+ * @bb_captured_reason : Copy capture_reason of MACRX_FREEZE_CAPTURE_CHANNEL
+ * TLV to here for FW usage. Valid when bb_captured_channel or
+ * bb_captured_timeout is set.
+ * <enum 0 freeze_reason_TM>
+ * <enum 1 freeze_reason_FTM>
+ * <enum 2 freeze_reason_ACK_resp_to_TM_FTM>
+ * <enum 3 freeze_reason_TA_RA_TYPE_FILTER>
+ * <enum 4 freeze_reason_NDPA_NDP>
+ * <enum 5 freeze_reason_ALL_PACKET>
+ * <legal 0-5>
+ *
+ * @rx_location_info_valid: Indicates whether CFR DMA address in the PPDU TLV
+ * is valid
+ * <enum 0 rx_location_info_is_not_valid>
+ * <enum 1 rx_location_info_is_valid>
+ * <legal all>
+ *
+ * @chan_capture_status : capture status reported by ucode
+ * a. CAPTURE_IDLE: FW has disabled "REPETITIVE_CHE_CAPTURE_CTRL"
+ * b. CAPTURE_BUSY: previous PPDU’s channel capture upload DMA ongoing. (Note
+ * that this upload is triggered after receiving freeze_channel_capture TLV
+ * after last PPDU is rx)
+ * c. CAPTURE_ACTIVE: channel capture is enabled and no previous channel
+ * capture ongoing
+ * d. CAPTURE_NO_BUFFER: next buffer in IPC ring not available
+ *
+ * @rtt_che_buffer_pointer_high8 : The high 8 bits of the 40 bits pointer to
+ * external RTT channel information buffer
+ *
+ * @rtt_che_buffer_pointer_low32 : The low 32 bits of the 40 bits pointer to
+ * external RTT channel information buffer
+ *
+ */
+
+struct cdp_rx_ppdu_cfr_info {
+	bool bb_captured_channel;
+	bool bb_captured_timeout;
+	uint8_t bb_captured_reason;
+	bool rx_location_info_valid;
+	uint8_t chan_capture_status;
+	uint8_t rtt_che_buffer_pointer_high8;
+	uint32_t rtt_che_buffer_pointer_low32;
+};
+#endif
+/*
+ * struct cdp_rx_su_evm_info: Rx evm info
+ * @number_of_symbols: number of symbols
+ * @nss_count: number of spatial streams
+ * @pilot_count: number of pilot count
+ */
+struct cdp_rx_su_evm_info {
+	uint16_t number_of_symbols;
+	uint8_t  nss_count;
+	uint8_t  pilot_count;
+	uint32_t pilot_evm[DP_RX_MAX_SU_EVM_COUNT];
 };
 
 /*
@@ -294,6 +457,8 @@ struct cdp_delay_stats {
  * @success_cnt: total successful transmit count
  * @comp_fail_cnt: firmware drop found in tx completion path
  * @swdrop_cnt: software drop in tx path
+ * @tqm_status_cnt: TQM completion status count
+ * @htt_status_cnt: HTT completion status count
  */
 struct cdp_tid_tx_stats {
 	struct cdp_delay_stats swq_delay;
@@ -302,6 +467,8 @@ struct cdp_tid_tx_stats {
 	uint64_t success_cnt;
 	uint64_t comp_fail_cnt;
 	uint64_t swdrop_cnt[TX_MAX_DROP];
+	uint64_t tqm_status_cnt[CDP_MAX_TX_TQM_STATUS];
+	uint64_t htt_status_cnt[CDP_MAX_TX_HTT_STATUS];
 };
 
 /*
@@ -358,14 +525,183 @@ struct cdp_pkt_type {
 	uint32_t mcs_count[MAX_MCS];
 };
 
+/*
+ * struct cdp_rx_mu - Rx MU Stats
+ * @ppdu_nss[SS_COUNT]: Packet Count in spatial streams
+ * @mpdu_cnt_fcs_ok: Rx success mpdu count
+ * @mpdu_cnt_fcs_err: Rx fail mpdu count
+ * @cdp_pkt_type: counter array for each MCS index
+ */
+struct cdp_rx_mu {
+	uint32_t ppdu_nss[SS_COUNT];
+	uint32_t mpdu_cnt_fcs_ok;
+	uint32_t mpdu_cnt_fcs_err;
+	struct cdp_pkt_type ppdu;
+};
+
+/* struct cdp_tx_pkt_info - tx packet info
+ * num_msdu - successful msdu
+ * num_mpdu - successful mpdu from compltn common
+ * mpdu_tried - mpdu tried
+ *
+ * tx packet info counter field for mpdu success/tried and msdu
+ */
+struct cdp_tx_pkt_info {
+	uint32_t num_msdu;
+	uint32_t num_mpdu;
+	uint32_t mpdu_tried;
+};
+
+#ifdef FEATURE_TSO_STATS
+/**
+ * struct cdp_tso_seg_histogram - Segment histogram for TCP Packets
+ * @segs_1: packets with single segments
+ * @segs_2_5: packets with 2-5 segments
+ * @segs_6_10: packets with 6-10 segments
+ * @segs_11_15: packets with 11-15 segments
+ * @segs_16_20: packets with 16-20 segments
+ * @segs_20_plus: packets with 20 plus segments
+ */
+struct cdp_tso_seg_histogram {
+	uint64_t segs_1;
+	uint64_t segs_2_5;
+	uint64_t segs_6_10;
+	uint64_t segs_11_15;
+	uint64_t segs_16_20;
+	uint64_t segs_20_plus;
+};
+
+/**
+ * struct cdp_tso_packet_info - Stats for TSO segments within a TSO packet
+ * @tso_seg: TSO Segment information
+ * @num_seg: Number of segments
+ * @tso_packet_len: Size of the tso packet
+ * @tso_seg_idx: segment number
+ */
+struct cdp_tso_packet_info {
+	struct qdf_tso_seg_t tso_seg[CDP_MAX_TSO_SEGMENTS];
+	uint8_t num_seg;
+	size_t tso_packet_len;
+	uint32_t tso_seg_idx;
+};
+
+/**
+ * struct cdp_tso_info - stats for tso packets
+ * @tso_packet_info: TSO packet information
+ */
+struct cdp_tso_info {
+	struct cdp_tso_packet_info tso_packet_info[CDP_MAX_TSO_PACKETS];
+};
+#endif /* FEATURE_TSO_STATS */
+
+/**
+ * struct cdp_tso_stats -  TSO stats information
+ * @num_tso_pkts: Total number of TSO Packets
+ * @tso_comp: Total tso packet completions
+ * @dropped_host: TSO packets dropped by host
+ * @tso_no_mem_dropped: TSO packets dropped by host due to descriptor
+			unavailablity
+ * @dropped_target: TSO packets_dropped by target
+ * @tso_info: Per TSO packet counters
+ * @seg_histogram: TSO histogram stats
+ */
+struct cdp_tso_stats {
+	struct cdp_pkt_info num_tso_pkts;
+	uint32_t tso_comp;
+	struct cdp_pkt_info dropped_host;
+	struct cdp_pkt_info tso_no_mem_dropped;
+	uint32_t dropped_target;
+#ifdef FEATURE_TSO_STATS
+	struct cdp_tso_info tso_info;
+	struct cdp_tso_seg_histogram seg_histogram;
+#endif /* FEATURE_TSO_STATS */
+};
+
+#define CDP_PEER_STATS_START 0
+
+enum cdp_peer_stats_type {
+	cdp_peer_stats_min = CDP_PEER_STATS_START,
+
+	/* Tx types */
+	cdp_peer_tx_ucast = cdp_peer_stats_min,
+	cdp_peer_tx_mcast,
+	cdp_peer_tx_rate,
+	cdp_peer_tx_last_tx_rate,
+	cdp_peer_tx_inactive_time,
+	cdp_peer_tx_ratecode,
+	cdp_peer_tx_flags,
+	cdp_peer_tx_power,
+
+	/* Rx types */
+	cdp_peer_rx_rate,
+	cdp_peer_rx_last_rx_rate,
+	cdp_peer_rx_ratecode,
+	cdp_peer_rx_ucast,
+	cdp_peer_rx_flags,
+	cdp_peer_rx_avg_rssi,
+	cdp_peer_stats_max,
+};
+
+/*
+ * The max size of cdp_peer_stats_param_t is limited to 16 bytes.
+ * If the buffer size is exceeding this size limit,
+ * dp_txrx_get_peer_stats is to be used instead.
+ */
+typedef union cdp_peer_stats_buf {
+	/* Tx types */
+	struct cdp_pkt_info tx_ucast;
+	struct cdp_pkt_info tx_mcast;
+	uint32_t tx_rate;
+	uint32_t last_tx_rate;
+	uint32_t tx_inactive_time;
+	uint32_t tx_flags;
+	uint32_t tx_power;
+	uint16_t tx_ratecode;
+
+	/* Rx types */
+	struct cdp_pkt_info rx_ucast;
+	uint32_t rx_rate;
+	uint32_t last_rx_rate;
+	uint32_t rx_ratecode;
+	uint32_t rx_flags;
+	uint32_t rx_avg_rssi;
+} cdp_peer_stats_param_t; /* Max union size 16 bytes */
+
+/**
+ * enum cdp_protocol_trace -  Protocols supported by per-peer protocol trace
+ * @CDP_TRACE_ICMP: ICMP packets
+ * @CDP_TRACE_EAP: EAPOL packets
+ * @CDP_TRACE_ARP: ARP packets
+ *
+ * Enumeration of all protocols supported by per-peer protocol trace feature
+ */
+enum cdp_protocol_trace {
+	CDP_TRACE_ICMP,
+	CDP_TRACE_EAP,
+	CDP_TRACE_ARP,
+	CDP_TRACE_MAX
+};
+
+/**
+ * struct protocol_trace_count - type of count on per-peer protocol trace
+ * @egress_cnt: how many packets go out of host driver
+ * @ingress_cnt: how many packets come into the host driver
+ *
+ * Type of count on per-peer protocol trace
+ */
+struct protocol_trace_count {
+	uint16_t egress_cnt;
+	uint16_t ingress_cnt;
+};
 /* struct cdp_tx_stats - tx stats
  * @cdp_pkt_info comp_pkt: Pkt Info for which completions were received
  * @cdp_pkt_info ucast: Unicast Packet Count
  * @cdp_pkt_info mcast: Multicast Packet Count
  * @cdp_pkt_info bcast: Broadcast Packet Count
  * @cdp_pkt_info nawds_mcast: NAWDS  Multicast Packet Count
- * @nawds_mcast_drop: NAWDS  Multicast Drop Count
  * @cdp_pkt_info tx_success: Successful Tx Packets
+ * @nawds_mcast_drop: NAWDS  Multicast Drop Count
+ * @protocol_trace_cnt: per-peer protocol counter
  * @tx_failed: Total Tx failure
  * @ofdma: Total Packets as ofdma
  * @stbc: Packets in STBC
@@ -391,6 +727,7 @@ struct cdp_pkt_type {
  * @bw[MAX_BW]: Packet Count for different bandwidths
  * @wme_ac_type[WME_AC_MAX]: Wireless Multimedia type Count
  * @excess_retries_per_ac[WME_AC_MAX]: Wireless Multimedia type Count
+ * @dot11_tx_pkts: dot11 tx packets
  * @fw_rem: Discarded by firmware
  * @fw_rem_notx: firmware_discard_untransmitted
  * @fw_rem_tx: firmware_discard_transmitted
@@ -399,7 +736,6 @@ struct cdp_pkt_type {
  * @fw_reason2: discarded by firmware reason 2
  * @fw_reason3: discarded by firmware reason 3
  * @mcs_count: MCS Count
- * @dot11_tx_pkts: dot11 tx packets
  * @an_tx_cnt: ald tx count
  * @an_tx_rates_used: ald rx rate used
  * @an_tx_bytes: ald tx bytes
@@ -412,10 +748,10 @@ struct cdp_pkt_type {
  * @ald_ac_excretries: #pkts dropped after excessive retries per node per AC
  * @rssi_chain: rssi chain
  * @inactive_time: inactive time in secs
- * @tx_ratecode: Tx rate code of last frame
  * @tx_flags: tx flags
  * @tx_power: Tx power latest
  * @is_tx_no_ack: no ack received
+ * @tx_ratecode: Tx rate code of last frame
  * @is_tx_nodefkey: tx failed 'cuz no defkey
  * @is_tx_noheadroom: tx failed 'cuz no space
  * @is_crypto_enmicfail:
@@ -427,11 +763,11 @@ struct cdp_pkt_type {
  * @failed_retry_count: packets failed due to retry above 802.11 retry limit
  * @retry_count: packets successfully send after one or more retry
  * @multiple_retry_count: packets successfully sent after more than one retry
- * @transmit_type: tx transmit type
+ * @transmit_type: pkt info for tx transmit type
  * @mu_group_id: mumimo mu group id
  * @ru_start: RU start index
  * @ru_tones: RU tones size
- * @ru_loc: RU location 26/ 52/ 106/ 242/ 484 counter
+ * @ru_loc: pkt info for RU location 26/ 52/ 106/ 242/ 484 counter
  * @num_ppdu_cookie_valid : Number of comp received with valid ppdu cookie
  */
 struct cdp_tx_stats {
@@ -440,8 +776,11 @@ struct cdp_tx_stats {
 	struct cdp_pkt_info mcast;
 	struct cdp_pkt_info bcast;
 	struct cdp_pkt_info nawds_mcast;
-	uint32_t nawds_mcast_drop;
+#ifdef VDEV_PEER_PROTOCOL_COUNT
+	struct protocol_trace_count protocol_trace_cnt[CDP_TRACE_MAX];
+#endif
 	struct cdp_pkt_info tx_success;
+	uint32_t nawds_mcast_drop;
 	uint32_t tx_failed;
 	uint32_t ofdma;
 	uint32_t stbc;
@@ -474,6 +813,7 @@ struct cdp_tx_stats {
 	uint32_t wme_ac_type[WME_AC_MAX];
 
 	uint32_t excess_retries_per_ac[WME_AC_MAX];
+	struct cdp_pkt_info dot11_tx_pkts;
 
 	struct {
 		struct cdp_pkt_info fw_rem;
@@ -485,10 +825,8 @@ struct cdp_tx_stats {
 		uint32_t fw_reason3;
 	} dropped;
 
-	struct cdp_pkt_info dot11_tx_pkts;
 
 	uint32_t fw_tx_cnt;
-	uint32_t fw_tx_rates_used;
 	uint32_t fw_tx_bytes;
 	uint32_t fw_txcount;
 	uint32_t fw_max4msframelen;
@@ -498,12 +836,12 @@ struct cdp_tx_stats {
 	uint32_t rssi_chain[WME_AC_MAX];
 	uint32_t inactive_time;
 
-	uint32_t tx_ratecode;
 	uint32_t tx_flags;
 	uint32_t tx_power;
 
 	/* MSDUs which the target sent but couldn't get an ack for */
 	struct cdp_pkt_info is_tx_no_ack;
+	uint16_t tx_ratecode;
 
 	/*add for peer and upadted from ppdu*/
 	uint32_t ampdu_cnt;
@@ -513,11 +851,12 @@ struct cdp_tx_stats {
 	uint32_t multiple_retry_count;
 	uint32_t last_tx_rate_used;
 
-	uint32_t transmit_type[MAX_TRANSMIT_TYPES];
+	struct cdp_tx_pkt_info transmit_type[MAX_TRANSMIT_TYPES];
 	uint32_t mu_group_id[MAX_MU_GROUP_ID];
 	uint32_t ru_start;
 	uint32_t ru_tones;
-	uint32_t ru_loc[MAX_RU_LOCATIONS];
+	struct cdp_tx_pkt_info ru_loc[MAX_RU_LOCATIONS];
+
 	uint32_t num_ppdu_cookie_valid;
 	uint32_t no_ack_count[QDF_PROTO_SUBTYPE_MAX];
 };
@@ -534,6 +873,7 @@ struct cdp_tx_stats {
  * @pkts: Intra BSS packets received
  * @fail: Intra BSS packets failed
  * @mdns_no_fwd: Intra BSS MDNS packets not forwarded
+ * @protocol_trace_cnt: per-peer protocol counters
  * @mic_err: Rx MIC errors CCMP
  * @decrypt_err: Rx Decryption Errors CRC
  * @fcserr: rx MIC check failed (CCMP)
@@ -541,15 +881,19 @@ struct cdp_tx_stats {
  * @reception_type[MAX_RECEPTION_TYPES]: Reception type os packets
  * @mcs_count[MAX_MCS]: mcs count
  * @sgi_count[MAX_GI]: sgi count
- * @nss[SS_COUNT]: Packet count in spatiel Streams
+ * @nss[SS_COUNT]: packet count in spatiel Streams
+ * @ppdu_nss[SS_COUNT]: PPDU packet count in spatial streams
+ * @mpdu_cnt_fcs_ok: SU Rx success mpdu count
+ * @mpdu_cnt_fcs_err: SU Rx fail mpdu count
+ * @su_ax_ppdu_cnt: SU Rx packet count
+ * @ppdu_cnt[MAX_RECEPTION_TYPES]: PPDU packet count in reception type
+ * @rx_mu[RX_TYPE_MU_MAX]: Rx MU stats
  * @bw[MAX_BW]:  Packet Count in different bandwidths
  * @non_ampdu_cnt: Number of MSDUs with no MPDU level aggregation
  * @ampdu_cnt: Number of MSDUs part of AMSPU
  * @non_amsdu_cnt: Number of MSDUs with no MSDU level aggregation
  * @amsdu_cnt: Number of MSDUs part of AMSDU
  * @bar_recv_cnt: Number of bar received
- * @rssi: RSSI of received signal
- * @last_rssi: Previous rssi
  * @avg_rssi: Average rssi
  * @rx_rate: Rx rate
  * @last_rx_rate: Previous rx rate
@@ -575,6 +919,10 @@ struct cdp_tx_stats {
  * @rx_ratecode: Rx rate code of last frame
  * @rx_flags: rx flags
  * @rx_rssi_measured_time: Time at which rssi is measured
+ * @rssi: RSSI of received signal
+ * @last_rssi: Previous rssi
+ * @multipass_rx_pkt_drop: Dropped multipass rx pkt
+ * @rx_mpdu_cnt: rx mpdu count per MCS rate
  */
 struct cdp_rx_stats {
 	struct cdp_pkt_info to_stack;
@@ -590,6 +938,9 @@ struct cdp_rx_stats {
 		struct cdp_pkt_info fail;
 		uint32_t mdns_no_fwd;
 	} intra_bss;
+#ifdef VDEV_PEER_PROTOCOL_COUNT
+	struct protocol_trace_count protocol_trace_cnt[CDP_TRACE_MAX];
+#endif
 
 	struct {
 		uint32_t mic_err;
@@ -602,14 +953,18 @@ struct cdp_rx_stats {
 	struct cdp_pkt_type pkt_type[DOT11_MAX];
 	uint32_t sgi_count[MAX_GI];
 	uint32_t nss[SS_COUNT];
+	uint32_t ppdu_nss[SS_COUNT];
+	uint32_t mpdu_cnt_fcs_ok;
+	uint32_t mpdu_cnt_fcs_err;
+	struct cdp_pkt_type su_ax_ppdu_cnt;
+	uint32_t ppdu_cnt[MAX_RECEPTION_TYPES];
+	struct cdp_rx_mu rx_mu[RX_TYPE_MU_MAX];
 	uint32_t bw[MAX_BW];
 	uint32_t non_ampdu_cnt;
 	uint32_t ampdu_cnt;
 	uint32_t non_amsdu_cnt;
 	uint32_t amsdu_cnt;
 	uint32_t bar_recv_cnt;
-	uint32_t rssi;
-	uint32_t last_rssi;
 	uint32_t avg_rssi;
 	uint32_t rx_rate;
 	uint32_t last_rx_rate;
@@ -632,6 +987,10 @@ struct cdp_rx_stats {
 	uint32_t rx_ratecode;
 	uint32_t rx_flags;
 	uint32_t rx_rssi_measured_time;
+	uint8_t rssi;
+	uint8_t last_rssi;
+	uint32_t multipass_rx_pkt_drop;
+	uint32_t rx_mpdu_cnt[MAX_MCS];
 };
 
 /* struct cdp_tx_ingress_stats - Tx ingress Stats
@@ -646,8 +1005,6 @@ struct cdp_rx_stats {
  * @tso_pkt:total no of TSO packets
  * @non_tso_pkts: non - TSO packets
  * @dropped_host: TSO packets dropped by host
- * @tso_no_mem_dropped: TSO packets dropped by host due to descriptor
-			unavailability
  * @dropped_target:TSO packets dropped by target
  * @sg_pkt: Total scatter gather packets
  * @non_sg_pkts: non SG packets
@@ -686,16 +1043,6 @@ struct cdp_tx_ingress_stats {
 		uint32_t dma_map_error;
 		uint32_t invalid_raw_pkt_datatype;
 	} raw;
-
-	/* TSO packets info */
-	struct {
-		uint32_t num_seg;
-		struct cdp_pkt_info tso_pkt;
-		struct cdp_pkt_info non_tso_pkts;
-		struct cdp_pkt_info  dropped_host;
-		struct cdp_pkt_info  tso_no_mem_dropped;
-		uint32_t dropped_target;
-	} tso;
 
 	/* Scatter Gather packet info */
 	struct {
@@ -738,17 +1085,20 @@ struct cdp_tx_ingress_stats {
 	uint32_t cce_classified;
 	uint32_t cce_classified_raw;
 	struct cdp_pkt_info sniffer_rcvd;
+	struct cdp_tso_stats tso_stats;
 };
 
 /* struct cdp_vdev_stats - vdev stats structure
  * @tx_i: ingress tx stats
  * @tx: cdp tx stats
  * @rx: cdp rx stats
+ * @tso_stats: tso stats
  */
 struct cdp_vdev_stats {
 	struct cdp_tx_ingress_stats tx_i;
 	struct cdp_tx_stats tx;
 	struct cdp_rx_stats rx;
+	struct cdp_tso_stats tso_stats;
 };
 
 /* struct cdp_peer_stats - peer stats structure
@@ -763,7 +1113,8 @@ struct cdp_peer_stats {
 };
 
 /* struct cdp_interface_peer_stats - interface structure for txrx peer stats
- * @peer_hdl: control path peer handle
+ * @peer_mac: peer mac address
+ * @vdev_id : vdev_id for the peer
  * @last_peer_tx_rate: peer tx rate for last transmission
  * @peer_tx_rate: tx rate for current transmission
  * @peer_rssi: current rssi value of peer
@@ -776,17 +1127,18 @@ struct cdp_peer_stats {
  * @rssi_changed: denotes rssi is changed
  */
 struct cdp_interface_peer_stats {
-	void  *peer_hdl;
+	uint8_t  peer_mac[QDF_MAC_ADDR_SIZE];
+	uint8_t  vdev_id;
+	uint8_t  rssi_changed;
 	uint32_t last_peer_tx_rate;
 	uint32_t peer_tx_rate;
-	uint32_t  peer_rssi;
+	uint32_t peer_rssi;
 	uint32_t tx_packet_count;
 	uint32_t rx_packet_count;
 	uint32_t tx_byte_count;
 	uint32_t rx_byte_count;
 	uint32_t per;
 	uint32_t ack_rssi;
-	uint8_t  rssi_changed;
 };
 
 /* Tx completions per interrupt */
@@ -1201,12 +1553,92 @@ struct cdp_htt_rx_pdev_stats {
 #define RX_PROTOCOL_TAG_ALL 0xff
 #endif /* WLAN_SUPPORT_RX_PROTOCOL_TYPE_TAG */
 
+#define OFDMA_NUM_RU_SIZE 7
+
+#define OFDMA_NUM_USERS	37
+
+#if defined(WLAN_CFR_ENABLE) && defined(WLAN_ENH_CFR_ENABLE)
+/*
+ * mac_freeze_capture_reason - capture reason counters
+ * @FREEZE_REASON_TM: When m_directed_ftm is enabled, this CFR data is
+ * captured for a Timing Measurement (TM) frame.
+ * @FREEZE_REASON_FTM: When m_directed_ftm is enabled, this CFR data is
+ * captured for a Fine Timing Measurement (FTM) frame.
+ * @FREEZE_REASON_ACK_RESP_TO_TM_FTM: When m_all_ftm_ack is enabled, this CFR
+ * data is captured for an ACK received for the FTM/TM frame sent to a station.
+ * @FREEZE_REASON_TA_RA_TYPE_FILTER: When m_ta_ra_filter is enabled, this CFR
+ * data is captured for a PPDU received,since the CFR TA_RA filter is met.
+ * @FREEZE_REASON_NDPA_NDP: When m_ndpa_ndp_directed(or)m_ndpa_ndp_all is
+ * enabled, this CFR data is captured for an NDP frame received.
+ * @FREEZE_REASON_ALL_PACKET: When m_all_packet is enabled, this CFR data is
+ * captured for an incoming PPDU.
+ */
+enum mac_freeze_capture_reason {
+	FREEZE_REASON_TM = 0,
+	FREEZE_REASON_FTM,
+	FREEZE_REASON_ACK_RESP_TO_TM_FTM,
+	FREEZE_REASON_TA_RA_TYPE_FILTER,
+	FREEZE_REASON_NDPA_NDP,
+	FREEZE_REASON_ALL_PACKET,
+	FREEZE_REASON_MAX,
+};
+
+/*
+ * chan_capture_status: capture status counters
+ * @CAPTURE_IDLE: CFR data is not captured, since VCSR setting for CFR/RCC is
+ * not enabled.
+ * @CAPTURE_BUSY: CFR data is not available, since previous channel
+ * upload is in progress
+ * @CAPTURE_ACTIVE: CFR data is captured in HW registers
+ * @CAPTURE_NO_BUFFER: CFR data is not captured, since no buffer is available
+ * in IPC ring to DMA CFR data
+ */
+enum chan_capture_status {
+	CAPTURE_IDLE = 0,
+	CAPTURE_BUSY,
+	CAPTURE_ACTIVE,
+	CAPTURE_NO_BUFFER,
+	CAPTURE_MAX,
+};
+
+/* struct cdp_cfr_rcc_stats - CFR RCC debug statistics
+ * @bb_captured_channel_cnt: No. of PPDUs for which MAC sent Freeze TLV to PHY
+ * @bb_captured_timeout_cnt: No. of PPDUs for which CFR filter criteria matched
+ * but MAC did not send Freeze TLV to PHY as time exceeded freeze tlv delay
+ * count threshold
+ * @rx_loc_info_valid_cnt: No. of PPDUs for which PHY could find a valid buffer
+ * in ucode IPC ring
+ * @chan_capture_status[]: capture status counters
+ *	[0] - No. of PPDUs with capture status CAPTURE_IDLE
+ *	[1] - No. of PPDUs with capture status CAPTURE_BUSY
+ *	[2] - No. of PPDUs with capture status CAPTURE_ACTIVE
+ *	[3] - No. of PPDUs with capture status CAPTURE_NO_BUFFER
+ * @reason_cnt[]: capture reason counters
+ *	[0] - No. PPDUs filtered due to freeze_reason_TM
+ *	[1] - No. PPDUs filtered due to freeze_reason_FTM
+ *	[2] - No. PPDUs filtered due to freeze_reason_ACK_resp_to_TM_FTM
+ *	[3] - No. PPDUs filtered due to freeze_reason_TA_RA_TYPE_FILTER
+ *	[4] - No. PPDUs filtered due to freeze_reason_NDPA_NDP
+ *	[5] - No. PPDUs filtered due to freeze_reason_ALL_PACKET
+ */
+struct cdp_cfr_rcc_stats {
+	uint64_t bb_captured_channel_cnt;
+	uint64_t bb_captured_timeout_cnt;
+	uint64_t rx_loc_info_valid_cnt;
+	uint64_t chan_capture_status[CAPTURE_MAX];
+	uint64_t reason_cnt[FREEZE_REASON_MAX];
+};
+#else
+struct cdp_cfr_rcc_stats {
+};
+#endif
 /* struct cdp_pdev_stats - pdev stats
  * @msdu_not_done: packets dropped because msdu done bit not set
  * @mec:Multicast Echo check
  * @mesh_filter: Mesh Filtered packets
  * @mon_rx_drop: packets dropped on monitor vap
  * @wifi_parse: rxdma errors due to wifi parse error
+ * @mon_radiotap_update_err: not enough space to update radiotap
  * @pkts: total packets replenished
  * @rxdma_err: rxdma errors for replenished
  * @nbuf_alloc_fail: nbuf alloc failed
@@ -1228,16 +1660,23 @@ struct cdp_htt_rx_pdev_stats {
  * @tx_comp_histogram: Number of Tx completions per interrupt
  * @rx_ind_histogram:  Number of Rx ring descriptors reaped per interrupt
  * @ppdu_stats_counter: ppdu stats counter
+ * @cdp_delayed_ba_not_recev: counter for delayed ba not received
  * @htt_tx_pdev_stats: htt pdev stats for tx
  * @htt_rx_pdev_stats: htt pdev stats for rx
+ * @data_rx_ru_size: UL ofdma data ru size counter array
+ * @nondata_rx_ru_size: UL ofdma non data ru size counter array
+ * @data_rx_ppdu: data rx ppdu counter
+ * @data_user: data user counter array
  */
 struct cdp_pdev_stats {
 	struct {
 		uint32_t msdu_not_done;
 		uint32_t mec;
 		uint32_t mesh_filter;
-		uint32_t mon_rx_drop;
 		uint32_t wifi_parse;
+		/* Monitor mode related */
+		uint32_t mon_rx_drop;
+		uint32_t mon_radiotap_update_err;
 	} dropped;
 
 	struct {
@@ -1260,6 +1699,8 @@ struct cdp_pdev_stats {
 		uint32_t desc_alloc_fail;
 		uint32_t ip_csum_err;
 		uint32_t tcp_udp_csum_err;
+		uint32_t rxdma_error;
+		uint32_t reo_error;
 	} err;
 
 	uint32_t buf_freelist;
@@ -1269,6 +1710,7 @@ struct cdp_pdev_stats {
 	struct cdp_hist_tx_comp tx_comp_histogram;
 	struct cdp_hist_rx_ind rx_ind_histogram;
 	uint64_t ppdu_stats_counter[CDP_PPDU_STATS_MAX_TAG];
+	uint32_t cdp_delayed_ba_not_recev;
 
 	struct cdp_htt_tx_pdev_stats  htt_tx_pdev_stats;
 	struct cdp_htt_rx_pdev_stats  htt_rx_pdev_stats;
@@ -1276,9 +1718,20 @@ struct cdp_pdev_stats {
 	/* Received wdi messages from fw */
 	uint32_t wdi_event[CDP_WDI_NUM_EVENTS];
 	struct cdp_tid_stats tid_stats;
+
+	/* numbers of data/nondata per RU sizes */
+	struct {
+		uint32_t data_rx_ru_size[OFDMA_NUM_RU_SIZE];
+		uint32_t nondata_rx_ru_size[OFDMA_NUM_RU_SIZE];
+		uint32_t data_rx_ppdu;
+		uint32_t data_users[OFDMA_NUM_USERS];
+	} ul_ofdma;
+
+	struct cdp_tso_stats tso_stats;
+	struct cdp_cfr_rcc_stats rcc;
 };
 
-#ifndef CONFIG_MCL
+#ifdef QCA_ENH_V3_STATS_SUPPORT
 /*
  * Enumeration of PDEV Configuration parameter
  */
@@ -1613,6 +2066,8 @@ enum _ol_ath_param_t {
 	OL_ATH_PARAM_ACS_NEAR_RANGE_WEIGHTAGE = 413,
 	OL_ATH_PARAM_ACS_MID_RANGE_WEIGHTAGE = 414,
 	OL_ATH_PARAM_ACS_FAR_RANGE_WEIGHTAGE = 415,
+	/* Set SELF AP OBSS_PD_THRESHOLD value */
+	OL_ATH_PARAM_SET_CMD_OBSS_PD_THRESHOLD = 416,
 	/* Enable/Disable/Set MGMT_TTL in milliseconds. */
 	OL_ATH_PARAM_MGMT_TTL = 417,
 	/* Enable/Disable/Set PROBE_RESP_TTL in milliseconds */
@@ -1621,6 +2076,44 @@ enum _ol_ath_param_t {
 	OL_ATH_PARAM_MU_PPDU_DURATION = 419,
 	/* Set TBTT_CTRL_CFG */
 	OL_ATH_PARAM_TBTT_CTRL = 420,
+	/* Enable/disable AP OBSS_PD_THRESHOLD */
+	OL_ATH_PARAM_SET_CMD_OBSS_PD_THRESHOLD_ENABLE = 421,
+	/* Get baseline radio level channel width */
+	OL_ATH_PARAM_RCHWIDTH = 422,
+	/* Whether external ACS request is in progress */
+	OL_ATH_EXT_ACS_REQUEST_IN_PROGRESS = 423,
+	/* set/get hw mode */
+	OL_ATH_PARAM_HW_MODE  = 424,
+#if DBDC_REPEATER_SUPPORT
+	/* same ssid feature global disable */
+	OL_ATH_PARAM_SAME_SSID_DISABLE = 425,
+#endif
+	/* get MBSS enable flag */
+	OL_ATH_PARAM_MBSS_EN  = 426,
+	/* UNII-1 and UNII-2A channel coexistance */
+	OL_ATH_PARAM_CHAN_COEX = 427,
+	/* Out of Band Advertisement feature */
+	OL_ATH_PARAM_OOB_ENABLE = 428,
+	/* set/get opmode-notification timer for hw-mode switch */
+	OL_ATH_PARAM_HW_MODE_SWITCH_OMN_TIMER = 429,
+	/* enable opmode-notification when doing hw-mode switch */
+	OL_ATH_PARAM_HW_MODE_SWITCH_OMN_ENABLE = 430,
+	/* set primary interface for hw-mode switch */
+	OL_ATH_PARAM_HW_MODE_SWITCH_PRIMARY_IF = 431,
+	/* Number of vdevs configured per PSOC */
+	OL_ATH_PARAM_GET_PSOC_NUM_VDEVS = 432,
+	/* Number of peers configured per PSOC */
+	OL_ATH_PARAM_GET_PSOC_NUM_PEERS = 433,
+	/* Number of vdevs configured per PDEV */
+	OL_ATH_PARAM_GET_PDEV_NUM_VDEVS = 434,
+	/* Number of peers configured per PDEV */
+	OL_ATH_PARAM_GET_PDEV_NUM_PEERS = 435,
+	/* Number of monitor vdevs configured per PDEV */
+	OL_ATH_PARAM_GET_PDEV_NUM_MONITOR_VDEVS = 436,
+#ifdef CE_TASKLET_DEBUG_ENABLE
+	/* Enable/disable CE stats print */
+	OL_ATH_PARAM_ENABLE_CE_LATENCY_STATS = 437,
+#endif
 };
 #endif
 /* Bitmasks for stats that can block */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -90,18 +90,21 @@ QDF_STATUS wlan_cp_stats_peer_cs_init(struct peer_cp_stats *peer_cs)
 	if (!peer_mc_stats)
 		return QDF_STATUS_E_NOMEM;
 
-	peer_cs->peer_adv_stats = qdf_mem_malloc(sizeof
-						 (struct peer_adv_mc_cp_stats));
-	if (!peer_cs->peer_adv_stats) {
+	peer_mc_stats->adv_stats =
+			qdf_mem_malloc(sizeof(struct peer_adv_mc_cp_stats));
+
+	if (!peer_mc_stats->adv_stats) {
 		qdf_mem_free(peer_mc_stats);
+		peer_mc_stats = NULL;
 		return QDF_STATUS_E_NOMEM;
 	}
 
 	peer_mc_stats->extd_stats =
 			qdf_mem_malloc(sizeof(struct peer_extd_stats));
+
 	if (!peer_mc_stats->extd_stats) {
-		qdf_mem_free(peer_cs->peer_adv_stats);
-		peer_cs->peer_adv_stats = NULL;
+		qdf_mem_free(peer_mc_stats->adv_stats);
+		peer_mc_stats->adv_stats = NULL;
 		qdf_mem_free(peer_mc_stats);
 		peer_mc_stats = NULL;
 		return QDF_STATUS_E_NOMEM;
@@ -115,8 +118,8 @@ QDF_STATUS wlan_cp_stats_peer_cs_deinit(struct peer_cp_stats *peer_cs)
 {
 	struct peer_mc_cp_stats *peer_mc_stats = peer_cs->peer_stats;
 
-	qdf_mem_free(peer_cs->peer_adv_stats);
-	peer_cs->peer_adv_stats = NULL;
+	qdf_mem_free(peer_mc_stats->adv_stats);
+	peer_mc_stats->adv_stats = NULL;
 	qdf_mem_free(peer_mc_stats->extd_stats);
 	peer_mc_stats->extd_stats = NULL;
 	qdf_mem_free(peer_cs->peer_stats);
@@ -150,6 +153,7 @@ QDF_STATUS ucfg_mc_cp_stats_inc_wake_lock_stats_by_protocol(
 
 	stats = &psoc_mc_stats->wow_stats;
 	switch (protocol) {
+	case QDF_PROTO_ICMP_REQ:
 	case QDF_PROTO_ICMP_RES:
 		stats->icmpv4_count++;
 		break;
@@ -528,7 +532,9 @@ QDF_STATUS ucfg_mc_cp_stats_set_pending_req(struct wlan_objmgr_psoc *psoc,
 }
 
 QDF_STATUS ucfg_mc_cp_stats_reset_pending_req(struct wlan_objmgr_psoc *psoc,
-					      enum stats_req_type type)
+					      enum stats_req_type type,
+					      struct request_info *last_req,
+					      bool *pending)
 {
 	struct psoc_mc_cp_stats *psoc_mc_stats;
 	struct psoc_cp_stats *psoc_cp_stats_priv;
@@ -546,6 +552,12 @@ QDF_STATUS ucfg_mc_cp_stats_reset_pending_req(struct wlan_objmgr_psoc *psoc,
 
 	wlan_cp_stats_psoc_obj_lock(psoc_cp_stats_priv);
 	psoc_mc_stats = psoc_cp_stats_priv->obj_stats;
+	if (psoc_mc_stats->pending.type_map & (1 << type)) {
+		*last_req = psoc_mc_stats->pending.req[type];
+		*pending = true;
+	} else {
+		*pending = false;
+	}
 	psoc_mc_stats->pending.type_map &= ~(1 << type);
 	qdf_mem_zero(&psoc_mc_stats->pending.req[type],
 		     sizeof(psoc_mc_stats->pending.req[type]));

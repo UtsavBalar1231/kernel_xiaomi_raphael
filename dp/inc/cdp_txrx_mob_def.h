@@ -232,14 +232,14 @@ enum peer_debug_id_type {
 
 /**
  * struct ol_txrx_desc_type - txrx descriptor type
- * @sta_id: sta id
  * @is_qos_enabled: is station qos enabled
  * @is_wapi_supported: is station wapi supported
+ * @peer_addr: peer mac address
  */
 struct ol_txrx_desc_type {
-	uint8_t sta_id;
 	uint8_t is_qos_enabled;
 	uint8_t is_wapi_supported;
+	struct qdf_mac_addr peer_addr;
 };
 
 /**
@@ -284,14 +284,18 @@ struct txrx_pdev_cfg_param_t {
 	uint32_t uc_tx_partition_base;
 	/* IP, TCP and UDP checksum offload */
 	bool ip_tcp_udp_checksum_offload;
+	/* IP, TCP and UDP checksum offload for NAN Mode*/
+	bool nan_ip_tcp_udp_checksum_offload;
 	/* Rx processing in thread from TXRX */
 	bool enable_rxthread;
 	/* CE classification enabled through INI */
 	bool ce_classify_enabled;
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 	/* Threshold to stop queue in percentage */
 	uint32_t tx_flow_stop_queue_th;
 	/* Start queue offset in percentage */
 	uint32_t tx_flow_start_queue_offset;
+#endif
 
 #ifdef QCA_SUPPORT_TXRX_DRIVER_TCP_DEL_ACK
 	/* enable the tcp delay ack feature in the driver */
@@ -309,6 +313,11 @@ struct txrx_pdev_cfg_param_t {
 	bool enable_data_stall_detection;
 	bool enable_flow_steering;
 	bool disable_intra_bss_fwd;
+
+#ifdef WLAN_SUPPORT_TXRX_HL_BUNDLE
+	uint16_t bundle_timer_value;
+	uint16_t bundle_size;
+#endif
 	uint8_t pktlog_buffer_size;
 };
 

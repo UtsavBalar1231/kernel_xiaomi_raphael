@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -45,15 +45,9 @@ QDF_STATUS dp_rx_pdev_mon_status_detach(struct dp_pdev *pdev, int mac_id);
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS dp_reset_monitor_mode(struct cdp_pdev *pdev_handle);
-
-/**
- * dp_pdev_configure_monitor_rings() - configure monitor rings
- * @vdev_handle: Datapath VDEV handle
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS dp_pdev_configure_monitor_rings(struct dp_pdev *pdev);
+QDF_STATUS dp_reset_monitor_mode(struct cdp_soc_t *soc_hdl,
+				 uint8_t pdev_id,
+				 uint8_t smart_monitor);
 
 /**
  * dp_mon_link_free() - free monitor link desc pool
@@ -95,6 +89,13 @@ QDF_STATUS dp_rx_mon_deliver_non_std(struct dp_soc *soc, uint32_t mac_id);
 uint32_t dp_rxdma_err_process(struct dp_intr *int_ctx, struct dp_soc *soc,
 			      uint32_t mac_id, uint32_t quota);
 
+/**
+ * dp_mon_buf_delayed_replenish() - Helper routine to replenish monitor dest buf
+ * @pdev: DP pdev object
+ *
+ * Return: None
+ */
+void dp_mon_buf_delayed_replenish(struct dp_pdev *pdev);
 #ifndef REMOVE_MON_DBG_STATS
 /*
  * dp_rx_mon_update_dbg_ppdu_stats() - Update status ring TLV count

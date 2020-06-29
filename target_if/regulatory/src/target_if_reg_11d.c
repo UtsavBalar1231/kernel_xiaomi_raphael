@@ -36,7 +36,7 @@ bool tgt_if_regulatory_is_11d_offloaded(struct wlan_objmgr_psoc *psoc)
 		return false;
 
 	if (reg_rx_ops->reg_ignore_fw_reg_offload_ind &&
-	    reg_rx_ops->reg_ignore_fw_reg_offload_ind(psoc)) {
+		reg_rx_ops->reg_ignore_fw_reg_offload_ind(psoc)) {
 		target_if_debug("Ignore fw reg 11d offload indication");
 		return 0;
 	}

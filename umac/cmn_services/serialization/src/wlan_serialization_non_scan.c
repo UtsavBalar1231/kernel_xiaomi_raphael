@@ -360,6 +360,9 @@ wlan_ser_move_non_scan_pending_to_active(
 		qdf_atomic_set_bit(CMD_MARKED_FOR_ACTIVATION,
 				   &active_cmd_list->cmd_in_use);
 
+		if (active_cmd_list->cmd.is_blocking)
+			pdev_queue->blocking_cmd_waiting--;
+
 		wlan_serialization_release_lock(&pdev_queue->pdev_queue_lock);
 
 		wlan_serialization_activate_cmd(active_cmd_list, ser_pdev_obj,
@@ -367,15 +370,11 @@ wlan_ser_move_non_scan_pending_to_active(
 
 		wlan_serialization_acquire_lock(&pdev_queue->pdev_queue_lock);
 
-		if (vdev_queue_lookup)
+		if (vdev_queue_lookup || pdev_queue->blocking_cmd_active)
 			break;
 
 		pending_node = NULL;
 
-		if (active_cmd_list->cmd.is_blocking) {
-			pdev_queue->blocking_cmd_waiting--;
-			break;
-		}
 	}
 
 	wlan_serialization_release_lock(&pdev_queue->pdev_queue_lock);
@@ -455,7 +454,7 @@ wlan_ser_cancel_non_scan_cmd(
 		struct wlan_objmgr_pdev *pdev, struct wlan_objmgr_vdev *vdev,
 		struct wlan_serialization_command *cmd,
 		enum wlan_serialization_cmd_type cmd_type,
-		uint8_t is_active_queue)
+		uint8_t is_active_queue, enum wlan_ser_cmd_attr cmd_attr)
 {
 	qdf_list_t *pdev_queue;
 	qdf_list_t *vdev_queue;
@@ -528,6 +527,18 @@ wlan_ser_cancel_non_scan_cmd(
 							WLAN_SER_PDEV_NODE) ||
 		    !wlan_serialization_match_cmd_vdev(nnode, vdev,
 						       WLAN_SER_PDEV_NODE))) {
+			pnode = nnode;
+			continue;
+		}
+
+		/*
+		 * If a non-blocking cmd is required to be cancelled, but
+		 * the nnode cmd is a blocking cmd then continue with the
+		 * next command in the list else proceed with cmd cancel.
+		 */
+		if ((cmd_attr == WLAN_SER_CMD_ATTR_NONBLOCK) &&
+		    wlan_serialization_match_cmd_blocking(nnode,
+							  WLAN_SER_PDEV_NODE)) {
 			pnode = nnode;
 			continue;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -25,7 +25,6 @@
 #ifndef __WLAN_VDEV_MGR_TX_OPS_DEFS_H__
 #define __WLAN_VDEV_MGR_TX_OPS_DEFS_H__
 
-#ifdef CMN_VDEV_MGR_TGT_IF_ENABLE
 #include <qdf_nbuf.h>
 
 /**
@@ -83,8 +82,37 @@ enum wlan_mlme_host_vdev_start_status {
 	WLAN_MLME_HOST_VDEV_START_CHAN_INVALID,
 	WLAN_MLME_HOST_VDEV_START_CHAN_BLOCKED,
 	WLAN_MLME_HOST_VDEV_START_CHAN_DFS_VIOLATION,
+	WLAN_MLME_HOST_VDEV_START_CHAN_INVALID_REGDOMAIN,
+	WLAN_MLME_HOST_VDEV_START_CHAN_INVALID_BAND,
 	WLAN_MLME_HOST_VDEV_START_TIMEOUT,
+	/* Add new response status code from here */
+	WLAN_MLME_HOST_VDEV_START_MAX_REASON,
 };
+
+/**
+ * string_from_start_rsp_status() - Convert start response status to string
+ * @start_rsp - start response status
+ *
+ * Please note to add new string in the array at index equal to
+ * its enum value in wlan_mlme_host_vdev_start_status.
+ */
+static inline char *string_from_start_rsp_status(
+			enum wlan_mlme_host_vdev_start_status start_rsp)
+{
+	static const char *strings[] = { "START_OK",
+					"CHAN_INVALID",
+					"CHAN_BLOCKED",
+					"CHAN_DFS_VIOLATION",
+					"CHAN_INVALID_REGDOMAIN",
+					"CHAN_INVALID_BAND",
+					"START_RESPONSE_TIMEOUT",
+					"START_RESPONSE_UNKNOWN"};
+
+	if (start_rsp >= WLAN_MLME_HOST_VDEV_START_MAX_REASON)
+		start_rsp = WLAN_MLME_HOST_VDEV_START_MAX_REASON;
+
+	return (char *)strings[start_rsp];
+}
 
 /**
  * enum wlan_mlme_host_start_event_param - start/restart resp event
@@ -122,10 +150,14 @@ struct sta_ps_params {
  * struct tbttoffset_params - Tbttoffset event params
  * @vdev_id: Virtual AP device identifier
  * @tbttoffset : Tbttoffset for the virtual AP device
+ * @vdev_tbtt_qtime_lo: Tbtt qtime low value
+ * @vdev_tbtt_qtime_hi: Tbtt qtime high value
  */
 struct tbttoffset_params {
 	uint32_t vdev_id;
 	uint32_t tbttoffset;
+	uint32_t vdev_tbtt_qtime_lo;
+	uint32_t vdev_tbtt_qtime_hi;
 };
 
 /**
@@ -138,6 +170,7 @@ struct tbttoffset_params {
  * @csa_switch_count_offset: CSA swith count offset in beacon frame
  * @ext_csa_switch_count_offset: ECSA switch count offset in beacon frame
  * @esp_ie_offset: ESP IE offset in beacon frame
+ * @mu_edca_ie_offset: Mu EDCA IE offset in beacon frame
  * @frm: beacon template parameter
  */
 struct beacon_tmpl_params {
@@ -149,6 +182,7 @@ struct beacon_tmpl_params {
 	uint32_t csa_switch_count_offset;
 	uint32_t ext_csa_switch_count_offset;
 	uint32_t esp_ie_offset;
+	uint32_t mu_edca_ie_offset;
 	uint8_t *frm;
 };
 
@@ -172,6 +206,19 @@ struct beacon_params {
 	bool is_dtim_count_zero;
 	bool is_bitctl_reqd;
 	bool is_high_latency;
+};
+
+/* struct fils_discovery_tmpl_params - FILS Discovery template cmd parameter
+ * @vdev_id: vdev ID
+ * @tmpl_len: FILS Discovery template length
+ * @tmpl_aligned: FILS Discovery template alignment
+ * @frm: FILS Discovery template parameter
+ */
+struct fils_discovery_tmpl_params {
+	uint8_t vdev_id;
+	uint32_t tmpl_len;
+	uint32_t tmpl_len_aligned;
+	uint8_t *frm;
 };
 
 /**
@@ -220,6 +267,14 @@ struct mlme_channel_param {
 };
 
 /**
+ * struct vdev_mlme_mvr_param - Multiple vdev restart params
+ * @phymode: phymode information
+ */
+struct vdev_mlme_mvr_param {
+	uint32_t phymode;
+};
+
+/**
  * struct multiple_vdev_restart_params - Multiple vdev restart cmd parameter
  * @pdev_id: Pdev identifier
  * @requestor_id: Unique id identifying the module
@@ -228,6 +283,7 @@ struct mlme_channel_param {
  * @num_vdevs: No. of vdevs that need to be restarted
  * @ch_param: Pointer to channel_param
  * @vdev_ids: Pointer to array of vdev_ids
+ * @mvr_param: array holding multi vdev restart param
  */
 struct multiple_vdev_restart_params {
 	uint32_t pdev_id;
@@ -237,6 +293,7 @@ struct multiple_vdev_restart_params {
 	uint32_t num_vdevs;
 	struct mlme_channel_param ch_param;
 	uint32_t vdev_ids[WLAN_UMAC_PDEV_MAX_VDEVS];
+	struct vdev_mlme_mvr_param mvr_param[WLAN_UMAC_PDEV_MAX_VDEVS];
 };
 
 /**
@@ -249,6 +306,22 @@ struct peer_flush_params {
 	uint32_t peer_tid_bitmap;
 	uint8_t vdev_id;
 	uint8_t peer_mac[QDF_MAC_ADDR_SIZE];
+};
+
+/* Default FILS DISCOVERY/probe response sent in period of 20TU */
+#define DEFAULT_FILS_DISCOVERY_PERIOD 20
+#define DEFAULT_PROBE_RESP_PERIOD 20
+
+/**
+ * struct config_fils_params - FILS config params
+ * @vdev_id:  vdev id
+ * @fd_period:  0 - Disabled, non-zero - Period in ms (mili seconds)
+ * @send_prb_rsp_frame: send broadcast prb resp frame
+ */
+struct config_fils_params {
+	uint8_t vdev_id;
+	uint32_t fd_period;
+	uint32_t send_prb_rsp_frame: 1;
 };
 
 /**
@@ -442,5 +515,12 @@ struct vdev_down_params {
 	uint8_t vdev_id;
 };
 
-#endif
+/**
+ * struct peer_delete_all_params - peer delete all request parameter
+ * @vdev_id: vdev id
+ */
+struct peer_delete_all_params {
+	uint8_t vdev_id;
+};
+
 #endif /* __WLAN_VDEV_MGR_TX_OPS_DEFS_H__ */

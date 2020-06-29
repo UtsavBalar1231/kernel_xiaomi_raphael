@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -39,6 +39,7 @@
 #define QDF_NBUF_PKT_TRAC_TYPE_ARP		0x10
 #define QDF_NBUF_PKT_TRAC_TYPE_ICMP		0x20
 #define QDF_NBUF_PKT_TRAC_TYPE_ICMPv6		0x40
+#define QDF_HL_CREDIT_TRACKING			0x80
 
 #define QDF_NBUF_PKT_TRAC_MAX_STRING		12
 #define QDF_NBUF_PKT_TRAC_PROTO_STRING		4
@@ -166,6 +167,7 @@
 #endif
 
 #define MAX_CHAIN 8
+#define QDF_MON_STATUS_MPDU_FCS_BMAP_NWORDS 8
 
 /**
  * struct mon_rx_status - This will have monitor mode rx_status extracted from
@@ -239,15 +241,13 @@
  * @first_data_seq_ctrl: Sequence ctrl field of first data frame
  * @rxpcu_filter_pass: Flag which indicates whether RX packets are received in
  *						BSS mode(not in promisc mode)
- * @tx_status: packet tx status
- * @tx_retry_cnt: tx retry count
- * @tx_retry_cnt: tx retry count
+ * @rssi_chain: Rssi chain per nss per bw
  */
 struct mon_rx_status {
 	uint64_t tsft;
 	uint32_t ppdu_timestamp;
 	uint32_t preamble_type;
-	uint16_t chan_freq;
+	qdf_freq_t chan_freq;
 	uint16_t chan_num;
 	uint16_t chan_flags;
 	uint16_t ht_flags;
@@ -321,26 +321,71 @@ struct mon_rx_status {
 	uint16_t first_data_seq_ctrl;
 	uint8_t ltf_size;
 	uint8_t rxpcu_filter_pass;
-	uint8_t  tx_status;
-	uint8_t  tx_retry_cnt;
-	bool add_rtap_ext;
+	int8_t rssi_chain[8][8];
+	uint32_t rx_antenna;
 };
 
 /**
- * struct mon_rx_status - This will have monitor mode per user rx_status
+ * struct mon_rx_user_status - This will have monitor mode per user rx_status
  * extracted from hardware TLV.
  * @mcs: MCS index of Rx frame
  * @nss: Number of spatial streams
- * @ofdma_info_valid: OFDMA info below is valid
- * @dl_ofdma_ru_start_index: OFDMA RU start index
- * @dl_ofdma_ru_width: OFDMA total RU width
+ * @mu_ul_info_valid: MU UL info below is valid
+ * @ofdma_ru_start_index: OFDMA RU start index
+ * @ofdma_ru_width: OFDMA total RU width
+ * @ofdma_ru_size: OFDMA RU size index
+ * @mu_ul_user_v0_word0: MU UL user info word 0
+ * @mu_ul_user_v0_word1: MU UL user info word 1
+ * @ast_index: AST table hash index
+ * @tid: QoS traffic tid number
+ * @tcp_msdu_count: tcp protocol msdu count
+ * @udp_msdu_count: udp protocol msdu count
+ * @other_msdu_count: other protocol msdu count
+ * @frame_control: frame control field
+ * @frame_control_info_valid: field indicates if fc value is valid
+ * @data_sequence_control_info_valid: field to indicate validity of seq control
+ * @first_data_seq_ctrl: Sequence ctrl field of first data frame
+ * @preamble_type: Preamble type in radio header
+ * @ht_flags: HT flags, only present for HT frames.
+ * @vht_flags: VHT flags, only present for VHT frames.
+ * @he_flags: HE (11ax) flags, only present in HE frames
+ * @rtap_flags: Bit map of available fields in the radiotap
+ * @rs_flags: Flags to indicate AMPDU or AMSDU aggregation
+ * @mpdu_cnt_fcs_ok: mpdu count received with fcs ok
+ * @mpdu_cnt_fcs_err: mpdu count received with fcs ok bitmap
+ * @mpdu_fcs_ok_bitmap: mpdu with fcs ok bitmap
+ * @mpdu_ok_byte_count: mpdu byte count with fcs ok
+ * @mpdu_err_byte_count: mpdu byte count with fcs err
  */
 struct mon_rx_user_status {
 	uint32_t mcs:4,
 		 nss:3,
-		 ofdma_info_valid:1,
-		 dl_ofdma_ru_start_index:7,
-		 dl_ofdma_ru_width:7;
+		 mu_ul_info_valid:1,
+		 ofdma_ru_start_index:7,
+		 ofdma_ru_width:7,
+		 ofdma_ru_size:8;
+	uint32_t mu_ul_user_v0_word0;
+	uint32_t mu_ul_user_v0_word1;
+	uint32_t ast_index;
+	uint32_t tid;
+	uint16_t tcp_msdu_count;
+	uint16_t udp_msdu_count;
+	uint16_t other_msdu_count;
+	uint16_t frame_control;
+	uint8_t frame_control_info_valid;
+	uint8_t data_sequence_control_info_valid;
+	uint16_t first_data_seq_ctrl;
+	uint32_t preamble_type;
+	uint16_t ht_flags;
+	uint16_t vht_flags;
+	uint16_t he_flags;
+	uint8_t rtap_flags;
+	uint8_t rs_flags;
+	uint32_t mpdu_cnt_fcs_ok;
+	uint32_t mpdu_cnt_fcs_err;
+	uint32_t mpdu_fcs_ok_bitmap[QDF_MON_STATUS_MPDU_FCS_BMAP_NWORDS];
+	uint32_t mpdu_ok_byte_count;
+	uint32_t mpdu_err_byte_count;
 };
 
 /**
@@ -1405,6 +1450,32 @@ void qdf_net_buf_debug_update_node(qdf_nbuf_t net_buf, const char *func_name,
 void qdf_net_buf_debug_delete_node(qdf_nbuf_t net_buf);
 
 /**
+ * qdf_net_buf_debug_update_map_node() - update nbuf in debug
+ * hash table with the mapping function info
+ * @nbuf: network buffer
+ * @func: function name that requests for mapping the nbuf
+ * @line_num: function line number
+ *
+ * Return: none
+ */
+void qdf_net_buf_debug_update_map_node(qdf_nbuf_t net_buf,
+				       const char *func_name,
+				       uint32_t line_num);
+
+/**
+ * qdf_net_buf_debug_update_unmap_node() - update nbuf in debug
+ * hash table with the unmap function info
+ * @nbuf:   network buffer
+ * @func: function name that requests for unmapping the nbuf
+ * @line_num: function line number
+ *
+ * Return: none
+ */
+void qdf_net_buf_debug_update_unmap_node(qdf_nbuf_t net_buf,
+					 const char *func_name,
+					 uint32_t line_num);
+
+/**
  * qdf_net_buf_debug_acquire_skb() - acquire skb to avoid memory leak
  * @net_buf: Network buf holding head segment (single)
  * @func_name: pointer to function name
@@ -1469,6 +1540,24 @@ qdf_nbuf_t qdf_nbuf_clone_debug(qdf_nbuf_t buf, const char *func,
  */
 qdf_nbuf_t qdf_nbuf_copy_debug(qdf_nbuf_t buf, const char *func, uint32_t line);
 
+#define qdf_nbuf_copy_expand(buf, headroom, tailroom)     \
+	qdf_nbuf_copy_expand_debug(buf, headroom, tailroom, __func__, __LINE__)
+
+/**
+ * qdf_nbuf_copy_expand_debug() - copy and expand nbuf
+ * @buf: Network buf instance
+ * @headroom: Additional headroom to be added
+ * @tailroom: Additional tailroom to be added
+ * @func: name of the calling function
+ * @line: line number of the callsite
+ *
+ * Return: New nbuf that is a copy of buf, with additional head and tailroom
+ *	or NULL if there is no memory
+ */
+qdf_nbuf_t
+qdf_nbuf_copy_expand_debug(qdf_nbuf_t buf, int headroom, int tailroom,
+			   const char *func, uint32_t line);
+
 #else /* NBUF_MEMORY_DEBUG */
 
 static inline void qdf_net_buf_debug_init(void) {}
@@ -1490,6 +1579,19 @@ qdf_net_buf_debug_update_node(qdf_nbuf_t net_buf, const char *func_name,
 {
 }
 
+static inline void
+qdf_net_buf_debug_update_map_node(qdf_nbuf_t net_buf,
+				  const char *func_name,
+				  uint32_t line_num)
+{
+}
+
+static inline void
+qdf_net_buf_debug_update_unmap_node(qdf_nbuf_t net_buf,
+				    const char *func_name,
+				    uint32_t line_num)
+{
+}
 /* Nbuf allocation rouines */
 
 #define qdf_nbuf_alloc(osdev, size, reserve, align, prio) \
@@ -1536,6 +1638,20 @@ static inline qdf_nbuf_t qdf_nbuf_copy(qdf_nbuf_t buf)
 	return __qdf_nbuf_copy(buf);
 }
 
+/**
+ * qdf_nbuf_copy_expand() - copy and expand nbuf
+ * @buf: Network buf instance
+ * @headroom: Additional headroom to be added
+ * @tailroom: Additional tailroom to be added
+ *
+ * Return: New nbuf that is a copy of buf, with additional head and tailroom
+ *	or NULL if there is no memory
+ */
+static inline qdf_nbuf_t qdf_nbuf_copy_expand(qdf_nbuf_t buf, int headroom,
+					      int tailroom)
+{
+	return __qdf_nbuf_copy_expand(buf, headroom, tailroom);
+}
 #endif /* NBUF_MEMORY_DEBUG */
 
 #ifdef WLAN_FEATURE_FASTPATH
@@ -3078,6 +3194,17 @@ static inline void qdf_nbuf_unmap_tso_segment(qdf_device_t osdev,
 }
 
 /**
+ * qdf_nbuf_get_tcp_payload_len() - function to return the tso payload len
+ * @nbuf: network buffer
+ *
+ * Return: size of the tso packet
+ */
+static inline size_t qdf_nbuf_get_tcp_payload_len(qdf_nbuf_t nbuf)
+{
+	return __qdf_nbuf_get_tcp_payload_len(nbuf);
+}
+
+/**
  * qdf_nbuf_get_tso_num_seg() - function to calculate the number
  * of TCP segments within the TSO jumbo packet
  * @nbuf:   TSO jumbo network buffer to be segmented
@@ -3196,8 +3323,9 @@ qdf_nbuf_unshare_debug(qdf_nbuf_t buf, const char *func_name, uint32_t line_num)
 	if (qdf_likely(buf != unshared_buf)) {
 		qdf_net_buf_debug_delete_node(buf);
 
-		qdf_net_buf_debug_add_node(unshared_buf, 0,
-					   func_name, line_num);
+		if (unshared_buf)
+			qdf_net_buf_debug_add_node(unshared_buf, 0,
+						   func_name, line_num);
 	}
 
 	return unshared_buf;
@@ -3491,7 +3619,7 @@ static inline void qdf_nbuf_orphan(qdf_nbuf_t buf)
 	return __qdf_nbuf_orphan(buf);
 }
 
-#ifdef CONFIG_WIN
+#ifdef CONFIG_NBUF_AP_PLATFORM
 #include <i_qdf_nbuf_api_w.h>
 #else
 #include <i_qdf_nbuf_api_m.h>

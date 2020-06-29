@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -59,8 +59,10 @@ QDF_STATUS reg_set_11d_country(struct wlan_objmgr_pdev *pdev,
 	}
 
 	if (!qdf_mem_cmp(psoc_priv_obj->cur_country, country, REG_ALPHA2_LEN)) {
-		reg_debug("same country");
-		return QDF_STATUS_SUCCESS;
+		if (psoc_priv_obj->cc_src == SOURCE_11D) {
+			reg_debug("same country");
+			return QDF_STATUS_SUCCESS;
+		}
 	}
 
 	reg_info("set new 11d country:%c%c to fW",
@@ -379,6 +381,7 @@ QDF_STATUS reg_save_new_11d_country(struct wlan_objmgr_psoc *psoc,
 	struct wlan_lmac_if_reg_tx_ops *tx_ops;
 	struct set_country country_code;
 	uint8_t pdev_id;
+	uint8_t ctr;
 
 	psoc_priv_obj = reg_get_psoc_obj(psoc);
 	if (!psoc_priv_obj) {
@@ -387,8 +390,14 @@ QDF_STATUS reg_save_new_11d_country(struct wlan_objmgr_psoc *psoc,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	pdev_id = psoc_priv_obj->def_pdev_id;
-	psoc_priv_obj->new_11d_ctry_pending[pdev_id] = true;
+	/*
+	 * Need firmware to send channel list event
+	 * for all phys. Therefore set pdev_id to 0xFF
+	 */
+	pdev_id = 0xFF;
+	for (ctr = 0; ctr < psoc_priv_obj->num_phy; ctr++)
+		psoc_priv_obj->new_11d_ctry_pending[ctr] = true;
+
 	qdf_mem_copy(country_code.country, country, REG_ALPHA2_LEN + 1);
 	country_code.pdev_id = pdev_id;
 
@@ -398,7 +407,9 @@ QDF_STATUS reg_save_new_11d_country(struct wlan_objmgr_psoc *psoc,
 			tx_ops->set_country_code(psoc, &country_code);
 		} else {
 			reg_err("NULL country set handler");
-			psoc_priv_obj->new_11d_ctry_pending[pdev_id] = false;
+			for (ctr = 0; ctr < psoc_priv_obj->num_phy; ctr++)
+				psoc_priv_obj->new_11d_ctry_pending[ctr] =
+					false;
 			return QDF_STATUS_E_FAULT;
 		}
 	}

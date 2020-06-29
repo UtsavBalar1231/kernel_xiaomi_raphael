@@ -64,14 +64,6 @@
 #define targetif_nofl_debug(params...) \
 	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_TARGET_IF, params)
 
-#ifdef CONFIG_MCL
-#define TARGET_TYPE_AR900B    9  /* Beeliner */
-#define TARGET_TYPE_QCA9984   15 /* cascade */
-#define TARGET_TYPE_IPQ4019   16 /* dakota */
-#define TARGET_TYPE_QCA9888   17 /* besra */
-#define TARGET_TYPE_AR9888    7  /* Peregrine */
-#endif
-
 typedef struct wlan_objmgr_psoc *(*get_psoc_handle_callback)(
 			void *scn_handle);
 
@@ -118,9 +110,6 @@ struct host_fw_ver {
 };
 
 struct common_dbglog_handle;
-struct common_hif_handle;
-struct common_htc_handle;
-struct common_wmi_handle;
 struct common_accelerator_handle;
 
 /**
@@ -133,9 +122,9 @@ struct common_accelerator_handle;
  * @dbglog_hdl: Debug log handle
  */
 struct comp_hdls {
-	struct common_hif_handle *hif_hdl;
-	struct common_htc_handle *htc_hdl;
-	struct common_wmi_handle *wmi_hdl;
+	struct hif_opaque_softc *hif_hdl;
+	HTC_HANDLE htc_hdl;
+	struct wmi_unified *wmi_hdl;
 	struct common_accelerator_handle *accelerator_hdl;
 	struct common_dbglog_handle *dbglog_hdl;
 };
@@ -187,6 +176,7 @@ struct target_version_info {
  * @service_ext2_param: service ready ext2 event params
  * @service_ext_param: ext service params
  * @mac_phy_cap: phy caps array
+ * @dbr_ring_cap: dbr_ring capability info
  * @reg_cap: regulatory caps array
  * @scaling_params: Spectral bin scaling parameters
  * @num_mem_chunks: number of mem chunks allocated
@@ -243,6 +233,7 @@ struct tgt_info {
  * @sw_version_check: Checks the SW version
  * @smart_log_enable: Enable Smart Logs feature
  * @cfr_support_enable: CFR support enable
+ * @set_pktlog_checksum: Set the pktlog checksum from FW ready event to pl_dev
  */
 struct target_ops {
 	QDF_STATUS (*ext_resource_config_enable)
@@ -303,6 +294,8 @@ struct target_ops {
 	void (*cfr_support_enable)
 		(struct wlan_objmgr_psoc *psoc,
 		 struct target_psoc_info *tgt_info, uint8_t *event);
+	void (*set_pktlog_checksum)
+		(struct wlan_objmgr_pdev *pdev, uint32_t checksum);
 };
 
 
@@ -330,7 +323,7 @@ struct target_psoc_info {
  * @feature_ptr: stores legacy pointer or few driver specific structures
  */
 struct target_pdev_info {
-	struct common_wmi_handle *wmi_handle;
+	struct wmi_unified *wmi_handle;
 	struct common_accelerator_handle *accelerator_hdl;
 	int32_t pdev_idx;
 	int32_t phy_idx;
@@ -500,6 +493,14 @@ bool target_is_tgt_type_qca9984(uint32_t target_type);
  * Return: true if the target_type is QCA9888, else false.
  */
 bool target_is_tgt_type_qca9888(uint32_t target_type);
+
+/**
+ * target_is_tgt_type_adrastea() - Check if the target type is QCS40X
+ * @target_type: target type to be checked.
+ *
+ * Return: true if the target_type is QCS40X, else false.
+ */
+bool target_is_tgt_type_adrastea(uint32_t target_type);
 
 
 /**
@@ -829,6 +830,35 @@ static inline uint8_t target_psoc_get_num_radios
 }
 
 /**
+ * target_psoc_get_num_radios_for_mode() - get number of radios for a hw-mode
+ * @psoc_info:  pointer to structure target_psoc_info
+ *
+ * API to get number_of_radios for a HW mode
+ *
+ * Return: number of radios
+ */
+
+static inline uint8_t target_psoc_get_num_radios_for_mode
+		(struct target_psoc_info *psoc_info, uint8_t mode)
+{
+	uint8_t mac_phy_count;
+	uint8_t num_radios = 0;
+	struct tgt_info *info = &psoc_info->info;
+
+	if (!psoc_info)
+		return 0;
+
+	for (mac_phy_count = 0;
+		mac_phy_count < target_psoc_get_total_mac_phy_cnt(psoc_info);
+		mac_phy_count++) {
+		num_radios +=
+		(info->mac_phy_cap[mac_phy_count].hw_mode_id == mode);
+	}
+
+	return num_radios;
+}
+
+/**
  * target_psoc_set_service_bitmap() - set service_bitmap
  * @psoc_info:  pointer to structure target_psoc_info
  * @service_bitmap: FW service bitmap
@@ -902,7 +932,7 @@ static inline uint32_t target_psoc_get_num_mem_chunks
  */
 static inline void target_psoc_set_hif_hdl
 		(struct target_psoc_info *psoc_info,
-		 struct common_hif_handle *hif_hdl)
+		 struct hif_opaque_softc *hif_hdl)
 {
 	if (!psoc_info)
 		return;
@@ -918,7 +948,7 @@ static inline void target_psoc_set_hif_hdl
  *
  * Return: hif_hdl
  */
-static inline struct common_hif_handle *target_psoc_get_hif_hdl
+static inline struct hif_opaque_softc *target_psoc_get_hif_hdl
 		(struct target_psoc_info *psoc_info)
 {
 	if (!psoc_info)
@@ -936,9 +966,9 @@ static inline struct common_hif_handle *target_psoc_get_hif_hdl
  *
  * Return: void
  */
-static inline void target_psoc_set_htc_hdl
-		(struct target_psoc_info *psoc_info,
-		 struct common_htc_handle *htc_hdl)
+static inline void target_psoc_set_htc_hdl(
+		struct target_psoc_info *psoc_info,
+		HTC_HANDLE htc_hdl)
 {
 	if (!psoc_info)
 		return;
@@ -954,7 +984,7 @@ static inline void target_psoc_set_htc_hdl
  *
  * Return: htc_hdl
  */
-static inline struct common_htc_handle *target_psoc_get_htc_hdl
+static inline HTC_HANDLE target_psoc_get_htc_hdl
 		(struct target_psoc_info *psoc_info)
 {
 	if (!psoc_info)
@@ -973,7 +1003,7 @@ static inline struct common_htc_handle *target_psoc_get_htc_hdl
  */
 static inline void target_psoc_set_wmi_hdl
 		(struct target_psoc_info *psoc_info,
-		 struct common_wmi_handle *wmi_hdl)
+		 struct wmi_unified *wmi_hdl)
 {
 	if (!psoc_info)
 		return;
@@ -989,7 +1019,7 @@ static inline void target_psoc_set_wmi_hdl
  *
  * Return: wmi_hdl
  */
-static inline struct common_wmi_handle *target_psoc_get_wmi_hdl
+static inline struct wmi_unified *target_psoc_get_wmi_hdl
 		(struct target_psoc_info *psoc_info)
 {
 	if (!psoc_info)
@@ -1270,6 +1300,56 @@ static inline struct wlan_psoc_host_service_ext_param
 	return &psoc_info->info.service_ext_param;
 }
 
+/**
+ * target_psoc_get_num_dbr_ring_caps() - get no of dbr_ring_caps
+ * @psoc_info:  pointer to structure target_psoc_info
+ *
+ * API to get num_dbr_ring_caps
+ *
+ * Return: no of dbr_ring_caps
+ */
+static inline uint32_t target_psoc_get_num_dbr_ring_caps
+		(struct target_psoc_info *psoc_info)
+{
+	if (!psoc_info)
+		return 0;
+
+	if (psoc_info->info.service_ext_param.num_dbr_ring_caps)
+		return psoc_info->info.service_ext_param.num_dbr_ring_caps;
+
+	return psoc_info->info.service_ext2_param.num_dbr_ring_caps;
+}
+
+/**
+ * target_psoc_get_mac_phy_cap_for_mode() - get mac_phy_cap for a hw-mode
+ * @psoc_info:  pointer to structure target_psoc_info
+ *
+ * API to get mac_phy_cap for a specified hw-mode
+ *
+ * Return: structure pointer to wlan_psoc_host_mac_phy_caps
+ */
+
+static inline struct wlan_psoc_host_mac_phy_caps
+		*target_psoc_get_mac_phy_cap_for_mode
+		(struct target_psoc_info *psoc_info, uint8_t mode)
+{
+	uint8_t mac_phy_idx;
+	struct tgt_info *info = &psoc_info->info;
+
+	if (!psoc_info)
+		return NULL;
+
+	for (mac_phy_idx = 0;
+		mac_phy_idx < PSOC_MAX_MAC_PHY_CAP;
+			mac_phy_idx++)
+		if (info->mac_phy_cap[mac_phy_idx].hw_mode_id == mode)
+			break;
+
+	if (mac_phy_idx == PSOC_MAX_MAC_PHY_CAP)
+		return NULL;
+
+	return &info->mac_phy_cap[mac_phy_idx];
+}
 
 /**
  * target_psoc_get_mac_phy_cap() - get mac_phy_cap
@@ -1282,10 +1362,24 @@ static inline struct wlan_psoc_host_service_ext_param
 static inline struct wlan_psoc_host_mac_phy_caps *target_psoc_get_mac_phy_cap
 		(struct target_psoc_info *psoc_info)
 {
+	uint32_t preferred_hw_mode;
+	struct wlan_psoc_host_mac_phy_caps *mac_phy_cap;
+
 	if (!psoc_info)
 		return NULL;
 
-	return psoc_info->info.mac_phy_cap;
+	preferred_hw_mode =
+		target_psoc_get_preferred_hw_mode(psoc_info);
+
+	if (preferred_hw_mode < WMI_HOST_HW_MODE_MAX) {
+		mac_phy_cap =
+			target_psoc_get_mac_phy_cap_for_mode
+			(psoc_info, preferred_hw_mode);
+	} else {
+		mac_phy_cap = psoc_info->info.mac_phy_cap;
+	}
+
+	return mac_phy_cap;
 }
 
 /**
@@ -1403,7 +1497,7 @@ static inline void *target_pdev_get_feature_ptr
  */
 static inline void target_pdev_set_wmi_handle
 		(struct target_pdev_info *pdev_info,
-		 struct common_wmi_handle *wmi_handle)
+		 struct wmi_unified *wmi_handle)
 {
 	if (!pdev_info)
 		return;
@@ -1419,7 +1513,7 @@ static inline void target_pdev_set_wmi_handle
  *
  * Return: wmi_handle
  */
-static inline struct common_wmi_handle *target_pdev_get_wmi_handle
+static inline struct wmi_unified *target_pdev_get_wmi_handle
 		(struct target_pdev_info *pdev_info)
 {
 	if (!pdev_info)
@@ -1543,17 +1637,16 @@ static inline int32_t target_pdev_get_phy_idx
  * Return: wmi_handle on success
  *         if tgt handle is not initialized, it returns NULL
  */
-static inline struct common_wmi_handle *GET_WMI_HDL_FROM_PSOC(
+static inline struct wmi_unified *GET_WMI_HDL_FROM_PSOC(
 		struct wlan_objmgr_psoc *psoc)
 {
-	void *tgt_if_handle;
+	struct target_psoc_info *tgt_if_handle;
 
 	if (psoc) {
 		tgt_if_handle = psoc->tgt_if_handle;
 
 		if (tgt_if_handle)
-			return (target_psoc_get_wmi_hdl(
-				(struct target_psoc_info *)tgt_if_handle));
+			return target_psoc_get_wmi_hdl(tgt_if_handle);
 		else
 			return NULL;
 	}
@@ -1570,10 +1663,10 @@ static inline struct common_wmi_handle *GET_WMI_HDL_FROM_PSOC(
  * Return: wmi_handle on success
  *         if tgt handle is not initialized, it returns NULL
  */
-static inline struct common_wmi_handle *GET_WMI_HDL_FROM_PDEV(
+static inline struct wmi_unified *GET_WMI_HDL_FROM_PDEV(
 		struct wlan_objmgr_pdev *pdev)
 {
-	void *tgt_if_handle;
+	struct target_pdev_info *tgt_if_handle;
 
 	if (pdev) {
 		tgt_if_handle =  pdev->tgt_if_handle;
@@ -1724,6 +1817,24 @@ static inline void target_if_cfr_support_enable(struct wlan_objmgr_psoc *psoc,
 	if ((tgt_hdl->tif_ops) &&
 	    (tgt_hdl->tif_ops->cfr_support_enable))
 		tgt_hdl->tif_ops->cfr_support_enable(psoc, tgt_hdl, evt_buf);
+}
+
+/**
+ * target_if_set_pktlog_checksum - Set pktlog checksum
+ * @pdev: pdev object
+ * @tgt_hdl: target_psoc_info pointer
+ * @checksum: checksum received from FW
+ *
+ * API to set pktlog checksum
+ *
+ * Return: none
+ */
+static inline void target_if_set_pktlog_checksum(struct wlan_objmgr_pdev *pdev,
+			struct target_psoc_info *tgt_hdl, uint32_t checksum)
+{
+	if ((tgt_hdl->tif_ops) &&
+	    (tgt_hdl->tif_ops->set_pktlog_checksum))
+		tgt_hdl->tif_ops->set_pktlog_checksum(pdev, checksum);
 }
 
 /**

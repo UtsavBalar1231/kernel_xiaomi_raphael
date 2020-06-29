@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -34,6 +34,7 @@
 #include <cds_api.h>
 #include <cdp_txrx_cmn.h>
 #include <wmi_unified_api.h>
+#include <wmi_unified_crypto_api.h>
 #include <cdp_txrx_peer_ops.h>
 
 #ifdef FEATURE_WLAN_WAPI
@@ -52,7 +53,7 @@ static void wlan_crypto_set_wapi_key(struct wlan_objmgr_vdev *vdev,
 						0x5c, 0x36, 0x5c, 0x36, 0x5c,
 						0x37};
 
-	if (cipher_type != WLAN_CRYPTO_CIPHER_WAPI_SMS4 ||
+	if (cipher_type != WLAN_CRYPTO_CIPHER_WAPI_SMS4 &&
 	    cipher_type != WLAN_CRYPTO_CIPHER_WAPI_GCM4)
 		return;
 
@@ -112,13 +113,10 @@ QDF_STATUS target_if_crypto_set_key(struct wlan_objmgr_vdev *vdev,
 	struct wlan_objmgr_pdev *pdev;
 	enum cdp_sec_type sec_type = cdp_sec_type_none;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	struct cdp_pdev *txrx_pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-	struct cdp_vdev *txrx_vdev;
 	uint32_t pn[4] = {0, 0, 0, 0};
-	struct cdp_peer *peer = NULL;
-	uint8_t peer_id;
+	bool peer_exist = false;
 	uint8_t def_tx_idx;
-	void *pdev_wmi_handle;
+	wmi_unified_t pdev_wmi_handle;
 	bool pairwise;
 	QDF_STATUS status;
 
@@ -157,21 +155,15 @@ QDF_STATUS target_if_crypto_set_key(struct wlan_objmgr_vdev *vdev,
 	}
 	qdf_mem_copy(&params.key_rsc_ctr,
 		     &req->keyrsc[0], sizeof(uint64_t));
-	txrx_vdev = (struct cdp_vdev *)cdp_get_vdev_from_vdev_id(soc,
-				(struct cdp_pdev *)txrx_pdev, params.vdev_id);
-	peer = cdp_peer_find_by_addr(soc, txrx_pdev, req->macaddr, &peer_id);
 
-	if (!txrx_vdev) {
-		target_if_err("Invalid txrx vdev");
-		return QDF_STATUS_E_FAILURE;
-	}
-
+	peer_exist = cdp_find_peer_exist(soc, pdev->pdev_objmgr.wlan_pdev_id,
+					 req->macaddr);
 	target_if_debug("key_type %d, mac: %02x:%02x:%02x:%02x:%02x:%02x",
 			key_type, req->macaddr[0], req->macaddr[1],
 			req->macaddr[2], req->macaddr[3], req->macaddr[4],
 			req->macaddr[5]);
 
-	if ((key_type == WLAN_CRYPTO_KEY_TYPE_UNICAST) && !peer) {
+	if ((key_type == WLAN_CRYPTO_KEY_TYPE_UNICAST) && !peer_exist) {
 		target_if_err("Invalid peer");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -203,16 +195,18 @@ QDF_STATUS target_if_crypto_set_key(struct wlan_objmgr_vdev *vdev,
 					  &req->keyval[0],
 					  req->keylen);
 	params.key_len = req->keylen;
-	if (peer) {
-		/* Set PN check & security type in data path */
-		qdf_mem_copy(&pn[0], &params.key_rsc_ctr, sizeof(pn));
-		cdp_set_pn_check(soc, txrx_vdev, peer, sec_type, pn);
-		cdp_set_key_sec_type(soc, txrx_vdev, peer, sec_type, pairwise);
-		cdp_set_key(soc, peer, pairwise, (uint32_t *)(req->keyval +
-			    WLAN_CRYPTO_IV_SIZE + WLAN_CRYPTO_MIC_LEN));
-	} else {
-		target_if_info("peer not found");
-	}
+
+	/* Set PN check & security type in data path */
+	qdf_mem_copy(&pn[0], &params.key_rsc_ctr, sizeof(pn));
+	cdp_set_pn_check(soc, vdev->vdev_objmgr.vdev_id, req->macaddr,
+			 sec_type, pn);
+
+	cdp_set_key_sec_type(soc, vdev->vdev_objmgr.vdev_id, req->macaddr,
+			     sec_type, pairwise);
+
+	cdp_set_key(soc, vdev->vdev_objmgr.vdev_id, req->macaddr, pairwise,
+		    (uint32_t *)(req->keyval + WLAN_CRYPTO_IV_SIZE +
+		     WLAN_CRYPTO_MIC_LEN));
 
 	target_if_debug("vdev_id:%d, key: idx:%d,len:%d", params.vdev_id,
 			params.key_idx, params.key_len);
@@ -221,6 +215,8 @@ QDF_STATUS target_if_crypto_set_key(struct wlan_objmgr_vdev *vdev,
 			   &params.key_rsc_ctr, sizeof(uint64_t));
 	status = wmi_unified_setup_install_key_cmd(pdev_wmi_handle, &params);
 
+	/* Zero-out local key variables */
+	qdf_mem_zero(&params, sizeof(struct set_key_params));
 	return status;
 }
 

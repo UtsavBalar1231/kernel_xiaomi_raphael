@@ -425,11 +425,16 @@ spectral_control_cmn(struct wlan_objmgr_pdev *pdev,
 
 	case SPECTRAL_ACTIVATE_SCAN:
 		err = &sscan_req->action_req.sscan_err_code;
-		sc->sptrlc_start_spectral_scan(pdev, smode, err);
+		ret = sc->sptrlc_start_spectral_scan(pdev, smode, err);
+		if (QDF_IS_STATUS_ERROR(ret))
+			goto bad;
 		break;
 
 	case SPECTRAL_STOP_SCAN:
-		sc->sptrlc_stop_spectral_scan(pdev, smode);
+		err = &sscan_req->action_req.sscan_err_code;
+		ret = sc->sptrlc_stop_spectral_scan(pdev, smode, err);
+		if (QDF_IS_STATUS_ERROR(ret))
+			goto bad;
 		break;
 
 	case SPECTRAL_GET_CAPABILITY_INFO:
@@ -464,6 +469,14 @@ spectral_control_cmn(struct wlan_objmgr_pdev *pdev,
 			sscan_req->chan_width_req.chan_width =
 							(uint32_t)chan_width;
 		}
+		break;
+
+	case SPECTRAL_SET_DMA_DEBUG:
+		if (sc->sptrlc_set_dma_debug)
+			sc->sptrlc_set_dma_debug(
+			     pdev,
+			     sscan_req->dma_debug_req.dma_debug_type,
+			     sscan_req->dma_debug_req.dma_debug_enable);
 		break;
 
 	default:

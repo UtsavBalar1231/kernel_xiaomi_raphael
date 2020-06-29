@@ -171,6 +171,8 @@ static inline void wlan_crypto_put_be64(u8 *a, u64 val)
 		(psoc->soc_cb.tx_ops.crypto_tx_ops.defaultkey)
 #define WLAN_CRYPTO_TX_OPS_SET_KEY(psoc) \
 		((psoc)->soc_cb.tx_ops.crypto_tx_ops.set_key)
+#define WLAN_CRYPTO_TX_OPS_GETPN(psoc) \
+		((psoc)->soc_cb.tx_ops.crypto_tx_ops.getpn)
 
 /* unalligned little endian access */
 #ifndef LE_READ_2
@@ -255,7 +257,7 @@ static inline void wlan_crypto_put_be64(u8 *a, u64 val)
 					WLAN_RSN_SEL(11)
 #define RSN_AUTH_KEY_MGMT_802_1X_SUITE_B_192\
 					WLAN_RSN_SEL(12)
-#define RSN_AUTH_KEY_MGMT_FT_802_1X_SUITE_B_192\
+#define RSN_AUTH_KEY_MGMT_FT_802_1X_SUITE_B_384\
 					WLAN_RSN_SEL(13)
 #define RSN_AUTH_KEY_MGMT_FILS_SHA256   WLAN_RSN_SEL(14)
 #define RSN_AUTH_KEY_MGMT_FILS_SHA384   WLAN_RSN_SEL(15)
@@ -433,9 +435,9 @@ struct wlan_crypto_mmie {
  */
 struct wlan_crypto_comp_priv {
 	struct wlan_crypto_params crypto_params;
-	struct wlan_crypto_key *key[WLAN_CRYPTO_MAXKEYIDX];
+	struct wlan_crypto_key *key[WLAN_CRYPTO_MAX_VLANKEYIX];
 	struct wlan_crypto_key *igtk_key[WLAN_CRYPTO_MAXIGTKKEYIDX];
-	uint32_t igtk_key_type;
+	enum wlan_crypto_cipher_type igtk_key_type;
 	uint8_t def_tx_keyid;
 	uint8_t def_igtk_tx_keyid;
 	uint8_t fils_aead_set;

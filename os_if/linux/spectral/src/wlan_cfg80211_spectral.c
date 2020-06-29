@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -31,7 +31,6 @@
 #include <wlan_spectral_ucfg_api.h>
 #include <wlan_cfg80211_spectral.h>
 #include <spectral_ioctl.h>
-#include "qal_devcfg.h"
 
 static const struct nla_policy spectral_scan_policy[
 		QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_MAX + 1] = {
@@ -84,7 +83,11 @@ static const struct nla_policy spectral_scan_policy[
 	[QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_FREQUENCY] = {
 							.type = NLA_U32},
 	[QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_MODE] = {
-						.type = NLA_U32},
+							.type = NLA_U32},
+	[QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_DMA_RING_DEBUG] = {
+							.type = NLA_U8},
+	[QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_DMA_BUFFER_DEBUG] = {
+							.type = NLA_U8},
 };
 
 static void wlan_spectral_intit_config(struct spectral_config *config_req)
@@ -134,12 +137,104 @@ convert_spectral_mode_nl_to_internal
 		break;
 
 	default:
-		cfg80211_err("Invalid spectral mode %u", nl_spectral_mode);
+		osif_err("Invalid spectral mode %u", nl_spectral_mode);
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	return QDF_STATUS_SUCCESS;
 }
+
+/**
+ * convert_spectral_err_code_internal_to_nl() - Get Spectral error code
+ * @spectral_err_code: Spectral error code used internally
+ * @nl_err_code: Spectral error code for cfg80211
+ *
+ * Return: QDF_STATUS_SUCCESS on success, else QDF_STATUS_E_FAILURE
+ */
+static QDF_STATUS
+convert_spectral_err_code_internal_to_nl
+		(enum spectral_cp_error_code spectral_err_code,
+		 enum qca_wlan_vendor_spectral_scan_error_code *nl_err_code)
+{
+	switch (spectral_err_code) {
+	case SPECTRAL_SCAN_ERR_PARAM_UNSUPPORTED:
+		*nl_err_code =
+			QCA_WLAN_VENDOR_SPECTRAL_SCAN_ERR_PARAM_UNSUPPORTED;
+		break;
+
+	case SPECTRAL_SCAN_ERR_MODE_UNSUPPORTED:
+		*nl_err_code =
+			QCA_WLAN_VENDOR_SPECTRAL_SCAN_ERR_MODE_UNSUPPORTED;
+		break;
+
+	case SPECTRAL_SCAN_ERR_PARAM_INVALID_VALUE:
+		*nl_err_code =
+			QCA_WLAN_VENDOR_SPECTRAL_SCAN_ERR_PARAM_INVALID_VALUE;
+		break;
+
+	case SPECTRAL_SCAN_ERR_PARAM_NOT_INITIALIZED:
+		*nl_err_code =
+			QCA_WLAN_VENDOR_SPECTRAL_SCAN_ERR_PARAM_NOT_INITIALIZED;
+		break;
+
+	default:
+		osif_err("Invalid spectral error code %u", spectral_err_code);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+#ifdef DIRECT_BUF_RX_DEBUG
+QDF_STATUS wlan_cfg80211_spectral_scan_dma_debug_config(
+	struct wlan_objmgr_pdev *pdev,
+	struct nlattr **tb,
+	enum spectral_scan_mode sscan_mode)
+{
+	struct spectral_cp_request sscan_req;
+	uint8_t dma_debug_enable;
+	QDF_STATUS status;
+
+	if (!tb || !pdev)
+		return QDF_STATUS_E_FAILURE;
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_DMA_RING_DEBUG]) {
+		dma_debug_enable = nla_get_u8(tb[
+		   QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_DMA_RING_DEBUG]);
+		sscan_req.ss_mode = sscan_mode;
+		sscan_req.dma_debug_req.dma_debug_enable = !!dma_debug_enable;
+		sscan_req.dma_debug_req.dma_debug_type =
+				SPECTRAL_DMA_RING_DEBUG;
+		sscan_req.req_id = SPECTRAL_SET_DMA_DEBUG;
+		status = ucfg_spectral_control(pdev, &sscan_req);
+		if (status != QDF_STATUS_SUCCESS) {
+			osif_err("Could not configure dma ring debug");
+			return QDF_STATUS_E_FAILURE;
+		}
+	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_DMA_BUFFER_DEBUG]) {
+		dma_debug_enable = nla_get_u8(tb[
+		   QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_DMA_BUFFER_DEBUG]);
+		sscan_req.ss_mode = sscan_mode;
+		sscan_req.dma_debug_req.dma_debug_enable = !!dma_debug_enable;
+		sscan_req.dma_debug_req.dma_debug_type =
+				SPECTRAL_DMA_BUFFER_DEBUG;
+		sscan_req.req_id = SPECTRAL_SET_DMA_DEBUG;
+		return ucfg_spectral_control(pdev, &sscan_req);
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+#else
+QDF_STATUS wlan_cfg80211_spectral_scan_dma_debug_config(
+	struct wlan_objmgr_pdev *pdev,
+	struct nlattr **tb,
+	enum spectral_scan_mode sscan_mode)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* DIRECT_BUF_RX_DEBUG */
 
 int wlan_cfg80211_spectral_scan_config_and_start(struct wiphy *wiphy,
 						 struct wlan_objmgr_pdev *pdev,
@@ -155,6 +250,7 @@ int wlan_cfg80211_spectral_scan_config_and_start(struct wiphy *wiphy,
 	uint32_t scan_req_type = 0;
 	struct spectral_cp_request sscan_req;
 	enum spectral_scan_mode sscan_mode = SPECTRAL_SCAN_MODE_NORMAL;
+	uint16_t skb_len;
 
 	if (wlan_cfg80211_nla_parse(
 			tb,
@@ -162,7 +258,7 @@ int wlan_cfg80211_spectral_scan_config_and_start(struct wiphy *wiphy,
 			data,
 			data_len,
 			spectral_scan_policy)) {
-		cfg80211_err("Invalid Spectral Scan config ATTR");
+		osif_err("Invalid Spectral Scan config ATTR");
 		return -EINVAL;
 	}
 
@@ -275,6 +371,25 @@ int wlan_cfg80211_spectral_scan_config_and_start(struct wiphy *wiphy,
 		scan_req_type = nla_get_u32(tb
 		   [QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_REQUEST_TYPE]);
 
+	skb_len = NLMSG_HDRLEN;
+	/* QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_ERROR_CODE */
+	skb_len += NLA_HDRLEN + sizeof(u32);
+	/* QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_COOKIE */
+	skb_len += NLA_HDRLEN + sizeof(u64);
+	skb = wlan_cfg80211_vendor_cmd_alloc_reply_skb(wiphy, skb_len);
+
+	if (!skb) {
+		osif_err(" reply skb alloc failed");
+		return -ENOMEM;
+	}
+
+	status = wlan_cfg80211_spectral_scan_dma_debug_config(
+			pdev, tb, sscan_mode);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		status = QDF_STATUS_E_INVAL;
+		goto free_skb_return_os_status;
+	}
+
 	if (CONFIG_REQUESTED(scan_req_type)) {
 		sscan_req.ss_mode = sscan_mode;
 		sscan_req.req_id = SPECTRAL_SET_CONFIG;
@@ -282,36 +397,77 @@ int wlan_cfg80211_spectral_scan_config_and_start(struct wiphy *wiphy,
 			     qdf_min(sizeof(sscan_req.config_req.sscan_config),
 				     sizeof(config_req)));
 		status = ucfg_spectral_control(pdev, &sscan_req);
-		if (QDF_IS_STATUS_ERROR(status))
-			return -EINVAL;
+		if (QDF_IS_STATUS_ERROR(status)) {
+			enum qca_wlan_vendor_spectral_scan_error_code
+							spectral_nl_err_code;
+
+			/* No error reasons populated, just return error */
+			if (sscan_req.config_req.sscan_err_code ==
+					SPECTRAL_SCAN_ERR_INVALID)
+				goto free_skb_return_os_status;
+
+			status = convert_spectral_err_code_internal_to_nl
+					(sscan_req.config_req.sscan_err_code,
+					 &spectral_nl_err_code);
+			if (QDF_IS_STATUS_ERROR(status)) {
+				status = QDF_STATUS_E_INVAL;
+				goto free_skb_return_os_status;
+			}
+
+			if (nla_put_u32
+			    (skb,
+			     QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_ERROR_CODE,
+			     spectral_nl_err_code)) {
+				status = QDF_STATUS_E_INVAL;
+				goto free_skb_return_os_status;
+			}
+		}
 	}
 
 	if (SCAN_REQUESTED(scan_req_type)) {
 		sscan_req.ss_mode = sscan_mode;
 		sscan_req.req_id = SPECTRAL_ACTIVATE_SCAN;
 		status = ucfg_spectral_control(pdev, &sscan_req);
-		if (QDF_IS_STATUS_ERROR(status))
-			return -EINVAL;
-	}
+		if (QDF_IS_STATUS_ERROR(status)) {
+			enum qca_wlan_vendor_spectral_scan_error_code
+							spectral_nl_err_code;
 
-	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, sizeof(u64) +
-		NLA_HDRLEN + NLMSG_HDRLEN);
-	if (!skb) {
-		cfg80211_err(" reply skb alloc failed");
-		return -ENOMEM;
+			/* No error reasons populated, just return error */
+			if (sscan_req.action_req.sscan_err_code ==
+					SPECTRAL_SCAN_ERR_INVALID)
+				goto free_skb_return_os_status;
+
+			status = convert_spectral_err_code_internal_to_nl
+					(sscan_req.action_req.sscan_err_code,
+					 &spectral_nl_err_code);
+			if (QDF_IS_STATUS_ERROR(status)) {
+				status = QDF_STATUS_E_INVAL;
+				goto free_skb_return_os_status;
+			}
+
+			if (nla_put_u32
+			    (skb,
+			     QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_ERROR_CODE,
+			     spectral_nl_err_code)) {
+				status = QDF_STATUS_E_INVAL;
+				goto free_skb_return_os_status;
+			}
+		}
 	}
 
 	cookie = 0;
 	if (wlan_cfg80211_nla_put_u64(skb,
 				      QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_COOKIE,
 				      cookie)) {
-		kfree_skb(skb);
-		return -EINVAL;
+		status = QDF_STATUS_E_INVAL;
+		goto free_skb_return_os_status;
 	}
 
-	qal_devcfg_send_response((qdf_nbuf_t)skb);
-
+	wlan_cfg80211_qal_devcfg_send_response((qdf_nbuf_t)skb);
 	return 0;
+free_skb_return_os_status:
+	wlan_cfg80211_vendor_free_skb(skb);
+	return qdf_status_to_os_return(status);
 }
 
 int wlan_cfg80211_spectral_scan_stop(struct wiphy *wiphy,
@@ -323,6 +479,7 @@ int wlan_cfg80211_spectral_scan_stop(struct wiphy *wiphy,
 	QDF_STATUS status;
 	struct spectral_cp_request sscan_req;
 	enum spectral_scan_mode sscan_mode = SPECTRAL_SCAN_MODE_NORMAL;
+	struct sk_buff *skb;
 
 	if (wlan_cfg80211_nla_parse(
 			tb,
@@ -330,7 +487,7 @@ int wlan_cfg80211_spectral_scan_stop(struct wiphy *wiphy,
 			data,
 			data_len,
 			spectral_scan_policy)) {
-		cfg80211_err("Invalid Spectral Scan stop ATTR");
+		osif_err("Invalid Spectral Scan stop ATTR");
 		return -EINVAL;
 	}
 
@@ -345,8 +502,38 @@ int wlan_cfg80211_spectral_scan_stop(struct wiphy *wiphy,
 	sscan_req.ss_mode = sscan_mode;
 	sscan_req.req_id = SPECTRAL_STOP_SCAN;
 	status = ucfg_spectral_control(pdev, &sscan_req);
-	if (QDF_IS_STATUS_ERROR(status))
-		return -EINVAL;
+	if (QDF_IS_STATUS_ERROR(status)) {
+		enum qca_wlan_vendor_spectral_scan_error_code
+						spectral_nl_err_code;
+
+		/* No error reasons populated, just return error */
+		if (sscan_req.action_req.sscan_err_code ==
+				SPECTRAL_SCAN_ERR_INVALID)
+			return qdf_status_to_os_return(status);
+
+		status = convert_spectral_err_code_internal_to_nl
+				(sscan_req.action_req.sscan_err_code,
+				 &spectral_nl_err_code);
+		if (QDF_IS_STATUS_ERROR(status))
+			return -EINVAL;
+
+		skb = wlan_cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
+				NLMSG_HDRLEN + sizeof(u32) + NLA_HDRLEN);
+
+		if (!skb) {
+			osif_err(" reply skb alloc failed");
+			return -ENOMEM;
+		}
+
+		if (nla_put_u32
+		    (skb,
+		     QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_ERROR_CODE,
+		     spectral_nl_err_code)) {
+			wlan_cfg80211_vendor_free_skb(skb);
+			return -EINVAL;
+		}
+		wlan_cfg80211_qal_devcfg_send_response((qdf_nbuf_t)skb);
+	}
 
 	return 0;
 }
@@ -370,7 +557,7 @@ int wlan_cfg80211_spectral_scan_get_config(struct wiphy *wiphy,
 			data,
 			data_len,
 			spectral_scan_policy)) {
-		cfg80211_err("Invalid Spectral Scan config ATTR");
+		osif_err("Invalid Spectral Scan config ATTR");
 		return -EINVAL;
 	}
 
@@ -382,11 +569,12 @@ int wlan_cfg80211_spectral_scan_get_config(struct wiphy *wiphy,
 			return -EINVAL;
 	}
 
-	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, (sizeof(u32) +
+	skb = wlan_cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
+		(sizeof(u32) +
 		NLA_HDRLEN) * QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_MAX +
 		NLMSG_HDRLEN);
 	if (!skb) {
-		cfg80211_err(" reply skb alloc failed");
+		osif_err(" reply skb alloc failed");
 		return -ENOMEM;
 	}
 
@@ -457,10 +645,8 @@ int wlan_cfg80211_spectral_scan_get_config(struct wiphy *wiphy,
 			sconfig->ss_short_report) ||
 	    nla_put_u32(skb,
 			QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_FREQUENCY,
-			sconfig->ss_frequency)) {
-		kfree_skb(skb);
-		return -EINVAL;
-	}
+			sconfig->ss_frequency))
+		goto fail;
 
 	sscan_req.ss_mode = sscan_mode;
 	sscan_req.req_id = SPECTRAL_GET_DEBUG_LEVEL;
@@ -468,13 +654,14 @@ int wlan_cfg80211_spectral_scan_get_config(struct wiphy *wiphy,
 	spectral_dbg_level = sscan_req.debug_req.spectral_dbg_level;
 	if (nla_put_u32(skb,
 			QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_DEBUG_LEVEL,
-			spectral_dbg_level)) {
-		kfree_skb(skb);
-		return -EINVAL;
-	}
-	qal_devcfg_send_response((qdf_nbuf_t)skb);
+			spectral_dbg_level))
+		goto fail;
 
+	wlan_cfg80211_qal_devcfg_send_response((qdf_nbuf_t)skb);
 	return 0;
+fail:
+	wlan_cfg80211_vendor_free_skb(skb);
+	return -EINVAL;
 }
 
 int wlan_cfg80211_spectral_scan_get_cap(struct wiphy *wiphy,
@@ -491,11 +678,12 @@ int wlan_cfg80211_spectral_scan_get_cap(struct wiphy *wiphy,
 	status = ucfg_spectral_control(pdev, &sscan_req);
 	scaps = &sscan_req.caps_req.sscan_caps;
 
-	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, (sizeof(u32) +
+	skb = wlan_cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
+		(sizeof(u32) +
 		NLA_HDRLEN) * QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CAP_MAX +
 		NLMSG_HDRLEN);
 	if (!skb) {
-		cfg80211_err(" reply skb alloc failed");
+		osif_err(" reply skb alloc failed");
 		return -ENOMEM;
 	}
 
@@ -568,12 +756,31 @@ int wlan_cfg80211_spectral_scan_get_cap(struct wiphy *wiphy,
 		if (ret)
 			goto fail;
 	}
-	qal_devcfg_send_response((qdf_nbuf_t)skb);
+
+	if (scaps->agile_spectral_cap_160) {
+		int ret;
+
+		ret = nla_put_flag
+		    (skb,
+		     QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CAP_AGILE_SPECTRAL_160);
+		if (ret)
+			goto fail;
+	}
+	if (scaps->agile_spectral_cap_80p80) {
+		int ret;
+
+		ret = nla_put_flag
+		  (skb,
+		   QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CAP_AGILE_SPECTRAL_80_80);
+		if (ret)
+			goto fail;
+	}
+	wlan_cfg80211_qal_devcfg_send_response((qdf_nbuf_t)skb);
 
 	return 0;
 
 fail:
-	kfree_skb(skb);
+	wlan_cfg80211_vendor_free_skb(skb);
 	return -EINVAL;
 }
 
@@ -591,11 +798,12 @@ int wlan_cfg80211_spectral_scan_get_diag_stats(struct wiphy *wiphy,
 	status = ucfg_spectral_control(pdev, &sscan_req);
 	spetcral_diag = &sscan_req.diag_req.sscan_diag;
 
-	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, (sizeof(u64) +
-		NLA_HDRLEN) * QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_DIAG_MAX +
+	skb = wlan_cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
+		(sizeof(u64) + NLA_HDRLEN) *
+		QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_DIAG_MAX +
 		NLMSG_HDRLEN);
 	if (!skb) {
-		cfg80211_err(" reply skb alloc failed");
+		osif_err(" reply skb alloc failed");
 		return -ENOMEM;
 	}
 
@@ -619,10 +827,10 @@ int wlan_cfg80211_spectral_scan_get_diag_stats(struct wiphy *wiphy,
 		skb,
 		QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_DIAG_VHTSEG2ID_MISMATCH,
 		spetcral_diag->spectral_vhtseg2id_mismatch)) {
-		kfree_skb(skb);
+		wlan_cfg80211_vendor_free_skb(skb);
 		return -EINVAL;
 	}
-	qal_devcfg_send_response((qdf_nbuf_t)skb);
+	wlan_cfg80211_qal_devcfg_send_response((qdf_nbuf_t)skb);
 
 	return 0;
 }
@@ -645,7 +853,7 @@ int wlan_cfg80211_spectral_scan_get_status(struct wiphy *wiphy,
 			data,
 			data_len,
 			NULL)) {
-		cfg80211_err("Invalid Spectral Scan config ATTR");
+		osif_err("Invalid Spectral Scan config ATTR");
 		return -EINVAL;
 	}
 
@@ -668,10 +876,10 @@ int wlan_cfg80211_spectral_scan_get_status(struct wiphy *wiphy,
 	status = ucfg_spectral_control(pdev, &sscan_req);
 	sscan_state.is_enabled = sscan_req.status_req.is_enabled;
 
-	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, 2 * (sizeof(u32) +
-		NLA_HDRLEN) + NLMSG_HDRLEN);
+	skb = wlan_cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
+		2 * (sizeof(u32) + NLA_HDRLEN) + NLMSG_HDRLEN);
 	if (!skb) {
-		cfg80211_err(" reply skb alloc failed");
+		osif_err(" reply skb alloc failed");
 		return -ENOMEM;
 	}
 
@@ -686,10 +894,10 @@ int wlan_cfg80211_spectral_scan_get_status(struct wiphy *wiphy,
 			skb,
 			QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_STATUS_IS_ACTIVE))
 			goto fail;
-	qal_devcfg_send_response((qdf_nbuf_t)skb);
+	wlan_cfg80211_qal_devcfg_send_response((qdf_nbuf_t)skb);
 
 	return 0;
 fail:
-	kfree_skb(skb);
+	wlan_cfg80211_vendor_free_skb(skb);
 	return -EINVAL;
 }

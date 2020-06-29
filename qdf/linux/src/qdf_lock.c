@@ -23,7 +23,7 @@
 
 #include <qdf_types.h>
 #include <i_host_diag_core_event.h>
-#ifdef CONFIG_MCL
+#ifdef FEATURE_RUNTIME_PM
 #include <cds_api.h>
 #include <hif.h>
 #endif
@@ -244,8 +244,8 @@ qdf_export_symbol(qdf_mutex_release);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 const char *qdf_wake_lock_name(qdf_wake_lock_t *lock)
 {
-	if (lock->name)
-		return lock->name;
+	if (lock)
+		return lock->lock.name;
 	return "UNNAMED_WAKELOCK";
 }
 #else
@@ -265,10 +265,26 @@ qdf_export_symbol(qdf_wake_lock_name);
  * QDF status success: if wake lock is initialized
  * QDF status failure: if wake lock was not initialized
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 110)) || \
+	defined(WAKEUP_SOURCE_DEV)
 QDF_STATUS qdf_wake_lock_create(qdf_wake_lock_t *lock, const char *name)
 {
-	wakeup_source_init(lock, name);
+	qdf_mem_zero(lock, sizeof(*lock));
+	lock->priv = wakeup_source_register(lock->lock.dev, name);
+	if (!(lock->priv)) {
+		QDF_BUG(0);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	lock->lock = *(lock->priv);
+
+	return QDF_STATUS_SUCCESS;
+}
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+QDF_STATUS qdf_wake_lock_create(qdf_wake_lock_t *lock, const char *name)
+{
+	wakeup_source_init(&(lock->lock), name);
+	lock->priv = &(lock->lock);
 	return QDF_STATUS_SUCCESS;
 }
 #else
@@ -294,7 +310,7 @@ QDF_STATUS qdf_wake_lock_acquire(qdf_wake_lock_t *lock, uint32_t reason)
 	host_diag_log_wlock(reason, qdf_wake_lock_name(lock),
 			    WIFI_POWER_EVENT_DEFAULT_WAKELOCK_TIMEOUT,
 			    WIFI_POWER_EVENT_WAKELOCK_TAKEN);
-	__pm_stay_awake(lock);
+	__pm_stay_awake(lock->priv);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -318,7 +334,7 @@ qdf_export_symbol(qdf_wake_lock_acquire);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
 QDF_STATUS qdf_wake_lock_timeout_acquire(qdf_wake_lock_t *lock, uint32_t msec)
 {
-	pm_wakeup_ws_event(lock, msec, true);
+	pm_wakeup_ws_event(lock->priv, msec, true);
 	return QDF_STATUS_SUCCESS;
 }
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
@@ -327,7 +343,7 @@ QDF_STATUS qdf_wake_lock_timeout_acquire(qdf_wake_lock_t *lock, uint32_t msec)
 	/* Wakelock for Rx is frequent.
 	 * It is reported only during active debug
 	 */
-	__pm_wakeup_event(lock, msec);
+	__pm_wakeup_event(&(lock->lock), msec);
 	return QDF_STATUS_SUCCESS;
 }
 #else /* LINUX_VERSION_CODE */
@@ -353,7 +369,7 @@ QDF_STATUS qdf_wake_lock_release(qdf_wake_lock_t *lock, uint32_t reason)
 	host_diag_log_wlock(reason, qdf_wake_lock_name(lock),
 			    WIFI_POWER_EVENT_DEFAULT_WAKELOCK_TIMEOUT,
 			    WIFI_POWER_EVENT_WAKELOCK_RELEASED);
-	__pm_relax(lock);
+	__pm_relax(lock->priv);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -373,10 +389,17 @@ qdf_export_symbol(qdf_wake_lock_release);
  * QDF status success: if wake lock is acquired
  * QDF status failure: if wake lock was not acquired
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 110)) || \
+	defined(WAKEUP_SOURCE_DEV)
 QDF_STATUS qdf_wake_lock_destroy(qdf_wake_lock_t *lock)
 {
-	wakeup_source_trash(lock);
+	wakeup_source_unregister(lock->priv);
+	return QDF_STATUS_SUCCESS;
+}
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+QDF_STATUS qdf_wake_lock_destroy(qdf_wake_lock_t *lock)
+{
+	wakeup_source_trash(&(lock->lock));
 	return QDF_STATUS_SUCCESS;
 }
 #else
@@ -427,7 +450,7 @@ QDF_STATUS qdf_runtime_pm_get(void)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	ret = hif_pm_runtime_get(ol_sc, RTPM_ID_RESVERD);
+	ret = hif_pm_runtime_get(ol_sc);
 
 	if (ret)
 		return QDF_STATUS_E_FAILURE;
@@ -460,7 +483,7 @@ QDF_STATUS qdf_runtime_pm_put(void)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	ret = hif_pm_runtime_put(ol_sc, RTPM_ID_RESVERD);
+	ret = hif_pm_runtime_put(ol_sc);
 
 	if (ret)
 		return QDF_STATUS_E_FAILURE;
@@ -559,10 +582,6 @@ qdf_export_symbol(__qdf_runtime_lock_init);
 void qdf_runtime_lock_deinit(qdf_runtime_lock_t *lock)
 {
 	void *hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
-
-	if (!lock)
-		return;
-
 	hif_runtime_lock_deinit(hif_ctx, lock->lock);
 }
 qdf_export_symbol(qdf_runtime_lock_deinit);

@@ -105,6 +105,8 @@ int get_next_record_index(qdf_atomic_t *table_index, int array_size)
 	return record_index;
 }
 
+qdf_export_symbol(get_next_record_index);
+
 #ifdef HIF_CE_DEBUG_DATA_BUF
 void hif_ce_desc_data_record(struct hif_ce_desc_event *event, int len)
 {
@@ -129,16 +131,22 @@ void hif_ce_desc_data_record(struct hif_ce_desc_event *event, int len)
 	}
 }
 
+qdf_export_symbol(hif_ce_desc_data_record);
+
 void hif_clear_ce_desc_debug_data(struct hif_ce_desc_event *event)
 {
 	qdf_mem_zero(event,
 		     offsetof(struct hif_ce_desc_event, data));
 }
+
+qdf_export_symbol(hif_clear_ce_desc_debug_data);
 #else
 void hif_clear_ce_desc_debug_data(struct hif_ce_desc_event *event)
 {
 	qdf_mem_zero(event, sizeof(struct hif_ce_desc_event));
 }
+
+qdf_export_symbol(hif_clear_ce_desc_debug_data);
 #endif /* HIF_CE_DEBUG_DATA_BUF */
 
 #if defined(HIF_RECORD_PADDR)
@@ -1637,13 +1645,13 @@ ssize_t hif_input_desc_trace_buf_index(struct hif_softc *scn,
 	ce_hist = &scn->hif_ce_desc_hist;
 
 	if (!size) {
-		pr_err("%s: Invalid input buffer.\n", __func__);
+		qdf_nofl_err("%s: Invalid input buffer.", __func__);
 		return -EINVAL;
 	}
 
 	if (sscanf(buf, "%u %u", (unsigned int *)&ce_hist->hist_id,
 		   (unsigned int *)&ce_hist->hist_index) != 2) {
-		pr_err("%s: Invalid input value.\n", __func__);
+		qdf_nofl_err("%s: Invalid input value.", __func__);
 		return -EINVAL;
 	}
 	if ((ce_hist->hist_id >= CE_COUNT_MAX) ||
@@ -1682,13 +1690,14 @@ ssize_t hif_ce_en_desc_hist(struct hif_softc *scn, const char *buf, size_t size)
 	ce_hist = &scn->hif_ce_desc_hist;
 
 	if (!size) {
-		pr_err("%s: Invalid input buffer.\n", __func__);
+		qdf_nofl_err("%s: Invalid input buffer.", __func__);
 		return -EINVAL;
 	}
 
 	if (sscanf(buf, "%u %u", (unsigned int *)&ce_id,
 		   (unsigned int *)&cfg) != 2) {
-		pr_err("%s: Invalid input: Enter CE Id<sp><1/0>.\n", __func__);
+		qdf_nofl_err("%s: Invalid input: Enter CE Id<sp><1/0>.",
+			     __func__);
 		return -EINVAL;
 	}
 	if (ce_id >= CE_COUNT_MAX) {

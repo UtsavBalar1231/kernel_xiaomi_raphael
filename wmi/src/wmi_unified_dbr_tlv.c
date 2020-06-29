@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -51,6 +51,7 @@ static QDF_STATUS send_dbr_cfg_cmd_tlv(wmi_unified_t wmi_handle,
 		WMITLV_GET_STRUCT_TLVLEN(wmi_dma_ring_cfg_req_fixed_param));
 
 	cmd->pdev_id = wmi_handle->ops->convert_host_pdev_id_to_target(
+						wmi_handle,
 						cfg->pdev_id);
 	cmd->mod_id = cfg->mod_id;
 	cmd->base_paddr_lo = cfg->base_paddr_lo;
@@ -100,6 +101,7 @@ static QDF_STATUS extract_scaling_params_service_ready_ext_tlv(
 	spectral_bin_scaling_params = &param_buf->wmi_bin_scaling_params[idx];
 
 	param->pdev_id = wmi_handle->ops->convert_target_pdev_id_to_host(
+					wmi_handle,
 					spectral_bin_scaling_params->pdev_id);
 	param->low_level_offset = spectral_bin_scaling_params->low_level_offset;
 	param->formula_id = spectral_bin_scaling_params->formula_id;
@@ -127,6 +129,7 @@ static QDF_STATUS extract_dbr_buf_release_fixed_tlv(wmi_unified_t wmi_handle,
 		return QDF_STATUS_E_INVAL;
 
 	param->pdev_id = wmi_handle->ops->convert_target_pdev_id_to_host(
+								wmi_handle,
 								ev->pdev_id);
 	param->mod_id = ev->mod_id;
 	param->num_buf_release_entry = ev->num_buf_release_entry;

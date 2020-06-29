@@ -102,7 +102,7 @@ QDF_STATUS tgt_get_spectral_config(struct wlan_objmgr_pdev *pdev,
  * tgt_start_spectral_scan() - Start spectral scan
  * @pdev: Pointer to pdev object
  * @smode: Spectral scan mode
- * @res: Spectral control path error code
+ * @err: Spectral control path error code
  *
  * Implementation for starting spectral scan
  *
@@ -116,13 +116,15 @@ QDF_STATUS tgt_start_spectral_scan(struct wlan_objmgr_pdev *pdev,
  * tgt_stop_spectral_scan() - Stop spectral scan
  * @pdev: Pointer to pdev object
  * @smode: Spectral scan mode
+ * @err: Spectral control path error code
  *
  * Implementation for stop spectral scan
  *
  * Return: QDF_STATUS_SUCCESS on success, else QDF_STATUS_E_FAILURE
  */
 QDF_STATUS tgt_stop_spectral_scan(struct wlan_objmgr_pdev *pdev,
-				  enum spectral_scan_mode smode);
+				  enum spectral_scan_mode smode,
+				  enum spectral_cp_error_code *err);
 
 /**
  * tgt_is_spectral_active() - Get whether Spectral is active
@@ -271,4 +273,16 @@ tgt_spectral_unregister_to_dbr(struct wlan_objmgr_pdev *pdev);
  */
 uint32_t
 tgt_spectral_get_target_type(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * tgt_set_spectral_dma_debug() - Set DMA debug for Spectral
+ * @pdev: Pointer to pdev object
+ * @dma_debug_type: Type of Spectral DMA debug i.e., ring or buffer debug
+ * @dma_debug_enable: Value to be set for @dma_debug_type
+ *
+ * Return: QDF_STATUS of operation
+ */
+QDF_STATUS tgt_set_spectral_dma_debug(struct wlan_objmgr_pdev *pdev,
+				      enum spectral_dma_debug dma_debug_type,
+				      bool dma_debug_enable);
 #endif /* _WLAN_SPECTRAL_TGT_API_H_ */

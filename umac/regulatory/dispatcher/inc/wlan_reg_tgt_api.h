@@ -69,7 +69,6 @@ QDF_STATUS tgt_reg_process_ch_avoid_event(struct wlan_objmgr_psoc *psoc,
 /**
  * tgt_reg_ignore_fw_reg_offload_ind() - Check whether regdb offload indication
  * from FW needs to be ignored.
- *
  * @psoc: Pointer to psoc
  */
 bool tgt_reg_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc);

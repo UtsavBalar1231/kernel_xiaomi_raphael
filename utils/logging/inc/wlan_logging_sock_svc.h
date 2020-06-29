@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -60,12 +60,36 @@ static inline void wlan_logging_set_active(bool active) {}
 static inline void wlan_logging_set_log_to_console(bool log_to_console) {}
 #endif /* WLAN_LOGGING_SOCK_SVC_ENABLE */
 
-#if defined(WLAN_LOGGING_SOCK_SVC_ENABLE) && !defined(REMOVE_PKT_LOG)
-void wlan_deregister_txrx_packetdump(void);
-void wlan_register_txrx_packetdump(void);
+#if defined(WLAN_LOGGING_SOCK_SVC_ENABLE) && \
+	defined(FEATURE_PKTLOG) && !defined(REMOVE_PKT_LOG)
+/**
+ * wlan_deregister_txrx_packetdump() - tx/rx packet dump
+ *  deregistration
+ * @pdev_id: id of the datapath pdev handle
+ *
+ * This function is used to deregister tx/rx packet dump callbacks
+ * with ol, pe and htt layers
+ *
+ * Return: None
+ *
+ */
+void wlan_deregister_txrx_packetdump(uint8_t pdev_id);
+
+/**
+ * wlan_register_txrx_packetdump() - tx/rx packet dump
+ * registration
+ * @pdev_id: id of the datapath pdev handle
+ *
+ * This function is used to register tx/rx packet dump callbacks
+ * with ol, pe and htt layers
+ *
+ * Return: None
+ *
+ */
+void wlan_register_txrx_packetdump(uint8_t pdev_id);
 #else
-static inline void wlan_deregister_txrx_packetdump(void) {}
-static inline void wlan_register_txrx_packetdump(void) {}
+static inline void wlan_deregister_txrx_packetdump(uint8_t pdev_id) {}
+static inline void wlan_register_txrx_packetdump(uint8_t pdev_id) {}
 #endif
 
 #if defined(WLAN_LOGGING_SOCK_SVC_ENABLE) && defined(FEATURE_WLAN_DIAG_SUPPORT)
@@ -84,7 +108,8 @@ static inline void wlan_report_log_completion(uint32_t is_fatal,
 
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
-#if defined(CONFIG_MCL) && !defined(REMOVE_PKT_LOG)
+#if defined(WLAN_LOGGING_SOCK_SVC_ENABLE) && \
+	defined(FEATURE_PKTLOG) && !defined(REMOVE_PKT_LOG)
 void wlan_pkt_stats_to_logger_thread(void *pl_hdr, void *pkt_dump, void *data);
 #else
 static inline

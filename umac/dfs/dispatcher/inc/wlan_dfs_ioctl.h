@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2016-2020 The Linux Foundation. All rights reserved.
  * Copyright (c) 2010, Atheros Communications Inc.
  * All Rights Reserved.
  *
@@ -53,15 +53,31 @@
 #define DFS_SET_DISABLE_RADAR_MARKING 25
 #define DFS_GET_DISABLE_RADAR_MARKING 26
 
+#define DFS_INJECT_SEQUENCE 27
+#define DFS_ALLOW_HW_PULSES 28
+#define DFS_SET_PRI_MULTIPILER   29
+
+#define RESTRICTED_80P80_START_CHAN 132
+#define RESTRICTED_80P80_END_CHAN 161
+
+/* Check if the given channels are within restricted 80P80 start chan(132) and
+ * end chan (161).
+ */
+#define CHAN_WITHIN_RESTRICTED_80P80(chan, cfreq_seg2) \
+	((((chan) >= RESTRICTED_80P80_START_CHAN) && \
+	  ((chan) <= RESTRICTED_80P80_END_CHAN) && \
+	  ((cfreq_seg2) >= RESTRICTED_80P80_START_CHAN) && \
+	  ((cfreq_seg2) <= RESTRICTED_80P80_END_CHAN)) ? true : false)
+
 /*
  * Spectral IOCTLs use DFS_LAST_IOCTL as the base.
  * This must always be the last IOCTL in DFS and have
  * the highest value.
  */
-#define DFS_LAST_IOCTL 27
+#define DFS_LAST_IOCTL 29
 
 #ifndef DFS_CHAN_MAX
-#define DFS_CHAN_MAX 1023
+#define DFS_CHAN_MAX 25
 #endif
 
 /**
@@ -189,6 +205,10 @@ struct dfs_bangradar_params {
 /* Flag to exclude Japan W53 channnels */
 #define DFS_RANDOM_CH_FLAG_NO_JAPAN_W53_CH      0x0100 /* 0000 0001 0000 0000 */
 
+/* Restricted 80P80 MHz is enabled */
+#define DFS_RANDOM_CH_FLAG_RESTRICTED_80P80_ENABLED 0x0200
+						       /* 0000 0010 0000 0000 */
+
 /**
  * struct wlan_dfs_caps - DFS capability structure.
  * @wlan_dfs_ext_chan_ok:         Can radar be detected on the extension chan?
@@ -271,4 +291,69 @@ enum WLAN_DFS_EVENTS {
 	WLAN_EV_NOL_FINISHED,
 };
 
+#if defined(WLAN_DFS_PARTIAL_OFFLOAD) && defined(WLAN_DFS_SYNTHETIC_RADAR)
+/**
+ * Structure of Pulse to be injected into the DFS Module
+ * ******************************************************
+ * Header
+ * ======
+ * ----------|--------------|
+ * num_pulses| total_len_seq|
+ * ----------|--------------|
+ * Buffer Contents per pulse:
+ * ==========================
+ * ------|----------|-----------|----------|-----------|---------------|--------
+ * r_rssi|r_ext_rssi|r_rs_tstamp|r_fulltsf |fft_datalen|total_len_pulse|FFT
+ *       |          |           |          |           |               |Buffer..
+ * ------|----------|-----------|----------|-----------|---------------|--------
+ */
+
+/**
+ * struct synthetic_pulse - Radar Pulse Structure to be filled on reading the
+ * user file.
+ * @r_rssi:          RSSI of the pulse.
+ * @r_ext_rssi:      Extension Channel RSSI.
+ * @r_rs_tstamp:     Timestamp.
+ * @r_fulltsf:       TSF64.
+ * @fft_datalen:     Total len of FFT.
+ * @total_len_pulse: Total len of the pulse.
+ * @fft_buf:         Pointer to fft data.
+ */
+
+struct synthetic_pulse {
+	uint8_t r_rssi;
+	uint8_t r_ext_rssi;
+	uint32_t r_rs_tstamp;
+	uint64_t r_fulltsf;
+	uint16_t fft_datalen;
+	uint16_t total_len_pulse;
+	unsigned char *fft_buf;
+} qdf_packed;
+
+/**
+ * struct synthetic_seq - Structure to hold an array of pointers to the
+ * pulse structure.
+ * @num_pulses:    Total num of pulses in the sequence.
+ * @total_len_seq: Total len of the sequence.
+ * @pulse:         Array of pointers to synthetic_pulse structure.
+ */
+
+struct synthetic_seq {
+	uint8_t num_pulses;
+	uint32_t total_len_seq;
+	struct synthetic_pulse *pulse[0];
+};
+
+/**
+ * struct seq_store - Structure to hold an array of pointers to the synthetic
+ * sequence structure.
+ * @num_sequence: Total number of "sequence of pulses" in the file.
+ * @seq_arr:      Array of pointers to synthetic_seq structure.
+ */
+
+struct seq_store {
+	uint8_t num_sequence;
+	struct synthetic_seq *seq_arr[0];
+};
+#endif /* WLAN_DFS_PARTIAL_OFFLOAD && WLAN_DFS_SYNTHETIC_RADAR */
 #endif  /* _DFS_IOCTL_H_ */

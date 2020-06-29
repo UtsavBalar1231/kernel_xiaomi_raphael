@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,6 +19,7 @@
 #include "htc_debug.h"
 #include "htc_internal.h"
 #include "htc_credit_history.h"
+#include "htc_hang_event.h"
 #include <hif.h>
 #include <qdf_nbuf.h>           /* qdf_nbuf_t */
 #include <qdf_types.h>          /* qdf_print */
@@ -45,7 +46,7 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(htc,
 
 #endif
 
-#if (defined(CONFIG_MCL) || defined(QCA_WIFI_QCA8074) || \
+#if (defined(WMI_MULTI_MAC_SVC) || defined(QCA_WIFI_QCA8074) || \
 	defined(QCA_WIFI_QCA6018))
 static const uint32_t svc_id[] = {WMI_CONTROL_SVC, WMI_CONTROL_SVC_WMAC1,
 						WMI_CONTROL_SVC_WMAC2};
@@ -132,6 +133,16 @@ void htc_dump(HTC_HANDLE HTCHandle, uint8_t CmdId, bool start)
 	HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
 
 	hif_dump(target->hif_dev, CmdId, start);
+}
+
+void htc_ce_tasklet_debug_dump(HTC_HANDLE htc_handle)
+{
+	HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(htc_handle);
+
+	if (!target->hif_dev)
+		return;
+
+	hif_display_stats(target->hif_dev);
 }
 
 /* cleanup the HTC instance */
@@ -265,6 +276,23 @@ static inline void htc_runtime_pm_init(HTC_TARGET *target) { }
 static inline void htc_runtime_pm_deinit(HTC_TARGET *target) { }
 #endif
 
+#if defined(DEBUG_HL_LOGGING) && defined(CONFIG_HL_SUPPORT)
+static
+void htc_update_rx_bundle_stats(void *ctx, uint8_t no_of_pkt_in_bundle)
+{
+	HTC_TARGET *target = (HTC_TARGET *)ctx;
+
+	no_of_pkt_in_bundle--;
+	if (target && (no_of_pkt_in_bundle < HTC_MAX_MSG_PER_BUNDLE_RX))
+		target->rx_bundle_stats[no_of_pkt_in_bundle]++;
+}
+#else
+static
+void htc_update_rx_bundle_stats(void *ctx, uint8_t no_of_pkt_in_bundle)
+{
+}
+#endif
+
 /* registered target arrival callback from the HIF layer */
 HTC_HANDLE htc_create(void *ol_sc, struct htc_init_info *pInfo,
 			qdf_device_t osdev, uint32_t con_mode)
@@ -334,6 +362,7 @@ HTC_HANDLE htc_create(void *ol_sc, struct htc_init_info *pInfo,
 		htcCallbacks.txResourceAvailHandler =
 						 htc_tx_resource_avail_handler;
 		htcCallbacks.fwEventHandler = htc_fw_event_handler;
+		htcCallbacks.update_bundle_stats = htc_update_rx_bundle_stats;
 		target->hif_dev = ol_sc;
 
 		/* Get HIF default pipe for HTC message exchange */
@@ -352,6 +381,8 @@ HTC_HANDLE htc_create(void *ol_sc, struct htc_init_info *pInfo,
 
 	HTC_TRACE("-htc_create: (0x%pK)", target);
 
+	htc_hang_event_notifier_register(target);
+
 	return (HTC_HANDLE) target;
 }
 
@@ -361,6 +392,7 @@ void htc_destroy(HTC_HANDLE HTCHandle)
 
 	AR_DEBUG_PRINTF(ATH_DEBUG_TRC,
 			("+htc_destroy ..  Destroying :0x%pK\n", target));
+	htc_hang_event_notifier_unregister();
 	hif_stop(htc_get_hif_device(HTCHandle));
 	if (target)
 		htc_cleanup(target);
@@ -1112,16 +1144,14 @@ int htc_pm_runtime_get(HTC_HANDLE htc_handle)
 {
 	HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(htc_handle);
 
-	return hif_pm_runtime_get(target->hif_dev,
-				  RTPM_ID_HTC);
+	return hif_pm_runtime_get(target->hif_dev);
 }
 
 int htc_pm_runtime_put(HTC_HANDLE htc_handle)
 {
 	HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(htc_handle);
 
-	return hif_pm_runtime_put(target->hif_dev,
-				  RTPM_ID_HTC);
+	return hif_pm_runtime_put(target->hif_dev);
 }
 #endif
 

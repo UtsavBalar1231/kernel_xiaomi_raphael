@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -25,6 +25,7 @@
 #include "wlan_objmgr_cmn.h"
 #include "wlan_objmgr_debug.h"
 #include "wlan_lmac_if_def.h"
+#include <target_if_pub.h>
 
 #define REG_DMN_CH144        0x0001
 #define REG_DMN_ENTREPRISE   0x0002
@@ -131,6 +132,14 @@
 #define WLAN_SOC_CEXT_OBSS_NBW_RU      0x00010000
 	/* MBSS IE support */
 #define WLAN_SOC_CEXT_MBSS_IE          0x00020000
+	/* RXOLE Flow Search Support */
+#define WLAN_SOC_CEXT_RX_FSE_SUPPORT   0x00040000
+	/* Dynamic HW Mode Switch Support */
+#define WLAN_SOC_CEXT_DYNAMIC_HW_MODE  0x00080000
+	/* Restricted 80+80 MHz support */
+#define WLAN_SOC_RESTRICTED_80P80_SUPPORT 0x00100000
+	/* Indicates Firmware supports sending NSS ratio info to host */
+#define WLAN_SOC_NSS_RATIO_TO_HOST_SUPPORT 0x00200000
 
 /* feature_flags */
 	/* CONF: ATH FF enabled */
@@ -187,11 +196,33 @@
 #define WLAN_SOC_F_SPECTRAL_DISABLE    0x00800000
 	/* FTM testmode enable */
 #define WLAN_SOC_F_TESTMODE_ENABLE     0x01000000
+	/* Dynamic HW mode swithch enable */
+#define WLAN_SOC_F_DYNAMIC_HW_MODE     0x02000000
 
 /* PSOC op flags */
 
 	/* Invalid VHT cap */
 #define WLAN_SOC_OP_VHT_INVALID_CAP    0x00000001
+
+/* enum wlan_nss_ratio - NSS ratio received from FW during service ready ext
+ *                       event.
+ * WLAN_NSS_RATIO_1BY2_NSS : Max nss of 160MHz is equals to half of the max nss
+ *                           of 80MHz
+ * WLAN_NSS_RATIO_3BY4_NSS : Max nss of 160MHz is equals to 3/4 of the max nss
+ *                           of 80MHz
+ * WLAN_NSS_RATIO_1_NSS    : Max nss of 160MHz is equals to the max nss of 80MHz
+ * WLAN_NSS_RATIO_2_NSS    : Max nss of 160MHz is equals to two times the max
+ *                           nss of 80MHz
+ * Values of this enum should be in sync with WMI_NSS_RATIO_INFO value provided
+ * in wmi_unified.h.
+ */
+enum wlan_nss_ratio {
+	WLAN_NSS_RATIO_1BY2_NSS = 0x0,
+	WLAN_NSS_RATIO_3BY4_NSS = 0x1,
+	WLAN_NSS_RATIO_1_NSS = 0x2,
+	WLAN_NSS_RATIO_2_NSS = 0x3,
+};
+
 /**
  * struct wlan_objmgr_psoc_regulatory -  Regulatory sub structure of PSOC
  * @country_code:  Country code
@@ -332,7 +363,7 @@ struct wlan_objmgr_psoc {
 	void *soc_comp_priv_obj[WLAN_UMAC_MAX_COMPONENTS];
 	QDF_STATUS obj_status[WLAN_UMAC_MAX_COMPONENTS];
 	WLAN_OBJ_STATE obj_state;
-	void *tgt_if_handle;
+	target_psoc_info_t *tgt_if_handle;
 	void *dp_handle;
 	qdf_spinlock_t psoc_lock;
 };
@@ -543,9 +574,19 @@ QDF_STATUS wlan_objmgr_trigger_psoc_comp_priv_object_deletion(
  * Return: peer pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_debug(
+		struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
+		wlan_objmgr_ref_dbgid dbg_id, const char *func, int line);
+
+#define wlan_objmgr_get_peer_by_mac(psoc, macaddr, dbgid) \
+		wlan_objmgr_get_peer_by_mac_debug(psoc, macaddr, dbgid, \
+		__func__, __LINE__)
+#else
 struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac(
 		struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
 		wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_peer() - find peer from psoc's peer list
@@ -563,9 +604,20 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac(
  * Return: peer pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_debug(
+			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
+			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_get_peer(psoc, pdev_id, macaddr, dbgid) \
+		wlan_objmgr_get_peer_debug(psoc, pdev_id, macaddr, dbgid, \
+		__func__, __LINE__)
+#else
 struct wlan_objmgr_peer *wlan_objmgr_get_peer(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_peer_nolock() - find peer from psoc's peer list (lock free)
@@ -583,9 +635,20 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer(
  * Return: peer pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_nolock_debug(
+			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
+			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_get_peer_nolock(psoc, pdev_id, macaddr, dbgid) \
+		wlan_objmgr_get_peer_nolock_debug(psoc, pdev_id, macaddr, \
+		dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_peer *wlan_objmgr_get_peer_nolock(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_peer_logically_deleted() - find peer
@@ -603,9 +666,20 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer_nolock(
  * Return: peer pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_logically_deleted_debug(
+			struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
+			wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_get_peer_logically_deleted(psoc, macaddr, dbgid) \
+		wlan_objmgr_get_peer_logically_deleted_debug(psoc, macaddr, \
+		dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_peer *wlan_objmgr_get_peer_logically_deleted(
 			struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
 			wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_peer_no_state() - find peer from psoc's peer list
@@ -624,9 +698,20 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer_logically_deleted(
  * Return: peer pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_no_state_debug(
+			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
+			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_get_peer_no_state(psoc, pdev_id, macaddr, dbgid) \
+		wlan_objmgr_get_peer_no_state_debug(psoc, pdev_id, macaddr, \
+		dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_peer *wlan_objmgr_get_peer_no_state(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev() - get peer from
@@ -649,10 +734,23 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer_no_state(
  * Return: List of peer pointers
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+qdf_list_t *wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev_debug(
+			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
+			uint8_t *bssid, uint8_t *macaddr,
+			wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev( \
+	psoc, pdev_id, bssid, macaddr, dbgid) \
+		wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev_debug( \
+		psoc, pdev_id, bssid, macaddr, dbgid, __func__, __LINE__)
+#else
 qdf_list_t *wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 			uint8_t *bssid, uint8_t *macaddr,
 			wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_peer_by_mac_n_vdev() - find peer from psoc's peer list
@@ -673,10 +771,23 @@ qdf_list_t *wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev(
  * Return: peer pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev_debug(
+			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
+			uint8_t *bssid, uint8_t *macaddr,
+			wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_get_peer_by_mac_n_vdev(psoc, pdevid, bssid, macaddr, \
+	dbgid) \
+		wlan_objmgr_get_peer_by_mac_n_vdev_debug(psoc, pdevid, \
+		bssid, macaddr, dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 			uint8_t *bssid, uint8_t *macaddr,
 			wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_peer_by_mac_n_vdev_no_state() - find peer from psoc's peer
@@ -697,10 +808,23 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev(
  * Return: peer pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev_no_state_debug(
+			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
+			uint8_t *bssid,  uint8_t *macaddr,
+			wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_get_peer_by_mac_n_vdev_no_state(psoc, pdevid, bssid, \
+	macaddr, dbgid) \
+		wlan_objmgr_get_peer_by_mac_n_vdev_no_state_debug(psoc, \
+		pdevid, bssid, macaddr, dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev_no_state(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 			uint8_t *bssid,  uint8_t *macaddr,
 			wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_pdev_by_id() - retrieve pdev by id
@@ -793,10 +917,22 @@ struct wlan_objmgr_pdev *wlan_objmgr_get_pdev_by_macaddr_no_state(
  * Return: vdev pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_opmode_from_psoc_debug(
+			struct wlan_objmgr_psoc *psoc,
+			enum QDF_OPMODE opmode,
+			wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_get_vdev_by_opmode_from_psoc(psoc, opmode, dbgid) \
+		wlan_objmgr_get_vdev_by_opmode_from_psoc_debug(psoc, opmode, \
+		dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_opmode_from_psoc(
 			struct wlan_objmgr_psoc *psoc,
 			enum QDF_OPMODE opmode,
 			wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_vdev_by_id_from_psoc() - retrieve vdev by id
@@ -813,9 +949,20 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_opmode_from_psoc(
  * Return: vdev pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc_debug(
+			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
+			wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id, dbgid) \
+		wlan_objmgr_get_vdev_by_id_from_psoc_debug(psoc, vdev_id, \
+		dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc(
 			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
 			wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_vdev_by_id_from_psoc_no_state() - retrieve vdev by id
@@ -833,9 +980,20 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc(
  * Return: vdev pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc_no_state_debug(
+			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
+			wlan_objmgr_ref_dbgid dbg_id,
+			const char *func, int line);
+
+#define wlan_objmgr_get_vdev_by_id_from_psoc_no_state(psoc, vdev_id, dbgid) \
+		wlan_objmgr_get_vdev_by_id_from_psoc_no_state_debug(psoc, \
+		vdev_id, dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc_no_state(
 			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
 			wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_vdev_by_macaddr_from_psoc() - retrieve vdev by macaddr
@@ -853,9 +1011,21 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc_no_state(
  * Return: vdev pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc_debug(
+		struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
+		uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
+		const char *func, int line);
+
+#define wlan_objmgr_get_vdev_by_macaddr_from_psoc(psoc, pdev_id, macaddr, \
+	dbgid) \
+		wlan_objmgr_get_vdev_by_macaddr_from_psoc_debug(psoc, pdev_id, \
+		macaddr, dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc(
 		struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 		uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state() - retrieve vdev by
@@ -875,9 +1045,22 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc(
  * Return: vdev pointer
  *         NULL on FAILURE
  */
+#ifdef WLAN_OBJMGR_REF_ID_TRACE
+struct wlan_objmgr_vdev
+	*wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state_debug(
+		struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
+		uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
+		const char *func, int line);
+
+#define wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state(psoc, pdev_id, \
+	macaddr, dbgid) \
+		wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state_debug(psoc, \
+		pdev_id, macaddr, dbgid, __func__, __LINE__)
+#else
 struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state(
 		struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 		uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id);
+#endif
 
 /**
  * wlan_psoc_obj_lock() - Acquire PSOC spinlock
@@ -1224,8 +1407,9 @@ static inline uint8_t wlan_psoc_get_pdev_count(struct wlan_objmgr_psoc *psoc)
  *
  * Return: None
  */
-static inline void wlan_psoc_set_tgt_if_handle(struct wlan_objmgr_psoc *psoc,
-			void *tgt_if_handle)
+static inline
+void wlan_psoc_set_tgt_if_handle(struct wlan_objmgr_psoc *psoc,
+				 target_psoc_info_t *tgt_if_handle)
 {
 	if (!psoc)
 		return;
@@ -1241,7 +1425,8 @@ static inline void wlan_psoc_set_tgt_if_handle(struct wlan_objmgr_psoc *psoc,
  *
  * Return: target interface handle
  */
-static inline void *wlan_psoc_get_tgt_if_handle(struct wlan_objmgr_psoc *psoc)
+static inline
+target_psoc_info_t *wlan_psoc_get_tgt_if_handle(struct wlan_objmgr_psoc *psoc)
 {
 	if (!psoc)
 		return NULL;
@@ -1446,25 +1631,33 @@ QDF_STATUS wlan_objmgr_psoc_set_user_config(struct wlan_objmgr_psoc *psoc,
  * wlan_objmgr_psoc_check_for_pdev_leaks() - Assert no pdevs attached to @psoc
  * @psoc: The psoc to check
  *
- * Return: None
+ * Return: No. of psoc leaks
  */
-void wlan_objmgr_psoc_check_for_pdev_leaks(struct wlan_objmgr_psoc *psoc);
+uint32_t wlan_objmgr_psoc_check_for_pdev_leaks(struct wlan_objmgr_psoc *psoc);
 
 /**
  * wlan_objmgr_psoc_check_for_vdev_leaks() - Assert no vdevs attached to @psoc
  * @psoc: The psoc to check
  *
- * Return: None
+ * Return: No. of vdev leaks
  */
-void wlan_objmgr_psoc_check_for_vdev_leaks(struct wlan_objmgr_psoc *psoc);
+uint32_t wlan_objmgr_psoc_check_for_vdev_leaks(struct wlan_objmgr_psoc *psoc);
 
 /**
  * wlan_objmgr_psoc_check_for_peer_leaks() - Assert no peers attached to @psoc
  * @psoc: The psoc to check
  *
+ * Return: No. of peer leaks
+ */
+uint32_t wlan_objmgr_psoc_check_for_peer_leaks(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * wlan_objmgr_psoc_check_for_leaks() - Assert on leak
+ * @psoc: The psoc to check
+ *
  * Return: None
  */
-void wlan_objmgr_psoc_check_for_peer_leaks(struct wlan_objmgr_psoc *psoc);
+void wlan_objmgr_psoc_check_for_leaks(struct wlan_objmgr_psoc *psoc);
 
 /**
 * wlan_objmgr_psoc_get_band_capability () - get user config
@@ -1549,4 +1742,17 @@ static inline uint8_t wlan_psoc_get_id(
 
 	return psoc->soc_objmgr.psoc_id;
 }
+
+/**
+ * wlan_print_psoc_info() - print psoc members
+ * @psoc: psoc object pointer
+ *
+ * Return: void
+ */
+#ifdef WLAN_OBJMGR_DEBUG
+void wlan_print_psoc_info(struct wlan_objmgr_psoc *psoc);
+#else
+static inline void wlan_print_psoc_info(struct wlan_objmgr_psoc *psoc) {}
+#endif
+
 #endif /* _WLAN_OBJMGR_PSOC_OBJ_H_*/
