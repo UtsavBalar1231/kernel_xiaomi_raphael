@@ -114,20 +114,6 @@ static const struct clk_div_table post_div_table[] = {
 	{ }
 };
 
-static struct clk_alpha_pll_postdiv scc_pll_out_aux = {
-	.offset = 0x0,
-	.width = 2,
-	.post_div_table = post_div_table,
-	.num_post_div = ARRAY_SIZE(post_div_table),
-	.postdiv = POSTDIV_ODD,
-	.clkr.hw.init = &(struct clk_init_data){
-		.name = "scc_pll_out_aux",
-		.parent_names = (const char *[]){ "scc_pll_out_aux2" },
-		.num_parents = 1,
-		.ops = &clk_alpha_pll_postdiv_ops,
-	},
-};
-
 static const struct freq_tbl ftbl_scc_main_rcg_clk_src[] = {
 	F(100000000, P_SCC_PLL_OUT_AUX, 2, 0, 0),
 	F(200000000, P_SCC_PLL_OUT_AUX, 1, 0, 0),
