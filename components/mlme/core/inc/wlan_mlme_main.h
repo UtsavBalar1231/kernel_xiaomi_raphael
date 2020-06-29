@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -36,21 +36,11 @@
 #define mlme_legacy_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_MLME, params)
 
 /**
- * struct wlan_mlme_psoc_obj -MLME psoc priv object
+ * struct wlan_mlme_psoc_ext_obj -MLME ext psoc priv object
  * @cfg:     cfg items
  */
-struct wlan_mlme_psoc_obj {
+struct wlan_mlme_psoc_ext_obj {
 	struct wlan_mlme_cfg cfg;
-};
-
-/**
- * struct wlan_ies - Generic WLAN Information Element(s) format
- * @len: Total length of the IEs
- * @data: IE data
- */
-struct wlan_ies {
-	uint16_t len;
-	uint8_t *data;
 };
 
 /**
@@ -71,7 +61,6 @@ struct wlan_disconnect_info {
 
 /**
  * struct peer_mlme_priv_obj - peer MLME component object
- * @ucast_key_cipher: unicast crypto type.
  * @last_pn_valid if last PN is valid
  * @last_pn: last pn received
  * @rmf_pn_replays: rmf pn replay count
@@ -80,7 +69,6 @@ struct wlan_disconnect_info {
  * @last_disassoc_deauth_received_time: last disassoc/deauth received time
  */
 struct peer_mlme_priv_obj {
-	uint32_t ucast_key_cipher;
 	uint8_t last_pn_valid;
 	uint64_t last_pn;
 	uint32_t rmf_pn_replays;
@@ -149,13 +137,13 @@ struct wlan_mlme_roam {
  * @connection_fail: flag to indicate connection failed
  * @cac_required_for_new_channel: if CAC is required for new channel
  * @follow_ap_edca: if true, it is forced to follow the AP's edca.
- * @reconn_after_assoc_timeout: reconnect to the same AP if association timeout
  * @assoc_type: vdev associate/reassociate type
  * @dynamic_cfg: current configuration of nss, chains for vdev.
  * @ini_cfg: Max configuration of nss, chains supported for vdev.
  * @sta_dynamic_oce_value: Dyanmic oce flags value for sta
  * @roam_invoke_params: Roam invoke params
  * @disconnect_info: Disconnection information
+ * @vdev_stop_type: vdev stop type request
  * @roam_off_state: Roam offload state
  */
 struct mlme_legacy_priv {
@@ -165,59 +153,16 @@ struct mlme_legacy_priv {
 	bool connection_fail;
 	bool cac_required_for_new_channel;
 	bool follow_ap_edca;
-	bool reconn_after_assoc_timeout;
 	enum vdev_assoc_type assoc_type;
 	struct wlan_mlme_nss_chains dynamic_cfg;
 	struct wlan_mlme_nss_chains ini_cfg;
 	uint8_t sta_dynamic_oce_value;
 	struct mlme_roam_after_data_stall roam_invoke_params;
 	struct wlan_disconnect_info disconnect_info;
+	uint32_t vdev_stop_type;
 	struct wlan_mlme_roam mlme_roam;
 };
 
-#ifndef CRYPTO_SET_KEY_CONVERGED
-/**
- * wlan_peer_set_unicast_cipher() - set unicast cipher
- * @peer: PEER object
- * @value: value to be set
- *
- * Return: void
- */
-static inline
-void wlan_peer_set_unicast_cipher(struct wlan_objmgr_peer *peer, uint32_t value)
-{
-	struct peer_mlme_priv_obj *peer_priv;
-
-	peer_priv = wlan_objmgr_peer_get_comp_private_obj(peer,
-							  WLAN_UMAC_COMP_MLME);
-	if (!peer_priv) {
-		mlme_legacy_err(" peer mlme component object is NULL");
-		return;
-	}
-	peer_priv->ucast_key_cipher  = value;
-}
-
-/**
- * wlan_peer_get_unicast_cipher() - get unicast cipher
- * @peer: PEER object
- *
- * Return: ucast_key_cipher value
- */
-static inline
-uint32_t wlan_peer_get_unicast_cipher(struct wlan_objmgr_peer *peer)
-{
-	struct peer_mlme_priv_obj *peer_priv;
-
-	peer_priv = wlan_objmgr_peer_get_comp_private_obj(peer,
-							  WLAN_UMAC_COMP_MLME);
-	if (!peer_priv) {
-		mlme_legacy_err("peer mlme component object is NULL");
-		return 0;
-	}
-
-	return peer_priv->ucast_key_cipher;
-}
-#endif
 /**
  * wma_get_peer_mic_len() - get mic hdr len and mic length for peer
  * @psoc: psoc
@@ -297,32 +242,6 @@ struct mlme_roam_after_data_stall *
 mlme_get_roam_invoke_params(struct wlan_objmgr_vdev *vdev);
 
 /**
- * mlme_psoc_object_created_notification(): mlme psoc create handler
- * @psoc: psoc which is going to created by objmgr
- * @arg: argument for vdev create handler
- *
- * Register this api with objmgr to detect psoc is created
- *
- * Return: QDF_STATUS status in case of success else return error
- */
-QDF_STATUS
-mlme_psoc_object_created_notification(struct wlan_objmgr_psoc *psoc,
-				      void *arg);
-
-/**
- * mlme_psoc_object_destroyed_notification(): mlme psoc delete handler
- * @psoc: psoc which is going to delete by objmgr
- * @arg: argument for vdev delete handler
- *
- * Register this api with objmgr to detect psoc is deleted
- *
- * Return: QDF_STATUS status in case of success else return error
- */
-QDF_STATUS
-mlme_psoc_object_destroyed_notification(struct wlan_objmgr_psoc *psoc,
-					void *arg);
-
-/**
  * mlme_cfg_on_psoc_enable() - Populate MLME structure from CFG and INI
  * @psoc: pointer to the psoc object
  *
@@ -333,17 +252,19 @@ mlme_psoc_object_destroyed_notification(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS mlme_cfg_on_psoc_enable(struct wlan_objmgr_psoc *psoc);
 
 /**
- * mlme_get_psoc_obj() - Get MLME object from psoc
+ * mlme_get_psoc_ext_obj() - Get MLME object from psoc
  * @psoc: pointer to the psoc object
  *
  * Get the MLME object pointer from the psoc
  *
  * Return: pointer to MLME object
  */
-#define mlme_get_psoc_obj(psoc) mlme_get_psoc_obj_fl(psoc, __func__, __LINE__)
-struct wlan_mlme_psoc_obj *mlme_get_psoc_obj_fl(struct wlan_objmgr_psoc *psoc,
-						const char *func,
-						uint32_t line);
+#define mlme_get_psoc_ext_obj(psoc) \
+			mlme_get_psoc_ext_obj_fl(psoc, __func__, __LINE__)
+struct wlan_mlme_psoc_ext_obj *mlme_get_psoc_ext_obj_fl(struct wlan_objmgr_psoc
+							*psoc,
+							const char *func,
+							uint32_t line);
 
 /**
  * mlme_init_ibss_cfg() - Init IBSS config data structure with default CFG value
@@ -417,35 +338,31 @@ void mlme_set_follow_ap_edca_flag(struct wlan_objmgr_vdev *vdev, bool flag);
 bool mlme_get_follow_ap_edca_flag(struct wlan_objmgr_vdev *vdev);
 
 /**
- * mlme_set_reconn_after_assoc_timeout_flag() - Set reconn after assoc timeout
- * flag
- * @psoc: soc object
- * @vdev_id: vdev id
- * @flag: enable or disable reconnect
- *
- * Return: void
- */
-void mlme_set_reconn_after_assoc_timeout_flag(struct wlan_objmgr_psoc *psoc,
-					      uint8_t vdev_id, bool flag);
-
-/**
- * mlme_get_reconn_after_assoc_timeout_flag() - Get reconn after assoc timeout
- * flag
- * @psoc: soc object
- * @vdev_id: vdev id
- *
- * Return: true for enabling reconnect, otherwise false
- */
-bool mlme_get_reconn_after_assoc_timeout_flag(struct wlan_objmgr_psoc *psoc,
-					      uint8_t vdev_id);
-
-/**
  * mlme_get_peer_disconnect_ies() - Get diconnect IEs from vdev object
  * @vdev: vdev pointer
  *
  * Return: Returns a pointer to the peer disconnect IEs present in vdev object
  */
 struct wlan_ies *mlme_get_peer_disconnect_ies(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * mlme_set_peer_pmf_status() - set pmf status of peer
+ * @peer: PEER object
+ * @is_pmf_enabled: Carries if PMF is enabled or not
+ *
+ * is_pmf_enabled will be set to true if PMF is enabled by peer
+ *
+ * Return: void
+ */
+void mlme_set_peer_pmf_status(struct wlan_objmgr_peer *peer,
+			      bool is_pmf_enabled);
+/**
+ * mlme_get_peer_pmf_status() - get if peer is of pmf capable
+ * @peer: PEER object
+ *
+ * Return: Value of is_pmf_enabled; True if PMF is enabled by peer
+ */
+bool mlme_get_peer_pmf_status(struct wlan_objmgr_peer *peer);
 
 /**
  * mlme_set_discon_reason_n_from_ap() - set disconnect reason and from ap flag
@@ -594,25 +511,6 @@ mlme_set_operations_bitmap(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
 #define MLME_IS_ROAM_INITIALIZED(psoc, vdev_id) \
 	(mlme_get_roam_state(psoc, vdev_id) >= ROAM_INIT)
 #endif
-
-/**
- * mlme_set_peer_pmf_status() - set pmf status of peer
- * @peer: PEER object
- * @is_pmf_enabled: Carries if PMF is enabled or not
- *
- * is_pmf_enabled will be set to true if PMF is enabled by peer
- *
- * Return: void
- */
-void mlme_set_peer_pmf_status(struct wlan_objmgr_peer *peer,
-			      bool is_pmf_enabled);
-/**
- * mlme_get_peer_pmf_status() - get if peer is of pmf capable
- * @peer: PEER object
- *
- * Return: Value of is_pmf_enabled; True if PMF is enabled by peer
- */
-bool mlme_get_peer_pmf_status(struct wlan_objmgr_peer *peer);
 
 /**
  * mlme_reinit_control_config_lfr_params() - Reinitialize roam control config

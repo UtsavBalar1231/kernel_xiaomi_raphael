@@ -166,6 +166,7 @@ sme_ps_enable_ps_req_params(struct mac_context *mac_ctx, uint32_t vdev_id)
 	wma_enable_sta_ps_mode(enable_ps_req_params);
 
 	qdf_mem_free(enable_ps_req_params);
+
 	sme_debug("Powersave Enable sent to FW");
 	ps_param->ps_state = ps_state;
 

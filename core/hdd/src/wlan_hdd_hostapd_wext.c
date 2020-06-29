@@ -37,12 +37,14 @@
 #endif
 #include "wlan_hdd_power.h"
 #include "wlan_policy_mgr_ucfg.h"
+#include <ol_defines.h>
 #include <cdp_txrx_stats.h>
 #include "wlan_dfs_utils_api.h"
 #include <wlan_ipa_ucfg_api.h>
 #include <wlan_cfg80211_mc_cp_stats.h>
 #include "wlan_mlme_ucfg_api.h"
 #include "wlan_reg_ucfg_api.h"
+#include "wlan_hdd_sta_info.h"
 #define WE_WLAN_VERSION     1
 
 /* WEXT limitation: MAX allowed buf len for any *
@@ -140,11 +142,8 @@ static int __iw_softap_set_two_ints_getnone(struct net_device *dev,
 	int *value = (int *)extra;
 	int sub_cmd = value[0];
 	struct hdd_context *hdd_ctx;
-	struct cdp_vdev *vdev = NULL;
-	struct cdp_pdev *pdev = NULL;
-	void *soc = NULL;
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 	struct cdp_txrx_stats_req req = {0};
-	uint8_t count = 0;
 	struct hdd_station_info *sta_info;
 
 	hdd_enter_dev(dev);
@@ -158,39 +157,39 @@ static int __iw_softap_set_two_ints_getnone(struct net_device *dev,
 	if (0 != ret)
 		return ret;
 
+	if (qdf_unlikely(!soc)) {
+		hdd_err("soc is NULL");
+		return -EINVAL;
+	}
+
 	switch (sub_cmd) {
 	case QCSAP_PARAM_SET_TXRX_STATS:
 	{
-		ret = cds_get_datapath_handles(&soc, &pdev, &vdev,
-				 adapter->vdev_id);
-		if (ret != 0) {
-			hdd_err("Invalid Handles");
-			break;
-		}
 		req.stats = value[1];
 		req.mac_id = value[2];
 		hdd_info("QCSAP_PARAM_SET_TXRX_STATS stats_id: %d mac_id: %d",
 			req.stats, req.mac_id);
-		sta_info = adapter->sta_info;
+
 		if (value[1] == CDP_TXRX_STATS_28) {
 			req.peer_addr = (char *)&adapter->mac_addr;
-			ret = cdp_txrx_stats_request(soc, vdev, &req);
+			ret = cdp_txrx_stats_request(soc, adapter->vdev_id,
+						     &req);
 
-			for (count = 0; count < WLAN_MAX_STA_COUNT; count++) {
-				if (sta_info->in_use) {
-					hdd_debug("sta: %d: bss_id: %pM",
-						  sta_info->sta_id,
-						  (void *)&sta_info->sta_mac);
-					req.peer_addr =
-						(char *)&sta_info->sta_mac;
-					ret = cdp_txrx_stats_request(soc, vdev,
-								     &req);
-				}
+			hdd_for_each_sta_ref(adapter->sta_info_list, sta_info) {
+				hdd_debug("bss_id: " QDF_MAC_ADDR_STR,
+					  QDF_MAC_ADDR_ARRAY(
+					  sta_info->sta_mac.bytes));
 
-				sta_info++;
+				req.peer_addr = (char *)
+					&sta_info->sta_mac;
+				ret = cdp_txrx_stats_request(
+					soc, adapter->vdev_id, &req);
+				hdd_put_sta_info_ref(&adapter->sta_info_list,
+						     &sta_info, true);
 			}
 		} else {
-			ret = cdp_txrx_stats_request(soc, vdev, &req);
+			ret = cdp_txrx_stats_request(soc, adapter->vdev_id,
+						     &req);
 		}
 
 		break;
@@ -234,12 +233,6 @@ static int __iw_softap_set_two_ints_getnone(struct net_device *dev,
 	case QCSAP_SET_BA_AGEING_TIMEOUT:
 		hdd_info("QCSAP_SET_BA_AGEING_TIMEOUT: AC[%d] timeout[%d]",
 			 value[1], value[2]);
-		ret = cds_get_datapath_handles(&soc, &pdev, &vdev,
-					       adapter->vdev_id);
-		if (ret != 0) {
-			hdd_err("Invalid Handles");
-			break;
-		}
 		/*
 		 *  value[1] : suppose to be access class, value between[0-3]
 		 *  value[2]: suppose to be duration in seconds
@@ -339,72 +332,6 @@ static QDF_STATUS hdd_print_acl(struct hdd_adapter *adapter)
 	return QDF_STATUS_SUCCESS;
 }
 
-/**
- * hdd_get_aid_rc() - Get AID and rate code passed from user
- * @aid: pointer to AID
- * @rc: pointer to rate code
- * @set_value: value passed from user
- *
- * If target is 11ax capable, set_value will have AID left shifted 16 bits
- * and 16 bits for rate code. If the target is not 11ax capable, rate code
- * will only be 8 bits.
- *
- * Return: None
- */
-static void hdd_get_aid_rc(uint8_t *aid, uint16_t *rc, int set_value)
-{
-	uint8_t rc_bits;
-
-	if (sme_is_feature_supported_by_fw(DOT11AX))
-		rc_bits = 16;
-	else
-		rc_bits = 8;
-
-	*aid = set_value >> rc_bits;
-	*rc = set_value & ((1 << (rc_bits + 1)) - 1);
-}
-
-/**
- * hdd_set_peer_rate() - set peer rate
- * @adapter: adapter being modified
- * @set_value: rate code with AID
- *
- * Return: 0 on success, negative errno on failure
- */
-static int hdd_set_peer_rate(struct hdd_adapter *adapter, int set_value)
-{
-	uint8_t aid, *peer_mac;
-	uint16_t rc;
-	QDF_STATUS status;
-
-	if (adapter->device_mode != QDF_SAP_MODE) {
-		hdd_err("Invalid devicde mode - %d", adapter->device_mode);
-		return -EINVAL;
-	}
-
-	hdd_get_aid_rc(&aid, &rc, set_value);
-
-	if ((adapter->sta_info[aid].in_use) &&
-	    (OL_TXRX_PEER_STATE_CONN == adapter->sta_info[aid].peer_state)) {
-		peer_mac =
-		    (uint8_t *)&(adapter->sta_info[aid].sta_mac.bytes[0]);
-		hdd_info("Peer AID: %d MAC_ADDR: "QDF_MAC_ADDR_STR,
-			 aid, QDF_MAC_ADDR_ARRAY(peer_mac));
-	} else {
-		hdd_err("No matching peer found for AID: %d", aid);
-		return -EINVAL;
-	}
-
-	status = sme_set_peer_param(peer_mac, WMI_PEER_PARAM_FIXED_RATE,
-				    rc, adapter->vdev_id);
-	if (status != QDF_STATUS_SUCCESS) {
-		hdd_err("Failed to set peer fixed rate - status: %d", status);
-		return -EIO;
-	}
-
-	return 0;
-}
-
 int
 static __iw_softap_setparam(struct net_device *dev,
 			    struct iw_request_info *info,
@@ -471,9 +398,9 @@ static __iw_softap_setparam(struct net_device *dev,
 						    CSA_REASON_USER_INITIATED);
 			hdd_debug("SET Channel Change to new channel= %d",
 			       set_value);
-			ret = hdd_softap_set_channel_change(dev, set_value,
-								CH_WIDTH_MAX,
-								false);
+			ret = hdd_softap_set_channel_change(dev,
+							    wlan_reg_legacy_chan_to_freq(hdd_ctx->pdev, set_value),
+							    CH_WIDTH_MAX, false);
 		} else {
 			hdd_err("Channel Change Failed, Device in test mode");
 			ret = -EINVAL;
@@ -752,8 +679,8 @@ static __iw_softap_setparam(struct net_device *dev,
 
 		if (config->SapHw_mode != eCSR_DOT11_MODE_11ac &&
 		    config->SapHw_mode != eCSR_DOT11_MODE_11ac_ONLY) {
-			hdd_err("SET_VHT_RATE error: SapHw_mode= 0x%x, ch: %d",
-			       config->SapHw_mode, config->channel);
+			hdd_err("SET_VHT_RATE: SapHw_mode= 0x%x, ch_freq: %d",
+			       config->SapHw_mode, config->chan_freq);
 			ret = -EIO;
 			break;
 		}
@@ -897,7 +824,9 @@ static __iw_softap_setparam(struct net_device *dev,
 		if (adapter->device_mode != QDF_SAP_MODE)
 			return -EINVAL;
 
-		ret = wlansap_set_dfs_target_chnl(mac_handle, set_value);
+		ret = wlansap_set_dfs_target_chnl(mac_handle,
+						  wlan_reg_legacy_chan_to_freq(hdd_ctx->pdev,
+									       set_value));
 		break;
 	}
 
@@ -921,7 +850,6 @@ static __iw_softap_setparam(struct net_device *dev,
 	case QCASAP_SET_RADAR_CMD:
 	{
 		struct hdd_ap_ctx *ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(adapter);
-		uint8_t ch = ap_ctx->operating_channel;
 		struct wlan_objmgr_pdev *pdev;
 		struct radar_found_info radar;
 
@@ -934,10 +862,11 @@ static __iw_softap_setparam(struct net_device *dev,
 		}
 
 		qdf_mem_zero(&radar, sizeof(radar));
-		if (wlan_reg_is_dfs_ch(pdev, ch))
+		if (wlan_reg_is_dfs_for_freq(pdev, ap_ctx->operating_chan_freq))
 			tgt_dfs_process_radar_ind(pdev, &radar);
 		else
-			hdd_debug("Ignore set radar, op ch(%d) is not dfs", ch);
+			hdd_debug("Ignore set radar, op ch_freq(%d) is not dfs",
+				  ap_ctx->operating_chan_freq);
 
 		break;
 	}
@@ -1029,7 +958,8 @@ static __iw_softap_setparam(struct net_device *dev,
 			break;
 		default:
 			if (soc)
-				cdp_clear_stats(soc, set_value);
+				cdp_clear_stats(soc, OL_TXRX_PDEV_ID,
+						set_value);
 		}
 		break;
 	}
@@ -1052,9 +982,6 @@ static __iw_softap_setparam(struct net_device *dev,
 		ret = hdd_set_11ax_rate(adapter, set_value,
 					&adapter->session.ap.
 					sap_config);
-		break;
-	case QCASAP_SET_PEER_RATE:
-		ret = hdd_set_peer_rate(adapter, set_value);
 		break;
 	case QCASAP_PARAM_DCM:
 		hdd_debug("Set WMI_VDEV_PARAM_HE_DCM: %d", set_value);
@@ -1532,6 +1459,7 @@ static __iw_softap_getchannel(struct net_device *dev,
 {
 	struct hdd_adapter *adapter = (netdev_priv(dev));
 	struct hdd_context *hdd_ctx;
+	struct hdd_ap_ctx *ap_ctx;
 	int *value = (int *)extra;
 	int ret;
 
@@ -1547,9 +1475,11 @@ static __iw_softap_getchannel(struct net_device *dev,
 		return ret;
 
 	*value = 0;
+	ap_ctx = WLAN_HDD_GET_AP_CTX_PTR(adapter);
 	if (test_bit(SOFTAP_BSS_STARTED, &adapter->event_flags))
-		*value = (WLAN_HDD_GET_AP_CTX_PTR(
-					adapter))->operating_channel;
+		*value = wlan_reg_freq_to_chan(
+				hdd_ctx->pdev,
+				ap_ctx->operating_chan_freq);
 	hdd_exit();
 	return 0;
 }
@@ -1749,10 +1679,9 @@ static __iw_softap_getassoc_stamacaddr(struct net_device *dev,
 				       union iwreq_data *wrqu, char *extra)
 {
 	struct hdd_adapter *adapter = (netdev_priv(dev));
-	struct hdd_station_info *sta_info = adapter->sta_info;
+	struct hdd_station_info *sta_info;
 	struct hdd_context *hdd_ctx;
 	char *buf;
-	int cnt = 0;
 	int left;
 	int ret;
 	/* maclist_index must be u32 to match userspace */
@@ -1799,18 +1728,15 @@ static __iw_softap_getassoc_stamacaddr(struct net_device *dev,
 	maclist_index = sizeof(maclist_index);
 	left = wrqu->data.length - maclist_index;
 
-	spin_lock_bh(&adapter->sta_info_lock);
-	while ((cnt < WLAN_MAX_STA_COUNT) && (left >= QDF_MAC_ADDR_SIZE)) {
-		if ((sta_info[cnt].in_use) &&
-		    (!qdf_is_macaddr_broadcast(&sta_info[cnt].sta_mac))) {
-			memcpy(&buf[maclist_index], &(sta_info[cnt].sta_mac),
+	hdd_for_each_sta_ref(adapter->sta_info_list, sta_info) {
+		if (!qdf_is_macaddr_broadcast(&sta_info->sta_mac)) {
+			memcpy(&buf[maclist_index], &sta_info->sta_mac,
 			       QDF_MAC_ADDR_SIZE);
 			maclist_index += QDF_MAC_ADDR_SIZE;
 			left -= QDF_MAC_ADDR_SIZE;
 		}
-		cnt++;
+		hdd_put_sta_info_ref(&adapter->sta_info_list, &sta_info, true);
 	}
-	spin_unlock_bh(&adapter->sta_info_lock);
 
 	*((u32 *) buf) = maclist_index;
 	wrqu->data.length = maclist_index;
@@ -1891,7 +1817,7 @@ static __iw_softap_disassoc_sta(struct net_device *dev,
 		  QDF_MAC_ADDR_ARRAY(peer_macaddr));
 	wlansap_populate_del_sta_params(peer_macaddr,
 					eSIR_MAC_DEAUTH_LEAVING_BSS_REASON,
-					(SIR_MAC_MGMT_DISASSOC >> 4),
+					SIR_MAC_MGMT_DISASSOC,
 					&del_sta_params);
 	hdd_softap_sta_disassoc(adapter, &del_sta_params);
 
@@ -1980,13 +1906,13 @@ static int iw_get_char_setnone(struct net_device *dev,
 	return errno;
 }
 
-static int __iw_get_channel_list(struct net_device *dev,
-					struct iw_request_info *info,
-					union iwreq_data *wrqu, char *extra)
+static int iw_get_channel_list(struct net_device *dev,
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
 {
 	uint32_t num_channels = 0;
 	uint8_t i = 0;
-	uint8_t band_start_channel = CHAN_ENUM_1;
+	uint8_t band_start_channel = MIN_24GHZ_CHANNEL;
 	uint8_t band_end_channel = MAX_5GHZ_CHANNEL;
 	struct hdd_adapter *hostapd_adapter = (netdev_priv(dev));
 	struct channel_list_info *channel_list =
@@ -2008,18 +1934,16 @@ static int __iw_get_channel_list(struct net_device *dev,
 	if (0 != ret)
 		return ret;
 
-	if (QDF_STATUS_SUCCESS != ucfg_reg_get_band(hdd_ctx->pdev,
-						    &cur_band)) {
-		hdd_err("not able get the current frequency band");
+	if (QDF_STATUS_SUCCESS != ucfg_reg_get_band(hdd_ctx->pdev, &cur_band)) {
+		hdd_err_rl("not able get the current frequency band");
 		return -EIO;
 	}
-	wrqu->data.length = sizeof(struct channel_list_info);
 
 	if (BAND_2G == cur_band) {
-		band_start_channel = CHAN_ENUM_1;
-		band_end_channel = CHAN_ENUM_14;
+		band_start_channel = MIN_24GHZ_CHANNEL;
+		band_end_channel = MAX_24GHZ_CHANNEL;
 	} else if (BAND_5G == cur_band) {
-		band_start_channel = CHAN_ENUM_36;
+		band_start_channel = MIN_5GHZ_CHANNEL;
 		band_end_channel = MAX_5GHZ_CHANNEL;
 	}
 
@@ -2033,14 +1957,14 @@ static int __iw_get_channel_list(struct net_device *dev,
 	} else if (hostapd_adapter->device_mode == QDF_SAP_MODE) {
 		if (QDF_STATUS_SUCCESS != ucfg_mlme_get_dfs_master_capability(
 				hdd_ctx->psoc, &is_dfs_mode_enabled)) {
-			hdd_err("Fail to get dfs master mode capability");
+			hdd_err_rl("Fail to get dfs master mode capability");
 			return -EINVAL;
 		}
 	}
 
-	hdd_debug("curBand = %d, StartChannel = %hu, EndChannel = %hu is_dfs_mode_enabled  = %d ",
-			cur_band, band_start_channel, band_end_channel,
-			is_dfs_mode_enabled);
+	hdd_debug_rl("curBand = %d, StartChannel = %hu, EndChannel = %hu, is_dfs_mode_enabled = %d",
+		     cur_band, band_start_channel, band_end_channel,
+		     is_dfs_mode_enabled);
 
 	for (i = band_start_channel; i <= band_end_channel; i++) {
 		if ((CHANNEL_STATE_ENABLE ==
@@ -2055,30 +1979,60 @@ static int __iw_get_channel_list(struct net_device *dev,
 		}
 	}
 
-	hdd_debug("number of channels %d", num_channels);
+	hdd_debug_rl("number of channels %d", num_channels);
 
 	channel_list->num_channels = num_channels;
+	wrqu->data.length = num_channels + 1;
 	hdd_exit();
 
 	return 0;
 }
 
-int iw_get_channel_list(struct net_device *dev,
-		struct iw_request_info *info,
-		union iwreq_data *wrqu, char *extra)
+int iw_get_channel_list_with_cc(struct net_device *dev,
+				mac_handle_t mac_handle,
+				struct iw_request_info *info,
+				union iwreq_data *wrqu,
+				char *extra)
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	uint8_t i, len;
+	char *buf;
+	uint8_t ubuf[CFG_COUNTRY_CODE_LEN] = {0};
+	uint8_t ubuf_len = CFG_COUNTRY_CODE_LEN;
+	struct channel_list_info channel_list;
 
-	errno = osif_vdev_sync_op_start(dev, &vdev_sync);
-	if (errno)
-		return errno;
+	hdd_enter_dev(dev);
 
-	errno = __iw_get_channel_list(dev, info, wrqu, extra);
+	memset(&channel_list, 0, sizeof(channel_list));
 
-	osif_vdev_sync_op_stop(vdev_sync);
+	if (0 != iw_get_channel_list(dev, info, wrqu, (char *)&channel_list)) {
+		hdd_err_rl("GetChannelList Failed!!!");
+		return -EINVAL;
+	}
+	buf = extra;
+	/*
+	 * Maximum channels = WNI_CFG_VALID_CHANNEL_LIST_LEN.
+	 * Maximum buffer needed = 5 * number of channels.
+	 * Check if sufficient buffer is available and then
+	 * proceed to fill the buffer.
+	 */
+	if (WE_MAX_STR_LEN < (5 * CFG_VALID_CHANNEL_LIST_LEN)) {
+		hdd_err_rl("Insufficient Buffer to populate channel list");
+		return -EINVAL;
+	}
+	len = scnprintf(buf, WE_MAX_STR_LEN, "%u ", channel_list.num_channels);
+	if (QDF_STATUS_SUCCESS == sme_get_country_code(mac_handle, ubuf,
+						       &ubuf_len)) {
+		/* Printing Country code in getChannelList */
+		for (i = 0; i < (ubuf_len - 1); i++)
+			len += scnprintf(buf + len, WE_MAX_STR_LEN - len, "%c", ubuf[i]);
+	}
+	for (i = 0; i < channel_list.num_channels; i++)
+		len += scnprintf(buf + len, WE_MAX_STR_LEN - len, " %u", channel_list.channels[i]);
 
-	return errno;
+	wrqu->data.length = strlen(extra) + 1;
+
+	hdd_exit();
+	return 0;
 }
 
 static
@@ -2267,30 +2221,29 @@ static int hdd_softap_get_sta_info(struct hdd_adapter *adapter,
 				   uint8_t *buf,
 				   int size)
 {
-	int i;
 	int written;
-	uint8_t bc_sta_id;
+	struct hdd_station_info *sta;
 
 	hdd_enter();
 
-	bc_sta_id = WLAN_HDD_GET_AP_CTX_PTR(adapter)->broadcast_sta_id;
-
 	written = scnprintf(buf, size, "\nstaId staAddress\n");
-	for (i = 0; i < WLAN_MAX_STA_COUNT; i++) {
-		struct hdd_station_info *sta = &adapter->sta_info[i];
 
-		if (written >= size - 1)
+	hdd_for_each_sta_ref(adapter->sta_info_list, sta) {
+		if (written >= size - 1) {
+			hdd_put_sta_info_ref(&adapter->sta_info_list,
+					     &sta, true);
 			break;
+		}
 
-		if (!sta->in_use)
+		if (QDF_IS_ADDR_BROADCAST(sta->sta_mac.bytes)) {
+			hdd_put_sta_info_ref(&adapter->sta_info_list,
+					     &sta, true);
 			continue;
-
-		if (i == bc_sta_id)
-			continue;
+		}
 
 		written += scnprintf(buf + written, size - written,
-				     "%5d "QDF_MAC_ADDR_STR" ecsa=%d\n",
-				     sta->sta_id,
+				     QDF_MAC_ADDR_STR
+				     " ecsa=%d\n",
 				     sta->sta_mac.bytes[0],
 				     sta->sta_mac.bytes[1],
 				     sta->sta_mac.bytes[2],
@@ -2298,11 +2251,69 @@ static int hdd_softap_get_sta_info(struct hdd_adapter *adapter,
 				     sta->sta_mac.bytes[4],
 				     sta->sta_mac.bytes[5],
 				     sta->ecsa_capable);
+		hdd_put_sta_info_ref(&adapter->sta_info_list, &sta, true);
 	}
 
 	hdd_exit();
 
 	return 0;
+}
+
+static int __iw_softap_get_channel_list(struct net_device *dev,
+					struct iw_request_info *info,
+					union iwreq_data *wrqu,
+					char *extra)
+{
+	int ret;
+	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	struct hdd_context *hdd_ctx;
+	mac_handle_t mac_handle;
+
+	hdd_enter_dev(dev);
+
+	if (hdd_validate_adapter(adapter)) {
+		hdd_err_rl("Invalid adapter!!!");
+		return -ENODEV;
+	}
+
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (0 != ret)
+		return ret;
+
+	ret = hdd_check_private_wext_control(hdd_ctx, info);
+	if (0 != ret)
+		return ret;
+
+	mac_handle = hdd_ctx->mac_handle;
+
+	ret = iw_get_channel_list_with_cc(dev, mac_handle,
+					  info, wrqu, extra);
+
+	if (0 != ret)
+		return -EINVAL;
+
+	hdd_exit();
+	return 0;
+}
+
+static int iw_softap_get_channel_list(struct net_device *dev,
+				      struct iw_request_info *info,
+				      union iwreq_data *wrqu,
+				      char *extra)
+{
+	int errno;
+	struct osif_vdev_sync *vdev_sync;
+
+	errno = osif_vdev_sync_op_start(dev, &vdev_sync);
+	if (errno)
+		return errno;
+
+	errno = __iw_softap_get_channel_list(dev, info, wrqu, extra);
+
+	osif_vdev_sync_op_stop(vdev_sync);
+
+	return errno;
 }
 
 static int __iw_softap_get_sta_info(struct net_device *dev,
@@ -2442,7 +2453,7 @@ int __iw_get_softap_linkspeed(struct net_device *dev,
 	struct qdf_mac_addr mac_address;
 	char macaddr_string[MAC_ADDRESS_STR_LEN + 1];
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	int rc, ret, i;
+	int rc, ret;
 
 	hdd_enter_dev(dev);
 
@@ -2482,17 +2493,19 @@ int __iw_get_softap_linkspeed(struct net_device *dev,
 	 * link speed for first connected client will be returned.
 	 */
 	if (wrqu->data.length < 17 || !QDF_IS_STATUS_SUCCESS(status)) {
-		for (i = 0; i < WLAN_MAX_STA_COUNT; i++) {
-			if (adapter->sta_info[i].in_use &&
-			    (!qdf_is_macaddr_broadcast
-				  (&adapter->sta_info[i].sta_mac))) {
-				qdf_copy_macaddr(
-					&mac_address,
-					&adapter->sta_info[i].
-					 sta_mac);
+		struct hdd_station_info *sta_info;
+
+		hdd_for_each_sta_ref(adapter->sta_info_list, sta_info) {
+			if (!qdf_is_macaddr_broadcast(&sta_info->sta_mac)) {
+				qdf_copy_macaddr(&mac_address,
+						 &sta_info->sta_mac);
 				status = QDF_STATUS_SUCCESS;
+				hdd_put_sta_info_ref(&adapter->sta_info_list,
+						     &sta_info, true);
 				break;
 			}
+			hdd_put_sta_info_ref(&adapter->sta_info_list,
+					     &sta_info, true);
 		}
 	}
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
@@ -2546,12 +2559,11 @@ iw_get_softap_linkspeed(struct net_device *dev,
  * @wrqu: iwpriv command parameter
  * @extra
  *
- * This function will call wlan_hdd_get_peer_rssi
+ * This function will call wlan_cfg80211_mc_cp_stats_get_peer_rssi
  * to get rssi
  *
  * Return: 0 on success, otherwise error value
  */
-#ifdef QCA_SUPPORT_CP_STATS
 static int
 __iw_get_peer_rssi(struct net_device *dev, struct iw_request_info *info,
 		   union iwreq_data *wrqu, char *extra)
@@ -2614,84 +2626,6 @@ __iw_get_peer_rssi(struct net_device *dev, struct iw_request_info *info,
 
 	return 0;
 }
-#else
-static int
-__iw_get_peer_rssi(struct net_device *dev, struct iw_request_info *info,
-		   union iwreq_data *wrqu, char *extra)
-{
-	struct hdd_adapter *adapter = netdev_priv(dev);
-	struct hdd_context *hddctx;
-	char macaddrarray[MAC_ADDRESS_STR_LEN];
-	struct qdf_mac_addr macaddress = QDF_MAC_ADDR_BCAST_INIT;
-	int ret;
-	char *rssi_info_output = extra;
-	struct sir_peer_sta_info peer_sta_info;
-	struct sir_peer_info *rssi_info;
-	int i;
-	int buf;
-	int length;
-
-	hdd_enter();
-
-	hddctx = WLAN_HDD_GET_CTX(adapter);
-	ret = wlan_hdd_validate_context(hddctx);
-	if (ret != 0)
-		return ret;
-
-	ret = hdd_check_private_wext_control(hddctx, info);
-	if (0 != ret)
-		return ret;
-
-	hdd_debug("wrqu->data.length= %d", wrqu->data.length);
-
-	if (wrqu->data.length >= MAC_ADDRESS_STR_LEN - 1) {
-		if (copy_from_user(macaddrarray,
-				   wrqu->data.pointer,
-				   MAC_ADDRESS_STR_LEN - 1)) {
-			hdd_info("failed to copy data from user buffer");
-			return -EFAULT;
-		}
-
-		macaddrarray[MAC_ADDRESS_STR_LEN - 1] = '\0';
-		hdd_debug("%s", macaddrarray);
-
-		if (!mac_pton(macaddrarray, macaddress.bytes))
-			hdd_err("String to Hex conversion Failed");
-	}
-
-	ret = wlan_hdd_get_peer_rssi(adapter, &macaddress, &peer_sta_info);
-	if (ret) {
-		hdd_err("Unable to retrieve peer rssi: %d", ret);
-		return ret;
-	}
-	/*
-	 * The iwpriv tool default print is before mac addr and rssi.
-	 * Add '\n' before first rssi item to align the first rssi item
-	 * with others
-	 *
-	 * wlan     getRSSI:
-	 * [macaddr1] [rssi1]
-	 * [macaddr2] [rssi2]
-	 * [macaddr3] [rssi3]
-	 */
-	length = scnprintf(rssi_info_output, WE_MAX_STR_LEN, "\n");
-	rssi_info = &peer_sta_info.info[0];
-	for (i = 0; i < peer_sta_info.sta_num; i++) {
-		buf = scnprintf
-			(
-			rssi_info_output + length, WE_MAX_STR_LEN - length,
-			"[%pM] [%d]\n",
-			rssi_info[i].peer_macaddr.bytes,
-			rssi_info[i].rssi
-			);
-		length += buf;
-	}
-	wrqu->data.length = length + 1;
-	hdd_exit();
-
-	return 0;
-}
-#endif
 
 /**
  * iw_get_peer_rssi() - get station's rssi
@@ -3129,7 +3063,7 @@ static const struct iw_priv_args hostapd_private_args[] = {
 	{
 		WE_SET_THERMAL_THROTTLE_CFG,
 		IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
-		0, "setThermalCfg"
+		0, "set_thermal_cfg"
 	}
 	,
 #endif /* FW_THERMAL_THROTTLE_SUPPORT */
@@ -3143,7 +3077,7 @@ static const struct iw_priv_args hostapd_private_args[] = {
 	{
 		QCSAP_IOCTL_GET_CHANNEL_LIST,
 		0,
-		IW_PRIV_TYPE_BYTE | sizeof(struct channel_list_info),
+		IW_PRIV_TYPE_CHAR | WE_MAX_STR_LEN,
 		"getChannelList"
 	}
 	,
@@ -3242,12 +3176,6 @@ static const struct iw_priv_args hostapd_private_args[] = {
 	}
 	,
 	{
-		QCASAP_SET_PEER_RATE,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-		0, "set_peer_rate"
-	}
-	,
-	{
 		QCASAP_PARAM_DCM,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 		0, "enable_dcm"
@@ -3301,7 +3229,7 @@ static const iw_handler hostapd_private[] = {
 	[QCSAP_IOCTL_MODIFY_ACL - SIOCIWFIRSTPRIV] =
 		iw_softap_modify_acl,
 	[QCSAP_IOCTL_GET_CHANNEL_LIST - SIOCIWFIRSTPRIV] =
-		iw_get_channel_list,
+		iw_softap_get_channel_list,
 	[QCSAP_IOCTL_GET_STA_INFO - SIOCIWFIRSTPRIV] =
 		iw_softap_get_sta_info,
 	[QCSAP_IOCTL_GET_BA_AGEING_TIMEOUT - SIOCIWFIRSTPRIV] =

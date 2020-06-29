@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -582,6 +582,8 @@ void htt_h2t_send_complete(void *context, HTC_PACKET *pkt);
 
 QDF_STATUS htt_h2t_ver_req_msg(struct htt_pdev_t *pdev);
 
+int htt_tx_padding_credit_update_handler(void *context, int pad_credit);
+
 #if defined(HELIUMPLUS)
 QDF_STATUS
 htt_h2t_frag_desc_bank_cfg_msg(struct htt_pdev_t *pdev);
@@ -1117,19 +1119,6 @@ int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 					qdf_nbuf_t *head_msdu,
 					qdf_nbuf_t *tail_msdu,
 					uint32_t *replenish_cnt);
-
-/**
- * htt_rx_mon_get_rx_status() - Update information about the rx status,
- * which is used later for radiotap updation.
- * @pdev: Pointer to pdev handle
- * @rx_desc: Pointer to struct htt_host_rx_desc_base
- * @rx_status: Return variable updated with rx_status
- *
- * Return: None
- */
-void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
-			      struct htt_host_rx_desc_base *rx_desc,
-			      struct mon_rx_status *rx_status);
 #else
 static inline
 int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
@@ -1139,13 +1128,6 @@ int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 					uint32_t *replenish_cnt)
 {
 	return 0;
-}
-
-static inline
-void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
-			      struct htt_host_rx_desc_base *rx_desc,
-			      struct mon_rx_status *rx_status)
-{
 }
 #endif
 

@@ -352,6 +352,16 @@ int wlan_hdd_get_rcpi(struct hdd_adapter *adapter, uint8_t *mac,
 		      int32_t *rcpi_value,
 		      enum rcpi_measurement_type measurement_type);
 
+#ifdef WLAN_FEATURE_MIB_STATS
+/**
+ * wlan_hdd_get_mib_stats() - Get the mib statistics
+ * @adapter: adapter upon which the measurement is requested
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_** on error
+ */
+QDF_STATUS wlan_hdd_get_mib_stats(struct hdd_adapter *adapter);
+#endif
+
 /**
  * wlan_hdd_get_rssi() - Get the current RSSI
  * @adapter: adapter upon which the measurement is requested
@@ -399,20 +409,6 @@ int wlan_hdd_get_linkspeed_for_peermac(struct hdd_adapter *adapter,
 int wlan_hdd_get_link_speed(struct hdd_adapter *adapter, uint32_t *link_speed);
 
 /**
- * wlan_hdd_get_peer_rssi() - get station's rssi
- * @adapter: hostapd interface
- * @macaddress: peer sta mac address or ff:ff:ff:ff:ff:ff to query all peer
- * @peer_sta_info: output pointer which will fill by peer sta info
- *
- * This function will call sme_get_peer_info to get rssi
- *
- * Return: 0 on success, otherwise error value
- */
-int wlan_hdd_get_peer_rssi(struct hdd_adapter *adapter,
-			   struct qdf_mac_addr *macaddress,
-			   struct sir_peer_sta_info *peer_sta_info);
-
-/**
  * wlan_hdd_get_peer_info() - get peer info
  * @adapter: hostapd interface
  * @macaddress: request peer mac address
@@ -425,17 +421,6 @@ int wlan_hdd_get_peer_rssi(struct hdd_adapter *adapter,
 int wlan_hdd_get_peer_info(struct hdd_adapter *adapter,
 			   struct qdf_mac_addr macaddress,
 			   struct sir_peer_info_ext *peer_info_ext);
-
-#ifndef QCA_SUPPORT_CP_STATS
-/**
- * wlan_hdd_get_class_astats() - Get Class A statistics
- * @adapter: adapter for which statistics are desired
- *
- * Return: QDF_STATUS_SUCCESS if adapter's Class A statistics were updated
- */
-QDF_STATUS wlan_hdd_get_class_astats(struct hdd_adapter *adapter);
-#endif
-
 /**
  * wlan_hdd_get_station_stats() - Get station statistics
  * @adapter: adapter for which statistics are desired
@@ -486,6 +471,7 @@ bool hdd_report_max_rate(mac_handle_t mac_handle,
 			 uint8_t mcs_index,
 			 uint16_t fw_rate, uint8_t nss);
 
+#ifdef QCA_SUPPORT_CP_STATS
 /**
  * wlan_hdd_register_cp_stats_cb() - Register hdd stats specific
  * callbacks to the cp stats component
@@ -495,6 +481,9 @@ bool hdd_report_max_rate(mac_handle_t mac_handle,
  */
 
 void wlan_hdd_register_cp_stats_cb(struct hdd_context *hdd_ctx);
+#else
+static inline void wlan_hdd_register_cp_stats_cb(struct hdd_context *hdd_ctx) {}
+#endif
 
 /**
  * hdd_update_sta_arp_stats() - update arp stats

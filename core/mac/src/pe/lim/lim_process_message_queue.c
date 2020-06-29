@@ -59,6 +59,9 @@
 #include "cds_ieee80211_common.h"
 #include <wlan_scan_ucfg_api.h>
 #include "wlan_mlme_public_struct.h"
+#include "wma.h"
+#include "wma_internal.h"
+#include "../../core/src/vdev_mgr_ops.h"
 #include "wlan_p2p_cfg_api.h"
 
 void lim_log_session_states(struct mac_context *mac);
@@ -84,7 +87,7 @@ static void lim_process_sae_msg_sta(struct mac_context *mac,
 		/* SAE authentication is completed.
 		 * Restore from auth state
 		 */
-		if (tx_timer_running(&mac->lim.limTimers.sae_auth_timer))
+		if (tx_timer_running(&mac->lim.lim_timers.sae_auth_timer))
 			lim_deactivate_and_change_timer(mac,
 							eLIM_AUTH_SAE_TIMER);
 		/* success */
@@ -119,6 +122,7 @@ static void lim_process_sae_msg_ap(struct mac_context *mac,
 {
 	struct tLimPreAuthNode *sta_pre_auth_ctx;
 	struct lim_assoc_data *assoc_req;
+	bool assoc_ind_sent;
 
 	/* Extract pre-auth context for the STA and move limMlmState
 	 * of preauth node to eLIM_MLM_AUTHENTICATED_STATE
@@ -162,14 +166,16 @@ static void lim_process_sae_msg_ap(struct mac_context *mac,
 
 		assoc_req->present = false;
 		pe_debug("Assoc req cached; handle it");
-		if (lim_send_assoc_ind_to_sme(mac, session,
-					      assoc_req->sub_type,
-					      &assoc_req->hdr,
-					      assoc_req->assoc_req,
-					      ANI_AKM_TYPE_SAE,
-					      assoc_req->pmf_connection,
-					      &assoc_req_copied,
-					      assoc_req->dup_entry) == false)
+		assoc_ind_sent =
+			lim_send_assoc_ind_to_sme(mac, session,
+						  assoc_req->sub_type,
+						  &assoc_req->hdr,
+						  assoc_req->assoc_req,
+						  ANI_AKM_TYPE_SAE,
+						  assoc_req->pmf_connection,
+						  &assoc_req_copied,
+						  assoc_req->dup_entry, false);
+		if (!assoc_ind_sent)
 			lim_process_assoc_cleanup(mac, session,
 						  assoc_req->assoc_req,
 						  assoc_req->sta_ds,
@@ -194,8 +200,7 @@ static void lim_process_sae_msg(struct mac_context *mac, struct sir_sae_msg *bod
 		return;
 	}
 
-	session = pe_find_session_by_sme_session_id(mac,
-				sae_msg->session_id);
+	session = pe_find_session_by_vdev_id(mac, sae_msg->vdev_id);
 	if (!session) {
 		pe_err("SAE:Unable to find session");
 		return;
@@ -415,9 +420,8 @@ static void lim_process_set_default_scan_ie_request(struct mac_context *mac_ctx,
 	if (!local_ie_buf)
 		return;
 
-	pe_session = pe_find_session_by_sme_session_id(mac_ctx,
-
-			set_ie_params->session_id);
+	pe_session = pe_find_session_by_vdev_id(mac_ctx,
+						set_ie_params->vdev_id);
 	if (lim_update_ext_cap_ie(mac_ctx,
 			(uint8_t *)set_ie_params->ie_data,
 			local_ie_buf, &local_ie_len, pe_session)) {
@@ -429,7 +433,7 @@ static void lim_process_set_default_scan_ie_request(struct mac_context *mac_ctx,
 	if (!wma_ie_params)
 		goto scan_ie_send_fail;
 
-	wma_ie_params->vdev_id = set_ie_params->session_id;
+	wma_ie_params->vdev_id = set_ie_params->vdev_id;
 	wma_ie_params->ie_id = DEFAULT_SCAN_IE_ID;
 	wma_ie_params->length = local_ie_len;
 	wma_ie_params->data = (uint8_t *)(wma_ie_params)
@@ -524,6 +528,7 @@ static bool def_msg_decision(struct mac_context *mac_ctx,
 			lim_log_session_states(mac_ctx);
 			lim_handle_defer_msg_error(mac_ctx, lim_msg);
 		}
+
 		return true;
 	}
 
@@ -546,8 +551,7 @@ static bool def_msg_decision(struct mac_context *mac_ctx,
 				mgmt_pkt_defer = false;
 		}
 
-		if ((lim_msg->type != WMA_ADD_BSS_RSP) &&
-		    (lim_msg->type != WMA_DELETE_BSS_RSP) &&
+		if ((lim_msg->type != WMA_DELETE_BSS_RSP) &&
 		    (lim_msg->type != WMA_DELETE_BSS_HO_FAIL_RSP) &&
 		    (lim_msg->type != WMA_ADD_STA_RSP) &&
 		    (lim_msg->type != WMA_DELETE_STA_RSP) &&
@@ -629,7 +633,9 @@ __lim_pno_match_fwd_bcn_probepsp(struct mac_context *pmac, uint8_t *rx_pkt_info,
 		result->ap[i].beaconPeriod = frame->beaconInterval;
 		result->ap[i].capability =
 			lim_get_u16((uint8_t *) &frame->capabilityInfo);
-		result->ap[i].channel = WMA_GET_RX_CH(rx_pkt_info);
+		result->ap[i].channel = wlan_reg_freq_to_chan(
+						pmac->pdev,
+						WMA_GET_RX_FREQ(rx_pkt_info));
 		result->ap[i].rssi = WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info);
 		result->ap[i].rtt = 0;
 		result->ap[i].rtt_sd = 0;
@@ -680,7 +686,9 @@ __lim_ext_scan_forward_bcn_probe_rsp(struct mac_context *pmac, uint8_t *rx_pkt_i
 	result->ap.beaconPeriod = frame->beaconInterval;
 	result->ap.capability =
 			lim_get_u16((uint8_t *) &frame->capabilityInfo);
-	result->ap.channel = WMA_GET_RX_CH(rx_pkt_info);
+	result->ap.channel = wlan_reg_freq_to_chan(
+						pmac->pdev,
+						WMA_GET_RX_FREQ(rx_pkt_info));
 	result->ap.rssi = WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info);
 	result->ap.rtt = 0;
 	result->ap.rtt_sd = 0;
@@ -819,8 +827,7 @@ __lim_handle_beacon(struct mac_context *mac, struct scheduler_msg *pMsg,
 static void lim_fill_sap_bcn_pkt_meta(struct scan_cache_entry *scan_entry,
 					cds_pkt_t *rx_pkt)
 {
-	rx_pkt->pkt_meta.channel = scan_entry->channel.chan_idx;
-
+	rx_pkt->pkt_meta.frequency = scan_entry->channel.chan_freq;
 	rx_pkt->pkt_meta.mpdu_hdr_len = sizeof(struct ieee80211_frame);
 	rx_pkt->pkt_meta.mpdu_len = scan_entry->raw_frame.len;
 	rx_pkt->pkt_meta.mpdu_data_len = rx_pkt->pkt_meta.mpdu_len -
@@ -945,7 +952,8 @@ void lim_handle_sap_beacon(struct wlan_objmgr_pdev *pdev,
 	for (session_id = 0; session_id < mac_ctx->lim.maxBssId; session_id++) {
 		if (filter->sap_channel[session_id] &&
 		    (filter->sap_channel[session_id] ==
-		    scan_entry->channel.chan_idx)) {
+		    wlan_reg_freq_to_chan(pdev,
+					  scan_entry->channel.chan_freq))) {
 			if (!pkt) {
 				status = lim_allocate_and_get_bcn(
 					mac_ctx, &pkt, &rx_pkt_info,
@@ -1169,7 +1177,7 @@ lim_check_mgmt_registered_frames(struct mac_context *mac_ctx, uint8_t *buff_desc
 			(uint8_t *) hdr,
 			WMA_GET_RX_PAYLOAD_LEN(buff_desc) +
 			sizeof(tSirMacMgmtHdr), mgmt_frame->sessionId,
-			WMA_GET_RX_CH(buff_desc), session_entry,
+			WMA_GET_RX_FREQ(buff_desc), session_entry,
 			WMA_GET_RX_RSSI_NORMALIZED(buff_desc),
 			RXMGMT_FLAG_NONE);
 
@@ -1253,7 +1261,7 @@ lim_handle80211_frames(struct mac_context *mac, struct scheduler_msg *limMsg,
 	struct pe_session *pe_session = NULL;
 	uint8_t sessionId;
 	bool isFrmFt = false;
-	uint8_t channel;
+	uint32_t frequency;
 	bool is_hw_sbs_capable = false;
 
 	*pDeferMsg = false;
@@ -1262,14 +1270,15 @@ lim_handle80211_frames(struct mac_context *mac, struct scheduler_msg *limMsg,
 
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 	isFrmFt = WMA_GET_RX_FT_DONE(pRxPacketInfo);
-	channel = WMA_GET_RX_CH(pRxPacketInfo);
+	frequency = WMA_GET_RX_FREQ(pRxPacketInfo);
 	fc = pHdr->fc;
 
 	is_hw_sbs_capable =
 		policy_mgr_is_hw_sbs_capable(mac->psoc);
-	if (IS_5G_CH(channel) &&
-	   (!is_hw_sbs_capable ||
-	   (is_hw_sbs_capable && wlan_reg_is_dfs_ch(mac->pdev, channel))) &&
+	if (WLAN_REG_IS_5GHZ_CH_FREQ(frequency) &&
+	    (!is_hw_sbs_capable ||
+	    (is_hw_sbs_capable &&
+	    wlan_reg_is_dfs_for_freq(mac->pdev, frequency))) &&
 	    mac->sap.SapDfsInfo.is_dfs_cac_timer_running) {
 		pe_session = pe_find_session_by_bssid(mac,
 					pHdr->bssId, &sessionId);
@@ -1568,6 +1577,20 @@ static void lim_process_sme_obss_scan_ind(struct mac_context *mac_ctx,
 	return;
 }
 
+static void
+lim_process_vdev_delete(struct mac_context *mac_ctx,
+			struct del_vdev_params *vdev_param)
+{
+	tp_wma_handle wma_handle;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma_handle) {
+		WMA_LOGE("%s: WMA context is invalid", __func__);
+		return;
+	}
+	wma_vdev_detach(wma_handle, vdev_param);
+}
+
 /**
  * lim_process_messages() - Process messages from upper layers.
  *
@@ -1586,7 +1609,6 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 	uint8_t i;
 	struct pe_session *session_entry = NULL;
 	uint8_t defer_msg = false;
-	tLinkStateParams *link_state_param;
 	uint16_t pkt_len = 0;
 	cds_pkt_t *body_ptr = NULL;
 	QDF_STATUS qdf_status;
@@ -1634,10 +1656,6 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 
 	case SIR_LIM_UPDATE_BEACON:
 		lim_update_beacon(mac_ctx);
-		break;
-	case WMA_SWITCH_CHANNEL_RSP:
-		lim_process_switch_channel_rsp(mac_ctx, msg->bodyptr);
-		msg->bodyptr = NULL;
 		break;
 #ifdef ANI_SIR_IBSS_PEER_CACHING
 	case WMA_IBSS_STA_ADD:
@@ -1732,7 +1750,6 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 	case eWNI_SME_START_BSS_REQ:
 	case eWNI_SME_STOP_BSS_REQ:
 	case eWNI_SME_SWITCH_CHL_IND:
-	case eWNI_SME_SETCONTEXT_REQ:
 	case eWNI_SME_DISASSOC_CNF:
 	case eWNI_SME_DEAUTH_CNF:
 	case eWNI_SME_ASSOC_CNF:
@@ -1745,11 +1762,9 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 #if defined FEATURE_WLAN_ESE
 	case eWNI_SME_ESE_ADJACENT_AP_REPORT:
 #endif
-	case eWNI_SME_FT_UPDATE_KEY:
 	case eWNI_SME_FT_PRE_AUTH_REQ:
 	case eWNI_SME_FT_AGGR_QOS_REQ:
 	case eWNI_SME_REGISTER_MGMT_FRAME_REQ:
-	case eWNI_SME_GET_STATISTICS_REQ:
 #ifdef FEATURE_WLAN_ESE
 	case eWNI_SME_GET_TSM_STATS_REQ:
 #endif  /* FEATURE_WLAN_ESE */
@@ -1886,12 +1901,6 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 	case SIR_LIM_UPDATE_OLBC_CACHEL_TIMEOUT:
 		lim_handle_update_olbc_cache(mac_ctx);
 		break;
-	case WMA_ADD_BSS_RSP:
-		lim_process_mlm_add_bss_rsp(mac_ctx, msg);
-		break;
-	case WMA_HIDDEN_SSID_RESTART_RSP:
-		lim_process_mlm_update_hidden_ssid_rsp(mac_ctx, msg);
-		break;
 	case WMA_ADD_STA_RSP:
 		lim_process_add_sta_rsp(mac_ctx, msg);
 		break;
@@ -1900,7 +1909,7 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 		break;
 	case WMA_DELETE_BSS_RSP:
 	case WMA_DELETE_BSS_HO_FAIL_RSP:
-		lim_handle_delete_bss_rsp(mac_ctx, msg);
+		lim_handle_delete_bss_rsp(mac_ctx, msg->bodyptr);
 		break;
 	case WMA_CSA_OFFLOAD_EVENT:
 		lim_handle_csa_offload_msg(mac_ctx, msg);
@@ -1911,10 +1920,6 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 		break;
 	case WMA_SET_STAKEY_RSP:
 		lim_process_mlm_set_sta_key_rsp(mac_ctx, msg);
-		break;
-	case WMA_GET_STATISTICS_RSP:
-		lim_send_sme_pe_statistics_rsp(mac_ctx, msg->type,
-					     (void *)msg->bodyptr);
 		break;
 	case WMA_SET_MIMOPS_RSP:
 	case WMA_SET_TX_POWER_RSP:
@@ -1939,24 +1944,6 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 		break;
 	case WMA_AGGR_QOS_RSP:
 		lim_process_ft_aggr_qos_rsp(mac_ctx, msg);
-		break;
-	case WMA_SET_LINK_STATE_RSP:
-		link_state_param = (tLinkStateParams *) msg->bodyptr;
-		session_entry = link_state_param->session;
-		if (link_state_param->ft
-#if defined WLAN_FEATURE_ROAM_OFFLOAD
-			&& !session_entry->bRoamSynchInProgress
-#endif
-		)
-			lim_send_reassoc_req_with_ft_ies_mgmt_frame(mac_ctx,
-				session_entry->pLimMlmReassocReq,
-				session_entry);
-		if (link_state_param->callback)
-			link_state_param->callback(mac_ctx,
-				link_state_param->callbackArg,
-				link_state_param->status);
-		qdf_mem_free((void *)(msg->bodyptr));
-		msg->bodyptr = NULL;
 		break;
 	case WMA_RX_CHN_STATUS_EVENT:
 		lim_process_rx_channel_status_event(mac_ctx, msg->bodyptr);
@@ -1986,8 +1973,8 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 		beacon_params.paramChangeBitmap = 0;
 		for (i = 0; i < mac_ctx->lim.maxBssId; i++) {
 			vdev_id = ((uint8_t *)msg->bodyptr)[i];
-			session_entry = pe_find_session_by_sme_session_id(
-				mac_ctx, vdev_id);
+			session_entry = pe_find_session_by_vdev_id(mac_ctx,
+								   vdev_id);
 			if (!session_entry)
 				continue;
 			session_entry->sap_advertise_avoid_ch_ie =
@@ -2004,10 +1991,12 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 			 *    restart, in such a case, beacon params will be
 			 *    reset and thus will not contain Q2Q IE, by default
 			 */
-			if (wlan_reg_get_channel_state(mac_ctx->pdev,
-					session_entry->currentOperChannel)
+			if (wlan_reg_get_channel_state(
+				mac_ctx->pdev,
+				wlan_reg_freq_to_chan(
+				mac_ctx->pdev, session_entry->curr_op_freq))
 					!= CHANNEL_STATE_DFS) {
-				beacon_params.bss_idx = session_entry->bss_idx;
+				beacon_params.bss_idx = session_entry->vdev_id;
 				beacon_params.beaconInterval =
 					session_entry->beaconParams.beaconInterval;
 				beacon_params.paramChangeBitmap |=
@@ -2130,6 +2119,11 @@ static void lim_process_messages(struct mac_context *mac_ctx,
 					  (struct roam_blacklist_event *)
 					  msg->bodyptr);
 		qdf_mem_free((void *)msg->bodyptr);
+		msg->bodyptr = NULL;
+		break;
+	case eWNI_SME_VDEV_DELETE_REQ:
+		lim_process_vdev_delete(mac_ctx, msg->bodyptr);
+		/* Do not free msg->bodyptr, same memory used to send resp */
 		msg->bodyptr = NULL;
 		break;
 	default:

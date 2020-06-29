@@ -35,7 +35,6 @@
 #include "lim_assoc_utils.h"
 #include "lim_security_utils.h"
 #include "lim_ser_des_utils.h"
-#include "lim_sta_hash_api.h"
 #include "lim_admit_control.h"
 #include "lim_send_messages.h"
 #include "lim_ibss_peer_mgmt.h"
@@ -64,7 +63,7 @@ void lim_update_re_assoc_globals(struct mac_context *mac, tpSirAssocRsp pAssocRs
 	/* Update the current Bss Information */
 	qdf_mem_copy(pe_session->bssId,
 		     pe_session->limReAssocbssId, sizeof(tSirMacAddr));
-	pe_session->currentOperChannel = pe_session->limReassocChannelId;
+	pe_session->curr_op_freq = pe_session->lim_reassoc_chan_freq;
 	pe_session->htSecondaryChannelOffset =
 		pe_session->reAssocHtSupportedChannelWidthSet;
 	pe_session->htRecommendedTxWidthSet =
@@ -469,13 +468,7 @@ lim_restore_pre_reassoc_state(struct mac_context *mac,
 	/* 'Change' timer for future activations */
 	lim_deactivate_and_change_timer(mac, eLIM_REASSOC_FAIL_TIMER);
 
-	lim_set_channel(mac, pe_session->currentOperChannel,
-			pe_session->ch_center_freq_seg0,
-			pe_session->ch_center_freq_seg1,
-			pe_session->ch_width,
-			pe_session->maxTxPower,
-			pe_session->peSessionId,
-			0, 0);
+	lim_send_switch_chnl_params(mac, pe_session);
 
 	/* @ToDo:Need to Integrate the STOP the Dataxfer to AP from 11H code */
 

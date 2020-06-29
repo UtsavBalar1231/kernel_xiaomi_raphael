@@ -306,7 +306,7 @@ typedef struct {
 typedef struct sAniSirLim {
 	/* ////////////////////////////////////     TIMER RELATED START /////////////////////////////////////////// */
 
-	tLimTimers limTimers;
+	tLimTimers lim_timers;
 	/* / Flag to track if LIM timers are created or not */
 	uint32_t gLimTimersCreated;
 
@@ -746,6 +746,14 @@ struct mgmt_beacon_probe_filter {
 	uint8_t sap_channel[WLAN_MAX_VDEVS];
 };
 
+#ifdef FEATURE_ANI_LEVEL_REQUEST
+struct ani_level_params {
+	void (*ani_level_cb)(struct wmi_host_ani_level_event *ani, uint8_t num,
+			     void *context);
+	void *context;
+};
+#endif
+
 /**
  * struct mac_context - Global MAC context
  */
@@ -797,6 +805,7 @@ struct mac_context {
 	uint32_t peer_rssi;
 	uint32_t peer_txrate;
 	uint32_t peer_rxrate;
+	uint32_t rx_retry_cnt;
 	uint32_t rx_mc_bc_cnt;
 	/* 11k Offload Support */
 	bool is_11k_offload_supported;
@@ -824,6 +833,11 @@ struct mac_context {
 #endif
 	bool obss_scan_offload;
 	bool bcn_reception_stats;
+	csr_session_close_cb session_close_cb;
+	csr_roam_complete_cb session_roam_complete_cb;
+#ifdef FEATURE_ANI_LEVEL_REQUEST
+	struct ani_level_params ani_params;
+#endif
 };
 
 #ifdef FEATURE_WLAN_TDLS

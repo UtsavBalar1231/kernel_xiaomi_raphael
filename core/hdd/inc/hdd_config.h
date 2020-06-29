@@ -279,6 +279,66 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * host_log_custom_nl_proto - Host log netlink protocol
+ * @Min: 0
+ * @Max: 32
+ * @Default: 2
+ *
+ * This ini is used to set host log netlink protocol. The default
+ * value is 2 (NETLINK_USERSOCK), customer should avoid selecting the
+ * netlink protocol that already used on their platform by other
+ * applications or services. By choosing the non-default value(2),
+ * Customer need to change the netlink protocol of application receive
+ * tool(cnss_diag) accordingly. Available values could be:
+ *
+ * host_log_custom_nl_proto = 0 -	NETLINK_ROUTE, Routing/device hook
+ * host_log_custom_nl_proto = 1 -	NETLINK_UNUSED, Unused number
+ * host_log_custom_nl_proto = 2 -	NETLINK_USERSOCK, Reserved for user
+ *					mode socket protocols
+ * host_log_custom_nl_proto = 3 -	NETLINK_FIREWALL, Unused number,
+ *					formerly ip_queue
+ * host_log_custom_nl_proto = 4 -	NETLINK_SOCK_DIAG, socket monitoring
+ * host_log_custom_nl_proto = 5 -	NETLINK_NFLOG, netfilter/iptables ULOG
+ * host_log_custom_nl_proto = 6 -	NETLINK_XFRM, ipsec
+ * host_log_custom_nl_proto = 7 -	NETLINK_SELINUX, SELinux event
+ *					notifications
+ * host_log_custom_nl_proto = 8 -	NETLINK_ISCSI, Open-iSCSI
+ * host_log_custom_nl_proto = 9 -	NETLINK_AUDIT, auditing
+ * host_log_custom_nl_proto = 10 -	NETLINK_FIB_LOOKUP
+ * host_log_custom_nl_proto = 11 -	NETLINK_CONNECTOR
+ * host_log_custom_nl_proto = 12 -	NETLINK_NETFILTER, netfilter subsystem
+ * host_log_custom_nl_proto = 13 -	NETLINK_IP6_FW
+ * host_log_custom_nl_proto = 14 -	NETLINK_DNRTMSG, DECnet routing messages
+ * host_log_custom_nl_proto = 15 -	NETLINK_KOBJECT_UEVENT, Kernel
+ *					messages to userspace
+ * host_log_custom_nl_proto = 16 -	NETLINK_GENERIC, leave room for
+ *					NETLINK_DM (DM Events)
+ * host_log_custom_nl_proto = 18 -	NETLINK_SCSITRANSPORT, SCSI Transports
+ * host_log_custom_nl_proto = 19 -	NETLINK_ECRYPTFS
+ * host_log_custom_nl_proto = 20 -	NETLINK_RDMA
+ * host_log_custom_nl_proto = 21 -	NETLINK_CRYPTO, Crypto layer
+ * host_log_custom_nl_proto = 22 -	NETLINK_SMC, SMC monitoring
+ *
+ * The max value is: MAX_LINKS which is 32
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_HOST_LOG_CUSTOM_NETLINK_PROTO CFG_INI_UINT( \
+	"host_log_custom_nl_proto", \
+	0, \
+	32, \
+	2, \
+	CFG_VALUE_OR_DEFAULT, \
+	"host log custom netlink protocol")
+
+/*
+ * <ini>
  * wlanLoggingToConsole - Wlan logging to console
  * @Min: 0
  * @Max: 1
@@ -293,7 +353,8 @@ enum hdd_dot11_mode {
 
 #define CFG_WLAN_LOGGING_SUPPORT_ALL \
 	CFG(CFG_WLAN_LOGGING_SUPPORT) \
-	CFG(CFG_WLAN_LOGGING_CONSOLE_SUPPORT)
+	CFG(CFG_WLAN_LOGGING_CONSOLE_SUPPORT) \
+	CFG(CFG_HOST_LOG_CUSTOM_NETLINK_PROTO)
 #else
 #define CFG_WLAN_LOGGING_SUPPORT_ALL
 #endif
@@ -514,12 +575,12 @@ enum hdd_runtime_pm_cfg {
 
 /*
  * <ini>
- * gOperatingChannel- Default STA operating channel
+ * def_sta_operating_freq - Default STA operating Freq
  * @Min: 0
- * @Max: 14
- * @Default: 1
+ * @Max: 2484
+ * @Default: 2412
  *
- * This ini is used to specify the default operating channel of a STA during
+ * This ini is used to specify the default operating frequency of a STA during
  * initialization.
  *
  * Related: None
@@ -530,14 +591,13 @@ enum hdd_runtime_pm_cfg {
  *
  * </ini>
  */
-#define CFG_OPERATING_CHANNEL CFG_INI_UINT( \
-			"gOperatingChannel", \
+#define CFG_OPERATING_FREQUENCY CFG_INI_UINT( \
+			"def_sta_operating_freq", \
 			0, \
-			14, \
-			1, \
+			2484, \
+			2412, \
 			CFG_VALUE_OR_DEFAULT, \
-			"Default Operating Channel")
-
+			"Default STA Operating Frequency")
 #ifdef DHCP_SERVER_OFFLOAD
 #define IPADDR_NUM_ENTRIES     (4)
 #define IPADDR_STRING_LENGTH   (16)
@@ -865,7 +925,7 @@ struct dhcp_server {
 /*
  * <ini>
  * gActionOUIConnect1x1 - Used to specify action OUIs for 1x1 connection
- * @Default: 000C43 00 25 42 001018 06 02FFF02C0000 BC 25 42 001018 06 02FF040C0000 BC 25 42 00037F 00 35 6C
+ * @Default: 000C43 00 25 C2 001018 06 02FFF02C0000 BC 25 42 001018 06 02FF040C0000 BC 25 42 00037F 00 35 6C 001018 06 02FF009C0000 BC 25 48
  * Note: User should strictly add new action OUIs at the end of this
  * default value.
  *
@@ -873,7 +933,7 @@ struct dhcp_server {
  * OUI 1 : 000C43
  *   OUI data Len : 00
  *   Info Mask : 25 - Check for NSS and Band
- *   Capabilities: 42 - NSS == 2 && Band == 2G
+ *   Capabilities: C2 - NSS == 2 && Band == 2G || Band == 5G
  * OUI 2 : 001018
  *   OUI data Len : 06
  *   OUI Data : 02FFF02C0000
@@ -912,7 +972,7 @@ struct dhcp_server {
 	"gActionOUIConnect1x1", \
 	0, \
 	ACTION_OUI_MAX_STR_LEN, \
-	"000C43 00 25 42 001018 06 02FFF02C0000 BC 25 42 001018 06 02FF040C0000 BC 25 42 00037F 00 35 6C 001018 06 02FF009C0000 BC 25 48", \
+	"000C43 00 25 C2 001018 06 02FFF02C0000 BC 25 42 001018 06 02FF040C0000 BC 25 42 00037F 00 35 6C 001018 06 02FF009C0000 BC 25 48", \
 	"Used to specify action OUIs for 1x1 connection")
 
 /*
@@ -1163,39 +1223,6 @@ struct dhcp_server {
 	ACTION_OUI_MAX_STR_LEN, \
 	"", \
 	"Used to specify action OUIs to control edca configuration")
-
-/*
- * <ini>
- * gActionOUIReconnAssocTimeout - Used to specify action OUIs to
- * reconnect to same BSSID when wait for association response timeout
- *
- * This ini is used to specify AP OUIs. Some of AP doesn't response our
- * first association request, but it would response our second association
- * request. Add such OUI configuration INI to apply reconnect logic when
- * association timeout happends with such AP.
- * For default:
- *     gActionOUIReconnAssocTimeout=00E04C 00 01
- *          Explain: 00E04C: OUI
- *                   00: data length is 0
- *                   01: infio mask, only OUI present in Info mask
- * Note: User should strictly add new action OUIs at the end of this
- * default value.
- * Refer to gEnableActionOUI for more detail about the format.
- *
- * Related: gEnableActionOUI
- *
- * Supported Feature: Action OUIs
- *
- * Usage: External
- *
- * </ini>
- */
-#define CFG_ACTION_OUI_RECONN_ASSOCTIMEOUT CFG_INI_STRING( \
-	"gActionOUIReconnAssocTimeout", \
-	0, \
-	ACTION_OUI_MAX_STR_LEN, \
-	"00E04C 00 01", \
-	"Used to specify action OUIs to reconnect when assoc timeout")
 
 /* End of action oui inis */
 
@@ -1525,7 +1552,6 @@ enum host_log_level {
 	CFG(CFG_ACTION_OUI_FORCE_MAX_NSS) \
 	CFG(CFG_ACTION_OUI_DISABLE_AGGRESSIVE_EDCA) \
 	CFG(CFG_ACTION_OUI_SWITCH_TO_11N_MODE) \
-	CFG(CFG_ACTION_OUI_RECONN_ASSOCTIMEOUT) \
 	CFG(CFG_ADVERTISE_CONCURRENT_OPERATION) \
 	CFG(CFG_BUG_ON_REINIT_FAILURE) \
 	CFG(CFG_DBS_SCAN_SELECTION) \
@@ -1542,7 +1568,7 @@ enum host_log_level {
 	CFG(CFG_INFORM_BSS_RSSI_RAW) \
 	CFG(CFG_MULTICAST_HOST_FW_MSGS) \
 	CFG(CFG_NUM_VDEV_ENABLE) \
-	CFG(CFG_OPERATING_CHANNEL) \
+	CFG(CFG_OPERATING_FREQUENCY) \
 	CFG(CFG_PRIVATE_WEXT_CONTROL) \
 	CFG(CFG_PROVISION_INTERFACE_POOL) \
 	CFG(CFG_TIMER_MULTIPLIER) \

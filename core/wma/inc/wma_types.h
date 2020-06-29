@@ -57,8 +57,8 @@
 
 #define WMA_GET_RX_UNKNOWN_UCAST(pRxMeta) 0
 
-#define WMA_GET_RX_CH(pRxMeta) \
-	(((t_packetmeta *)pRxMeta)->channel)
+#define WMA_GET_RX_FREQ(pRxMeta) \
+	(((t_packetmeta *)pRxMeta)->frequency)
 
 #define WMA_GET_RX_FT_DONE(pRxMeta) 0
 
@@ -116,11 +116,9 @@
 
 #define WMA_ADD_STA_REQ                SIR_HAL_ADD_STA_REQ
 #define WMA_ADD_STA_RSP                SIR_HAL_ADD_STA_RSP
-#define WMA_ADD_STA_SELF_RSP           SIR_HAL_ADD_STA_SELF_RSP
 #define WMA_DELETE_STA_REQ             SIR_HAL_DELETE_STA_REQ
 #define WMA_DELETE_STA_RSP             SIR_HAL_DELETE_STA_RSP
 #define WMA_ADD_BSS_REQ                SIR_HAL_ADD_BSS_REQ
-#define WMA_ADD_BSS_RSP                SIR_HAL_ADD_BSS_RSP
 #define WMA_DELETE_BSS_REQ             SIR_HAL_DELETE_BSS_REQ
 #define WMA_DELETE_BSS_HO_FAIL_REQ     SIR_HAL_DELETE_BSS_HO_FAIL_REQ
 #define WMA_DELETE_BSS_RSP             SIR_HAL_DELETE_BSS_RSP
@@ -131,9 +129,7 @@
 #define WMA_ROAM_BLACLIST_MSG          SIR_HAL_ROAM_BLACKLIST_MSG
 #define WMA_SEND_PEER_UNMAP_CONF       SIR_HAL_SEND_PEER_UNMAP_CONF
 
-#define WMA_SET_BSSKEY_REQ             SIR_HAL_SET_BSSKEY_REQ
 #define WMA_SET_BSSKEY_RSP             SIR_HAL_SET_BSSKEY_RSP
-#define WMA_SET_STAKEY_REQ             SIR_HAL_SET_STAKEY_REQ
 #define WMA_SET_STAKEY_RSP             SIR_HAL_SET_STAKEY_RSP
 #define WMA_UPDATE_EDCA_PROFILE_IND    SIR_HAL_UPDATE_EDCA_PROFILE_IND
 
@@ -152,8 +148,6 @@
 #define WMA_IBSS_STA_ADD               SIR_HAL_IBSS_STA_ADD
 #define WMA_TIMER_ADJUST_ADAPTIVE_THRESHOLD_IND SIR_HAL_TIMER_ADJUST_ADAPTIVE_THRESHOLD_IND
 #define WMA_SET_LINK_STATE             SIR_HAL_SET_LINK_STATE
-#define WMA_SET_LINK_STATE_RSP         SIR_HAL_SET_LINK_STATE_RSP
-#define WMA_SET_STA_BCASTKEY_REQ       SIR_HAL_SET_STA_BCASTKEY_REQ
 #define WMA_SET_STA_BCASTKEY_RSP       SIR_HAL_SET_STA_BCASTKEY_RSP
 #define WMA_ADD_TS_RSP                 SIR_HAL_ADD_TS_RSP
 #define WMA_DPU_MIC_ERROR              SIR_HAL_DPU_MIC_ERROR
@@ -186,9 +180,6 @@
 #define WMA_ENABLE_UAPSD_REQ            SIR_HAL_ENABLE_UAPSD_REQ
 #define WMA_DISABLE_UAPSD_REQ           SIR_HAL_DISABLE_UAPSD_REQ
 
-/* / PE <-> HAL statistics messages */
-#define WMA_GET_STATISTICS_REQ         SIR_HAL_GET_STATISTICS_REQ
-#define WMA_GET_STATISTICS_RSP         SIR_HAL_GET_STATISTICS_RSP
 #define WMA_SET_KEY_DONE               SIR_HAL_SET_KEY_DONE
 
 /* / PE <-> HAL BTC messages */
@@ -211,8 +202,6 @@
 #ifdef WLAN_NS_OFFLOAD
 #define WMA_SET_NS_OFFLOAD             SIR_HAL_SET_NS_OFFLOAD
 #endif /* WLAN_NS_OFFLOAD */
-#define WMA_ADD_STA_SELF_REQ           SIR_HAL_ADD_STA_SELF_REQ
-#define WMA_DEL_STA_SELF_REQ           SIR_HAL_DEL_STA_SELF_REQ
 
 #ifdef FEATURE_WLAN_TDLS
 #define WMA_SET_TDLS_LINK_ESTABLISH_REQ SIR_HAL_TDLS_LINK_ESTABLISH_REQ
@@ -253,8 +242,6 @@
 #define WMA_DHCP_STOP_IND               SIR_HAL_DHCP_STOP_IND
 
 #define WMA_TX_FAIL_MONITOR_IND         SIR_HAL_TX_FAIL_MONITOR_IND
-
-#define WMA_HIDDEN_SSID_VDEV_RESTART    SIR_HAL_HIDE_SSID_VDEV_RESTART
 
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 #define WMA_GTK_OFFLOAD_REQ             SIR_HAL_GTK_OFFLOAD_REQ
@@ -334,7 +321,6 @@
 #define WMA_DISASSOC_TX_COMP       SIR_HAL_DISASSOC_TX_COMP
 #define WMA_DEAUTH_TX_COMP         SIR_HAL_DEAUTH_TX_COMP
 
-#define WMA_GET_PEER_INFO          SIR_HAL_GET_PEER_INFO
 #define WMA_GET_PEER_INFO_EXT      SIR_HAL_GET_PEER_INFO_EXT
 
 #define WMA_GET_ISOLATION          SIR_HAL_GET_ISOLATION
@@ -389,9 +375,6 @@
 #ifdef WLAN_FEATURE_GPIO_LED_FLASHING
 #define WMA_LED_FLASHING_REQ   SIR_HAL_LED_FLASHING_REQ
 #endif
-
-/* Message posted by wmi when wmi event is received from FW */
-#define WMA_PROCESS_FW_EVENT		     SIR_HAL_PROCESS_FW_EVENT
 
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 #define WMA_UPDATE_Q2Q_IE_IND                 SIR_HAL_UPDATE_Q2Q_IE_IND
@@ -647,6 +630,17 @@ QDF_STATUS wma_set_idle_ps_config(void *wma_ptr, uint32_t idle_ps);
 QDF_STATUS wma_get_snr(tAniGetSnrReq *psnr_req);
 
 /**
+ * wma_get_rx_retry_cnt() - API to get rx retry count from data path
+ * @mac: pointer to mac context
+ * @vdev_id: vdev id
+ * @mac_addr: mac address of the remote station
+ *
+ * Return: none
+ */
+void wma_get_rx_retry_cnt(struct mac_context *mac, uint8_t vdev_id,
+			  uint8_t *mac_addr);
+
+/**
  * wma_set_wlm_latency_level() - set latency level to FW
  * @wma_ptr: wma handle
  * @latency_params: latency params
@@ -660,7 +654,14 @@ QDF_STATUS
 wma_ds_peek_rx_packet_info
 	(cds_pkt_t *vosDataBuff, void **ppRxHeader, bool bSwap);
 
-
+/**
+ * wma_tx_abort() - abort tx
+ * @vdev_id: vdev id
+ *
+ * In case of deauth host abort transmitting packet.
+ *
+ * Return: none
+ */
 void wma_tx_abort(uint8_t vdev_id);
 
 /**
@@ -672,10 +673,13 @@ void wma_tx_abort(uint8_t vdev_id);
  * @txDir: tx diection
  * @tid: TID
  * @tx_frm_download_comp_cb: tx download callback handler
+ * @pData: tx packet
  * @tx_frm_ota_comp_cb: OTA complition handler
  * @tx_flag: tx flag
  * @vdev_id: vdev id
- * @tdlsFlag: tdls flag
+ * @tdls_flag: tdls flag
+ * @channel_freq: channel frequency
+ * @rid: rate id
  *
  * This function sends the frame corresponding to the
  * given vdev id.
@@ -688,7 +692,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			 wma_tx_dwnld_comp_callback tx_frm_download_comp_cb,
 			 void *pData,
 			 wma_tx_ota_comp_callback tx_frm_ota_comp_cb,
-			 uint8_t tx_flag, uint8_t vdev_id, bool tdlsFlag,
+			 uint8_t tx_flag, uint8_t vdev_id, bool tdls_flag,
 			 uint16_t channel_freq, enum rateid rid);
 
 /**

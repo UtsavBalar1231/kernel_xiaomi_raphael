@@ -38,6 +38,7 @@
 #include <cds_api.h>
 #include "hif.h"
 #include <cdp_txrx_handle.h>
+#include <ol_txrx_peer_find.h>
 
 #define HTT_HTC_PKT_POOL_INIT_SIZE 100  /* enough for a large A-MPDU */
 
@@ -570,6 +571,13 @@ htt_attach(struct htt_pdev_t *pdev, int desc_pool_size)
 		ol_tx_target_credit_update(
 				pdev->txrx_pdev, ol_cfg_target_tx_credit(
 					pdev->ctrl_pdev));
+		DPTRACE(qdf_dp_trace_credit_record(QDF_HTT_ATTACH,
+			QDF_CREDIT_INC,
+			ol_cfg_target_tx_credit(pdev->ctrl_pdev),
+			qdf_atomic_read(&pdev->txrx_pdev->target_tx_credit),
+			qdf_atomic_read(&pdev->txrx_pdev->txq_grps[0].credit),
+			qdf_atomic_read(&pdev->txrx_pdev->txq_grps[1].credit)));
+
 	} else {
 		enum wlan_frm_fmt frm_type;
 
@@ -794,6 +802,8 @@ int htt_htc_attach(struct htt_pdev_t *pdev, uint16_t service_id)
 	connect.EpCallbacks.EpTxCompleteMultiple = NULL;
 	connect.EpCallbacks.EpRecv = htt_t2h_msg_handler;
 	connect.EpCallbacks.ep_resume_tx_queue = htt_tx_resume_handler;
+	connect.EpCallbacks.ep_padding_credit_update =
+					htt_tx_padding_credit_update_handler;
 
 	/* rx buffers currently are provided by HIF, not by EpRecvRefill */
 	connect.EpCallbacks.EpRecvRefill = NULL;

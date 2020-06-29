@@ -286,14 +286,14 @@ ucfg_policy_mgr_get_dfs_master_dynamic_enabled(struct wlan_objmgr_psoc *psoc,
  * ucfg_policy_mgr_init_chan_avoidance() - init channel avoidance in policy
  *					   manager
  * @psoc: pointer to psoc
- * @chan_list: channel list
+ * @chan_freq_list: channel frequency list
  * @chan_cnt: channel count
  *
  * Return: QDF_STATUS_SUCCESS up on success and any other status for failure.
  */
 QDF_STATUS
 ucfg_policy_mgr_init_chan_avoidance(struct wlan_objmgr_psoc *psoc,
-				    uint16_t *chan_list,
+				    qdf_freq_t *chan_freq_list,
 				    uint16_t chan_cnt);
 
 /**

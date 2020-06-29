@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -16,9 +16,19 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _CDS_QUEUE_H
-#define _CDS_QUEUE_H
+/**
+ * DOC: This file contains P2P public API's exposed.
+ */
 
-#include <queue.h> /* include BSD queue */
+#include "wlan_p2p_api.h"
+#include <wlan_objmgr_psoc_obj.h>
+#include "wlan_p2p_public_struct.h"
+#include "../../core/src/wlan_p2p_main.h"
 
-#endif /* end of _CDS_QUEUE_H */
+bool wlan_p2p_check_oui_and_force_1x1(uint8_t *assoc_ie, uint32_t assoc_ie_len)
+{
+	if (!assoc_ie || !assoc_ie_len)
+		return false;
+
+	return p2p_check_oui_and_force_1x1(assoc_ie, assoc_ie_len);
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -52,7 +52,8 @@
 #define WLAN_IPA_UC_RT_DEBUG_FILL_INTERVAL  10000
 
 #define WLAN_IPA_WLAN_HDR_DES_MAC_OFFSET    0
-#define WLAN_IPA_MAX_IFACE                  3
+#define WLAN_IPA_MAX_IFACE                  MAX_IPA_IFACE
+#define WLAN_IPA_CLIENT_MAX_IFACE           3
 #define WLAN_IPA_MAX_SYSBAM_PIPE            4
 #define WLAN_IPA_MAX_SESSION                5
 #define WLAN_IPA_MAX_STA_COUNT              41
@@ -185,7 +186,8 @@ struct wlan_ipa_tx_hdr {
  * @reserved1: Reserved not used
  * @reserved2: Reserved not used
  */
-#if defined(QCA_WIFI_QCA6290) || defined(QCA_WIFI_QCA6390)
+#if defined(QCA_WIFI_QCA6290) || defined(QCA_WIFI_QCA6390) || \
+    defined(QCA_WIFI_QCA6490) || defined(QCA_WIFI_QCA6750)
 struct frag_header {
 	uint8_t reserved[0];
 };
@@ -210,7 +212,8 @@ struct frag_header {
  * @reserved: Reserved not used
  */
 
-#if defined(QCA_WIFI_QCA6290) || defined(QCA_WIFI_QCA6390)
+#if defined(QCA_WIFI_QCA6290) || defined(QCA_WIFI_QCA6390) || \
+    defined(QCA_WIFI_QCA6490) || defined(QCA_WIFI_QCA6750)
 struct ipa_header {
 	uint8_t reserved[0];
 };
@@ -307,14 +310,12 @@ struct wlan_ipa_priv;
 /**
  * struct wlan_ipa_iface_context - IPA interface context
  * @ipa_ctx: IPA private context
- * @tl_context: TL context
  * @cons_client: IPA consumer pipe
  * @prod_client: IPA producer pipe
  * @prod_client: IPA producer pipe
  * @iface_id: IPA interface ID
  * @dev: Net device structure
  * @device_mode: Interface device mode
- * @sta_id: Interface station ID
  * @session_id: Session ID
  * @interface_lock: Interface lock
  * @ifa_address: Interface address
@@ -322,7 +323,6 @@ struct wlan_ipa_priv;
  */
 struct wlan_ipa_iface_context {
 	struct wlan_ipa_priv *ipa_ctx;
-	void *tl_context;
 
 	qdf_ipa_client_type_t cons_client;
 	qdf_ipa_client_type_t prod_client;
@@ -330,7 +330,6 @@ struct wlan_ipa_iface_context {
 	uint8_t iface_id;       /* This iface ID */
 	qdf_netdev_t dev;
 	enum QDF_OPMODE device_mode;
-	uint8_t sta_id;         /* This iface station ID */
 	uint8_t session_id;
 	qdf_spinlock_t interface_lock;
 	uint32_t ifa_address;
@@ -381,12 +380,10 @@ struct wlan_ipa_stats {
 /**
  * struct ipa_uc_stas_map - IPA UC assoc station map
  * @is_reserved: STA reserved flag
- * @sta_id: Station ID
  * @mac_addr: Station mac address
  */
 struct ipa_uc_stas_map {
 	bool is_reserved;
-	uint8_t sta_id;
 	struct qdf_mac_addr mac_addr;
 };
 
@@ -462,7 +459,6 @@ struct ipa_uc_fw_stats {
  * @node: Pending event list node
  * @type: WLAN IPA event type
  * @device_mode: Device mode
- * @sta_id: Station ID
  * @session_id: Session ID
  * @mac_addr: Mac address
  * @is_loading: Driver loading flag
@@ -472,7 +468,6 @@ struct wlan_ipa_uc_pending_event {
 	qdf_ipa_wlan_event type;
 	qdf_netdev_t net_dev;
 	uint8_t device_mode;
-	uint8_t sta_id;
 	uint8_t session_id;
 	uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
 	bool is_loading;
@@ -592,7 +587,7 @@ struct wlan_ipa_priv {
 	struct wlan_ipa_iface_context iface_context[WLAN_IPA_MAX_IFACE];
 	uint8_t num_iface;
 	void *dp_soc;
-	void *dp_pdev;
+	uint8_t dp_pdev_id;
 	struct wlan_ipa_config *config;
 	enum wlan_ipa_rm_state rm_state;
 	/*
@@ -720,9 +715,6 @@ struct wlan_ipa_priv {
 	(((_ipa_cfg)->ipa_config & (_mask)) == (_mask))
 
 #define BW_GET_DIFF(_x, _y) (unsigned long)((ULONG_MAX - (_y)) + (_x) + 1)
-
-#define WLAN_IPA_DBG_DUMP_RX_LEN 84
-#define WLAN_IPA_DBG_DUMP_TX_LEN 48
 
 #define IPA_RESOURCE_COMP_WAIT_TIME	500
 

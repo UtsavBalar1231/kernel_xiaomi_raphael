@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -458,9 +458,17 @@ static uint8_t htt_mon_rx_get_rtap_flags(struct htt_host_rx_desc_base *rx_desc)
 	return rtap_flags;
 }
 
-void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
-			      struct htt_host_rx_desc_base *rx_desc,
-			      struct mon_rx_status *rx_status)
+/**
+ * htt_rx_mon_get_rx_status() - Update information about the rx status,
+ * which is used later for radiotap updation.
+ * @rx_desc: Pointer to struct htt_host_rx_desc_base
+ * @rx_status: Return variable updated with rx_status
+ *
+ * Return: None
+ */
+static void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
+				     struct htt_host_rx_desc_base *rx_desc,
+				     struct mon_rx_status *rx_status)
 {
 	uint16_t channel_flags = 0;
 	struct mon_channel *ch_info = &pdev->mon_ch_info;
@@ -721,7 +729,8 @@ next_pop:
 #endif /* CONFIG_HL_SUPPORT */
 
 #if defined(FEATURE_MONITOR_MODE_SUPPORT)
-#if !defined(QCA6290_HEADERS_DEF) && !defined(QCA6390_HEADERS_DEF)
+#if !defined(QCA6290_HEADERS_DEF) && !defined(QCA6390_HEADERS_DEF) && \
+    !defined(QCA6490_HEADERS_DEF) && !defined(QCA6750_HEADERS_DEF)
 static void
 htt_rx_parse_ppdu_start_status(struct htt_host_rx_desc_base *rx_desc,
 			       struct ieee80211_rx_status *rs)

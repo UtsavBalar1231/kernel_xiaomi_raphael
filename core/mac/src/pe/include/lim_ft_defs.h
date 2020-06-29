@@ -51,7 +51,7 @@ typedef struct sSirFTPreAuthReq {
 	 * We expect only one response per request.
 	 */
 	bool bPreAuthRspProcessed;
-	uint8_t preAuthchannelNum;
+	uint16_t pre_auth_channel_freq;
 	/* BSSID currently associated to suspend the link */
 	tSirMacAddr currbssId;
 	tSirMacAddr preAuthbssId;       /* BSSID to preauth to */
@@ -68,7 +68,7 @@ typedef struct sSirFTPreAuthReq {
 typedef struct sSirFTPreAuthRsp {
 	uint16_t messageType;   /* eWNI_SME_FT_PRE_AUTH_RSP */
 	uint16_t length;
-	uint8_t smeSessionId;
+	uint8_t vdev_id;
 	tSirMacAddr preAuthbssId;       /* BSSID to preauth to */
 	QDF_STATUS status;
 	uint16_t ft_ies_length;
@@ -83,7 +83,7 @@ typedef struct sSirFTPreAuthRsp {
 typedef struct sSirFTUpdateKeyInfo {
 	uint16_t messageType;
 	uint16_t length;
-	uint32_t smeSessionId;
+	uint32_t vdev_id;
 	struct qdf_mac_addr bssid;
 	tSirKeyMaterial keyMaterial;
 } tSirFTUpdateKeyInfo, *tpSirFTUpdateKeyInfo;

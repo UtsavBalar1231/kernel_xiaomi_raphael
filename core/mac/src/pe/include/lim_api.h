@@ -189,20 +189,64 @@ QDF_STATUS lim_post_msg_high_priority(struct mac_context *mac,
  */
 void lim_message_processor(struct mac_context *, struct scheduler_msg *);
 
+#ifdef QCA_IBSS_SUPPORT
 /**
- * Function to handle IBSS coalescing.
- * Beacon Processing module to call this.
+ * lim_handle_ibss_coalescing() - Function to handle IBSS coalescing.
+ * @param  mac	  - Pointer to Global MAC structure
+ * @param  pBeacon - Parsed Beacon Frame structure
+ * @param  pRxPacketInfo - Pointer to RX packet info structure
+ * @pe_session - pointer to pe session
+ *
+ * This function is called upon receiving Beacon/Probe Response
+ * while operating in IBSS mode.
+ *
+ * @return Status whether to process or ignore received Beacon Frame
  */
-QDF_STATUS lim_handle_ibss_coalescing(struct mac_context *,
-				      tpSchBeaconStruct,
-				      uint8_t *, struct pe_session *);
+QDF_STATUS
+lim_handle_ibss_coalescing(struct mac_context *mac,
+			   tpSchBeaconStruct pBeacon,
+			   uint8_t *pRxPacketInfo,
+			   struct pe_session *pe_session);
+#else
+/**
+ * lim_handle_ibss_coalescing() - Function to handle IBSS coalescing.
+ * @param  mac	  - Pointer to Global MAC structure
+ * @param  pBeacon - Parsed Beacon Frame structure
+ * @param  pRxPacketInfo - Pointer to RX packet info structure
+ * @pe_session - pointer to pe session
+ *
+ * This function is dummy
+ *
+ * @return Status whether to process or ignore received Beacon Frame
+ */
+static inline QDF_STATUS
+lim_handle_ibss_coalescing(struct mac_context *mac,
+			   tpSchBeaconStruct pBeacon,
+			   uint8_t *pRxPacketInfo,
+			   struct pe_session *pe_session)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 /* / Function used by other Sirius modules to read global SME state */
 static inline tLimSmeStates lim_get_sme_state(struct mac_context *mac)
 {
 	return mac->lim.gLimSmeState;
 }
 
-void lim_received_hb_handler(struct mac_context *, uint8_t,
+/**
+ * lim_received_hb_handler() - This function is called by
+ * sch_beacon_process() upon receiving a Beacon on STA. This
+ * also gets called upon receiving Probe Response after heat
+ * beat failure is detected.
+ *
+ * @mac - global mac structure
+ * @chan_freq - channel frequency indicated in Beacon, Probe
+ *
+ * Response return - none
+ */
+void lim_received_hb_handler(struct mac_context *, uint32_t,
 			     struct pe_session *);
 
 /* / Function that triggers STA context deletion */
@@ -283,6 +327,10 @@ pe_roam_synch_callback(struct mac_context *mac_ctx,
 		       struct roam_offload_synch_ind *roam_sync_ind_ptr,
 		       struct bss_description *bss_desc_ptr,
 		       enum sir_roam_op_code reason);
+
+void
+lim_check_ft_initial_im_association(struct roam_offload_synch_ind *roam_synch,
+				    struct pe_session *session_entry);
 
 /**
  * pe_disconnect_callback() - Callback to handle deauth event is received
@@ -366,10 +414,10 @@ static inline void lim_get_phy_mode(struct mac_context *mac, uint32_t *phyMode,
 
 /* ----------------------------------------------------------------------- */
 static inline void lim_get_rf_band_new(struct mac_context *mac,
-				       enum band_info *band,
+				       enum reg_wifi_band *band,
 				       struct pe_session *pe_session)
 {
-	*band = pe_session ? pe_session->limRFBand : BAND_UNKNOWN;
+	*band = pe_session ? pe_session->limRFBand : REG_BAND_UNKNOWN;
 }
 
 /**

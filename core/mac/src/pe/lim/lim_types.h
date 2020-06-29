@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -74,7 +74,6 @@
 #define LIM_MLM_TSPEC_REQ           (LIM_MLM_MSG_START + 20)
 #define LIM_MLM_TSPEC_CNF           (LIM_MLM_MSG_START + 21)
 #define LIM_MLM_TSPEC_IND           (LIM_MLM_MSG_START + 22)
-#define LIM_MLM_SETKEYS_REQ         (LIM_MLM_MSG_START + 23)
 #define LIM_MLM_SETKEYS_CNF         (LIM_MLM_MSG_START + 24)
 #define LIM_MLM_LINK_TEST_STOP_REQ  (LIM_MLM_MSG_START + 30)
 #define LIM_MLM_PURGE_STA_IND       (LIM_MLM_MSG_START + 31)
@@ -113,6 +112,7 @@
 
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40      /* Bit 6 will be used to control BD rate for Management frames */
 #define HAL_USE_PEER_STA_REQUESTED_MASK   0x80  /* bit 7 will be used to control frames for p2p interface */
+#define HAL_USE_PMF   0x20
 
 #define LIM_DOS_PROTECTION_TIME 1000 //1000ms
 #define LIM_MIN_RSSI 0 /* 0dbm */
@@ -157,7 +157,7 @@ typedef struct sLimMlmStartReq {
 	tSirMacBeaconInterval beaconPeriod;
 	uint8_t dtimPeriod;
 	tSirMacCfParamSet cfParamSet;
-	tSirMacChanNum channelNumber;
+	uint32_t oper_ch_freq;
 	ePhyChanBondState cbMode;
 	tSirMacRateSet rateSet;
 	uint8_t sessionId;      /* Added For BT-AMP Support */
@@ -340,7 +340,8 @@ typedef struct sLimMlmSetKeysCnf {
 bool lim_process_sme_req_messages(struct mac_context *, struct scheduler_msg *);
 void lim_process_mlm_req_messages(struct mac_context *, struct scheduler_msg *);
 void lim_process_mlm_rsp_messages(struct mac_context *, uint32_t, uint32_t *);
-void lim_process_sme_del_bss_rsp(struct mac_context *, uint32_t, struct pe_session *);
+void lim_process_sme_del_bss_rsp(struct mac_context *mac,
+				 struct pe_session *pe_session);
 
 /**
  * lim_process_mlm_start_cnf(): called to processes MLM_START_CNF message from
@@ -425,6 +426,7 @@ bool lim_fill_lim_assoc_ind_params(
  * @assoc_ind: PE association indication structure
  * @sme_assoc_ind: SME association indication
  * @session_entry: PE session entry
+ * @assoc_req_alloc: malloc memory for assoc_req or not
  *
  * Return: None
  */
@@ -432,7 +434,7 @@ void
 lim_fill_sme_assoc_ind_params(
 	struct mac_context *mac_ctx,
 	tpLimMlmAssocInd assoc_ind, struct assoc_ind *sme_assoc_ind,
-	struct pe_session *session_entry);
+	struct pe_session *session_entry, bool assoc_req_alloc);
 void lim_send_mlm_assoc_ind(struct mac_context *mac, tpDphHashNode sta,
 			    struct pe_session *pe_session);
 
@@ -487,8 +489,8 @@ void lim_process_action_frame_no_session(struct mac_context *mac, uint8_t *pRxMe
 void lim_populate_mac_header(struct mac_context *, uint8_t *, uint8_t, uint8_t,
 				      tSirMacAddr, tSirMacAddr);
 QDF_STATUS lim_send_probe_req_mgmt_frame(struct mac_context *, tSirMacSSid *,
-					    tSirMacAddr, uint8_t, tSirMacAddr,
-					    uint32_t, uint16_t *, uint8_t *);
+					 tSirMacAddr, qdf_freq_t, tSirMacAddr,
+					 uint32_t, uint16_t *, uint8_t *);
 
 /**
  * lim_send_probe_rsp_mgmt_frame() - Send probe response
@@ -621,8 +623,15 @@ void lim_send_disassoc_mgmt_frame(struct mac_context *, uint16_t, tSirMacAddr,
 void lim_send_deauth_mgmt_frame(struct mac_context *, uint16_t, tSirMacAddr, struct pe_session *,
 				bool waitForAck);
 
+/**
+ * lim_process_mlm_update_hidden_ssid_rsp() - process hidden ssid response
+ * @mac_ctx: global mac context
+ * @vdev_id: vdev id
+ *
+ * Return: None
+ */
 void lim_process_mlm_update_hidden_ssid_rsp(struct mac_context *mac_ctx,
-					    struct scheduler_msg *msg);
+					    uint8_t vdev_id);
 
 tSirResultCodes lim_mlm_add_bss(struct mac_context *, tLimMlmStartReq *,
 				struct pe_session *pe_session);
@@ -719,10 +728,8 @@ QDF_STATUS lim_process_sme_tdls_add_sta_req(struct mac_context *mac,
 QDF_STATUS lim_process_sme_tdls_del_sta_req(struct mac_context *mac,
 					    void *msg);
 
-void lim_send_sme_mgmt_tx_completion(
-		struct mac_context *mac,
-		uint32_t sme_session_id,
-		uint32_t txCompleteStatus);
+void lim_send_sme_mgmt_tx_completion(struct mac_context *mac, uint32_t vdev_id,
+				     uint32_t txCompleteStatus);
 QDF_STATUS lim_delete_tdls_peers(struct mac_context *mac_ctx,
 				    struct pe_session *session_entry);
 QDF_STATUS lim_process_tdls_add_sta_rsp(struct mac_context *mac, void *msg, struct pe_session *);
@@ -782,14 +789,6 @@ void lim_tear_down_link_with_ap(struct mac_context *mac,
 /* / Function that defers the messages received */
 uint32_t lim_defer_msg(struct mac_context *, struct scheduler_msg *);
 
-/* / Function that Switches the Channel and sets the CB Mode */
-void lim_set_channel(struct mac_context *mac, uint8_t channel,
-		uint8_t ch_center_freq_seg0, uint8_t ch_center_freq_seg1,
-		enum phy_ch_width ch_width, int8_t maxTxPower,
-		uint8_t peSessionId, uint32_t cac_duration_ms,
-		uint32_t dfs_regdomain);
-
-
 #ifdef ANI_SUPPORT_11H
 /* / Function that sends Measurement Report action frame */
 QDF_STATUS lim_send_meas_report_frame(struct mac_context *, tpSirMacMeasReqActionFrame,
@@ -800,33 +799,64 @@ QDF_STATUS lim_send_tpc_report_frame(struct mac_context *, tpSirMacTpcReqActionF
 					tSirMacAddr, struct pe_session *pe_session);
 #endif
 
-/* Function(s) to handle responses received from HAL */
-void lim_process_mlm_add_bss_rsp(struct mac_context *mac,
-				 struct scheduler_msg *limMsgQ);
+/**
+ * lim_handle_add_bss_rsp() - Handle add bss response
+ * @mac_ctx: mac context
+ * @add_bss_rsp: add bss rsp
+ *
+ * This function is called to handle all types of add bss rsp
+ * It will free memory of add_bss_rsp in the end after rsp is handled.
+ *
+ * Return: None
+ */
+void lim_handle_add_bss_rsp(struct mac_context *mac_ctx,
+			    struct add_bss_rsp *add_bss_rsp);
+
 void lim_process_mlm_add_sta_rsp(struct mac_context *mac,
 				struct scheduler_msg *limMsgQt,
 				 struct pe_session *pe_session);
 void lim_process_mlm_del_sta_rsp(struct mac_context *mac,
 				 struct scheduler_msg *limMsgQ);
+
+/**
+ * lim_process_mlm_del_bss_rsp () - API to process delete bss response
+ * @mac: Pointer to Global MAC structure
+ * @vdev_stop_rsp: pointer to vdev stop response
+ * @pe_session: pointer to pe_session
+ *
+ * Return: None
+ */
 void lim_process_mlm_del_bss_rsp(struct mac_context *mac,
-				 struct scheduler_msg *limMsgQ,
-				 struct pe_session *);
+				 struct del_bss_resp *vdev_stop_rsp,
+				 struct pe_session *pe_session);
+
 void lim_process_sta_mlm_add_sta_rsp(struct mac_context *mac,
 				     struct scheduler_msg *limMsgQ,
 				     struct pe_session *pe_session);
 void lim_process_sta_mlm_del_sta_rsp(struct mac_context *mac,
 				     struct scheduler_msg *limMsgQ,
 				     struct pe_session *pe_session);
+
+/**
+ * lim_process_sta_mlm_del_bss_rsp() - handle del bss response of STA
+ * @mac: Pointer to Global MAC structure
+ * @vdev_stop_rsp: pointer to vdev stop response
+ * @pe_session: pointer to pe_session
+ *
+ * Return: none
+ */
 void lim_process_sta_mlm_del_bss_rsp(struct mac_context *mac,
-				     struct scheduler_msg *limMsgQ,
+				     struct del_bss_resp *vdev_stop_rsp,
 				     struct pe_session *pe_session);
+
 void lim_process_mlm_set_sta_key_rsp(struct mac_context *mac,
 				     struct scheduler_msg *limMsgQ);
 void lim_process_mlm_set_bss_key_rsp(struct mac_context *mac,
 				     struct scheduler_msg *limMsgQ);
 
 /* Function to process WMA_SWITCH_CHANNEL_RSP message */
-void lim_process_switch_channel_rsp(struct mac_context *mac, void *);
+void lim_process_switch_channel_rsp(struct mac_context *mac,
+				    struct vdev_start_response *rsp);
 
 /**
  * lim_sta_handle_connect_fail() - handle connect failure of STA
@@ -836,7 +866,28 @@ void lim_process_switch_channel_rsp(struct mac_context *mac, void *);
  */
 QDF_STATUS lim_sta_handle_connect_fail(join_params *param);
 
+/**
+ * lim_join_result_callback() - Callback to handle join rsp
+ * @mac: Pointer to Global MAC structure
+ * @vdev_id: vdev id
+ *
+ * This callback function is used to delete PE session
+ * entry and send join response to sme.
+ *
+ * Return: None
+ */
+void lim_join_result_callback(struct mac_context *mac,
+			      uint8_t vdev_id);
+
+#ifdef WLAN_FEATURE_HOST_ROAM
 QDF_STATUS lim_sta_reassoc_error_handler(struct reassoc_params *param);
+#else
+static inline
+QDF_STATUS lim_sta_reassoc_error_handler(struct reassoc_params *param)
+{
+	return QDF_STATUS_E_NOSUPPORT;
+}
+#endif
 
 #ifdef WLAN_FEATURE_11W
 /* 11w send SA query request action frame */
@@ -1092,11 +1143,26 @@ typedef enum sHalBitVal         /* For Bit operations */
 	eHAL_SET
 } tHalBitVal;
 
+/**
+ * lim_send_addba_response_frame(): Send ADDBA response action frame to peer
+ * @mac_ctx: mac context
+ * @peer_mac: Peer MAC address
+ * @tid: TID for which addba response is being sent
+ * @session: PE session entry
+ * @addba_extn_present: ADDBA extension present flag
+ * @amsdu_support: amsdu in ampdu support
+ * @is_wep: protected bit in fc
+ *
+ * This function is called when ADDBA request is successful. ADDBA response is
+ * setup by calling addba_response_setup API and frame is then sent out OTA.
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS lim_send_addba_response_frame(struct mac_context *mac_ctx,
 					 tSirMacAddr peer_mac, uint16_t tid,
 					 struct pe_session *session,
 					 uint8_t addba_extn_present,
-					 uint8_t amsdu_support);
+					 uint8_t amsdu_support, uint8_t is_wep);
 
 /**
  * lim_send_delba_action_frame() - Send delba to peer
@@ -1281,6 +1347,7 @@ void lim_process_assoc_cleanup(struct mac_context *mac_ctx,
  * @pmf_connection: flag indicating pmf connection
  * @assoc_req_copied: boolean to indicate if assoc req was copied to tmp above
  * @dup_entry: flag indicating if duplicate entry found
+ * @force_1x1: flag to indicate if the STA nss needs to be downgraded to 1x1
  *
  * Return: void
  */
@@ -1292,5 +1359,22 @@ bool lim_send_assoc_ind_to_sme(struct mac_context *mac_ctx,
 			       enum ani_akm_type akm_type,
 			       bool pmf_connection,
 			       bool *assoc_req_copied,
-			       bool dup_entry);
+			       bool dup_entry, bool force_1x1);
+
+/**
+ * lim_process_sta_add_bss_rsp_pre_assoc - Processes handoff request
+ * @mac_ctx:  Pointer to mac context
+ * @pAddBssParams: Bss params including rsp data
+ * @session_entry: PE session handle
+ * @status: Qdf status
+ *
+ * This function is called to process a WMA_ADD_BSS_RSP from HAL.
+ * Upon receipt of this message from HAL if the state is pre assoc.
+ *
+ * Return: Null
+ */
+void lim_process_sta_add_bss_rsp_pre_assoc(struct mac_context *mac_ctx,
+					   struct bss_params *add_bss_params,
+					   struct pe_session *session_entry,
+					   QDF_STATUS status);
 #endif /* __LIM_TYPES_H */

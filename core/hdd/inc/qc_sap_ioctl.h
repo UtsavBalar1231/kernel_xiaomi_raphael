@@ -226,7 +226,7 @@ enum {
 	QCSAP_PARAM_CHAN_WIDTH,
 	QCSAP_PARAM_SET_TXRX_STATS,
 	QCASAP_SET_11AX_RATE,
-	QCASAP_SET_PEER_RATE,
+	QCASAP_SET_PEER_RATE, /* Not Supported */
 	QCASAP_PARAM_DCM,
 	QCASAP_PARAM_RANGE_EXT,
 	QCSAP_SET_DEFAULT_AMPDU,
@@ -236,9 +236,11 @@ enum {
 	QCSAP_SET_BTCOEX_LOW_RSSI_THRESHOLD,
 };
 
-int iw_get_channel_list(struct net_device *dev,
-		struct iw_request_info *info,
-		union iwreq_data *wrqu, char *extra);
+int iw_get_channel_list_with_cc(struct net_device *dev,
+				mac_handle_t mac_handle,
+				struct iw_request_info *info,
+				union iwreq_data *wrqu,
+				char *extra);
 
 #endif /* __linux__ */
 

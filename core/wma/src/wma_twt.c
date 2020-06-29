@@ -121,9 +121,9 @@ int wma_twt_disable_comp_event_handler(void *handle, uint8_t *event,
 void wma_set_twt_peer_caps(tpAddStaParams params, struct peer_assoc_params *cmd)
 {
 	if (params->twt_requestor)
-		cmd->peer_flags |= WMI_PEER_TWT_REQ;
+		cmd->twt_requester = 1;
 	if (params->twt_responder)
-		cmd->peer_flags |= WMI_PEER_TWT_RESP;
+		cmd->twt_responder = 1;
 }
 
 QDF_STATUS wma_twt_process_add_dialog(

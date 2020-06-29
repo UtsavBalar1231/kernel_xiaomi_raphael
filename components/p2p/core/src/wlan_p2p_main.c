@@ -552,7 +552,6 @@ static QDF_STATUS p2p_object_init_params(
 			cfg_get(psoc, CFG_GO_LINK_MONITOR_PERIOD);
 	p2p_soc_obj->param.p2p_device_addr_admin =
 			cfg_get(psoc, CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED);
-
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -1075,8 +1074,8 @@ QDF_STATUS p2p_event_flush_callback(struct scheduler_msg *msg)
 		break;
 	case P2P_EVENT_MGMT_TX_ACK_CNF:
 		tx_conf_event = (struct p2p_tx_conf_event *)msg->bodyptr;
-		qdf_mem_free(tx_conf_event);
 		qdf_nbuf_free(tx_conf_event->nbuf);
+		qdf_mem_free(tx_conf_event);
 		break;
 	case P2P_EVENT_LO_STOPPED:
 		lo_stop_event = (struct p2p_lo_stop_event *)msg->bodyptr;
@@ -1089,6 +1088,89 @@ QDF_STATUS p2p_event_flush_callback(struct scheduler_msg *msg)
 	}
 
 	return QDF_STATUS_SUCCESS;
+}
+
+bool p2p_check_oui_and_force_1x1(uint8_t *assoc_ie, uint32_t assoc_ie_len)
+{
+	const uint8_t *vendor_ie, *p2p_ie, *pos;
+	uint8_t rem_len, attr;
+	uint16_t attr_len;
+
+	vendor_ie = (uint8_t *)p2p_get_p2pie_ptr(assoc_ie, assoc_ie_len);
+	if (!vendor_ie) {
+		p2p_debug("P2P IE not found");
+		return false;
+	}
+
+	rem_len = vendor_ie[1];
+	if (rem_len < (2 + OUI_SIZE_P2P) || rem_len > WLAN_MAX_IE_LEN) {
+		p2p_err("Invalid IE len %d", rem_len);
+		return false;
+	}
+
+	p2p_ie = vendor_ie + HEADER_LEN_P2P_IE;
+	rem_len -= OUI_SIZE_P2P;
+
+	while (rem_len) {
+		attr = p2p_ie[0];
+		attr_len = LE_READ_2(&p2p_ie[1]);
+		if (attr_len > rem_len)  {
+			p2p_err("Invalid len %d for elem:%d", attr_len, attr);
+			return false;
+		}
+
+		switch (attr) {
+		case P2P_ATTR_CAPABILITY:
+		case P2P_ATTR_DEVICE_ID:
+		case P2P_ATTR_GROUP_OWNER_INTENT:
+		case P2P_ATTR_STATUS:
+		case P2P_ATTR_LISTEN_CHANNEL:
+		case P2P_ATTR_OPERATING_CHANNEL:
+		case P2P_ATTR_GROUP_INFO:
+		case P2P_ATTR_MANAGEABILITY:
+		case P2P_ATTR_CHANNEL_LIST:
+			break;
+
+		case P2P_ATTR_DEVICE_INFO:
+			if (attr_len < (QDF_MAC_ADDR_SIZE +
+					MAX_CONFIG_METHODS_LEN + 8 +
+					DEVICE_CATEGORY_MAX_LEN)) {
+				p2p_err("Invalid Device info attr len %d",
+					attr_len);
+				return false;
+			}
+
+			/* move by attr id and 2 bytes of attr len */
+			pos = p2p_ie + 3;
+
+			/*
+			 * the P2P Device info is of format:
+			 * attr_id - 1 byte
+			 * attr_len - 2 bytes
+			 * device mac addr - 6 bytes
+			 * config methods - 2 bytes
+			 * primary device type - 8bytes
+			 *  -primary device type category - 1 byte
+			 *  -primary device type oui - 4bytes
+			 * number of secondary device type - 2 bytes
+			 */
+			pos += ETH_ALEN + MAX_CONFIG_METHODS_LEN +
+			       DEVICE_CATEGORY_MAX_LEN;
+
+			if (!qdf_mem_cmp(pos, P2P_1X1_WAR_OUI,
+					 P2P_1X1_OUI_LEN))
+				return true;
+
+			break;
+		default:
+			p2p_err("Invalid P2P attribute");
+			break;
+		}
+		p2p_ie += (3 + attr_len);
+		rem_len -= (3 + attr_len);
+	}
+
+	return false;
 }
 
 #ifdef FEATURE_P2P_LISTEN_OFFLOAD
@@ -1427,4 +1509,5 @@ QDF_STATUS p2p_status_stop_bss(struct wlan_objmgr_vdev *vdev)
 
 	return QDF_STATUS_SUCCESS;
 }
+
 #endif /* WLAN_FEATURE_P2P_DEBUG */

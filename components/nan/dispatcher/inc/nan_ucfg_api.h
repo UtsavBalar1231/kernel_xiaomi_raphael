@@ -27,15 +27,20 @@
 #include "nan_public_structs.h"
 
 #ifdef WLAN_FEATURE_NAN
+#define ucfg_nan_set_ndi_state(vdev, state) \
+	__ucfg_nan_set_ndi_state(vdev, state, __func__)
+
 /**
  * ucfg_nan_set_ndi_state: set ndi state
  * @vdev: pointer to vdev object
  * @state: value to set
+ * @func: Caller of this API
  *
  * Return: status of operation
  */
-QDF_STATUS ucfg_nan_set_ndi_state(struct wlan_objmgr_vdev *vdev,
-				  uint32_t state);
+QDF_STATUS __ucfg_nan_set_ndi_state(struct wlan_objmgr_vdev *vdev,
+				    enum nan_datapath_state state,
+				    const char *func);
 
 /**
  * ucfg_nan_psoc_open: Setup NAN priv object params on PSOC open
@@ -276,12 +281,12 @@ bool ucfg_is_nan_sap_supported(struct wlan_objmgr_psoc *psoc);
  * ucfg_is_nan_enable_allowed() - ucfg API to query if NAN Discovery is
  * allowed
  * @psoc: pointer to psoc object
- * @nan_chan: NAN Discovery primary social channel
+ * @nan_ch_freq: NAN Discovery primary social channel
  *
  * Return: True if NAN Discovery enable is allowed, False otherwise
  */
 bool ucfg_is_nan_enable_allowed(struct wlan_objmgr_psoc *psoc,
-				uint8_t nan_chan);
+				uint32_t nan_ch_freq);
 
 /**
  * ucfg_is_nan_disc_active() - ucfg API to query if NAN Discovery is
@@ -382,6 +387,15 @@ ucfg_nan_set_vdev_creation_supp_by_fw(struct wlan_objmgr_psoc *psoc, bool set);
 bool ucfg_nan_is_vdev_creation_allowed(struct wlan_objmgr_psoc *psoc);
 
 /**
+ * ucfg_nan_is_sta_nan_ndi_4_port_allowed- Get support for 4 port (STA +
+ * NAN Disc + NDI + NDI)
+ * @psoc: pointer to psoc object
+ *
+ * Return: True if 4 port concurrency allowed or not.
+ */
+bool ucfg_nan_is_sta_nan_ndi_4_port_allowed(struct wlan_objmgr_psoc *psoc);
+
+/**
  * ucfg_disable_nan_discovery() - Disable NAN discovery
  * @psoc: pointer to psoc object
  * @data: Data to be sent to NAN discovery engine, which runs in firmware
@@ -395,6 +409,20 @@ bool ucfg_nan_is_vdev_creation_allowed(struct wlan_objmgr_psoc *psoc);
  */
 QDF_STATUS ucfg_disable_nan_discovery(struct wlan_objmgr_psoc *psoc,
 				      uint8_t *data, uint32_t data_len);
+
+/**
+ * ucfg_nan_disable_ndi() - Disable the NDI with given vdev_id
+ * @psoc: pointer to psoc object
+ * @ndi_vdev_id: vdev_id of the NDI to be disabled
+ *
+ * Disable all the NDPs present on the given NDI by sending NDP_END_ALL
+ * to firmware. Firmwere sends an immediate response(NDP_HOST_UPDATE) with
+ * ndp_disable param as 1 followed by NDP_END indication for all the NDPs.
+ *
+ * Return: status of operation
+ */
+QDF_STATUS
+ucfg_nan_disable_ndi(struct wlan_objmgr_psoc *psoc, uint32_t ndi_vdev_id);
 #else /* WLAN_FEATURE_NAN */
 
 static inline
@@ -429,6 +457,12 @@ static inline bool ucfg_is_nan_disc_active(struct wlan_objmgr_psoc *psoc)
 }
 
 static inline
+enum nan_datapath_state ucfg_nan_get_ndi_state(struct wlan_objmgr_vdev *vdev)
+{
+	return NAN_DATA_INVALID_STATE;
+}
+
+static inline
 bool ucfg_nan_is_enable_disable_in_progress(struct wlan_objmgr_psoc *psoc)
 {
 	return false;
@@ -453,10 +487,23 @@ bool ucfg_nan_is_vdev_creation_allowed(struct wlan_objmgr_psoc *psoc)
 }
 
 static inline
+bool ucfg_nan_is_sta_nan_ndi_4_port_allowed(struct wlan_objmgr_psoc *psoc)
+{
+	return false;
+}
+
+static inline
 QDF_STATUS ucfg_disable_nan_discovery(struct wlan_objmgr_psoc *psoc,
 				      uint8_t *data, uint32_t data_len)
 {
 	return QDF_STATUS_SUCCESS;
+}
+
+static inline
+QDF_STATUS
+ucfg_nan_disable_ndi(struct wlan_objmgr_psoc *psoc, uint32_t ndi_vdev_id)
+{
+	return QDF_STATUS_E_INVAL;
 }
 #endif /* WLAN_FEATURE_NAN */
 #endif /* _NAN_UCFG_API_H_ */

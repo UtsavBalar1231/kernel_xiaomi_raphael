@@ -292,8 +292,12 @@
  * @Min: 0
  * @Max: 15
  * @Default: 0
- * gMaxAmsduNum is the number of MSDU's transmitted in the 11n aggregate
+ *
+ * gMaxAmsduNum is the number of MSDU's transmitted in the aggregated
  * frame. Setting it to a value larger than 1 enables transmit aggregation.
+ * Set the value to 0 to enable FW automode selection where it decides
+ * the maximum number of MSDUs in AMSDU based on connection mode.
+ *
  * It is a PHY parameter that applies to all vdev's in firmware.
  *
  * Supported Feature: 11n aggregation

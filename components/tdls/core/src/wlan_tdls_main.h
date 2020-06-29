@@ -94,13 +94,13 @@
 /**
  * struct tdls_conn_info - TDLS connection record
  * @session_id: session id
- * @sta_id: sta id
+ * @valid_entry: valid entry(set to true upon peer create resp from firmware)
  * @peer_mac: peer address
  * @index: index to store array offset.
  */
 struct tdls_conn_info {
 	uint8_t session_id;
-	uint8_t sta_id;
+	bool valid_entry;
 	uint8_t index;
 	struct qdf_mac_addr peer_mac;
 };
@@ -172,7 +172,6 @@ struct tdls_set_state_info {
  * @tdls_evt_cb_data: tdls event user data
  * @tdls_peer_context: userdata for register/deregister TDLS peer
  * @tdls_reg_peer: register tdls peer with datapath
- * @tdls_dereg_peer: deregister tdls peer from datapath
  * @tx_q_ack: queue for tx frames waiting for ack
  * @tdls_con_cap: tdls concurrency support
  * @tdls_send_mgmt_req: store eWNI_SME_TDLS_SEND_MGMT_REQ value
@@ -215,7 +214,6 @@ struct tdls_soc_priv_obj {
 	void *tdls_evt_cb_data;
 	void *tdls_peer_context;
 	tdls_register_peer_callback tdls_reg_peer;
-	tdls_deregister_peer_callback tdls_dereg_peer;
 	tdls_dp_vdev_update_flags_callback tdls_dp_vdev_update;
 	qdf_list_t tx_q_ack;
 	enum tdls_conc_cap tdls_con_cap;
@@ -273,7 +271,8 @@ struct tdls_peer_mlme_info {
  * @node: node
  * @vdev_priv: tdls vdev priv obj
  * @peer_mac: peer mac address
- * @sta_id: station identifier
+ * @valid_entry: entry valid or not (set to true when peer create resp is
+ *               received from FW)
  * @rssi: rssi
  * @tdls_support: tdls support
  * @link_status: tdls link status
@@ -304,7 +303,7 @@ struct tdls_peer {
 	qdf_list_node_t node;
 	struct tdls_vdev_priv_obj *vdev_priv;
 	struct qdf_mac_addr peer_mac;
-	uint16_t sta_id;
+	bool valid_entry;
 	int8_t rssi;
 	enum tdls_peer_capab tdls_support;
 	enum tdls_link_state link_status;

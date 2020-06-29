@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -62,7 +62,7 @@
 #define CFG_STR_DATA_LEN     17
 #define CFG_EDCA_DATA_LEN    17
 #define CFG_MAX_TX_POWER_2_4_LEN    128
-#define CFG_MAX_TX_POWER_5_LEN      128
+#define CFG_MAX_TX_POWER_5_LEN      256
 #define CFG_POWER_USAGE_MAX_LEN      4
 #define CFG_MAX_STR_LEN       256
 #define MAX_VENDOR_IES_LEN 1532
@@ -386,9 +386,6 @@ struct wlan_mlme_edca_params {
 #define MLME_NUM_WLM_LATENCY_LEVEL 4
 #define MLME_RMENABLEDCAP_MAX_LEN  5
 
-#define LFR3_STA_ROAM_DISABLE_BY_P2P BIT(0)
-#define LFR3_STA_ROAM_DISABLE_BY_NAN BIT(1)
-
 /**
  * struct mlme_ht_capabilities_info - HT Capabilities Info
  * @l_sig_tx_op_protection: L-SIG TXOP Protection Mechanism support
@@ -668,6 +665,7 @@ struct wlan_mlme_wps_params {
  * @go_11ac_override: Override GO bandwidth to 11ac
  * @sap_sae_enabled: enable sae in sap mode
  * @is_sap_bcast_deauth_enabled: enable bcast deauth for sap
+ * @is_6g_sap_fd_enabled: enable fils discovery on sap
  */
 struct wlan_mlme_cfg_sap {
 	uint8_t cfg_ssid[WLAN_SSID_MAX_LEN];
@@ -705,6 +703,7 @@ struct wlan_mlme_cfg_sap {
 	bool go_11ac_override;
 	bool sap_sae_enabled;
 	bool is_sap_bcast_deauth_enabled;
+	bool is_6g_sap_fd_enabled;
 };
 
 /**
@@ -717,6 +716,7 @@ struct wlan_mlme_cfg_sap {
  * @dfs_prefer_non_dfs: perefer non dfs channel after radar
  * @dfs_disable_japan_w53: Disable W53 channels
  * @sap_tx_leakage_threshold: sap tx leakage threshold
+ * @dfs_pri_multiplier: dfs_pri_multiplier for handle missing pulses
  */
 struct wlan_mlme_dfs_cfg {
 	bool dfs_master_capable;
@@ -727,6 +727,7 @@ struct wlan_mlme_dfs_cfg {
 	bool dfs_prefer_non_dfs;
 	bool dfs_disable_japan_w53;
 	uint32_t sap_tx_leakage_threshold;
+	uint32_t dfs_pri_multiplier;
 };
 
 /**
@@ -854,6 +855,10 @@ struct mlme_vht_capabilities_info {
 	uint8_t as_cap;
 	bool disable_ldpc_with_txbf_ap;
 	bool vht_mcs_10_11_supp;
+	uint8_t extended_nss_bw_supp;
+	uint8_t vht_extended_nss_bw_cap;
+	uint8_t max_nsts_total;
+	bool restricted_80p80_bw_supp;
 };
 
 /**
@@ -944,12 +949,15 @@ struct wlan_mlme_chain_cfg {
 /**
  * struct mlme_tgt_caps - mlme related capability coming from target (FW)
  * @data_stall_recovery_fw_support: does target supports data stall recovery.
+ * @stop_all_host_scan_support: Target capability that indicates if the target
+ * supports stop all host scan request type.
  *
  * Add all the mlme-tgt related capablities here, and the public API would fill
  * the related capability in the required mlme cfg structure.
  */
 struct mlme_tgt_caps {
 	bool data_stall_recovery_fw_support;
+	bool stop_all_host_scan_support;
 };
 
 /**
@@ -1119,14 +1127,15 @@ struct wlan_mlme_chainmask {
  * @data_stall_recovery_fw_support: whether FW supports Data stall recovery.
  * @enable_change_channel_bandwidth: enable/disable change channel bw in mission
  * mode
+ * @disable_4way_hs_offload: enable/disable 4 way handshake offload to firmware
  * @as_enabled: antenna sharing enabled or not (FW capability)
  * @mgmt_retry_max: maximum retries for management frame
  * @bmiss_skip_full_scan: Decide if full scan can be skipped in firmware if no
  * candidate is found in partial scan based on channel map
  * @enable_ring_buffer: Decide to enable/disable ring buffer for bug report
  * @enable_peer_unmap_conf_support: Indicate whether to send conf for peer unmap
- * @disable_4way_hs_offload: enable/disable 4 way handshake offload to firmware
- * @dfs_chan_ageout_time: Set DFS Channel ageout time
+ * @stop_all_host_scan_support: Target capability that indicates if the target
+ * supports stop all host scan request type.
  */
 struct wlan_mlme_generic {
 	enum band_info band_capability;
@@ -1156,14 +1165,13 @@ struct wlan_mlme_generic {
 	bool enable_beacon_reception_stats;
 	bool enable_remove_time_stamp_sync_cmd;
 	bool data_stall_recovery_fw_support;
-	bool enable_change_channel_bandwidth;
+	bool disable_4way_hs_offload;
 	bool as_enabled;
 	uint8_t mgmt_retry_max;
 	bool bmiss_skip_full_scan;
 	bool enable_ring_buffer;
 	bool enable_peer_unmap_conf_support;
-	bool disable_4way_hs_offload;
-	uint8_t dfs_chan_ageout_time;
+	bool stop_all_host_scan_support;
 };
 
 /*
@@ -1183,13 +1191,43 @@ struct wlan_mlme_product_details_cfg {
 };
 
 /*
+ * struct acs_weight - Normalize ACS weight for mentioned channels
+ * @chan_freq: frequency of the channel
+ * @normalize_weight: Normalization factor of the frequency
+ */
+struct acs_weight {
+	uint32_t chan_freq;
+	uint8_t normalize_weight;
+};
+
+/*
+ * struct acs_weight_range - Normalize ACS weight for mentioned channel range
+ * @start_freq: frequency of the start channel
+ * @end_freq: frequency of the end channel
+ * @normalize_weight: Normalization factor for freq range
+ */
+struct acs_weight_range {
+	uint32_t start_freq;
+	uint32_t end_freq;
+	uint8_t normalize_weight;
+};
+
+#define MAX_ACS_WEIGHT_RANGE              10
+#define MLME_GET_DFS_CHAN_WEIGHT(np_chan_weight) (np_chan_weight & 0x000000FF)
+
+/*
  * struct wlan_mlme_acs - All acs related cfg items
  * @is_acs_with_more_param - to enable acs with more param
  * @auto_channel_select_weight - to set acs channel weight
  * @is_vendor_acs_support - enable application based channel selection
  * @is_acs_support_for_dfs_ltecoex - enable channel for dfs and lte coex
  * @is_external_acs_policy - control external policy
+ * @normalize_weight_chan: Weight factor to be considered in ACS
+ * @normalize_weight_num_chan: Number of freq items for normalization.
+ * @normalize_weight_range: Frequency range for weight normalization
+ * @num_weight_range: num of ranges provided by user
  * @force_sap_start: Force SAP start when no channel is found suitable
+ * @np_chan_weightage: Weightage to be given to non preferred channels.
  */
 struct wlan_mlme_acs {
 	bool is_acs_with_more_param;
@@ -1197,7 +1235,12 @@ struct wlan_mlme_acs {
 	bool is_vendor_acs_support;
 	bool is_acs_support_for_dfs_ltecoex;
 	bool is_external_acs_policy;
+	struct acs_weight normalize_weight_chan[QDF_MAX_NUM_CHAN];
+	uint16_t normalize_weight_num_chan;
+	struct acs_weight_range normalize_weight_range[MAX_ACS_WEIGHT_RANGE];
+	uint16_t num_weight_range;
 	bool force_sap_start;
+	uint32_t np_chan_weightage;
 };
 
 /*
@@ -1329,7 +1372,6 @@ struct wlan_mlme_sta_cfg {
 	bool deauth_before_connection;
 	bool enable_go_cts2self_for_sta;
 	bool qcn_ie_support;
-	bool force_rsne_override;
 	bool single_tid;
 	bool allow_tpc_from_ap;
 	enum station_keepalive_method sta_keepalive_method;
@@ -1393,6 +1435,9 @@ struct bss_load_trigger {
 #define AKM_SAE              3
 #define AKM_OWE              4
 
+#define LFR3_STA_ROAM_DISABLE_BY_P2P BIT(0)
+#define LFR3_STA_ROAM_DISABLE_BY_NAN BIT(1)
+
 /*
  * @mawc_roam_enabled:              Enable/Disable MAWC during roaming
  * @enable_fast_roam_in_concurrency:Enable LFR roaming on STA during concurrency
@@ -1408,6 +1453,8 @@ struct bss_load_trigger {
  * below which the connection is idle.
  * @idle_roam_min_rssi: Minimum rssi of connected AP to be considered for
  * idle roam trigger.
+ * @enable_roam_reason_vsie:        Enable/disable incluison of roam reason
+ * vsie in Re(assoc) frame
  * @roam_trigger_bitmap:            Bitmap of roaming triggers.
  * @sta_roam_disable                STA roaming disabled by interfaces
  * @early_stop_scan_enable:         Set early stop scan
@@ -1476,6 +1523,7 @@ struct bss_load_trigger {
  * @enable_adaptive_11r             Flag to check if adaptive 11r ini is enabled
  * @tgt_adaptive_11r_cap:           Flag to check if target supports adaptive
  * 11r
+ * @enable_ft_im_roaming:            Flag to enable/disable FT-IM
  * @roam_scan_home_away_time:       The home away time to firmware
  * @roam_scan_n_probes:    The number of probes to be sent for firmware roaming
  * @delay_before_vdev_stop:Wait time for tx complete before vdev stop
@@ -1513,6 +1561,7 @@ struct wlan_mlme_lfr_cfg {
 	uint32_t idle_data_packet_count;
 	uint32_t idle_roam_band;
 	int32_t idle_roam_min_rssi;
+	bool enable_roam_reason_vsie;
 	uint32_t roam_trigger_bitmap;
 	uint32_t sta_roam_disable;
 #endif
@@ -1585,6 +1634,7 @@ struct wlan_mlme_lfr_cfg {
 	bool enable_adaptive_11r;
 	bool tgt_adaptive_11r_cap;
 #endif
+	bool enable_ft_im_roaming;
 	uint16_t roam_scan_home_away_time;
 	uint32_t roam_scan_n_probes;
 	uint8_t delay_before_vdev_stop;
@@ -1924,8 +1974,18 @@ struct mlme_power_usage {
 
 /*
  * struct wlan_mlme_power - power related config items
- * @max_tx_power_24: max power Tx for 2.4 ghz
- * @max_tx_power_5: max power Tx for 5 ghz
+ * @max_tx_power_24: max power Tx for 2.4 ghz, this is based on frequencies
+ * @max_tx_power_5: max power Tx for 5 ghz, this is based on frequencies
+ * @max_tx_power_24_chan: max power Tx for 2.4 ghz, this is based on channel
+ * numbers, this is added to parse the ini values to maintain the backward
+ * compatibility, these channel numbers are converted to frequencies and copied
+ * to max_tx_power_24 structure, once this conversion is done this structure
+ * should not be used.
+ * @max_tx_power_5_chan: max power Tx for 5 ghz, this is based on channel
+ * numbers, this is added to parse the ini values to maintain the backward
+ * compatibility, these channel numbers are converted to frequencies and copied
+ * to max_tx_power_24 structure, once this conversion is done this structure
+ * should not be used.
  * @power_usage: power usage mode, min, max, mod
  * @tx_power_2g: limit tx power in 2.4 ghz
  * @tx_power_5g: limit tx power in 5 ghz
@@ -1936,6 +1996,8 @@ struct mlme_power_usage {
 struct wlan_mlme_power {
 	struct mlme_max_tx_power_24 max_tx_power_24;
 	struct mlme_max_tx_power_5 max_tx_power_5;
+	struct mlme_max_tx_power_24 max_tx_power_24_chan;
+	struct mlme_max_tx_power_5 max_tx_power_5_chan;
 	struct mlme_power_usage power_usage;
 	uint8_t tx_power_2g;
 	uint8_t tx_power_5g;
@@ -2034,9 +2096,11 @@ struct wlan_mlme_wep_cfg {
 /**
  * struct wlan_mlme_wifi_pos_cfg - WIFI POS configs
  * @fine_time_meas_cap: fine timing measurement capability information
+ * @oem_6g_support_disable: oem is 6Ghz disabled if set
  */
 struct wlan_mlme_wifi_pos_cfg {
 	uint32_t fine_time_meas_cap;
+	bool oem_6g_support_disable;
 };
 
 #define MLME_SET_BIT(value, bit_offset) ((value) |= (1 << (bit_offset)))
@@ -2091,12 +2155,14 @@ struct wlan_mlme_fe_wlm {
 
 /**
  * struct wlan_mlme_fe_rrm - RRM related configs
- * @rrm_enabled: Flag to check if RRM is enabled
+ * @rrm_enabled: Flag to check if RRM is enabled for STA
+ * @sap_rrm_enabled: Flag to check if RRM is enabled for SAP
  * @rrm_rand_interval: RRM randomization interval
  * @rm_capability: RM enabled capabilities IE
  */
 struct wlan_mlme_fe_rrm {
 	bool rrm_enabled;
+	bool sap_rrm_enabled;
 	uint8_t rrm_rand_interval;
 	uint8_t rm_capability[MLME_RMENABLEDCAP_MAX_LEN];
 };
@@ -2128,7 +2194,7 @@ struct wlan_mlme_mwc {
  * @restart_beaconing_on_ch_avoid: restart beaconing on ch avoid
  * @indoor_channel_support: indoor channel support
  * @scan_11d_interval: scan 11d interval
- * @valid_channel_list: array for valid channel list
+ * @valid_channel_freq_list: array for valid channel list
  * @valid_channel_list_num: valid channel list number
  * @country_code: country code
  * @country_code_len: country code length
@@ -2147,8 +2213,8 @@ struct wlan_mlme_reg {
 		restart_beaconing_on_ch_avoid;
 	bool indoor_channel_support;
 	uint32_t scan_11d_interval;
-	uint8_t valid_channel_list[CFG_VALID_CHANNEL_LIST_LEN];
-	uint8_t valid_channel_list_num;
+	uint32_t valid_channel_freq_list[CFG_VALID_CHANNEL_LIST_LEN];
+	uint32_t valid_channel_list_num;
 	uint8_t country_code[CFG_COUNTRY_CODE_LEN + 1];
 	uint8_t country_code_len;
 	bool enable_11d_in_world_mode;
@@ -2281,6 +2347,11 @@ struct wlan_mlme_cfg {
 	struct roam_trigger_min_rssi trig_min_rssi[NUM_OF_ROAM_TRIGGERS];
 };
 
+enum pkt_origin {
+	FW,
+	HOST
+};
+
 /**
  * struct mlme_pmk_info - SAE Roaming using single pmk info
  * @pmk: pmk
@@ -2316,4 +2387,13 @@ struct mlme_roam_debug_info {
 	struct wmi_neighbor_report_data data_11kv;
 };
 
+/**
+ * struct wlan_ies - Generic WLAN Information Element(s) format
+ * @len: Total length of the IEs
+ * @data: IE data
+ */
+struct wlan_ies {
+	uint16_t len;
+	uint8_t *data;
+};
 #endif

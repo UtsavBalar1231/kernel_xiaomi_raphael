@@ -29,6 +29,9 @@
 
 struct hdd_context;
 
+#ifdef FEATURE_OEM_DATA
+#define WLAN_WAIT_TIME_GET_OEM_DATA 1000
+#endif
 #ifdef FEATURE_OEM_DATA_SUPPORT
 
 #ifndef OEM_DATA_REQ_SIZE
@@ -109,7 +112,6 @@ struct oem_data_cap {
 
 /**
  * struct hdd_channel_info - Channel information
- * @chan_id: channel id
  * @reserved0: reserved for padding and future use
  * @mhz: primary 20 MHz channel frequency in mhz
  * @band_center_freq1: Center frequency 1 in MHz
@@ -121,7 +123,6 @@ struct oem_data_cap {
  * @reg_info_2: regulatory information field 2 which contains antennamax
  */
 struct hdd_channel_info {
-	uint32_t chan_id;
 	uint32_t reserved0;
 	uint32_t mhz;
 	uint32_t band_center_freq1;
@@ -213,8 +214,22 @@ int oem_activate_service(struct hdd_context *hdd_ctx);
 int oem_deactivate_service(void);
 
 void hdd_send_oem_data_rsp_msg(struct oem_data_rsp *oem_rsp);
+
+/**
+ * update_channel_bw_info() - set bandwidth info for the chan
+ * @hdd_ctx: hdd context
+ * @chan_freq: channel freq for which info are required
+ * @chan_info: struct where the bandwidth info is filled
+ *
+ * This function finds the maximum bandwidth allowed, secondary
+ * channel offset and center freq for the channel as per regulatory
+ * domain and uses these info calculate the phy mode for the
+ * channel.
+ *
+ * Return: void
+ */
 void hdd_update_channel_bw_info(struct hdd_context *hdd_ctx,
-				uint16_t chan,
+				uint32_t chan_freq,
 				void *hdd_chan_info);
 #else
 static inline int oem_activate_service(struct hdd_context *hdd_ctx)
@@ -230,7 +245,7 @@ static inline int oem_deactivate_service(void)
 static inline void hdd_send_oem_data_rsp_msg(void *oem_rsp) {}
 
 static inline void hdd_update_channel_bw_info(struct hdd_context *hdd_ctx,
-					      uint16_t chan,
+					      uint32_t chan_freq,
 					      void *hdd_chan_info) {}
 #endif /* FEATURE_OEM_DATA_SUPPORT */
 
@@ -266,12 +281,15 @@ int wlan_hdd_cfg80211_oem_data_handler(struct wiphy *wiphy,
 /**
  * hdd_oem_event_handler_cb() - callback for oem data event
  * @oem_event_data: oem data received in the event from the FW
+ * @vdev_id: vdev id
  *
  * Return: None
  */
-void hdd_oem_event_handler_cb(const struct oem_data *oem_event_data);
+void hdd_oem_event_handler_cb(const struct oem_data *oem_event_data,
+			      uint8_t vdev_id);
 #else
-static inline void hdd_oem_event_handler_cb(void *oem_event_data)
+static inline void hdd_oem_event_handler_cb(void *oem_event_data,
+					    uint8_t vdev_id)
 {
 }
 #endif

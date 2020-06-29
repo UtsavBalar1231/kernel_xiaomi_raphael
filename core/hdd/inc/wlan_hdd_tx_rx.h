@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -39,6 +39,17 @@ struct hdd_context;
 #define hdd_dp_warn(params...) QDF_TRACE_WARN(QDF_MODULE_ID_HDD_DATA, params)
 #define hdd_dp_info(params...) QDF_TRACE_INFO(QDF_MODULE_ID_HDD_DATA, params)
 #define hdd_dp_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_HDD_DATA, params)
+
+#define hdd_dp_nofl_alert(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_HDD_DATA, params)
+#define hdd_dp_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_HDD_DATA, params)
+#define hdd_dp_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_HDD_DATA, params)
+#define hdd_dp_nofl_info(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_HDD_DATA, params)
+#define hdd_dp_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_HDD_DATA, params)
 
 #define hdd_dp_alert_rl(params...) \
 			QDF_TRACE_FATAL_RL(QDF_MODULE_ID_HDD_DATA, params)
@@ -103,6 +114,43 @@ QDF_STATUS hdd_rx_flush_packet_cbk(void *adapter_context, uint8_t vdev_id);
  *	   QDF_STATUS_SUCCESS otherwise
  */
 QDF_STATUS hdd_rx_packet_cbk(void *adapter_context, qdf_nbuf_t rxBuf);
+
+#if defined(WLAN_SUPPORT_RX_FISA)
+/**
+ * hdd_rx_fisa_cbk() - Entry function to FISA to handle aggregation
+ * @soc: core txrx main context
+ * @vdev: Handle DP vdev
+ * @nbuf_list: List nbufs to be aggregated
+ *
+ * Return: Success on aggregation
+ */
+QDF_STATUS hdd_rx_fisa_cbk(void *dp_soc, void *dp_vdev, qdf_nbuf_t rxbuf_list);
+
+/**
+ * hdd_rx_fisa_flush_by_ctx_id() - Flush function to end of context
+ *				   flushing of aggregates
+ * @soc: core txrx main context
+ * @ring_num: REO number to flush the flow Rxed on the REO
+ *
+ * Return: Success on flushing the flows for the REO
+ */
+QDF_STATUS hdd_rx_fisa_flush_by_ctx_id(void *dp_soc, int ring_num);
+
+/**
+ * hdd_rx_fisa_flush_by_vdev_id() - Flush fisa aggregates per vdev id
+ * @soc: core txrx main context
+ * @vdev_id: vdev ID
+ *
+ * Return: Success on flushing the flows for the vdev
+ */
+QDF_STATUS hdd_rx_fisa_flush_by_vdev_id(void *dp_soc, uint8_t vdev_id);
+#else
+static inline QDF_STATUS hdd_rx_fisa_flush_by_vdev_id(void *dp_soc,
+						      uint8_t vdev_id)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 /**
  * hdd_rx_deliver_to_stack() - HDD helper function to deliver RX pkts to stack
@@ -171,18 +219,6 @@ void hdd_disable_rx_ol_in_concurrency(bool disable);
 void hdd_disable_rx_ol_for_low_tput(struct hdd_context *hdd_ctx, bool disable);
 
 /**
- * hdd_get_peer_sta_id() - Get the StationID using the Peer Mac address
- * @sta_ctx: pointer to HDD Station Context
- * @mac_address: pointer to Peer Mac address
- * @sta_id: pointer to returned Station Index
- *
- * Return: QDF_STATUS_SUCCESS/QDF_STATUS_E_FAILURE
- */
-QDF_STATUS hdd_get_peer_sta_id(struct hdd_station_ctx *sta_ctx,
-			       struct qdf_mac_addr *mac_address,
-			       uint8_t *sta_id);
-
-/**
  * hdd_reset_all_adapters_connectivity_stats() - reset connectivity stats
  * @hdd_ctx: pointer to HDD Station Context
  *
@@ -241,8 +277,17 @@ void hdd_register_tx_flow_control(struct hdd_adapter *adapter,
 		ol_txrx_tx_flow_control_fp flow_control_fp,
 		ol_txrx_tx_flow_control_is_pause_fp flow_control_is_pause);
 void hdd_deregister_tx_flow_control(struct hdd_adapter *adapter);
+
+/**
+ * hdd_get_tx_resource() - check tx resources and take action
+ * @adapter: adapter handle
+ * @mac_addr: mac address
+ * @timer_value: timer value
+ *
+ * Return: none
+ */
 void hdd_get_tx_resource(struct hdd_adapter *adapter,
-			uint8_t STAId, uint16_t timer_value);
+			 struct qdf_mac_addr *mac_addr, uint16_t timer_value);
 
 #else
 static inline void hdd_tx_resume_cb(void *adapter_context, bool tx_resume)
@@ -261,8 +306,19 @@ static inline void hdd_register_tx_flow_control(struct hdd_adapter *adapter,
 static inline void hdd_deregister_tx_flow_control(struct hdd_adapter *adapter)
 {
 }
-static inline void hdd_get_tx_resource(struct hdd_adapter *adapter,
-			uint8_t STAId, uint16_t timer_value)
+
+
+/**
+ * hdd_get_tx_resource() - check tx resources and take action
+ * @adapter: adapter handle
+ * @mac_addr: mac address
+ * @timer_value: timer value
+ *
+ * Return: none
+ */
+static inline
+void hdd_get_tx_resource(struct hdd_adapter *adapter,
+			 struct qdf_mac_addr *mac_addr, uint16_t timer_value)
 {
 }
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
@@ -291,9 +347,6 @@ static inline void
 {}
 #endif /* QCA_HL_NETDEV_FLOW_CONTROL */
 
-int hdd_get_peer_idx(struct hdd_station_ctx *sta_ctx,
-		     struct qdf_mac_addr *addr);
-
 const char *hdd_reason_type_to_string(enum netif_reason_type reason);
 const char *hdd_action_type_to_string(enum netif_action_type action);
 
@@ -302,31 +355,43 @@ void wlan_hdd_netif_queue_control(struct hdd_adapter *adapter,
 
 #ifdef FEATURE_MONITOR_MODE_SUPPORT
 int hdd_set_mon_rx_cb(struct net_device *dev);
-
-/**
- * hdd_mon_rx_packet_cbk() - Receive callback registered with OL layer.
- * @context: pointer to qdf context
- * @rxBuf: pointer to rx qdf_nbuf
- *
- * TL will call this to notify the HDD when one or more packets were
- * received for a registered STA.
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS hdd_mon_rx_packet_cbk(void *context, qdf_nbuf_t rxbuf);
 #else
 static inline
 int hdd_set_mon_rx_cb(struct net_device *dev)
 {
 	return 0;
 }
+#endif
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+/**
+ * hdd_set_pktcapture_cb() - Set pkt capture mode callback
+ * @dev: Pointer to net_device structure
+ * @pdev_id: pdev id
+ *
+ * Return: 0 on success; non-zero for failure
+ */
+int hdd_set_pktcapture_cb(struct net_device *dev, uint8_t pdev_id);
+
+/**
+ * hdd_reset_pktcapture_cb() - Reset pkt capture mode callback
+ * @pdev_id: pdev id
+ *
+ * Return: None
+ */
+void hdd_reset_pktcapture_cb(uint8_t pdev_id);
+#else
+static inline
+int hdd_set_pktcapture_cb(struct net_device *dev, uint8_t pdev_id)
+{
+	return -ENOTSUPP;
+}
 
 static inline
-QDF_STATUS hdd_mon_rx_packet_cbk(void *context, qdf_nbuf_t rxbuf)
+void hdd_reset_pktcapture_cb(uint8_t pdev_id)
 {
-	return QDF_STATUS_SUCCESS;
 }
-#endif
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
 
 void hdd_send_rps_ind(struct hdd_adapter *adapter);
 void hdd_send_rps_disable_ind(struct hdd_adapter *adapter);
@@ -462,4 +527,5 @@ wlan_hdd_dump_queue_history_state(struct hdd_netif_queue_history *q_hist,
  */
 bool wlan_hdd_rx_rpm_mark_last_busy(struct hdd_context *hdd_ctx,
 				    void *hif_ctx);
+
 #endif /* end #if !defined(WLAN_HDD_TX_RX_H) */

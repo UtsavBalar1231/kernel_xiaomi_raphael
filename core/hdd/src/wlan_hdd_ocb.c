@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -41,6 +41,7 @@
 #include <cdp_txrx_peer_ops.h>
 #include <cdp_txrx_handle.h>
 #include <cdp_txrx_ocb.h>
+#include "ol_txrx.h"
 
 /* Structure definitions for WLAN_SET_DOT11P_CHANNEL_SCHED */
 #define AIFSN_MIN		(2)
@@ -216,60 +217,37 @@ static int hdd_ocb_register_sta(struct hdd_adapter *adapter)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	struct ol_txrx_desc_type sta_desc = {0};
-	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	struct hdd_station_ctx *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
-	uint8_t peer_id;
 	struct ol_txrx_ops txrx_ops;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	void *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-	struct cdp_vdev *vdev;
+	struct cdp_pdev *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	qdf_status = cdp_peer_register_ocb_peer(soc,
-				adapter->mac_addr.bytes,
-				&peer_id);
+				adapter->mac_addr.bytes);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_err("Error registering OCB Self Peer!");
 		return -EINVAL;
 	}
 
-	if (peer_id >= HDD_MAX_ADAPTERS) {
-		hdd_err("Error: Invalid peer_id: %u", peer_id);
-		return -EINVAL;
-	}
-
-	hdd_ctx->sta_to_adapter[peer_id] = adapter;
-
-	sta_desc.sta_id = peer_id;
+	WLAN_ADDR_COPY(sta_desc.peer_addr.bytes, adapter->mac_addr.bytes);
 	sta_desc.is_qos_enabled = 1;
 
 	/* Register the vdev transmit and receive functions */
 	qdf_mem_zero(&txrx_ops, sizeof(txrx_ops));
 	txrx_ops.rx.rx = hdd_rx_packet_cbk;
-	vdev = cdp_get_vdev_from_vdev_id(soc,
-					 (struct cdp_pdev *)pdev,
-					 adapter->vdev_id);
-	if (!vdev)
-		return -EINVAL;
 
-	cdp_vdev_register(soc, vdev, adapter,
-			  (struct cdp_ctrl_objmgr_vdev *)adapter->vdev,
+	cdp_vdev_register(soc, adapter->vdev_id, (ol_osif_vdev_handle)adapter,
 			  &txrx_ops);
 	txrx_ops.rx.stats_rx = hdd_tx_rx_collect_connectivity_stats_info;
 	adapter->tx_fn = txrx_ops.tx.tx;
 
-	qdf_status = cdp_peer_register(soc, (struct cdp_pdev *)pdev, &sta_desc);
+	qdf_status = cdp_peer_register(soc, OL_TXRX_PDEV_ID, &sta_desc);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_err("Failed to register. Status= %d [0x%08X]",
 		       qdf_status, qdf_status);
 		return -EINVAL;
 	}
 
-	if (sta_ctx->conn_info.sta_id[0] != HDD_WLAN_INVALID_STA_ID &&
-	    sta_ctx->conn_info.sta_id[0] != peer_id) {
-		hdd_err("The ID for the OCB station has changed.");
-	}
-
-	sta_ctx->conn_info.sta_id[0] = peer_id;
 	qdf_copy_macaddr(&sta_ctx->conn_info.peer_macaddr[0],
 			 &adapter->mac_addr);
 
@@ -1964,7 +1942,7 @@ static int __wlan_hdd_cfg80211_dcc_update_ndl(struct wiphy *wiphy,
 		tb[QCA_WLAN_VENDOR_ATTR_DCC_UPDATE_NDL_ACTIVE_STATE_ARRAY]);
 
 	/* Check channel count. Per 11p spec, max 2 channels allowed */
-	if (!channel_count || channel_count > TGT_NUM_OCB_CHANNELS) {
+	if (!channel_count || channel_count > CFG_TGT_NUM_OCB_CHANNELS) {
 		hdd_err("Invalid channel_count %d", channel_count);
 		return -EINVAL;
 	}

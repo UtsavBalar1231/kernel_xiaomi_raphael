@@ -301,6 +301,21 @@ QDF_STATUS ucfg_get_enable_rts_sifsbursting(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
+QDF_STATUS ucfg_get_enable_sifs_burst(struct wlan_objmgr_psoc *psoc,
+				      uint8_t *enable_sifs_burst)
+{
+	struct wlan_fwol_psoc_obj *fwol_obj;
+
+	fwol_obj = fwol_get_psoc_obj(psoc);
+	if (!fwol_obj) {
+		fwol_err("Failed to get FWOL obj");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	*enable_sifs_burst = fwol_obj->cfg.enable_sifs_burst;
+	return QDF_STATUS_SUCCESS;
+}
+
 QDF_STATUS ucfg_get_max_mpdus_inampdu(struct wlan_objmgr_psoc *psoc,
 				      uint8_t *max_mpdus_inampdu)
 {
@@ -586,6 +601,27 @@ ucfg_fwol_get_tsf_irq_host_gpio_pin(struct wlan_objmgr_psoc *psoc,
 	}
 
 	*tsf_irq_host_gpio_pin = fwol_obj->cfg.tsf_irq_host_gpio_pin;
+	return QDF_STATUS_SUCCESS;
+}
+
+#endif
+
+#ifdef WLAN_FEATURE_TSF_PLUS_EXT_GPIO_SYNC
+QDF_STATUS
+ucfg_fwol_get_tsf_sync_host_gpio_pin(struct wlan_objmgr_psoc *psoc,
+				     uint32_t *tsf_sync_host_gpio_pin)
+{
+	struct wlan_fwol_psoc_obj *fwol_obj;
+
+	fwol_obj = fwol_get_psoc_obj(psoc);
+	if (!fwol_obj) {
+		fwol_err("Failed to get FWOL obj");
+		*tsf_sync_host_gpio_pin =
+			cfg_default(CFG_SET_TSF_SYNC_HOST_GPIO_PIN);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	*tsf_sync_host_gpio_pin = fwol_obj->cfg.tsf_sync_host_gpio_pin;
 	return QDF_STATUS_SUCCESS;
 }
 

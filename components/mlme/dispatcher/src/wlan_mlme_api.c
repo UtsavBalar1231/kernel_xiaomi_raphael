@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -62,9 +62,9 @@ QDF_STATUS wlan_mlme_set_cfg_str(uint8_t *src, struct mlme_cfg_str *dst_cfg_str,
 uint8_t wlan_mlme_get_tx_power(struct wlan_objmgr_psoc *psoc,
 			       enum band_info band)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return 0;
 
@@ -81,9 +81,9 @@ uint8_t wlan_mlme_get_tx_power(struct wlan_objmgr_psoc *psoc,
 
 char *wlan_mlme_get_power_usage(struct wlan_objmgr_psoc *psoc)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return NULL;
 
@@ -94,9 +94,9 @@ QDF_STATUS wlan_mlme_get_ht_cap_info(struct wlan_objmgr_psoc *psoc,
 				     struct mlme_ht_capabilities_info
 				     *ht_cap_info)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -109,9 +109,9 @@ QDF_STATUS wlan_mlme_set_ht_cap_info(struct wlan_objmgr_psoc *psoc,
 				     struct mlme_ht_capabilities_info
 				     ht_cap_info)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -123,9 +123,9 @@ QDF_STATUS wlan_mlme_set_ht_cap_info(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_max_amsdu_num(struct wlan_objmgr_psoc *psoc,
 				       uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -137,9 +137,9 @@ QDF_STATUS wlan_mlme_get_max_amsdu_num(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_max_amsdu_num(struct wlan_objmgr_psoc *psoc,
 				       uint8_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -156,9 +156,9 @@ QDF_STATUS wlan_mlme_set_max_amsdu_num(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_ht_mpdu_density(struct wlan_objmgr_psoc *psoc,
 					 uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -170,9 +170,9 @@ QDF_STATUS wlan_mlme_get_ht_mpdu_density(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_ht_mpdu_density(struct wlan_objmgr_psoc *psoc,
 					 uint8_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -189,9 +189,9 @@ QDF_STATUS wlan_mlme_set_ht_mpdu_density(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_band_capability(struct wlan_objmgr_psoc *psoc,
 					 uint8_t *band_capability)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -204,9 +204,9 @@ QDF_STATUS wlan_mlme_set_band_capability(struct wlan_objmgr_psoc *psoc,
 					 uint8_t band_capability)
 
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -218,9 +218,9 @@ QDF_STATUS wlan_mlme_set_band_capability(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_prevent_link_down(struct wlan_objmgr_psoc *psoc,
 					   bool *prevent_link_down)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -232,9 +232,9 @@ QDF_STATUS wlan_mlme_get_prevent_link_down(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_select_5ghz_margin(struct wlan_objmgr_psoc *psoc,
 					    uint8_t *select_5ghz_margin)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -246,9 +246,9 @@ QDF_STATUS wlan_mlme_get_select_5ghz_margin(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_rtt_mac_randomization(struct wlan_objmgr_psoc *psoc,
 					       bool *rtt_mac_randomization)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -260,9 +260,9 @@ QDF_STATUS wlan_mlme_get_rtt_mac_randomization(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_crash_inject(struct wlan_objmgr_psoc *psoc,
 				      bool *crash_inject)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -274,9 +274,9 @@ QDF_STATUS wlan_mlme_get_crash_inject(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_lpass_support(struct wlan_objmgr_psoc *psoc,
 				       bool *lpass_support)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -288,9 +288,9 @@ QDF_STATUS wlan_mlme_get_lpass_support(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_self_recovery(struct wlan_objmgr_psoc *psoc,
 				       bool *self_recovery)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -302,9 +302,9 @@ QDF_STATUS wlan_mlme_get_self_recovery(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sub_20_chan_width(struct wlan_objmgr_psoc *psoc,
 					   uint8_t *sub_20_chan_width)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -316,9 +316,9 @@ QDF_STATUS wlan_mlme_get_sub_20_chan_width(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_fw_timeout_crash(struct wlan_objmgr_psoc *psoc,
 					  bool *fw_timeout_crash)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -330,9 +330,9 @@ QDF_STATUS wlan_mlme_get_fw_timeout_crash(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_ito_repeat_count(struct wlan_objmgr_psoc *psoc,
 					  uint8_t *ito_repeat_count)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -344,9 +344,9 @@ QDF_STATUS wlan_mlme_get_ito_repeat_count(struct wlan_objmgr_psoc *psoc,
 void wlan_mlme_get_sap_inactivity_override(struct wlan_objmgr_psoc *psoc,
 					   bool *val)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return;
 
@@ -356,7 +356,7 @@ void wlan_mlme_get_sap_inactivity_override(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_acs_with_more_param(struct wlan_objmgr_psoc *psoc,
 					     bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -368,7 +368,7 @@ QDF_STATUS wlan_mlme_get_acs_with_more_param(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_auto_channel_weight(struct wlan_objmgr_psoc *psoc,
 					     uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_AUTO_CHANNEL_SELECT_WEIGHT);
@@ -382,7 +382,7 @@ QDF_STATUS wlan_mlme_get_auto_channel_weight(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_vendor_acs_support(struct wlan_objmgr_psoc *psoc,
 					    bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -395,7 +395,7 @@ QDF_STATUS
 wlan_mlme_get_acs_support_for_dfs_ltecoex(struct wlan_objmgr_psoc *psoc,
 					  bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -408,7 +408,7 @@ QDF_STATUS
 wlan_mlme_get_external_acs_policy(struct wlan_objmgr_psoc *psoc,
 				  bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -420,7 +420,7 @@ wlan_mlme_get_external_acs_policy(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_tx_chainmask_cck(struct wlan_objmgr_psoc *psoc,
 					  bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -432,7 +432,7 @@ QDF_STATUS wlan_mlme_get_tx_chainmask_cck(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_tx_chainmask_1ss(struct wlan_objmgr_psoc *psoc,
 					  uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -445,9 +445,9 @@ void
 wlan_mlme_update_cfg_with_tgt_caps(struct wlan_objmgr_psoc *psoc,
 				   struct mlme_tgt_caps *tgt_caps)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return;
 
@@ -455,15 +455,17 @@ wlan_mlme_update_cfg_with_tgt_caps(struct wlan_objmgr_psoc *psoc,
 
 	mlme_obj->cfg.gen.data_stall_recovery_fw_support =
 				tgt_caps->data_stall_recovery_fw_support;
+	mlme_obj->cfg.gen.stop_all_host_scan_support =
+			tgt_caps->stop_all_host_scan_support;
 }
 
 #ifdef WLAN_FEATURE_11AX
 QDF_STATUS wlan_mlme_cfg_get_he_ul_mumimo(struct wlan_objmgr_psoc *psoc,
 					  uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -475,9 +477,9 @@ QDF_STATUS wlan_mlme_cfg_get_he_ul_mumimo(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS mlme_cfg_get_he_caps(struct wlan_objmgr_psoc *psoc,
 				tDot11fIEhe_cap *he_cap)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -489,9 +491,9 @@ QDF_STATUS mlme_cfg_get_he_caps(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_cfg_set_he_ul_mumimo(struct wlan_objmgr_psoc *psoc,
 					  uint32_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -509,9 +511,9 @@ QDF_STATUS wlan_mlme_cfg_set_he_ul_mumimo(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_cfg_get_enable_ul_mimo(struct wlan_objmgr_psoc *psoc,
 					    uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -523,9 +525,9 @@ QDF_STATUS wlan_mlme_cfg_get_enable_ul_mimo(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_cfg_get_enable_ul_ofdm(struct wlan_objmgr_psoc *psoc,
 					    uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -541,7 +543,7 @@ QDF_STATUS mlme_update_tgt_he_caps_in_cfg(struct wlan_objmgr_psoc *psoc,
 	uint8_t chan_width;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tDot11fIEhe_cap *he_cap = &wma_cfg->he_cap;
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	uint8_t value;
 	uint16_t tx_mcs_map = 0;
 	uint16_t rx_mcs_map = 0;
@@ -838,7 +840,7 @@ QDF_STATUS mlme_update_tgt_he_caps_in_cfg(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_num_11b_tx_chains(struct wlan_objmgr_psoc *psoc,
 					   uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -850,7 +852,7 @@ QDF_STATUS wlan_mlme_get_num_11b_tx_chains(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_bt_chain_separation_flag(struct wlan_objmgr_psoc *psoc,
 						  bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -862,7 +864,7 @@ QDF_STATUS wlan_mlme_get_bt_chain_separation_flag(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_num_11ag_tx_chains(struct wlan_objmgr_psoc *psoc,
 					    uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -876,8 +878,8 @@ QDF_STATUS wlan_mlme_configure_chain_mask(struct wlan_objmgr_psoc *psoc,
 {
 	int ret_val;
 	uint8_t ch_msk_val;
-	struct wma_caps_per_phy non_dbs_phy_cap;
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wma_caps_per_phy non_dbs_phy_cap = {0};
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	QDF_STATUS status;
 	bool enable2x2, as_enabled, enable_bt_chain_sep;
 	uint8_t dual_mac_feature;
@@ -1014,9 +1016,9 @@ QDF_STATUS
 wlan_mlme_get_manufacturer_name(struct wlan_objmgr_psoc *psoc,
 				uint8_t *pbuf, uint32_t *plen)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1030,9 +1032,9 @@ QDF_STATUS
 wlan_mlme_get_model_number(struct wlan_objmgr_psoc *psoc,
 			   uint8_t *pbuf, uint32_t *plen)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1047,9 +1049,9 @@ QDF_STATUS
 wlan_mlme_get_model_name(struct wlan_objmgr_psoc *psoc,
 			 uint8_t *pbuf, uint32_t *plen)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1063,9 +1065,9 @@ QDF_STATUS
 wlan_mlme_get_manufacture_product_version(struct wlan_objmgr_psoc *psoc,
 					  uint8_t *pbuf, uint32_t *plen)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1079,9 +1081,9 @@ QDF_STATUS
 wlan_mlme_get_manufacture_product_name(struct wlan_objmgr_psoc *psoc,
 				       uint8_t *pbuf, uint32_t *plen)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1095,9 +1097,9 @@ wlan_mlme_get_manufacture_product_name(struct wlan_objmgr_psoc *psoc,
 void wlan_mlme_get_tl_delayed_trgr_frm_int(struct wlan_objmgr_psoc *psoc,
 					   uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_TL_DELAYED_TRGR_FRM_INTERVAL);
 		return;
@@ -1110,9 +1112,9 @@ void wlan_mlme_get_tl_delayed_trgr_frm_int(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_dir_ac_vo(struct wlan_objmgr_psoc *psoc,
 				       uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1125,9 +1127,9 @@ QDF_STATUS wlan_mlme_get_wmm_dir_ac_vo(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_nom_msdu_size_ac_vo(struct wlan_objmgr_psoc *psoc,
 						 uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1139,9 +1141,9 @@ QDF_STATUS
 wlan_mlme_get_wmm_mean_data_rate_ac_vo(struct wlan_objmgr_psoc *psoc,
 					uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1153,9 +1155,9 @@ wlan_mlme_get_wmm_mean_data_rate_ac_vo(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_min_phy_rate_ac_vo(struct wlan_objmgr_psoc *psoc,
 						uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1166,9 +1168,9 @@ QDF_STATUS wlan_mlme_get_wmm_min_phy_rate_ac_vo(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_wmm_sba_ac_vo(struct wlan_objmgr_psoc *psoc, uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -1181,9 +1183,9 @@ wlan_mlme_get_wmm_sba_ac_vo(struct wlan_objmgr_psoc *psoc, uint16_t *value)
 QDF_STATUS wlan_mlme_get_wmm_uapsd_vo_srv_intv(struct wlan_objmgr_psoc *psoc,
 						uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1195,9 +1197,9 @@ QDF_STATUS wlan_mlme_get_wmm_uapsd_vo_srv_intv(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_uapsd_vo_sus_intv(struct wlan_objmgr_psoc *psoc,
 						uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1209,9 +1211,9 @@ QDF_STATUS wlan_mlme_get_wmm_uapsd_vo_sus_intv(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_wmm_dir_ac_vi(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1223,9 +1225,9 @@ wlan_mlme_get_wmm_dir_ac_vi(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS wlan_mlme_get_wmm_nom_msdu_size_ac_vi(struct wlan_objmgr_psoc *psoc,
 						 uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1239,9 +1241,9 @@ QDF_STATUS
 wlan_mlme_get_wmm_mean_data_rate_ac_vi(struct wlan_objmgr_psoc *psoc,
 					uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1253,9 +1255,9 @@ wlan_mlme_get_wmm_mean_data_rate_ac_vi(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_min_phy_rate_ac_vi(struct wlan_objmgr_psoc *psoc,
 						uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1267,9 +1269,9 @@ QDF_STATUS wlan_mlme_get_wmm_min_phy_rate_ac_vi(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_sba_ac_vi(struct wlan_objmgr_psoc *psoc,
 					uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1282,9 +1284,9 @@ QDF_STATUS
 wlan_mlme_get_wmm_uapsd_vi_srv_intv(struct wlan_objmgr_psoc *psoc,
 				    uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1296,9 +1298,9 @@ wlan_mlme_get_wmm_uapsd_vi_srv_intv(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_uapsd_vi_sus_intv(struct wlan_objmgr_psoc *psoc,
 						uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1310,9 +1312,9 @@ QDF_STATUS wlan_mlme_get_wmm_uapsd_vi_sus_intv(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_wmm_dir_ac_be(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1324,9 +1326,9 @@ wlan_mlme_get_wmm_dir_ac_be(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS wlan_mlme_get_wmm_nom_msdu_size_ac_be(struct wlan_objmgr_psoc *psoc,
 						 uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1339,9 +1341,9 @@ QDF_STATUS
 wlan_mlme_get_wmm_mean_data_rate_ac_be(struct wlan_objmgr_psoc *psoc,
 					uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1353,9 +1355,9 @@ wlan_mlme_get_wmm_mean_data_rate_ac_be(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_min_phy_rate_ac_be(struct wlan_objmgr_psoc *psoc,
 						uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1367,9 +1369,9 @@ QDF_STATUS wlan_mlme_get_wmm_min_phy_rate_ac_be(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_wmm_sba_ac_be(struct wlan_objmgr_psoc *psoc, uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1381,9 +1383,9 @@ wlan_mlme_get_wmm_sba_ac_be(struct wlan_objmgr_psoc *psoc, uint16_t *value)
 QDF_STATUS wlan_mlme_get_wmm_uapsd_be_srv_intv(struct wlan_objmgr_psoc *psoc,
 						uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1395,9 +1397,9 @@ QDF_STATUS wlan_mlme_get_wmm_uapsd_be_srv_intv(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_uapsd_be_sus_intv(struct wlan_objmgr_psoc *psoc,
 						uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1409,9 +1411,9 @@ QDF_STATUS wlan_mlme_get_wmm_uapsd_be_sus_intv(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_wmm_dir_ac_bk(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1423,9 +1425,9 @@ wlan_mlme_get_wmm_dir_ac_bk(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS wlan_mlme_get_wmm_nom_msdu_size_ac_bk(struct wlan_objmgr_psoc *psoc,
 						 uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1438,9 +1440,9 @@ QDF_STATUS
 wlan_mlme_get_wmm_mean_data_rate_ac_bk(struct wlan_objmgr_psoc *psoc,
 					uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1452,9 +1454,9 @@ wlan_mlme_get_wmm_mean_data_rate_ac_bk(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_wmm_min_phy_rate_ac_bk(struct wlan_objmgr_psoc *psoc,
 						uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1466,9 +1468,9 @@ QDF_STATUS wlan_mlme_get_wmm_min_phy_rate_ac_bk(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_wmm_sba_ac_bk(struct wlan_objmgr_psoc *psoc, uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1481,9 +1483,9 @@ QDF_STATUS
 wlan_mlme_get_wmm_uapsd_bk_srv_intv(struct wlan_objmgr_psoc *psoc,
 				    uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1496,9 +1498,9 @@ QDF_STATUS
 wlan_mlme_get_wmm_uapsd_bk_sus_intv(struct wlan_objmgr_psoc *psoc,
 				    uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1510,9 +1512,9 @@ wlan_mlme_get_wmm_uapsd_bk_sus_intv(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_wmm_mode(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1524,9 +1526,9 @@ wlan_mlme_get_wmm_mode(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS
 wlan_mlme_get_80211e_is_enabled(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1538,9 +1540,9 @@ wlan_mlme_get_80211e_is_enabled(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_get_wmm_uapsd_mask(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1552,9 +1554,9 @@ wlan_mlme_get_wmm_uapsd_mask(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS wlan_mlme_get_implicit_qos_is_enabled(struct wlan_objmgr_psoc *psoc,
 						 bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1567,9 +1569,9 @@ QDF_STATUS wlan_mlme_get_implicit_qos_is_enabled(struct wlan_objmgr_psoc *psoc,
 void wlan_mlme_get_inactivity_interval(struct wlan_objmgr_psoc *psoc,
 					uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_QOS_WMM_INACTIVITY_INTERVAL);
 		return;
@@ -1582,9 +1584,9 @@ void wlan_mlme_get_inactivity_interval(struct wlan_objmgr_psoc *psoc,
 void wlan_mlme_get_is_ts_burst_size_enable(struct wlan_objmgr_psoc *psoc,
 					   bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_QOS_WMM_BURST_SIZE_DEFN);
 		return;
@@ -1596,9 +1598,9 @@ void wlan_mlme_get_is_ts_burst_size_enable(struct wlan_objmgr_psoc *psoc,
 void wlan_mlme_get_ts_info_ack_policy(struct wlan_objmgr_psoc *psoc,
 				      enum mlme_ts_info_ack_policy *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_QOS_WMM_TS_INFO_ACK_POLICY);
 		return;
@@ -1611,9 +1613,9 @@ void wlan_mlme_get_ts_info_ack_policy(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_ts_acm_value_for_ac(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1625,9 +1627,9 @@ wlan_mlme_get_ts_acm_value_for_ac(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS wlan_mlme_get_listen_interval(struct wlan_objmgr_psoc *psoc,
 					     int *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1639,9 +1641,9 @@ QDF_STATUS wlan_mlme_get_listen_interval(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_sap_listen_interval(struct wlan_objmgr_psoc *psoc,
 					     int value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1656,9 +1658,9 @@ QDF_STATUS wlan_mlme_set_sap_listen_interval(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_assoc_sta_limit(struct wlan_objmgr_psoc *psoc,
 					 int value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1673,9 +1675,9 @@ QDF_STATUS wlan_mlme_set_assoc_sta_limit(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_rmc_action_period_freq(struct wlan_objmgr_psoc *psoc,
 						int value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1690,9 +1692,9 @@ QDF_STATUS wlan_mlme_set_rmc_action_period_freq(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_get_peer_info(struct wlan_objmgr_psoc *psoc,
 					   bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1704,9 +1706,9 @@ QDF_STATUS wlan_mlme_get_sap_get_peer_info(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_sap_get_peer_info(struct wlan_objmgr_psoc *psoc,
 					   bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1716,12 +1718,12 @@ QDF_STATUS wlan_mlme_set_sap_get_peer_info(struct wlan_objmgr_psoc *psoc,
 }
 
 QDF_STATUS
-wlan_mlme_is_sap_bcast_deauth_enabled(struct wlan_objmgr_psoc *psoc,
-				      bool *value)
+wlan_mlme_get_sap_bcast_deauth_enabled(struct wlan_objmgr_psoc *psoc,
+				       bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1730,12 +1732,27 @@ wlan_mlme_is_sap_bcast_deauth_enabled(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
+QDF_STATUS
+wlan_mlme_is_6g_sap_fd_enabled(struct wlan_objmgr_psoc *psoc,
+			       bool *value)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj)
+		return QDF_STATUS_E_FAILURE;
+
+	*value = mlme_obj->cfg.sap_cfg.is_6g_sap_fd_enabled;
+
+	return QDF_STATUS_SUCCESS;
+}
+
 QDF_STATUS wlan_mlme_get_sap_allow_all_channels(struct wlan_objmgr_psoc *psoc,
 						bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1747,9 +1764,9 @@ QDF_STATUS wlan_mlme_get_sap_allow_all_channels(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_max_peers(struct wlan_objmgr_psoc *psoc,
 				       int *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1761,9 +1778,9 @@ QDF_STATUS wlan_mlme_get_sap_max_peers(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_sap_max_peers(struct wlan_objmgr_psoc *psoc,
 				       int value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1778,9 +1795,9 @@ QDF_STATUS wlan_mlme_set_sap_max_peers(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_max_offload_peers(struct wlan_objmgr_psoc *psoc,
 					       int *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1792,9 +1809,9 @@ QDF_STATUS wlan_mlme_get_sap_max_offload_peers(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_max_offload_reorder_buffs(struct wlan_objmgr_psoc
 						       *psoc, int *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1806,9 +1823,9 @@ QDF_STATUS wlan_mlme_get_sap_max_offload_reorder_buffs(struct wlan_objmgr_psoc
 QDF_STATUS wlan_mlme_get_sap_chn_switch_bcn_count(struct wlan_objmgr_psoc *psoc,
 						  int *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1820,9 +1837,9 @@ QDF_STATUS wlan_mlme_get_sap_chn_switch_bcn_count(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_chn_switch_mode(struct wlan_objmgr_psoc *psoc,
 					     bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1834,9 +1851,9 @@ QDF_STATUS wlan_mlme_get_sap_chn_switch_mode(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_internal_restart(struct wlan_objmgr_psoc *psoc,
 					      bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1848,9 +1865,9 @@ QDF_STATUS wlan_mlme_get_sap_internal_restart(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_max_modulated_dtim(struct wlan_objmgr_psoc *psoc,
 						uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1862,9 +1879,9 @@ QDF_STATUS wlan_mlme_get_sap_max_modulated_dtim(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_chan_pref_location(struct wlan_objmgr_psoc *psoc,
 						uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1876,9 +1893,9 @@ QDF_STATUS wlan_mlme_get_sap_chan_pref_location(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_country_priority(struct wlan_objmgr_psoc *psoc,
 					      bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1890,9 +1907,9 @@ QDF_STATUS wlan_mlme_get_sap_country_priority(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_sap_reduced_beacon_interval(struct wlan_objmgr_psoc
 						     *psoc, int *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_REDUCED_BEACON_INTERVAL);
 		return QDF_STATUS_E_FAILURE;
@@ -1906,9 +1923,9 @@ QDF_STATUS wlan_mlme_get_sap_reduced_beacon_interval(struct wlan_objmgr_psoc
 QDF_STATUS wlan_mlme_get_sap_chan_switch_rate_enabled(struct wlan_objmgr_psoc
 						      *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1920,9 +1937,9 @@ QDF_STATUS wlan_mlme_get_sap_chan_switch_rate_enabled(struct wlan_objmgr_psoc
 QDF_STATUS wlan_mlme_get_sap_force_11n_for_11ac(struct wlan_objmgr_psoc
 						*psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1934,9 +1951,9 @@ QDF_STATUS wlan_mlme_get_sap_force_11n_for_11ac(struct wlan_objmgr_psoc
 QDF_STATUS wlan_mlme_get_go_force_11n_for_11ac(struct wlan_objmgr_psoc
 					       *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -1948,9 +1965,9 @@ QDF_STATUS wlan_mlme_get_go_force_11n_for_11ac(struct wlan_objmgr_psoc
 QDF_STATUS wlan_mlme_is_sap_11ac_override(struct wlan_objmgr_psoc *psoc,
 					  bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_SAP_11AC_OVERRIDE);
 		return QDF_STATUS_E_FAILURE;
@@ -1963,9 +1980,9 @@ QDF_STATUS wlan_mlme_is_sap_11ac_override(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_is_go_11ac_override(struct wlan_objmgr_psoc *psoc,
 					 bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_GO_11AC_OVERRIDE);
 		return QDF_STATUS_E_FAILURE;
@@ -1978,9 +1995,9 @@ QDF_STATUS wlan_mlme_is_go_11ac_override(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_sap_11ac_override(struct wlan_objmgr_psoc *psoc,
 					   bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 	mlme_obj->cfg.sap_cfg.sap_11ac_override = value;
@@ -1991,9 +2008,9 @@ QDF_STATUS wlan_mlme_set_sap_11ac_override(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_go_11ac_override(struct wlan_objmgr_psoc *psoc,
 					  bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 	mlme_obj->cfg.sap_cfg.go_11ac_override = value;
@@ -2001,10 +2018,20 @@ QDF_STATUS wlan_mlme_set_go_11ac_override(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
+bool wlan_mlme_get_host_scan_abort_support(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
+
+	if (!mlme_obj)
+		return false;
+
+	return mlme_obj->cfg.gen.stop_all_host_scan_support;
+}
+
 QDF_STATUS wlan_mlme_get_oce_sta_enabled_info(struct wlan_objmgr_psoc *psoc,
 					      bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -2016,7 +2043,7 @@ QDF_STATUS wlan_mlme_get_oce_sta_enabled_info(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_oce_sap_enabled_info(struct wlan_objmgr_psoc *psoc,
 					      bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -2062,7 +2089,7 @@ void wlan_mlme_update_oce_flags(struct wlan_objmgr_pdev *pdev)
 {
 	uint16_t sap_connected_peer, go_connected_peer;
 	struct wlan_objmgr_psoc *psoc = NULL;
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 	uint8_t updated_fw_value = 0;
 
 	psoc = wlan_pdev_get_psoc(pdev);
@@ -2073,7 +2100,7 @@ void wlan_mlme_update_oce_flags(struct wlan_objmgr_pdev *pdev)
 	wlan_util_get_peer_count_for_mode(pdev, QDF_SAP_MODE);
 	go_connected_peer =
 	wlan_util_get_peer_count_for_mode(pdev, QDF_P2P_GO_MODE);
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (sap_connected_peer || go_connected_peer) {
 		updated_fw_value = mlme_obj->cfg.oce.feature_bitmap;
@@ -2096,9 +2123,9 @@ void wlan_mlme_update_oce_flags(struct wlan_objmgr_pdev *pdev)
 
 bool wlan_mlme_is_ap_prot_enabled(struct wlan_objmgr_psoc *psoc)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return false;
 
@@ -2108,9 +2135,9 @@ bool wlan_mlme_is_ap_prot_enabled(struct wlan_objmgr_psoc *psoc)
 QDF_STATUS wlan_mlme_get_ap_protection_mode(struct wlan_objmgr_psoc *psoc,
 					    uint16_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2122,9 +2149,9 @@ QDF_STATUS wlan_mlme_get_ap_protection_mode(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_is_ap_obss_prot_enabled(struct wlan_objmgr_psoc *psoc,
 					     bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2136,9 +2163,9 @@ QDF_STATUS wlan_mlme_is_ap_obss_prot_enabled(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_rts_threshold(struct wlan_objmgr_psoc *psoc,
 				       uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2150,7 +2177,7 @@ QDF_STATUS wlan_mlme_get_rts_threshold(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_rts_threshold(struct wlan_objmgr_psoc *psoc,
 				       uint32_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 	tp_wma_handle wma_handle;
 
 	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
@@ -2160,7 +2187,7 @@ QDF_STATUS wlan_mlme_set_rts_threshold(struct wlan_objmgr_psoc *psoc,
 		return QDF_STATUS_E_INVAL;
 	}
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -2174,9 +2201,9 @@ QDF_STATUS wlan_mlme_set_rts_threshold(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_frag_threshold(struct wlan_objmgr_psoc *psoc,
 					uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2188,7 +2215,7 @@ QDF_STATUS wlan_mlme_get_frag_threshold(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_frag_threshold(struct wlan_objmgr_psoc *psoc,
 					uint32_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 	tp_wma_handle wma_handle;
 
 	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
@@ -2198,7 +2225,7 @@ QDF_STATUS wlan_mlme_set_frag_threshold(struct wlan_objmgr_psoc *psoc,
 		return QDF_STATUS_E_INVAL;
 	}
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -2213,7 +2240,7 @@ QDF_STATUS wlan_mlme_set_frag_threshold(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_fils_enabled_info(struct wlan_objmgr_psoc *psoc,
 					   bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -2225,7 +2252,7 @@ QDF_STATUS wlan_mlme_get_fils_enabled_info(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_fils_enabled_info(struct wlan_objmgr_psoc *psoc,
 					   bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -2237,7 +2264,7 @@ QDF_STATUS wlan_mlme_set_fils_enabled_info(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_enable_bcast_probe_rsp(struct wlan_objmgr_psoc *psoc,
 						bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -2250,9 +2277,9 @@ QDF_STATUS
 wlan_mlme_get_sta_miracast_mcc_rest_time(struct wlan_objmgr_psoc *psoc,
 					 uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2265,9 +2292,9 @@ QDF_STATUS
 wlan_mlme_get_sap_mcc_chnl_avoid(struct wlan_objmgr_psoc *psoc,
 				 uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2280,9 +2307,9 @@ QDF_STATUS
 wlan_mlme_get_mcc_bcast_prob_resp(struct wlan_objmgr_psoc *psoc,
 				  uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2295,9 +2322,9 @@ QDF_STATUS
 wlan_mlme_get_mcc_rts_cts_prot(struct wlan_objmgr_psoc *psoc,
 			       uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2310,9 +2337,9 @@ QDF_STATUS
 wlan_mlme_get_mcc_feature(struct wlan_objmgr_psoc *psoc,
 			  uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2453,7 +2480,6 @@ QDF_STATUS wlan_mlme_get_edca_params(struct wlan_mlme_edca_params *edca_params,
 	return QDF_STATUS_SUCCESS;
 }
 
-#ifdef CRYPTO_SET_KEY_CONVERGED
 QDF_STATUS mlme_get_wep_key(struct wlan_objmgr_vdev *vdev,
 			    struct wlan_mlme_wep_cfg *wep_params,
 			    enum wep_key_id wep_keyid, uint8_t *default_key,
@@ -2480,45 +2506,6 @@ QDF_STATUS mlme_get_wep_key(struct wlan_objmgr_vdev *vdev,
 
 	return QDF_STATUS_SUCCESS;
 }
-#else
-QDF_STATUS mlme_get_wep_key(struct wlan_objmgr_vdev *vdev,
-			    struct wlan_mlme_wep_cfg *wep_params,
-			    enum wep_key_id wep_keyid, uint8_t *default_key,
-			    qdf_size_t *key_len)
-{
-	switch (wep_keyid) {
-	case MLME_WEP_DEFAULT_KEY_1:
-		wlan_mlme_get_cfg_str(default_key,
-				      &wep_params->wep_default_key_1,
-				      key_len);
-		break;
-
-	case MLME_WEP_DEFAULT_KEY_2:
-		wlan_mlme_get_cfg_str(default_key,
-				      &wep_params->wep_default_key_2,
-				      key_len);
-		break;
-
-	case MLME_WEP_DEFAULT_KEY_3:
-		wlan_mlme_get_cfg_str(default_key,
-				      &wep_params->wep_default_key_3,
-				      key_len);
-		break;
-
-	case MLME_WEP_DEFAULT_KEY_4:
-		wlan_mlme_get_cfg_str(default_key,
-				      &wep_params->wep_default_key_4,
-				      key_len);
-		break;
-
-	default:
-		mlme_legacy_err("Invalid key id:%d", wep_keyid);
-		return QDF_STATUS_E_INVAL;
-	}
-	mlme_legacy_debug("key_id:%d key_len:%zd", wep_keyid, *key_len);
-	return QDF_STATUS_SUCCESS;
-}
-#endif /* CRYPTO_SET_KEY_CONVERGED */
 
 QDF_STATUS mlme_set_wep_key(struct wlan_mlme_wep_cfg *wep_params,
 			    enum wep_key_id wep_keyid, uint8_t *key_to_set,
@@ -2565,9 +2552,9 @@ QDF_STATUS mlme_set_wep_key(struct wlan_mlme_wep_cfg *wep_params,
 QDF_STATUS
 wlan_mlme_is_11h_enabled(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2579,9 +2566,9 @@ wlan_mlme_is_11h_enabled(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_set_11h_enabled(struct wlan_objmgr_psoc *psoc, bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2593,9 +2580,9 @@ wlan_mlme_set_11h_enabled(struct wlan_objmgr_psoc *psoc, bool value)
 QDF_STATUS
 wlan_mlme_is_11d_enabled(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2607,9 +2594,9 @@ wlan_mlme_is_11d_enabled(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_set_11d_enabled(struct wlan_objmgr_psoc *psoc, bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2621,13 +2608,18 @@ wlan_mlme_set_11d_enabled(struct wlan_objmgr_psoc *psoc, bool value)
 QDF_STATUS
 wlan_mlme_cfg_set_vht_chan_width(struct wlan_objmgr_psoc *psoc, uint8_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
 	mlme_obj->cfg.vht_caps.vht_cap_info.supp_chan_width = value;
+	if (value == VHT_CAP_160_AND_80P80_SUPP ||
+	    value == VHT_CAP_160_SUPP) {
+		mlme_obj->cfg.vht_caps.vht_cap_info.vht_extended_nss_bw_cap = 1;
+		mlme_obj->cfg.vht_caps.vht_cap_info.extended_nss_bw_supp = 0;
+	}
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -2635,9 +2627,9 @@ wlan_mlme_cfg_set_vht_chan_width(struct wlan_objmgr_psoc *psoc, uint8_t value)
 QDF_STATUS
 wlan_mlme_cfg_get_vht_chan_width(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2649,9 +2641,9 @@ wlan_mlme_cfg_get_vht_chan_width(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS wlan_mlme_cfg_set_vht_ldpc_coding_cap(struct wlan_objmgr_psoc *psoc,
 						 bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2664,9 +2656,9 @@ QDF_STATUS
 wlan_mlme_cfg_set_short_gi_160_mhz(struct wlan_objmgr_psoc *psoc,
 				   bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2678,9 +2670,9 @@ wlan_mlme_cfg_set_short_gi_160_mhz(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_cfg_get_short_gi_160_mhz(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2692,9 +2684,9 @@ wlan_mlme_cfg_get_short_gi_160_mhz(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_cfg_get_vht_tx_stbc(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2706,9 +2698,9 @@ wlan_mlme_cfg_get_vht_tx_stbc(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_cfg_get_vht_rx_stbc(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2721,9 +2713,9 @@ QDF_STATUS
 wlan_mlme_cfg_set_vht_tx_bfee_ant_supp(struct wlan_objmgr_psoc *psoc,
 					uint8_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2736,9 +2728,9 @@ QDF_STATUS
 wlan_mlme_cfg_get_vht_tx_bfee_ant_supp(struct wlan_objmgr_psoc *psoc,
 					uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2750,9 +2742,9 @@ wlan_mlme_cfg_get_vht_tx_bfee_ant_supp(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_cfg_get_vht_rx_mcs_map(struct wlan_objmgr_psoc *psoc,
 					    uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2764,9 +2756,9 @@ QDF_STATUS wlan_mlme_cfg_get_vht_rx_mcs_map(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_cfg_set_vht_rx_mcs_map(struct wlan_objmgr_psoc *psoc,
 					    uint32_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2778,9 +2770,9 @@ QDF_STATUS wlan_mlme_cfg_set_vht_rx_mcs_map(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_cfg_get_vht_tx_mcs_map(struct wlan_objmgr_psoc *psoc,
 					    uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2792,9 +2784,9 @@ QDF_STATUS wlan_mlme_cfg_get_vht_tx_mcs_map(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_cfg_set_vht_tx_mcs_map(struct wlan_objmgr_psoc *psoc,
 					    uint32_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2807,9 +2799,9 @@ QDF_STATUS
 wlan_mlme_cfg_set_vht_rx_supp_data_rate(struct wlan_objmgr_psoc *psoc,
 					uint32_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2822,9 +2814,9 @@ QDF_STATUS
 wlan_mlme_cfg_set_vht_tx_supp_data_rate(struct wlan_objmgr_psoc *psoc,
 					uint32_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2837,9 +2829,9 @@ QDF_STATUS
 wlan_mlme_cfg_get_vht_basic_mcs_set(struct wlan_objmgr_psoc *psoc,
 				    uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2852,9 +2844,9 @@ QDF_STATUS
 wlan_mlme_cfg_set_vht_basic_mcs_set(struct wlan_objmgr_psoc *psoc,
 				    uint32_t value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2866,9 +2858,9 @@ wlan_mlme_cfg_set_vht_basic_mcs_set(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS
 wlan_mlme_get_vht_enable_tx_bf(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2880,9 +2872,9 @@ wlan_mlme_get_vht_enable_tx_bf(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_get_vht_tx_su_beamformer(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2894,9 +2886,9 @@ wlan_mlme_get_vht_tx_su_beamformer(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_get_vht_channel_width(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2909,9 +2901,9 @@ wlan_mlme_get_vht_channel_width(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS
 wlan_mlme_get_vht_rx_mcs_8_9(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2923,9 +2915,9 @@ wlan_mlme_get_vht_rx_mcs_8_9(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS
 wlan_mlme_get_vht_tx_mcs_8_9(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2937,9 +2929,9 @@ wlan_mlme_get_vht_tx_mcs_8_9(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS
 wlan_mlme_get_vht_rx_mcs_2x2(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2951,9 +2943,9 @@ wlan_mlme_get_vht_rx_mcs_2x2(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS
 wlan_mlme_get_vht_tx_mcs_2x2(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2965,9 +2957,9 @@ wlan_mlme_get_vht_tx_mcs_2x2(struct wlan_objmgr_psoc *psoc, uint8_t *value)
 QDF_STATUS
 wlan_mlme_get_vht20_mcs9(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2979,9 +2971,9 @@ wlan_mlme_get_vht20_mcs9(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_get_vht_enable2x2(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -2993,9 +2985,9 @@ wlan_mlme_get_vht_enable2x2(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_set_vht_enable2x2(struct wlan_objmgr_psoc *psoc, bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3007,9 +2999,9 @@ wlan_mlme_set_vht_enable2x2(struct wlan_objmgr_psoc *psoc, bool value)
 QDF_STATUS
 wlan_mlme_get_vht_enable_paid(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3021,9 +3013,9 @@ wlan_mlme_get_vht_enable_paid(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_get_vht_enable_gid(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3035,9 +3027,9 @@ wlan_mlme_get_vht_enable_gid(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_get_vht_for_24ghz(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3049,9 +3041,9 @@ wlan_mlme_get_vht_for_24ghz(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 wlan_mlme_set_vht_for_24ghz(struct wlan_objmgr_psoc *psoc, bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3063,9 +3055,9 @@ wlan_mlme_set_vht_for_24ghz(struct wlan_objmgr_psoc *psoc, bool value)
 QDF_STATUS
 wlan_mlme_get_vendor_vht_for_24ghz(struct wlan_objmgr_psoc *psoc, bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3077,12 +3069,12 @@ wlan_mlme_get_vendor_vht_for_24ghz(struct wlan_objmgr_psoc *psoc, bool *value)
 QDF_STATUS
 mlme_update_vht_cap(struct wlan_objmgr_psoc *psoc, struct wma_tgt_vht_cap *cfg)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 	struct mlme_vht_capabilities_info *vht_cap_info;
 	uint32_t value = 0;
 	bool hw_rx_ldpc_enabled;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3174,11 +3166,11 @@ mlme_update_vht_cap(struct wlan_objmgr_psoc *psoc, struct wma_tgt_vht_cap *cfg)
 
 QDF_STATUS mlme_update_nss_vht_cap(struct wlan_objmgr_psoc *psoc)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 	struct mlme_vht_capabilities_info *vht_cap_info;
 	uint32_t temp = 0;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3217,9 +3209,9 @@ QDF_STATUS mlme_update_nss_vht_cap(struct wlan_objmgr_psoc *psoc)
 QDF_STATUS wlan_mlme_is_sap_uapsd_enabled(struct wlan_objmgr_psoc *psoc,
 					  bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3231,9 +3223,9 @@ QDF_STATUS wlan_mlme_is_sap_uapsd_enabled(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_dtim_selection_diversity(struct wlan_objmgr_psoc *psoc,
 						  uint32_t *dtim_selection_div)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*dtim_selection_div = cfg_default(CFG_DTIM_SELECTION_DIVERSITY);
 		return QDF_STATUS_E_FAILURE;
@@ -3247,9 +3239,9 @@ QDF_STATUS wlan_mlme_get_dtim_selection_diversity(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_bmps_min_listen_interval(struct wlan_objmgr_psoc *psoc,
 						  uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_BMPS_MINIMUM_LI);
 		return QDF_STATUS_E_FAILURE;
@@ -3263,9 +3255,9 @@ QDF_STATUS wlan_mlme_get_bmps_min_listen_interval(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_bmps_max_listen_interval(struct wlan_objmgr_psoc *psoc,
 						  uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_BMPS_MAXIMUM_LI);
 		return QDF_STATUS_E_FAILURE;
@@ -3279,9 +3271,9 @@ QDF_STATUS wlan_mlme_get_bmps_max_listen_interval(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_set_sap_uapsd_flag(struct wlan_objmgr_psoc *psoc,
 					bool value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3293,9 +3285,9 @@ QDF_STATUS wlan_mlme_set_sap_uapsd_flag(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_rrm_enabled(struct wlan_objmgr_psoc *psoc,
 				     bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3306,9 +3298,9 @@ QDF_STATUS wlan_mlme_get_rrm_enabled(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_get_auto_bmps_timer_value(struct wlan_objmgr_psoc *psoc,
 					       uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_AUTO_BMPS_ENABLE_TIMER);
 		return QDF_STATUS_E_FAILURE;
@@ -3322,9 +3314,9 @@ QDF_STATUS wlan_mlme_get_auto_bmps_timer_value(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_is_bmps_enabled(struct wlan_objmgr_psoc *psoc,
 				     bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_ENABLE_PS);
 		return QDF_STATUS_E_FAILURE;
@@ -3338,9 +3330,9 @@ QDF_STATUS wlan_mlme_is_bmps_enabled(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_mlme_is_imps_enabled(struct wlan_objmgr_psoc *psoc,
 				     bool *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_ENABLE_IMPS);
 		return QDF_STATUS_E_FAILURE;
@@ -3353,9 +3345,9 @@ QDF_STATUS wlan_mlme_is_imps_enabled(struct wlan_objmgr_psoc *psoc,
 
 QDF_STATUS wlan_mlme_override_bmps_imps(struct wlan_objmgr_psoc *psoc)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3377,9 +3369,9 @@ QDF_STATUS
 wlan_mlme_get_self_gen_frm_pwr(struct wlan_objmgr_psoc *psoc,
 			       uint32_t *value)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_SELF_GEN_FRM_PWR);
 		mlme_legacy_err("Failed to get MLME Obj");
@@ -3396,7 +3388,7 @@ QDF_STATUS wlan_mlme_ibss_power_save_setup(struct wlan_objmgr_psoc *psoc,
 {
 	struct wlan_mlme_ibss_cfg *ibss_cfg;
 	int ret;
-	struct wlan_mlme_psoc_obj *mlme_obj = mlme_get_psoc_obj(psoc);
+	struct wlan_mlme_psoc_ext_obj *mlme_obj = mlme_get_psoc_ext_obj(psoc);
 
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
@@ -3479,13 +3471,29 @@ QDF_STATUS wlan_mlme_ibss_power_save_setup(struct wlan_objmgr_psoc *psoc,
 }
 
 QDF_STATUS
+wlan_mlme_get_4way_hs_offload(struct wlan_objmgr_psoc *psoc, bool *value)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj) {
+		*value = cfg_default(CFG_DISABLE_4WAY_HS_OFFLOAD);
+		mlme_legacy_err("Failed to get MLME Obj");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	*value = mlme_obj->cfg.gen.disable_4way_hs_offload;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS
 wlan_mlme_get_bmiss_skip_full_scan_value(struct wlan_objmgr_psoc *psoc,
 					 bool *value)
 {
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	struct wlan_mlme_psoc_obj *mlme_obj;
-
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj) {
 		*value = cfg_default(CFG_BMISS_SKIP_FULL_SCAN);
 		mlme_legacy_err("Failed to get MLME Obj");
@@ -3517,9 +3525,9 @@ QDF_STATUS mlme_get_peer_phymode(struct wlan_objmgr_psoc *psoc, uint8_t *mac,
 QDF_STATUS mlme_set_tgt_wpa3_roam_cap(struct wlan_objmgr_psoc *psoc,
 				      uint32_t akm_bitmap)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
@@ -3532,59 +3540,15 @@ QDF_STATUS
 wlan_mlme_get_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc,
 					bool *disabled)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+
 	if (!mlme_obj)
 		return QDF_STATUS_E_FAILURE;
 
 	*disabled = mlme_obj->cfg.reg.ignore_fw_reg_offload_ind;
 	return QDF_STATUS_SUCCESS;
-}
-
-QDF_STATUS
-wlan_mlme_get_mgmt_max_retry(struct wlan_objmgr_psoc *psoc,
-			     uint8_t *max_retry)
-{
-	struct wlan_mlme_psoc_obj *mlme_obj;
-
-	mlme_obj = mlme_get_psoc_obj(psoc);
-
-	if (!mlme_obj) {
-		*max_retry = cfg_default(CFG_MGMT_RETRY_MAX);
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	*max_retry = mlme_obj->cfg.gen.mgmt_retry_max;
-	return QDF_STATUS_SUCCESS;
-}
-
-QDF_STATUS
-wlan_mlme_get_status_ring_buffer(struct wlan_objmgr_psoc *psoc,
-				 bool *enable_ring_buffer)
-{
-	struct wlan_mlme_psoc_obj *mlme_obj;
-
-	mlme_obj = mlme_get_psoc_obj(psoc);
-
-	if (!mlme_obj) {
-		*enable_ring_buffer = cfg_default(CFG_ENABLE_RING_BUFFER);
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	*enable_ring_buffer = mlme_obj->cfg.gen.enable_ring_buffer;
-	return QDF_STATUS_SUCCESS;
-}
-
-bool wlan_mlme_get_peer_unmap_conf(struct wlan_objmgr_psoc *psoc)
-{
-	struct wlan_mlme_psoc_obj *mlme_obj;
-
-	mlme_obj = mlme_get_psoc_obj(psoc);
-	if (!mlme_obj)
-		return false;
-
-	return mlme_obj->cfg.gen.enable_peer_unmap_conf_support;
 }
 
 char *mlme_get_roam_trigger_str(uint32_t roam_scan_trigger)
@@ -3648,8 +3612,9 @@ void wlan_mlme_set_sae_single_pmk_bss_cap(struct wlan_objmgr_psoc *psoc,
 
 	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
 						    WLAN_MLME_OBJMGR_ID);
+
 	if (!vdev) {
-		mlme_legacy_err("get vdev failed");
+		mlme_err("get vdev failed");
 		return;
 	}
 
@@ -3669,6 +3634,8 @@ void wlan_mlme_update_sae_single_pmk(struct wlan_objmgr_vdev *vdev,
 				     struct mlme_pmk_info *sae_single_pmk)
 {
 	struct mlme_legacy_priv *mlme_priv;
+	uint32_t keymgmt;
+	bool is_sae_connection = false;
 
 	mlme_priv = wlan_vdev_mlme_get_ext_hdl(vdev);
 	if (!mlme_priv) {
@@ -3676,7 +3643,13 @@ void wlan_mlme_update_sae_single_pmk(struct wlan_objmgr_vdev *vdev,
 		return;
 	}
 
-	if (mlme_priv->mlme_roam.sae_single_pmk.sae_single_pmk_ap)
+	keymgmt = wlan_crypto_get_param(vdev, WLAN_CRYPTO_PARAM_KEY_MGMT);
+
+	if (keymgmt & (1 << WLAN_CRYPTO_KEY_MGMT_SAE))
+		is_sae_connection = true;
+
+	if (mlme_priv->mlme_roam.sae_single_pmk.sae_single_pmk_ap &&
+	    is_sae_connection)
 		mlme_priv->mlme_roam.sae_single_pmk.pmk_info = *sae_single_pmk;
 }
 
@@ -3833,49 +3806,90 @@ char *mlme_get_sub_reason_str(uint32_t sub_reason)
 }
 
 QDF_STATUS
-wlan_mlme_get_4way_hs_offload(struct wlan_objmgr_psoc *psoc, bool *value)
+wlan_mlme_get_mgmt_max_retry(struct wlan_objmgr_psoc *psoc,
+			     uint8_t *max_retry)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+
 	if (!mlme_obj) {
-		*value = cfg_default(CFG_DISABLE_4WAY_HS_OFFLOAD);
-		mlme_legacy_err("Failed to get MLME Obj");
+		*max_retry = cfg_default(CFG_MGMT_RETRY_MAX);
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	*value = mlme_obj->cfg.gen.disable_4way_hs_offload;
-
+	*max_retry = mlme_obj->cfg.gen.mgmt_retry_max;
 	return QDF_STATUS_SUCCESS;
 }
 
+QDF_STATUS
+wlan_mlme_get_status_ring_buffer(struct wlan_objmgr_psoc *psoc,
+				 bool *enable_ring_buffer)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+
+	if (!mlme_obj) {
+		*enable_ring_buffer = cfg_default(CFG_ENABLE_RING_BUFFER);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	*enable_ring_buffer = mlme_obj->cfg.gen.enable_ring_buffer;
+	return QDF_STATUS_SUCCESS;
+}
+
+bool wlan_mlme_get_peer_unmap_conf(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj)
+		return false;
+
+	return mlme_obj->cfg.gen.enable_peer_unmap_conf_support;
+}
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS
+wlan_mlme_get_roam_reason_vsie_status(struct wlan_objmgr_psoc *psoc,
+				      uint8_t *roam_reason_vsie_enable)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj) {
+		*roam_reason_vsie_enable =
+			cfg_default(CFG_ENABLE_ROAM_REASON_VSIE);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	*roam_reason_vsie_enable = mlme_obj->cfg.lfr.enable_roam_reason_vsie;
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS
+wlan_mlme_set_roam_reason_vsie_status(struct wlan_objmgr_psoc *psoc,
+				      uint8_t roam_reason_vsie_enable)
+{
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
+
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
+	if (!mlme_obj)
+		return QDF_STATUS_E_FAILURE;
+
+	mlme_obj->cfg.lfr.enable_roam_reason_vsie = roam_reason_vsie_enable;
+	return QDF_STATUS_SUCCESS;
+}
+
 uint32_t wlan_mlme_get_roaming_triggers(struct wlan_objmgr_psoc *psoc)
 {
-	struct wlan_mlme_psoc_obj *mlme_obj;
+	struct wlan_mlme_psoc_ext_obj *mlme_obj;
 
-	mlme_obj = mlme_get_psoc_obj(psoc);
+	mlme_obj = mlme_get_psoc_ext_obj(psoc);
 	if (!mlme_obj)
 		return cfg_default(CFG_ROAM_TRIGGER_BITMAP);
 
 	return mlme_obj->cfg.lfr.roam_trigger_bitmap;
 }
 #endif
-
-QDF_STATUS
-wlan_mlme_get_dfs_chan_ageout_time(struct wlan_objmgr_psoc *psoc,
-				   uint8_t *dfs_chan_ageout_time)
-{
-	struct wlan_mlme_psoc_obj *mlme_obj;
-
-	mlme_obj = mlme_get_psoc_obj(psoc);
-	if (!mlme_obj) {
-		*dfs_chan_ageout_time =
-			cfg_default(CFG_DFS_CHAN_AGEOUT_TIME);
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	*dfs_chan_ageout_time = mlme_obj->cfg.gen.dfs_chan_ageout_time;
-
-	return QDF_STATUS_SUCCESS;
-}

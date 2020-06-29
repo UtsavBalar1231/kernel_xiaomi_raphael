@@ -125,7 +125,7 @@
  * gStaPrefer80MHzOver160MHz - set sta preference to connect in 80HZ/160HZ
  * @Min: 0
  * @Max: 1
- * @Default: 1
+ * @Default: 0
  *
  * This ini is used to set sta preference to connect in 80HZ/160HZ
  *
@@ -142,7 +142,7 @@
  */
 #define CFG_STA_PREFER_80MHZ_OVER_160MHZ CFG_INI_BOOL( \
 	"gStaPrefer80MHzOver160MHz", \
-	1, \
+	0, \
 	"Sta preference to connect in 80HZ/160HZ")
 
 /*
@@ -288,30 +288,6 @@
 	0, \
 	CFG_VALUE_OR_DEFAULT, \
 	"Set maximum channel guard time")
-
-/*
- * <ini>
- * force_rsne_override - force rsnie override from user
- * @Min: 0
- * @Max: 1
- * @Default: 0
- *
- * This ini is used to enable/disable test mode to force rsne override used in
- * security enhancement test cases to pass the RSNIE sent by user in
- * assoc request.
- *
- * Related: None
- *
- * Supported Feature: STA
- *
- * Usage: internal
- *
- * </ini>
- */
-#define CFG_FORCE_RSNE_OVERRIDE CFG_INI_BOOL( \
-	"force_rsne_override", \
-	0, \
-	"Set obss active dwelltime")
 
 /*
  * <ini>
@@ -469,7 +445,6 @@
 	CFG(CFG_QCN_IE_SUPPORT) \
 	CFG(CFG_STA_MCAST_MCC_REST_TIME) \
 	CFG(CFG_FILS_MAX_CHAN_GUARD_TIME) \
-	CFG(CFG_FORCE_RSNE_OVERRIDE) \
 	CFG(CFG_SINGLE_TID_RC) \
 	CFG(CFG_STA_KEEPALIVE_METHOD) \
 	CFG(CFG_WT_CNF_TIMEOUT) \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -26,17 +26,13 @@
  *
  */
 
-#include "wlan_hdd_main.h"
 struct hdd_context;
 
 #define EXTSCAN_EVENT_BUF_SIZE 4096
 
-int wlan_hdd_cfg80211_extscan_get_valid_channels(struct wiphy *wiphy,
-						 struct wireless_dev
-						 *wdev, const void *data,
-						 int data_len);
-
 #ifdef FEATURE_WLAN_EXTSCAN
+
+#include "wlan_hdd_main.h"
 
 /*
  * Used to allocate the size of 4096 for the EXTScan NL data.

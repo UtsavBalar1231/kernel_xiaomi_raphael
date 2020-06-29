@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -151,7 +151,6 @@ struct pe_session {
 	tSirMacAddr bssId;
 	tSirMacAddr self_mac_addr;
 	tSirMacSSid ssId;
-	uint8_t bss_idx;
 	uint8_t valid;
 	tLimMlmStates limMlmState;      /* MLM State */
 	tLimMlmStates limPrevMlmState;  /* Previous MLM State */
@@ -180,7 +179,7 @@ struct pe_session {
 	uint8_t htRecommendedTxWidthSet;
 	/* Identifies the 40 MHz extension channel */
 	ePhyChanBondState htSecondaryChannelOffset;
-	enum band_info limRFBand;
+	enum reg_wifi_band limRFBand;
 	uint8_t limIbssActive;  /* TO SUPPORT CONCURRENCY */
 
 	/* These global varibales moved to session Table to support BT-AMP : Oct 9th review */
@@ -192,7 +191,7 @@ struct pe_session {
 
 	/* Parameters  For Reassociation */
 	tSirMacAddr limReAssocbssId;
-	tSirMacChanNum limReassocChannelId;
+	uint32_t lim_reassoc_chan_freq;
 	/* CB paramaters required/duplicated for Reassoc since re-assoc mantains its own params in lim */
 	uint8_t reAssocHtSupportedChannelWidthSet;
 	uint8_t reAssocHtRecommendedTxWidthSet;
@@ -206,20 +205,14 @@ struct pe_session {
 
 	/** BSS Table parameters **/
 
-	/*
-	 * staId:  Start BSS: this is the  Sta Id for the BSS.
-	 * Join: this is the selfStaId
-	 * In both cases above, the peer STA ID wll be stored in dph hash table.
-	 */
-	uint16_t staId;
 	uint16_t statypeForBss; /* to know session is for PEER or SELF */
 	uint8_t shortSlotTimeSupported;
 	uint8_t dtimPeriod;
 	tSirMacRateSet rateSet;
 	tSirMacRateSet extRateSet;
 	tSirMacHTOperatingMode htOperMode;
-	uint8_t currentOperChannel;
-	uint8_t currentReqChannel;
+	qdf_freq_t curr_op_freq;
+	uint32_t curr_req_chan_freq;
 	uint8_t LimRxedBeaconCntDuringHB;
 
 	/* Time stamp of the last beacon received from the BSS to which STA is connected. */
@@ -232,7 +225,7 @@ struct pe_session {
 	uint8_t *beacon;        /* Used to store last beacon / probe response before assoc. */
 
 	uint32_t assocReqLen;
-	uint8_t *assocReq;      /* Used to store association request frame sent out while associating. */
+	uint8_t *assoc_req;      /* Used to store association request frame */
 
 	uint32_t assocRspLen;
 	uint8_t *assocRsp;      /* Used to store association response received while associating */
@@ -316,7 +309,6 @@ struct pe_session {
 	uint8_t lim11dEnabled:1;
 #ifdef WLAN_FEATURE_11W
 	uint8_t limRmfEnabled:1;        /* 11W */
-	tAniEdType mgmt_cipher_type;
 #endif
 	uint32_t lim11hEnable;
 
@@ -540,6 +532,7 @@ struct pe_session {
 	tDot11fIEhe_cap he_config;
 	tDot11fIEhe_op he_op;
 	uint32_t he_sta_obsspd;
+	bool he_6ghz_band;
 #ifdef WLAN_FEATURE_11AX_BSS_COLOR
 	tDot11fIEbss_color_change he_bss_color_change;
 	struct bss_color_info bss_color_info[MAX_BSS_COLOR_VALUE];
@@ -579,11 +572,9 @@ struct pe_session {
 	bool enable_session_twt_support;
 	uint32_t cac_duration_ms;
 	tSirResultCodes stop_bss_reason;
+	uint16_t prot_status_code;
+	tSirResultCodes result_code;
 	uint32_t dfs_regdomain;
-};
-
-struct session_params {
-	uint16_t session_id;
 };
 
 /*-------------------------------------------------------------------------
@@ -652,18 +643,32 @@ struct pe_session *pe_find_session_by_bssid(struct mac_context *mac, uint8_t *bs
 				     uint8_t *sessionId);
 
 /**
- * pe_find_session_by_bss_idx() - looks up the PE session given the bss_idx.
- *
- * @mac:          pointer to global adapter context
- * @bss_idx:        bss index of the session
- *
- * This function returns the session context  if the session
- * corresponding to the given bss_idx is found in the PE session table.
+ * pe_find_session_by_vdev_id() - looks up the PE session given the vdev_id.
+ * @mac:             pointer to global adapter context
+ * @vdev_id:         vdev id the session
  *
  * Return: pointer to the session context or NULL if session is not found.
  */
-struct pe_session *pe_find_session_by_bss_idx(struct mac_context *mac,
-					      uint8_t bss_idx);
+struct pe_session *pe_find_session_by_vdev_id(struct mac_context *mac,
+					      uint8_t vdev_id);
+
+/**
+ * pe_find_session_by_vdev_id_and_state() - Find PE session by vdev_id and
+ * mlm state.
+ * @mac:             pointer to global adapter context
+ * @vdev_id:         vdev id the session
+ * @vdev_id:         vdev id the session
+ *
+ * During LFR2 roaming, new pe session is created before old pe session
+ * deleted, the 2 pe sessions have different pe session id, but same vdev id,
+ * can't get correct pe session by vdev id at this time.
+ *
+ * Return: pointer to the session context or NULL if session is not found.
+ */
+struct pe_session
+*pe_find_session_by_vdev_id_and_state(struct mac_context *mac,
+				      uint8_t vdev_id,
+				      enum eLimMlmStates lim_state);
 
 /**
  * pe_find_session_by_peer_sta() - looks up the PE session given the Peer
@@ -698,21 +703,6 @@ struct pe_session *pe_find_session_by_session_id(struct mac_context *mac,
 					  uint8_t sessionId);
 
 /**
- * pe_find_session_by_bssid() - looks up the PE session given staid.
- *
- * @mac:          pointer to global adapter context
- * @staid:         StaId of the session
- * @sessionId:     session ID is returned here, if session is found.
- *
- * This function returns the session context and the session ID if the session
- * corresponding to the given StaId is found in the PE session table.
- *
- * Return: pointer to the session context or NULL if session is not found.
- */
-struct pe_session *pe_find_session_by_sta_id(struct mac_context *mac, uint8_t staid,
-				      uint8_t *sessionId);
-
-/**
  * pe_delete_session() - deletes the PE session given the session ID.
  *
  * @mac:          pointer to global adapter context
@@ -721,20 +711,6 @@ struct pe_session *pe_find_session_by_sta_id(struct mac_context *mac, uint8_t st
  * Return: void
  */
 void pe_delete_session(struct mac_context *mac, struct pe_session *pe_session);
-
-
-/**
- * pe_find_session_by_sme_session_id() - looks up the PE session for given sme
- * session id
- * @mac_ctx:          pointer to global adapter context
- * @sme_session_id:   sme session id
- *
- * looks up the PE session for given sme session id
- *
- * Return: pe session entry for given sme session if found else NULL
- */
-struct pe_session *pe_find_session_by_sme_session_id(struct mac_context *mac_ctx,
-					      uint8_t sme_session_id);
 
 /**
  * pe_find_session_by_scan_id() - looks up the PE session for given scan id

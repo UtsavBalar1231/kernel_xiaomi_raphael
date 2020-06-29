@@ -116,7 +116,7 @@ QDF_STATUS csr_roam_enqueue_preauth(struct mac_context *mac_ctx,
 	} else {
 		if (bss_desc) {
 			command->command = eSmeCommandRoam;
-			command->sessionId = (uint8_t) session_id;
+			command->vdev_id = (uint8_t) session_id;
 			command->u.roamCmd.roamReason = reason;
 			command->u.roamCmd.pLastRoamBss = bss_desc;
 			status = csr_queue_sme_command(mac_ctx, command,
@@ -241,11 +241,11 @@ QDF_STATUS csr_neighbor_roam_preauth_rsp_handler(struct mac_context *mac_ctx,
 				NULL);
 	if ((QDF_STATUS_SUCCESS == lim_status) && (preauth_rsp_node)) {
 		sme_debug("Preauth completed successfully after %d tries",
-			neighbor_roam_info->FTRoamInfo.numPreAuthRetries);
-		sme_debug("After Pre-Auth: BSSID " QDF_MAC_ADDR_STR ", Ch:%d",
-			QDF_MAC_ADDR_ARRAY(
+			  neighbor_roam_info->FTRoamInfo.numPreAuthRetries);
+		sme_debug("After Pre-Auth: BSSID " QDF_MAC_ADDR_STR ", ChFq:%d",
+			  QDF_MAC_ADDR_ARRAY(
 				preauth_rsp_node->pBssDescription->bssId),
-			(int)preauth_rsp_node->pBssDescription->channelId);
+			  preauth_rsp_node->pBssDescription->chan_freq);
 
 		csr_neighbor_roam_send_lfr_metric_event(mac_ctx, session_id,
 			preauth_rsp_node->pBssDescription->bssId,
@@ -491,7 +491,7 @@ static uint32_t csr_get_dot11_mode(struct mac_context *mac_ctx,
 		ucfg_dot11_mode = cfg_dot11_mode;
 	else {
 		sme_err("Can not find match phy mode");
-		if (WLAN_REG_IS_5GHZ_CH(bss_desc->channelId))
+		if (WLAN_REG_IS_5GHZ_CH_FREQ(bss_desc->chan_freq))
 			ucfg_dot11_mode = eCSR_CFG_DOT11_MODE_11A;
 		else
 			ucfg_dot11_mode = eCSR_CFG_DOT11_MODE_11G;
@@ -503,9 +503,9 @@ static uint32_t csr_get_dot11_mode(struct mac_context *mac_ctx,
 	sme_debug("dot11mode %d ucfg_dot11_mode %d",
 			dot11mode, ucfg_dot11_mode);
 
-	if (bss_desc->channelId <= 14 &&
-		!mac_ctx->mlme_cfg->vht_caps.vht_cap_info.b24ghz_band &&
-		MLME_DOT11_MODE_11AC == dot11mode) {
+	if (bss_desc->chan_freq <= CDS_CHAN_14_FREQ &&
+	    !mac_ctx->mlme_cfg->vht_caps.vht_cap_info.b24ghz_band &&
+	    MLME_DOT11_MODE_11AC == dot11mode) {
 		/* Need to disable VHT operation in 2.4 GHz band */
 		dot11mode = MLME_DOT11_MODE_11N;
 	}
@@ -514,7 +514,7 @@ static uint32_t csr_get_dot11_mode(struct mac_context *mac_ctx,
 }
 
 QDF_STATUS csr_roam_issue_ft_preauth_req(struct mac_context *mac_ctx,
-					 uint32_t session_id,
+					 uint32_t vdev_id,
 					 struct bss_description *bss_desc)
 {
 	tpSirFTPreAuthReq preauth_req;
@@ -523,15 +523,14 @@ QDF_STATUS csr_roam_issue_ft_preauth_req(struct mac_context *mac_ctx,
 	uint32_t dot11mode, buf_len;
 	QDF_STATUS status;
 	struct csr_roam_session *csr_session = CSR_GET_SESSION(mac_ctx,
-				session_id);
+				vdev_id);
 
 	if (!csr_session) {
-		sme_err("Session does not exist for session id: %d",
-			session_id);
+		sme_err("Session does not exist for vdev_id: %d", vdev_id);
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	dot11mode = csr_get_dot11_mode(mac_ctx, session_id, bss_desc);
+	dot11mode = csr_get_dot11_mode(mac_ctx, vdev_id, bss_desc);
 	if (!dot11mode) {
 		sme_err("dot11mode is zero");
 		return QDF_STATUS_E_FAILURE;
@@ -550,9 +549,9 @@ QDF_STATUS csr_roam_issue_ft_preauth_req(struct mac_context *mac_ctx,
 	}
 
 	/* Save the SME Session ID. We need it while processing preauth resp */
-	csr_session->ftSmeContext.smeSessionId = session_id;
+	csr_session->ftSmeContext.vdev_id = vdev_id;
 	preauth_req->messageType = eWNI_SME_FT_PRE_AUTH_REQ;
-	preauth_req->preAuthchannelNum = bss_desc->channelId;
+	preauth_req->pre_auth_channel_freq = bss_desc->chan_freq;
 	preauth_req->dot11mode = dot11mode;
 
 	qdf_mem_copy((void *)&preauth_req->currbssId,
@@ -563,8 +562,8 @@ QDF_STATUS csr_roam_issue_ft_preauth_req(struct mac_context *mac_ctx,
 	qdf_mem_copy((void *)&preauth_req->self_mac_addr,
 		(void *)&csr_session->self_mac_addr.bytes, sizeof(tSirMacAddr));
 
-	if (csr_roam_is11r_assoc(mac_ctx, session_id) &&
-	     (mac_ctx->roam.roamSession[session_id].connectedProfile.AuthType !=
+	if (csr_roam_is11r_assoc(mac_ctx, vdev_id) &&
+	     (mac_ctx->roam.roamSession[vdev_id].connectedProfile.AuthType !=
 	      eCSR_AUTH_TYPE_OPEN_SYSTEM)) {
 		preauth_req->ft_ies_length =
 			(uint16_t) csr_session->ftSmeContext.auth_ft_ies_length;
@@ -591,9 +590,9 @@ void csr_roam_ft_pre_auth_rsp_processor(struct mac_context *mac_ctx,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct csr_roam_info *roam_info;
 	enum csr_akm_type conn_Auth_type;
-	uint32_t session_id = preauth_rsp->smeSessionId;
+	uint32_t vdev_id = preauth_rsp->vdev_id;
 	struct csr_roam_session *csr_session = CSR_GET_SESSION(mac_ctx,
-				session_id);
+				vdev_id);
 	tDot11fAuthentication *p_auth = NULL;
 
 	if (!csr_session) {
@@ -601,10 +600,10 @@ void csr_roam_ft_pre_auth_rsp_processor(struct mac_context *mac_ctx,
 		return;
 	}
 	status = csr_neighbor_roam_preauth_rsp_handler(mac_ctx,
-			preauth_rsp->smeSessionId, preauth_rsp->status);
+			preauth_rsp->vdev_id, preauth_rsp->status);
 	if (status != QDF_STATUS_SUCCESS) {
 		sme_err("Preauth was not processed: %d SessionID: %d",
-			status, session_id);
+			status, vdev_id);
 		return;
 	}
 
@@ -613,13 +612,13 @@ void csr_roam_ft_pre_auth_rsp_processor(struct mac_context *mac_ctx,
 	csr_session->ftSmeContext.FTState = eFT_AUTH_COMPLETE;
 	csr_session->ftSmeContext.psavedFTPreAuthRsp = preauth_rsp;
 	/* No need to notify qos module if this is a non 11r & ESE roam */
-	if (csr_roam_is11r_assoc(mac_ctx, preauth_rsp->smeSessionId)
+	if (csr_roam_is11r_assoc(mac_ctx, preauth_rsp->vdev_id)
 #ifdef FEATURE_WLAN_ESE
-		|| csr_roam_is_ese_assoc(mac_ctx, preauth_rsp->smeSessionId)
+		|| csr_roam_is_ese_assoc(mac_ctx, preauth_rsp->vdev_id)
 #endif
 	   ) {
 		sme_qos_csr_event_ind(mac_ctx,
-			csr_session->ftSmeContext.smeSessionId,
+			csr_session->ftSmeContext.vdev_id,
 			SME_QOS_CSR_PREAUTH_SUCCESS_IND, NULL);
 	}
 	status =
@@ -638,29 +637,29 @@ void csr_roam_ft_pre_auth_rsp_processor(struct mac_context *mac_ctx,
 	qdf_mem_copy((void *)&csr_session->ftSmeContext.preAuthbssId,
 		(void *)preauth_rsp->preAuthbssId,
 		sizeof(struct qdf_mac_addr));
-	if (csr_roam_is11r_assoc(mac_ctx, preauth_rsp->smeSessionId))
-		csr_roam_call_callback(mac_ctx, preauth_rsp->smeSessionId,
+	if (csr_roam_is11r_assoc(mac_ctx, preauth_rsp->vdev_id))
+		csr_roam_call_callback(mac_ctx, preauth_rsp->vdev_id,
 			NULL, 0, eCSR_ROAM_FT_RESPONSE, eCSR_ROAM_RESULT_NONE);
 
 #ifdef FEATURE_WLAN_ESE
-	if (csr_roam_is_ese_assoc(mac_ctx, preauth_rsp->smeSessionId)) {
+	if (csr_roam_is_ese_assoc(mac_ctx, preauth_rsp->vdev_id)) {
 		csr_roam_read_tsf(mac_ctx, (uint8_t *)&roam_info->timestamp,
-				  preauth_rsp->smeSessionId);
+				  preauth_rsp->vdev_id);
 		qdf_mem_copy((void *)&roam_info->bssid,
 			     (void *)preauth_rsp->preAuthbssId,
 			     sizeof(struct qdf_mac_addr));
-		csr_roam_call_callback(mac_ctx, preauth_rsp->smeSessionId,
+		csr_roam_call_callback(mac_ctx, preauth_rsp->vdev_id,
 				       roam_info, 0,
 				       eCSR_ROAM_CCKM_PREAUTH_NOTIFY, 0);
 	}
 #endif
 
-	if (csr_roam_is_fast_roam_enabled(mac_ctx, preauth_rsp->smeSessionId)) {
+	if (csr_roam_is_fast_roam_enabled(mac_ctx, preauth_rsp->vdev_id)) {
 		/* Save the bssid from the received response */
 		qdf_mem_copy((void *)&roam_info->bssid,
 			     (void *)preauth_rsp->preAuthbssId,
 			     sizeof(struct qdf_mac_addr));
-		csr_roam_call_callback(mac_ctx, preauth_rsp->smeSessionId,
+		csr_roam_call_callback(mac_ctx, preauth_rsp->vdev_id,
 				       roam_info, 0, eCSR_ROAM_PMK_NOTIFY, 0);
 	}
 
@@ -669,14 +668,14 @@ void csr_roam_ft_pre_auth_rsp_processor(struct mac_context *mac_ctx,
 	/* If its an Open Auth, FT IEs are not provided by supplicant */
 	/* Hence populate them here */
 	conn_Auth_type =
-		mac_ctx->roam.roamSession[session_id].connectedProfile.AuthType;
+		mac_ctx->roam.roamSession[vdev_id].connectedProfile.AuthType;
 
 	csr_session->ftSmeContext.addMDIE = false;
 
 	/* Done with it, init it. */
 	csr_session->ftSmeContext.psavedFTPreAuthRsp = NULL;
 
-	if (csr_roam_is11r_assoc(mac_ctx, preauth_rsp->smeSessionId) &&
+	if (csr_roam_is11r_assoc(mac_ctx, preauth_rsp->vdev_id) &&
 			(conn_Auth_type == eCSR_AUTH_TYPE_OPEN_SYSTEM)) {
 		uint16_t ft_ies_length;
 
@@ -770,9 +769,8 @@ QDF_STATUS csr_neighbor_roam_issue_preauth_req(struct mac_context *mac_ctx,
 				eCsrPerformPreauth, true);
 
 	sme_debug("Before Pre-Auth: BSSID " QDF_MAC_ADDR_STR ", Ch:%d",
-			QDF_MAC_ADDR_ARRAY(
-				neighbor_bss_node->pBssDescription->bssId),
-			(int)neighbor_bss_node->pBssDescription->channelId);
+		  QDF_MAC_ADDR_ARRAY(neighbor_bss_node->pBssDescription->bssId),
+		  neighbor_bss_node->pBssDescription->chan_freq);
 
 	if (QDF_STATUS_SUCCESS != status) {
 		sme_err("Return failed preauth request status %d",

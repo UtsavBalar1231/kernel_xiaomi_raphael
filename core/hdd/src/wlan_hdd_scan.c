@@ -42,9 +42,6 @@
 #include "wlan_p2p_ucfg_api.h"
 #include "cfg_ucfg_api.h"
 
-#ifdef WLAN_UMAC_CONVERGENCE
-#include "wlan_cfg80211.h"
-#endif
 #include <qca_vendor.h>
 #include <wlan_cfg80211_scan.h>
 #include "wlan_utility.h"
@@ -234,9 +231,9 @@ static bool wlan_hdd_sap_skip_scan_check(struct hdd_context *hdd_ctx,
 	if (hdd_ctx->skip_acs_scan_status != eSAP_SKIP_ACS_SCAN)
 		return false;
 	qdf_spin_lock(&hdd_ctx->acs_skip_lock);
-	if (!hdd_ctx->last_acs_channel_list ||
-	   hdd_ctx->num_of_channels == 0 ||
-	   request->n_channels == 0) {
+	if (!hdd_ctx->last_acs_freq_list ||
+	    hdd_ctx->num_of_channels == 0 ||
+	    request->n_channels == 0) {
 		qdf_spin_unlock(&hdd_ctx->acs_skip_lock);
 		return false;
 	}
@@ -245,16 +242,16 @@ static bool wlan_hdd_sap_skip_scan_check(struct hdd_context *hdd_ctx,
 		bool find = false;
 
 		for (j = 0; j < hdd_ctx->num_of_channels; j++) {
-			if (hdd_ctx->last_acs_channel_list[j] ==
-			   request->channels[i]->hw_value) {
+			if (hdd_ctx->last_acs_freq_list[j] ==
+			    request->channels[i]->center_freq) {
 				find = true;
 				break;
 			}
 		}
 		if (!find) {
 			skip = false;
-			hdd_debug("Chan %d isn't in ACS chan list",
-				request->channels[i]->hw_value);
+			hdd_debug("Freq %d isn't in ACS freq list",
+				  request->channels[i]->center_freq);
 			break;
 		}
 	}
@@ -343,6 +340,7 @@ static int wlan_hdd_update_scan_ies(struct hdd_adapter *adapter,
 	uint16_t rem_len = scan_info->default_scan_ies_len;
 	uint8_t *temp_ie = scan_info->default_scan_ies;
 	uint8_t *current_ie;
+	const uint8_t *mbo_ie;
 	uint8_t elem_id;
 	uint16_t elem_len;
 	bool add_ie = false;
@@ -350,6 +348,9 @@ static int wlan_hdd_update_scan_ies(struct hdd_adapter *adapter,
 	if (!scan_info->default_scan_ies_len || !scan_info->default_scan_ies)
 		return 0;
 
+	mbo_ie = wlan_get_vendor_ie_ptr_from_oui(MBO_OUI_TYPE,
+						 MBO_OUI_TYPE_SIZE, scan_ie,
+						 *scan_ie_len);
 	while (rem_len >= 2) {
 		current_ie = temp_ie;
 		elem_id = *temp_ie++;
@@ -369,10 +370,12 @@ static int wlan_hdd_update_scan_ies(struct hdd_adapter *adapter,
 				add_ie = true;
 			break;
 		case WLAN_ELEMID_VENDOR:
-			if ((0 != qdf_mem_cmp(&temp_ie[0], MBO_OUI_TYPE,
-							MBO_OUI_TYPE_SIZE)) ||
-				(0 == qdf_mem_cmp(&temp_ie[0], QCN_OUI_TYPE,
-							QCN_OUI_TYPE_SIZE)))
+			/* Donot add MBO IE if its already present */
+			if ((!mbo_ie &&
+			     0 == qdf_mem_cmp(&temp_ie[0], MBO_OUI_TYPE,
+					      MBO_OUI_TYPE_SIZE)) ||
+			    (0 == qdf_mem_cmp(&temp_ie[0], QCN_OUI_TYPE,
+					      QCN_OUI_TYPE_SIZE)))
 				add_ie = true;
 			break;
 		}
@@ -457,7 +460,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	int status;
 	struct hdd_scan_info *scan_info = NULL;
 	struct hdd_adapter *con_sap_adapter;
-	uint16_t con_dfs_ch;
+	uint32_t con_dfs_ch_freq;
 	uint8_t curr_vdev_id;
 	enum scan_reject_states curr_reason;
 	static uint32_t scan_ebusy_cnt;
@@ -531,14 +534,15 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	/* Block All Scan during DFS operation and send null scan result */
 	con_sap_adapter = hdd_get_con_sap_adapter(adapter, true);
 	if (con_sap_adapter) {
-		con_dfs_ch = con_sap_adapter->session.ap.sap_config.channel;
-		if (con_dfs_ch == AUTO_CHANNEL_SELECT)
-			con_dfs_ch =
-				con_sap_adapter->session.ap.operating_channel;
+		con_dfs_ch_freq =
+			con_sap_adapter->session.ap.sap_config.chan_freq;
+		if (con_dfs_ch_freq == AUTO_CHANNEL_SELECT)
+			con_dfs_ch_freq =
+				con_sap_adapter->session.ap.operating_chan_freq;
 
 		if (!policy_mgr_is_hw_dbs_capable(hdd_ctx->psoc) &&
-			wlan_reg_is_dfs_ch(hdd_ctx->pdev, con_dfs_ch) &&
-			!policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(
+		    wlan_reg_is_dfs_for_freq(hdd_ctx->pdev, con_dfs_ch_freq) &&
+		    !policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(
 			hdd_ctx->psoc)) {
 			/* Provide empty scan result during DFS operation since
 			 * scanning not supported during DFS. Reason is
@@ -991,7 +995,7 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 				n_channels += wiphy->bands[band]->n_channels;
 	}
 
-	if (MAX_CHANNEL < n_channels) {
+	if (n_channels > NUM_CHANNELS) {
 		hdd_err("Exceed max number of channels: %d", n_channels);
 		return -EINVAL;
 	}
@@ -1285,10 +1289,13 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	bool pno_offload_enabled;
 	uint8_t scan_backoff_multiplier;
 	bool enable_connected_scan;
+	enum QDF_GLOBAL_MODE curr_mode;
 
+	curr_mode = hdd_get_conparam();
 
-	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err("Command not allowed in FTM mode");
+	if (QDF_GLOBAL_FTM_MODE == curr_mode ||
+	    QDF_GLOBAL_MONITOR_MODE == curr_mode) {
+		hdd_err_rl("Command not allowed in FTM/Monitor mode");
 		return -EINVAL;
 	}
 
@@ -1413,10 +1420,13 @@ static int __wlan_hdd_cfg80211_sched_scan_stop(struct net_device *dev)
 {
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	int errno;
+	enum QDF_GLOBAL_MODE curr_mode;
 
+	curr_mode = hdd_get_conparam();
 
-	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err_rl("Command not allowed in FTM mode");
+	if (QDF_GLOBAL_FTM_MODE == curr_mode ||
+	    QDF_GLOBAL_MONITOR_MODE == curr_mode) {
+		hdd_err_rl("Command not allowed in FTM/Monitor mode");
 		return -EINVAL;
 	}
 

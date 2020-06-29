@@ -573,14 +573,14 @@ struct nan_disable_req {
 /**
  * struct nan_enable_req - NAN request to enable NAN Discovery
  * @psoc: Pointer to the psoc object
- * @social_chan_2g: Social channel in 2G band for the NAN Discovery
- * @social_chan_5g: Social channel in 5G band for the NAN Discovery
+ * @social_chan_2g_freq: Social channel in 2G band for the NAN Discovery
+ * @social_chan_5g_freq: Social channel in 5G band for the NAN Discovery
  * @params: NAN request structure containing message for the target
  */
 struct nan_enable_req {
 	struct wlan_objmgr_psoc *psoc;
-	uint8_t social_chan_2g;
-	uint8_t social_chan_5g;
+	uint32_t social_chan_2g_freq;
+	uint32_t social_chan_5g_freq;
 	/* Variable length, do not add anything after this */
 	struct nan_msg_params params;
 };
@@ -806,6 +806,8 @@ struct wlan_nan_rx_ops {
  * @nan_sap_supported: Target supports NAN Discovery with SAP concurrency
  * @ndi_sap_supported: Target supports NAN Datapth with SAP concurrency
  * @nan_vdev_allowed: Allow separate vdev creation for NAN discovery
+ * @sta_nan_ndi_ndi_allowed: 4 port concurrency of STA+NAN+NDI+NDI is supported
+ * by Fw or not.
  */
 struct nan_tgt_caps {
 	uint32_t nan_disable_supported:1;
@@ -814,6 +816,7 @@ struct nan_tgt_caps {
 	uint32_t nan_sap_supported:1;
 	uint32_t ndi_sap_supported:1;
 	uint32_t nan_vdev_allowed:1;
+	uint32_t sta_nan_ndi_ndi_allowed:1;
 };
 
 #endif

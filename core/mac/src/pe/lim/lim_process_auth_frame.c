@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -103,7 +103,6 @@ static inline unsigned int is_auth_valid(struct mac_context *mac,
  *
  * Return: QDF_STATUS
  */
-#ifdef CRYPTO_SET_KEY_CONVERGED
 static QDF_STATUS lim_get_wep_key_sap(struct pe_session *pe_session,
 				      struct wlan_mlme_wep_cfg *wep_params,
 				      uint8_t key_id,
@@ -116,20 +115,6 @@ static QDF_STATUS lim_get_wep_key_sap(struct pe_session *pe_session,
 				default_key,
 				key_len);
 }
-#else
-static QDF_STATUS lim_get_wep_key_sap(struct pe_session *pe_session,
-				      struct wlan_mlme_wep_cfg *wep_params,
-				      uint8_t key_id,
-				      uint8_t *default_key,
-				      qdf_size_t *key_len)
-{
-	*key_len = pe_session->WEPKeyMaterial[key_id].key[0].keyLength;
-	qdf_mem_copy(default_key, pe_session->WEPKeyMaterial[key_id].key[0].key,
-		     *key_len);
-
-	return QDF_STATUS_SUCCESS;
-}
-#endif
 
 static void lim_process_auth_shared_system_algo(struct mac_context *mac_ctx,
 		tpSirMacMgmtHdr mac_hdr,
@@ -373,8 +358,9 @@ static void lim_process_sae_auth_frame(struct mac_context *mac_ctx,
 	body_ptr = WMA_GET_RX_MPDU_DATA(rx_pkt_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
-	pe_nofl_info("Received SAE Auth frame type %d subtype %d",
-		     mac_hdr->fc.type, mac_hdr->fc.subType);
+	pe_nofl_info("SAE Auth RX type %d subtype %d from %pM",
+		     mac_hdr->fc.type, mac_hdr->fc.subType,
+		     mac_hdr->sa);
 
 	if (LIM_IS_STA_ROLE(pe_session) &&
 	    pe_session->limMlmState != eLIM_MLM_WT_SAE_AUTH_STATE)
@@ -405,8 +391,9 @@ static void lim_process_sae_auth_frame(struct mac_context *mac_ctx,
 
 	lim_send_sme_mgmt_frame_ind(mac_ctx, mac_hdr->fc.subType,
 				    (uint8_t *)mac_hdr,
-				    frame_len + sizeof(tSirMacMgmtHdr), 0,
-				    WMA_GET_RX_CH(rx_pkt_info), pe_session,
+				    frame_len + sizeof(tSirMacMgmtHdr),
+				    pe_session->smeSessionId,
+				    WMA_GET_RX_FREQ(rx_pkt_info), pe_session,
 				    WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info),
 				    rx_flags);
 }
@@ -482,9 +469,9 @@ static void lim_process_auth_frame_type1(struct mac_context *mac_ctx,
 #endif
 		   ) {
 			pe_err("STA is already connected but received auth frame"
-					"Send the Deauth and lim Delete Station Context"
-					"(staId: %d, associd: %d) ",
-				sta_ds_ptr->staIndex, associd);
+			       "Send the Deauth and lim Delete Station Context"
+			       "(associd: %d) sta mac" QDF_MAC_ADDR_STR,
+			       associd, QDF_MAC_ADDR_ARRAY(mac_hdr->sa));
 			lim_send_deauth_mgmt_frame(mac_ctx,
 				eSIR_MAC_UNSPEC_FAILURE_REASON,
 				(uint8_t *) mac_hdr->sa,
@@ -546,8 +533,9 @@ static void lim_process_auth_frame_type1(struct mac_context *mac_ctx,
 			&& !sta_ds_ptr->rmfEnabled
 #endif
 		   ) {
-			pe_debug("lim Delete Station Context staId: %d associd: %d",
-				sta_ds_ptr->staIndex, associd);
+			pe_debug("lim Del Sta Ctx associd: %d sta mac"
+				 QDF_MAC_ADDR_STR, associd,
+				 QDF_MAC_ADDR_ARRAY(sta_ds_ptr->staAddr));
 			lim_send_deauth_mgmt_frame(mac_ctx,
 				eSIR_MAC_UNSPEC_FAILURE_REASON,
 				(uint8_t *)auth_node->peerMacAddr,
@@ -580,9 +568,15 @@ static void lim_process_auth_frame_type1(struct mac_context *mac_ctx,
 	if (lim_is_auth_algo_supported(mac_ctx,
 			(tAniAuthType) rx_auth_frm_body->authAlgoNumber,
 			pe_session)) {
+		struct wlan_objmgr_vdev *vdev;
 
-		if (lim_get_session_by_macaddr(mac_ctx, mac_hdr->sa)) {
-
+		vdev =
+		  wlan_objmgr_get_vdev_by_macaddr_from_pdev(mac_ctx->pdev,
+							    mac_hdr->sa,
+							    WLAN_LEGACY_MAC_ID);
+		/* SA is same as any of the device vdev, return failure */
+		if (vdev) {
+			wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
 			auth_frame->authAlgoNumber =
 				rx_auth_frm_body->authAlgoNumber;
 			auth_frame->authTransactionSeqNumber =
@@ -1634,8 +1628,9 @@ bool lim_process_sae_preauth_frame(struct mac_context *mac, uint8_t *rx_pkt)
 
 	lim_send_sme_mgmt_frame_ind(mac, dot11_hdr->fc.subType,
 				    (uint8_t *)dot11_hdr,
-				    frm_len + sizeof(tSirMacMgmtHdr), 0,
-				    WMA_GET_RX_CH(rx_pkt), NULL,
+				    frm_len + sizeof(tSirMacMgmtHdr),
+				    SME_SESSION_ID_ANY,
+				    WMA_GET_RX_FREQ(rx_pkt), NULL,
 				    WMA_GET_RX_RSSI_NORMALIZED(rx_pkt),
 				    RXMGMT_FLAG_NONE);
 	return true;

@@ -67,6 +67,38 @@
 
 /*
  * <ini>
+ * sifs_burst_mask - Set sifs burst mask
+ * @Min: 0
+ * @Max: 3
+ * @Default: 1
+ *
+ * This ini is used to set 11n and legacy(non 11n/wmm)
+ * sifs burst. Especially under running multi stream
+ * traffic test case, it can be useful to let the low
+ * priority AC, or legacy mode device, or the specified
+ * AC to aggressively contend air medium, then have a
+ * obvious improvement of throughput. Bit0 is the switch
+ * of sifs burst, it must be set if want to enable sifs
+ * burst, Bit1 is for legacy mode.
+ * Supported configuration:
+ * 0: disabled
+ * 1: enabled, but disabled for legacy mode
+ * 3: all enabled
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_SIFS_BURST CFG_INI_UINT( \
+		"sifs_burst_mask", \
+		0, \
+		3, \
+		1, \
+		CFG_VALUE_OR_DEFAULT, \
+		"Set SIFS burst mask")
+
+/*
+ * <ini>
  * gMaxMPDUsInAMPDU - max mpdus in ampdu
  * @Min: 0
  * @Max: 64
@@ -433,6 +465,40 @@
 #define __CFG_SET_TSF_IRQ_HOST_GPIO_PIN
 #endif
 
+#ifdef WLAN_FEATURE_TSF_PLUS_EXT_GPIO_SYNC
+/*
+ * <ini>
+ * gtsf_sync_host_gpio_pin
+ * @Min: 0
+ * @Max: 254
+ * @Default: 255
+ *
+ * TSF sync GPIO pin of host platform
+ *
+ * The driver will use this gpio on host platform
+ * to drive the TSF sync pin on wlan chip.
+ * Toggling this gpio  will generate a strobe to fw
+ * for latching TSF.
+ *
+ * Related: None
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_TSF_SYNC_HOST_GPIO_PIN CFG_INI_UINT( \
+		"gtsf_sync_host_gpio_pin", \
+		0, \
+		254, \
+		255, \
+		CFG_VALUE_OR_DEFAULT, \
+		"TSF sync GPIO pin of host platform")
+
+#define __CFG_SET_TSF_SYNC_HOST_GPIO_PIN CFG(CFG_SET_TSF_SYNC_HOST_GPIO_PIN)
+#else
+#define __CFG_SET_TSF_SYNC_HOST_GPIO_PIN
+#endif
+
 #if defined(WLAN_FEATURE_TSF) && defined(WLAN_FEATURE_TSF_PLUS)
 /* <ini>
  * gtsf_ptp_options: TSF Plus feature options
@@ -666,6 +732,7 @@
 	CFG_FWOL_DHCP \
 	CFG(CFG_ENABLE_ANI) \
 	CFG(CFG_SET_RTS_FOR_SIFS_BURSTING) \
+	CFG(CFG_SET_SIFS_BURST) \
 	CFG(CFG_MAX_MPDUS_IN_AMPDU) \
 	CFG(CFG_ENABLE_PHY_REG) \
 	CFG(CFG_UPPER_BRSSI_THRESH) \
@@ -680,6 +747,7 @@
 	CFG(CFG_RA_FILTER_ENABLE) \
 	CFG(CFG_SET_TSF_GPIO_PIN) \
 	__CFG_SET_TSF_IRQ_HOST_GPIO_PIN \
+	__CFG_SET_TSF_SYNC_HOST_GPIO_PIN \
 	__CFG_SET_TSF_PTP_OPT \
 	CFG(CFG_LPRX) \
 	__CFG_IS_SAE_ENABLED \

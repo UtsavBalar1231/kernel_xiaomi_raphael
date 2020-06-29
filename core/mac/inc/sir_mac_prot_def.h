@@ -54,9 +54,6 @@
 #define SIR_MAC_CTRL_FRAME    0x1
 #define SIR_MAC_DATA_FRAME    0x2
 
-#define SIR_MAC_FRAME_TYPE_START   0x0
-#define SIR_MAC_FRAME_TYPE_END     0x3
-
 /* Data frame subtype definitions */
 #define SIR_MAC_DATA_DATA                 0
 #define SIR_MAC_DATA_DATA_ACK             1
@@ -74,9 +71,6 @@
 #define SIR_MAC_DATA_QOS_NULL_ACK         13
 #define SIR_MAC_DATA_QOS_NULL_POLL        14
 #define SIR_MAC_DATA_QOS_NULL_ACK_POLL    15
-
-#define SIR_MAC_FRAME_SUBTYPE_START       0
-#define SIR_MAC_FRAME_SUBTYPE_END         16
 
 #define SIR_MAC_DATA_QOS_MASK             8
 #define SIR_MAC_DATA_NULL_MASK            4
@@ -103,9 +97,7 @@
 #define SIR_MAC_ACTION_TX             1
 #define SIR_MAC_ACTION_RX             2
 
-#define SIR_MAC_BA_POLICY_DELAYED       0
 #define SIR_MAC_BA_POLICY_IMMEDIATE     1
-#define SIR_MAC_BA_AMSDU_SUPPORTED      1
 #define SIR_MAC_BA_DEFAULT_BUFF_SIZE    64
 
 #define MAX_BA_BUFF_SIZE    256
@@ -139,11 +131,6 @@
 /* HT Action Field Codes */
 #define SIR_MAC_SM_POWER_SAVE       1
 
-/* DLP action frame types */
-#define SIR_MAC_DLP_REQ             0
-#define SIR_MAC_DLP_RSP             1
-#define SIR_MAC_DLP_TEARDOWN        2
-
 /* block acknowledgment action frame types */
 #define SIR_MAC_ACTION_VENDOR_SPECIFIC 9
 #define SIR_MAC_ACTION_VENDOR_SPECIFIC_CATEGORY     0x7F
@@ -159,26 +146,11 @@
 #define SIR_MAC_ACTION_GAS_COMEBACK_REQUEST     0x0C
 #define SIR_MAC_ACTION_GAS_COMEBACK_RESPONSE    0x0D
 
-#ifdef WLAN_FEATURE_11W
-/* 11w SA query request/response action frame category code */
-#define SIR_MAC_SA_QUERY_REQ             0
-#define SIR_MAC_SA_QUERY_RSP             1
-#endif
-
-/* WNM Action field values; IEEE Std 802.11-2012, 8.5.14.1, Table 8-250 */
-#define SIR_MAC_WNM_BSS_TM_QUERY         6
-#define SIR_MAC_WNM_BSS_TM_REQUEST       7
-#define SIR_MAC_WNM_BSS_TM_RESPONSE      8
-#define SIR_MAC_WNM_NOTIF_REQUEST        26
-#define SIR_MAC_WNM_NOTIF_RESPONSE       27
-
 /* Protected Dual of Public Action(PDPA) frames Action field */
 #define SIR_MAC_PDPA_GAS_INIT_REQ      10
 #define SIR_MAC_PDPA_GAS_INIT_RSP      11
 #define SIR_MAC_PDPA_GAS_COMEBACK_REQ  12
 #define SIR_MAC_PDPA_GAS_COMEBACK_RSP  13
-
-#define SIR_MAC_MAX_RANDOM_LENGTH   2306
 
 /* ----------------------------------------------------------------------------- */
 /* EID (Element ID) definitions */
@@ -201,8 +173,20 @@
 #define VHT_RX_HIGHEST_SUPPORTED_DATA_RATE_2_2_SGI80 866
 #define VHT_TX_HIGHEST_SUPPORTED_DATA_RATE_2_2_SGI80 866
 
+#define VHT_CAP_NO_160M_SUPP 0
 #define VHT_CAP_160_SUPP 1
 #define VHT_CAP_160_AND_80P80_SUPP 2
+
+#define VHT_NO_EXTD_NSS_BW_SUPP			0
+#define VHT_EXTD_NSS_80_HALF_NSS_160		1
+#define VHT_EXTD_NSS_80_HALF_NSS_80P80		2
+#define VHT_EXTD_NSS_80_3QUART_NSS_80P80	3
+#define VHT_EXTD_NSS_160_HALF_NSS_80P80		1
+#define VHT_EXTD_NSS_160_3QUART_NSS_80P80	2
+#define VHT_EXTD_NSS_2X_NSS_160_1X_NSS_80P80	3
+#define VHT_EXTD_NSS_2X_NSS_80_1X_NSS_80P80	3
+
+#define VHT_MAX_NSS 8
 
 #define VHT_MCS_1x1 0xFFFC
 #define VHT_MCS_2x2 0xFFF3
@@ -267,7 +251,10 @@
 #define SIR_MAC_B_PR_SSID_OFFSET             12
 
 /* Association/Reassociation offsets */
-#define SIR_MAC_REASSOC_SSID_OFFSET          10
+#define SIR_MAC_REASSOC_REQ_SSID_OFFSET      10
+
+/* Association Request offsets */
+#define SIR_MAC_ASSOC_REQ_SSID_OFFSET        4
 
 /* / Transaction sequence number definitions (used in Authentication frames) */
 #define    SIR_MAC_AUTH_FRAME_1        1
@@ -1037,7 +1024,7 @@ typedef struct sSirMacCfParamSetIE {
 } qdf_packed tSirMacCfParamSetIE;
 
 typedef struct sSirMacChanInfo {
-	tSirMacChanNum firstChanNum;
+	uint32_t first_freq;
 	uint8_t numChannels;
 	int8_t maxTxPower;
 } qdf_packed tSirMacChanInfo;
@@ -1079,7 +1066,7 @@ typedef struct sSirMacMeasReqIE {
 /* VHT Capabilities Info */
 typedef struct sSirMacVHTCapabilityInfo {
 #ifndef ANI_LITTLE_BIT_ENDIAN
-	uint32_t reserved1:2;
+	uint32_t extended_nss_bw_supp:2;
 	uint32_t txAntPattern:1;
 	uint32_t rxAntPattern:1;
 	uint32_t vhtLinkAdaptCap:2;
@@ -1119,27 +1106,29 @@ typedef struct sSirMacVHTCapabilityInfo {
 	uint32_t vhtLinkAdaptCap:2;
 	uint32_t rxAntPattern:1;
 	uint32_t txAntPattern:1;
-	uint32_t reserved1:2;
+	uint32_t extended_nss_bw_supp:2;
 #endif
 } qdf_packed tSirMacVHTCapabilityInfo;
 
 typedef struct sSirMacVHTTxSupDataRateInfo {
 #ifndef ANI_LITTLE_BIT_ENDIAN
-	uint16_t reserved:3;
+	uint16_t reserved:2;
+	uint16_t vht_extended_nss_bw_cap:1;
 	uint16_t txSupDataRate:13;
 #else
 	uint16_t txSupDataRate:13;
-	uint16_t reserved:3;
+	uint16_t vht_extended_nss_bw_cap:1;
+	uint16_t reserved:2;
 #endif
 } qdf_packed tSirMacVHTTxSupDataRateInfo;
 
 typedef struct sSirMacVHTRxSupDataRateInfo {
 #ifndef ANI_LITTLE_BIT_ENDIAN
-	uint16_t reserved:3;
+	uint16_t max_nsts_total:3;
 	uint16_t rxSupDataRate:13;
 #else
 	uint16_t rxSupDataRate:13;
-	uint16_t reserved:3;
+	uint16_t max_nsts_total:3;
 #endif
 } qdf_packed tSirMacVHTRxSupDataRateInfo;
 
@@ -1901,7 +1890,10 @@ struct he_capability_info {
 /*
  * frame parser does not include optional 160 and 80+80 mcs set for MIN IE len
  */
-#define SIR_MAC_HE_CAP_MIN_LEN       (DOT11F_IE_HE_CAP_MIN_LEN + 8)
+#define SIR_MAC_HE_CAP_MIN_LEN       (DOT11F_IE_HE_CAP_MIN_LEN)
+#define HE_CAP_160M_MCS_MAP_LEN      4
+#define HE_CAP_80P80_MCS_MAP_LEN     4
+#define HE_CAP_OUI_LEN               3
 
 /* QOS action frame definitions */
 
@@ -2004,7 +1996,7 @@ struct he_capability_info {
 #define SIR_MAC_VHT_CAP_LINK_ADAPT_CAP            26
 #define SIR_MAC_VHT_CAP_RX_ANTENNA_PATTERN        28
 #define SIR_MAC_VHT_CAP_TX_ANTENNA_PATTERN        29
-#define SIR_MAC_VHT_CAP_RESERVED2                 30
+#define SIR_MAC_VHT_CAP_EXTD_NSS_BW               30
 
 #define SIR_MAC_HT_CAP_ADVCODING_S                 0
 #define SIR_MAC_HT_CAP_CHWIDTH40_S                 1

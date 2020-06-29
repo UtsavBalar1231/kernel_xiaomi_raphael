@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -346,7 +346,8 @@ static void wma_convert_he_cap(tDot11fIEhe_cap *he_cap, uint32_t *mac_cap,
  * Return: none
  */
 static void wma_derive_ext_he_cap(tDot11fIEhe_cap *he_cap,
-				  tDot11fIEhe_cap *new_cap)
+				  tDot11fIEhe_cap *new_cap,
+				  bool is_5g_cap)
 {
 	uint16_t mcs_1, mcs_2;
 
@@ -516,22 +517,24 @@ static void wma_derive_ext_he_cap(tDot11fIEhe_cap *he_cap,
 	mcs_1 = he_cap->tx_he_mcs_map_lt_80;
 	mcs_2 = new_cap->tx_he_mcs_map_lt_80;
 	he_cap->tx_he_mcs_map_lt_80 = HE_INTERSECT_MCS(mcs_1, mcs_2);
-	mcs_1 = *((uint16_t *)he_cap->rx_he_mcs_map_160);
-	mcs_2 = *((uint16_t *)new_cap->rx_he_mcs_map_160);
-	*((uint16_t *)he_cap->rx_he_mcs_map_160) =
-		HE_INTERSECT_MCS(mcs_1, mcs_2);
-	mcs_1 = *((uint16_t *)he_cap->tx_he_mcs_map_160);
-	mcs_2 = *((uint16_t *)new_cap->tx_he_mcs_map_160);
-	*((uint16_t *)he_cap->tx_he_mcs_map_160) =
-		HE_INTERSECT_MCS(mcs_1, mcs_2);
-	mcs_1 = *((uint16_t *)he_cap->rx_he_mcs_map_80_80);
-	mcs_2 = *((uint16_t *)new_cap->rx_he_mcs_map_80_80);
-	*((uint16_t *)he_cap->rx_he_mcs_map_80_80) =
-		HE_INTERSECT_MCS(mcs_1, mcs_2);
-	mcs_1 = *((uint16_t *)he_cap->tx_he_mcs_map_80_80);
-	mcs_2 = *((uint16_t *)new_cap->tx_he_mcs_map_80_80);
-	*((uint16_t *)he_cap->tx_he_mcs_map_80_80) =
-		HE_INTERSECT_MCS(mcs_1, mcs_2);
+	if (is_5g_cap) {
+		mcs_1 = *((uint16_t *)he_cap->rx_he_mcs_map_160);
+		mcs_2 = *((uint16_t *)new_cap->rx_he_mcs_map_160);
+		*((uint16_t *)he_cap->rx_he_mcs_map_160) =
+			HE_INTERSECT_MCS(mcs_1, mcs_2);
+		mcs_1 = *((uint16_t *)he_cap->tx_he_mcs_map_160);
+		mcs_2 = *((uint16_t *)new_cap->tx_he_mcs_map_160);
+		*((uint16_t *)he_cap->tx_he_mcs_map_160) =
+			HE_INTERSECT_MCS(mcs_1, mcs_2);
+		mcs_1 = *((uint16_t *)he_cap->rx_he_mcs_map_80_80);
+		mcs_2 = *((uint16_t *)new_cap->rx_he_mcs_map_80_80);
+		*((uint16_t *)he_cap->rx_he_mcs_map_80_80) =
+			HE_INTERSECT_MCS(mcs_1, mcs_2);
+		mcs_1 = *((uint16_t *)he_cap->tx_he_mcs_map_80_80);
+		mcs_2 = *((uint16_t *)new_cap->tx_he_mcs_map_80_80);
+		*((uint16_t *)he_cap->tx_he_mcs_map_80_80) =
+			HE_INTERSECT_MCS(mcs_1, mcs_2);
+	}
 }
 
 void wma_print_he_cap(tDot11fIEhe_cap *he_cap)
@@ -898,12 +901,19 @@ void wma_update_target_ext_he_cap(struct target_psoc_info *tgt_hdl,
 	struct wlan_psoc_host_mac_phy_caps *mac_cap, *mac_phy_cap;
 	tDot11fIEhe_cap he_cap_mac;
 	tDot11fIEhe_cap tmp_he_cap = {0};
+	bool is_5g_cap;
 
 	qdf_mem_zero(&tgt_cfg->he_cap_2g, sizeof(tgt_cfg->he_cap_2g));
 	qdf_mem_zero(&tgt_cfg->he_cap_5g, sizeof(tgt_cfg->he_cap_5g));
 	num_hw_modes = target_psoc_get_num_hw_modes(tgt_hdl);
 	mac_phy_cap = target_psoc_get_mac_phy_cap(tgt_hdl);
 	total_mac_phy_cnt = target_psoc_get_total_mac_phy_cnt(tgt_hdl);
+
+	if (!mac_phy_cap) {
+		WMA_LOGE(FL("Invalid MAC PHY capabilities handle"));
+		he_cap->present = false;
+		return;
+	}
 
 	if (!num_hw_modes) {
 		WMA_LOGE(FL("No extended HE cap for current SOC"));
@@ -921,6 +931,7 @@ void wma_update_target_ext_he_cap(struct target_psoc_info *tgt_hdl,
 		qdf_mem_zero(&he_cap_mac,
 				sizeof(tDot11fIEhe_cap));
 		mac_cap = &mac_phy_cap[i];
+		is_5g_cap = false;
 		if (mac_cap->supported_bands & WLAN_2G_CAPABILITY) {
 			wma_convert_he_cap(&he_cap_mac,
 					mac_cap->he_cap_info_2G,
@@ -938,9 +949,11 @@ void wma_update_target_ext_he_cap(struct target_psoc_info *tgt_hdl,
 
 		if (he_cap_mac.present) {
 			wma_derive_ext_he_cap(&tmp_he_cap,
-					      &he_cap_mac);
+					      &he_cap_mac,
+					      is_5g_cap);
 			wma_derive_ext_he_cap(&tgt_cfg->he_cap_2g,
-					      &he_cap_mac);
+					      &he_cap_mac,
+					      is_5g_cap);
 		}
 
 		qdf_mem_zero(&he_cap_mac,
@@ -953,17 +966,20 @@ void wma_update_target_ext_he_cap(struct target_psoc_info *tgt_hdl,
 					mac_cap->tx_chain_mask_5G,
 					mac_cap->rx_chain_mask_5G);
 			WMA_LOGD(FL("5g phy: nss: %d, ru_idx_msk: %d"),
-					mac_cap->he_ppet2G.numss_m1,
-					mac_cap->he_ppet2G.ru_bit_mask);
+					mac_cap->he_ppet5G.numss_m1,
+					mac_cap->he_ppet5G.ru_bit_mask);
 			wma_convert_he_ppet(tgt_cfg->ppet_5g,
 					(struct wmi_host_ppe_threshold *)
 					&mac_cap->he_ppet5G);
+			is_5g_cap = true;
 		}
 		if (he_cap_mac.present) {
 			wma_derive_ext_he_cap(&tmp_he_cap,
-					      &he_cap_mac);
+					      &he_cap_mac,
+					      is_5g_cap);
 			wma_derive_ext_he_cap(&tgt_cfg->he_cap_5g,
-					      &he_cap_mac);
+					      &he_cap_mac,
+					      is_5g_cap);
 		}
 	}
 
@@ -1098,7 +1114,7 @@ void wma_populate_peer_he_cap(struct peer_assoc_params *peer,
 	uint8_t temp, i, chan_width;
 
 	if (params->he_capable)
-		peer->peer_flags |= WMI_PEER_HE;
+		peer->he_flag = 1;
 	else
 		return;
 
@@ -1254,6 +1270,10 @@ void wma_populate_peer_he_cap(struct peer_assoc_params *peer,
 			params->supportedRates.tx_he_mcs_map_80_80;
 	}
 
+#define HE2x2MCSMASK 0xc
+
+	peer->peer_nss = ((params->supportedRates.rx_he_mcs_map_lt_80 &
+			 HE2x2MCSMASK) == HE2x2MCSMASK) ? 1 : 2;
 	for (i = 0; i < peer->peer_he_mcs_count; i++)
 		WMA_LOGD(FL("[HE - MCS Map: %d] rx_mcs: 0x%x, tx_mcs: 0x%x"), i,
 			peer->peer_he_rx_mcs_set[i],
@@ -1277,50 +1297,39 @@ void wma_populate_peer_he_cap(struct peer_assoc_params *peer,
 	wma_print_he_mac_cap_w2(mac_cap[1]);
 	wma_print_he_ppet(&peer->peer_ppet);
 
+	qdf_mem_copy(&peer->peer_he_caps_6ghz,
+		     ((uint8_t *)&params->he_6ghz_band_caps) + 1,
+		     DOT11F_IE_HE_6GHZ_BAND_CAP_MAX_LEN);
+	WMA_LOGD(FL("HE 6GHz band caps: %0x"), peer->peer_he_caps_6ghz);
 	return;
 }
 
-void wma_update_vdev_he_ops(struct wma_vdev_start_req *req,
-		tpAddBssParams add_bss)
+void wma_update_vdev_he_ops(uint32_t *he_ops, tDot11fIEhe_op *he_op)
 {
-	uint32_t he_ops = 0;
-	tDot11fIEhe_op *he_op = &add_bss->he_op;
-
-	req->he_capable = add_bss->he_capable;
-
-	WMI_HEOPS_COLOR_SET(he_ops, he_op->bss_color);
-	WMI_HEOPS_DEFPE_SET(he_ops, he_op->default_pe);
-	WMI_HEOPS_TWT_SET(he_ops, he_op->twt_required);
-	WMI_HEOPS_RTSTHLD_SET(he_ops, he_op->txop_rts_threshold);
-	WMI_HEOPS_PARTBSSCOLOR_SET(he_ops, he_op->partial_bss_col);
-	WMI_HEOPS_BSSCOLORDISABLE_SET(he_ops, he_op->bss_col_disabled);
-
-	req->he_ops = he_ops;
-}
-
-void wma_copy_vdev_start_he_ops(struct vdev_start_params *params,
-		struct wma_vdev_start_req *req)
-{
-	params->he_ops = req->he_ops;
+	WMI_HEOPS_COLOR_SET(*he_ops, he_op->bss_color);
+	WMI_HEOPS_DEFPE_SET(*he_ops, he_op->default_pe);
+	WMI_HEOPS_TWT_SET(*he_ops, he_op->twt_required);
+	WMI_HEOPS_RTSTHLD_SET(*he_ops, he_op->txop_rts_threshold);
+	WMI_HEOPS_PARTBSSCOLOR_SET(*he_ops, he_op->partial_bss_col);
+	WMI_HEOPS_BSSCOLORDISABLE_SET(*he_ops, he_op->bss_col_disabled);
 }
 
 void wma_vdev_set_he_bss_params(tp_wma_handle wma, uint8_t vdev_id,
-				struct wma_vdev_start_req *req)
+				struct vdev_mlme_he_ops_info *he_info)
 {
 	QDF_STATUS ret;
 
-	if (!req->he_capable)
+	if (!he_info->he_ops)
 		return;
-
 	ret = wma_vdev_set_param(wma->wmi_handle, vdev_id,
-			WMI_VDEV_PARAM_HEOPS_0_31, req->he_ops);
+			WMI_VDEV_PARAM_HEOPS_0_31, he_info->he_ops);
 
 	if (QDF_IS_STATUS_ERROR(ret))
 		WMA_LOGE(FL("Failed to set HE OPs"));
 }
 
 void wma_vdev_set_he_config(tp_wma_handle wma, uint8_t vdev_id,
-				tpAddBssParams add_bss)
+				struct bss_params *add_bss)
 {
 	QDF_STATUS ret;
 	int8_t pd_min, pd_max, sec_ch_ed, tx_pwr;
@@ -1335,12 +1344,6 @@ void wma_vdev_set_he_config(tp_wma_handle wma, uint8_t vdev_id,
 	tx_pwr = (add_bss->he_sta_obsspd & 0xff000000) >> 24;
 	WMA_LOGD(FL("HE_STA_OBSSPD: PD_MIN: %d PD_MAX: %d SEC_CH_ED: %d TX_PWR: %d"),
 		 pd_min, pd_max, sec_ch_ed, tx_pwr);
-}
-
-void wma_update_vdev_he_capable(struct wma_vdev_start_req *req,
-		tpSwitchChannelParams params)
-{
-	req->he_capable = params->he_capable;
 }
 
 QDF_STATUS wma_update_he_ops_ie(tp_wma_handle wma, uint8_t vdev_id,
@@ -1385,11 +1388,6 @@ void wma_set_he_txbf_params(uint8_t vdev_id, bool su_bfer,
 	uint32_t hemu_mode;
 	QDF_STATUS status;
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
-
-	if (!wma) {
-		wma_err("Invalid WMA handle");
-		return;
-	}
 
 	hemu_mode = DOT11AX_HEMU_MODE;
 	hemu_mode |= ((su_bfer << HE_SUBFER) | (su_bfee << HE_SUBFEE) |

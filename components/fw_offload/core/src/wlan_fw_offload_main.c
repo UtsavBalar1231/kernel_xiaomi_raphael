@@ -52,6 +52,32 @@ fwol_mpta_helper_config_get(struct wlan_objmgr_psoc *psoc,
 }
 #endif
 
+/**
+ * fwol_three_way_coex_config_legacy_config_get: Populate
+ * btc_three_way_coex_config_legacy_enable from cfg
+ * @psoc: The global psoc handler
+ * @coex_config: The cfg structure
+ *
+ * Return: none
+ */
+#ifdef FEATURE_COEX_CONFIG
+static void
+fwol_three_way_coex_config_legacy_config_get(
+			struct wlan_objmgr_psoc *psoc,
+			struct wlan_fwol_coex_config *coex_config)
+{
+	coex_config->btc_three_way_coex_config_legacy_enable =
+			cfg_get(psoc, CFG_THREE_WAY_COEX_CONFIG_LEGACY);
+}
+#else
+static void
+fwol_three_way_coex_config_legacy_config_get(
+			struct wlan_objmgr_psoc *psoc,
+			struct wlan_fwol_coex_config *coex_config)
+{
+}
+#endif
+
 static void
 fwol_init_coex_config_in_cfg(struct wlan_objmgr_psoc *psoc,
 			     struct wlan_fwol_coex_config *coex_config)
@@ -77,6 +103,9 @@ fwol_init_coex_config_in_cfg(struct wlan_objmgr_psoc *psoc,
 	coex_config->bt_interference_high_ul =
 				cfg_get(psoc, CFG_BT_INTERFERENCE_HIGH_UL);
 	fwol_mpta_helper_config_get(psoc, coex_config);
+	coex_config->bt_sco_allow_wlan_2g_scan =
+				cfg_get(psoc, CFG_BT_SCO_ALLOW_WLAN_2G_SCAN);
+	fwol_three_way_coex_config_legacy_config_get(psoc, coex_config);
 }
 
 static void
@@ -388,6 +417,33 @@ ucfg_fwol_fetch_tsf_irq_host_gpio_pin(struct wlan_objmgr_psoc *psoc,
 {
 }
 #endif
+
+#ifdef WLAN_FEATURE_TSF_PLUS_EXT_GPIO_SYNC
+/**
+ * ucfg_fwol_fetch_tsf_sync_host_gpio_pin: Populate the
+ * tsf_sync_host_gpio_pin from cfg
+ * @psoc: The global psoc handler
+ * @fwol_cfg: The cfg structure
+ *
+ * This function is used to populate the cfg value of host platform
+ * gpio pin configured to drive tsf sync interrupt pin on wlan chip.
+ *
+ * Return: none
+ */
+static void
+ucfg_fwol_fetch_tsf_sync_host_gpio_pin(struct wlan_objmgr_psoc *psoc,
+				       struct wlan_fwol_cfg *fwol_cfg)
+{
+	fwol_cfg->tsf_sync_host_gpio_pin =
+		cfg_get(psoc, CFG_SET_TSF_SYNC_HOST_GPIO_PIN);
+}
+#else
+static void
+ucfg_fwol_fetch_tsf_sync_host_gpio_pin(struct wlan_objmgr_psoc *psoc,
+				       struct wlan_fwol_cfg *fwol_cfg)
+{
+}
+#endif
 /**
  * ucfg_fwol_init_sae_cfg: Populate the sae control config from cfg
  * @psoc: The global psoc handler
@@ -450,6 +506,7 @@ QDF_STATUS fwol_cfg_on_psoc_enable(struct wlan_objmgr_psoc *psoc)
 	fwol_cfg->ani_enabled = cfg_get(psoc, CFG_ENABLE_ANI);
 	fwol_cfg->enable_rts_sifsbursting =
 				cfg_get(psoc, CFG_SET_RTS_FOR_SIFS_BURSTING);
+	fwol_cfg->enable_sifs_burst = cfg_get(psoc, CFG_SET_SIFS_BURST);
 	fwol_cfg->max_mpdus_inampdu = cfg_get(psoc, CFG_MAX_MPDUS_IN_AMPDU);
 	fwol_cfg->enable_phy_reg_retention = cfg_get(psoc, CFG_ENABLE_PHY_REG);
 	fwol_cfg->upper_brssi_thresh = cfg_get(psoc, CFG_UPPER_BRSSI_THRESH);
@@ -480,6 +537,7 @@ QDF_STATUS fwol_cfg_on_psoc_enable(struct wlan_objmgr_psoc *psoc)
 	ucfg_fwol_fetch_ra_filter(psoc, fwol_cfg);
 	ucfg_fwol_fetch_tsf_gpio_pin(psoc, fwol_cfg);
 	ucfg_fwol_fetch_tsf_irq_host_gpio_pin(psoc, fwol_cfg);
+	ucfg_fwol_fetch_tsf_sync_host_gpio_pin(psoc, fwol_cfg);
 	ucfg_fwol_fetch_dhcp_server_settings(psoc, fwol_cfg);
 	fwol_cfg->sap_xlna_bypass = cfg_get(psoc, CFG_SET_SAP_XLNA_BYPASS);
 

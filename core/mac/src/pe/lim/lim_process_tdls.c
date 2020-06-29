@@ -58,7 +58,6 @@
 #include "lim_utils.h"
 #include "lim_security_utils.h"
 #include "dot11f.h"
-#include "lim_sta_hash_api.h"
 #include "sch_api.h"
 #include "lim_send_messages.h"
 #include "utils_parser.h"
@@ -203,12 +202,16 @@ static void populate_dot11f_tdls_offchannel_params(
 	uint32_t band;
 	uint8_t nss_2g;
 	uint8_t nss_5g;
+	qdf_freq_t ch_freq;
 
 	numChans = mac->mlme_cfg->reg.valid_channel_list_num;
-	qdf_mem_copy(validChan, mac->mlme_cfg->reg.valid_channel_list,
-		     mac->mlme_cfg->reg.valid_channel_list_num);
 
-	if (IS_5G_CH(pe_session->currentOperChannel))
+	for (i = 0; i < mac->mlme_cfg->reg.valid_channel_list_num; i++) {
+		validChan[i] = wlan_reg_freq_to_chan(mac->pdev,
+						     mac->mlme_cfg->reg.valid_channel_freq_list[i]);
+	}
+
+	if (wlan_reg_is_5ghz_ch_freq(pe_session->curr_op_freq))
 		band = BAND_5G;
 	else
 		band = BAND_2G;
@@ -220,10 +223,11 @@ static void populate_dot11f_tdls_offchannel_params(
 
 	/* validating the channel list for DFS and 2G channels */
 	for (i = 0U; i < numChans; i++) {
+		ch_freq = wlan_reg_legacy_chan_to_freq(mac->pdev, validChan[i]);
 		if ((band == BAND_5G) &&
 		    (NSS_2x2_MODE == nss_5g) &&
 		    (NSS_1x1_MODE == nss_2g) &&
-		    (wlan_reg_is_dfs_ch(mac->pdev, validChan[i]))) {
+		    (wlan_reg_is_dfs_for_freq(mac->pdev, ch_freq))) {
 			pe_debug("skipping channel: %d, nss_5g: %d, nss_2g: %d",
 				validChan[i], nss_5g, nss_2g);
 			continue;
@@ -266,14 +270,14 @@ static void populate_dot11f_tdls_offchannel_params(
 
 	op_class = wlan_reg_dmn_get_opclass_from_channel(
 		mac->scan.countryCodeCurrent,
-		pe_session->currentOperChannel,
+		wlan_reg_freq_to_chan(mac->pdev, pe_session->curr_op_freq),
 		chanOffset);
 
-	pe_debug("countryCodeCurrent: %s, currentOperChannel: %d, htSecondaryChannelOffset: %d, chanOffset: %d op class: %d",
-			mac->scan.countryCodeCurrent,
-			pe_session->currentOperChannel,
-			pe_session->htSecondaryChannelOffset,
-			chanOffset, op_class);
+	pe_debug("countryCodeCurrent: %s, curr_op_freq: %d, htSecondaryChannelOffset: %d, chanOffset: %d op class: %d",
+		 mac->scan.countryCodeCurrent,
+		 pe_session->curr_op_freq,
+		 pe_session->htSecondaryChannelOffset,
+		 chanOffset, op_class);
 	suppOperClasses->present = 1;
 	suppOperClasses->classes[0] = op_class;
 
@@ -678,7 +682,7 @@ static void populate_dot11f_tdls_ht_vht_cap(struct mac_context *mac,
 
 	vht_cap_info = &mac->mlme_cfg->vht_caps.vht_cap_info;
 
-	if (IS_5G_CH(pe_session->currentOperChannel))
+	if (wlan_reg_is_5ghz_ch_freq(pe_session->curr_op_freq))
 		nss = mac->vdev_type_nss_5g.tdls;
 	else
 		nss = mac->vdev_type_nss_2g.tdls;
@@ -716,9 +720,10 @@ static void populate_dot11f_tdls_ht_vht_cap(struct mac_context *mac,
 	}
 	pe_debug("HT present: %hu, Chan Width: %hu",
 		htCap->present, htCap->supportedChannelWidthSet);
-	if (((pe_session->currentOperChannel <= SIR_11B_CHANNEL_END) &&
+
+	if ((WLAN_REG_IS_24GHZ_CH_FREQ(pe_session->curr_op_freq) &&
 	     vht_cap_info->b24ghz_band) ||
-	    (pe_session->currentOperChannel >= SIR_11B_CHANNEL_END)) {
+	    WLAN_REG_IS_5GHZ_CH_FREQ(pe_session->curr_op_freq)) {
 		if (IS_DOT11_MODE_VHT(selfDot11Mode) &&
 		    IS_FEATURE_SUPPORTED_BY_FW(DOT11AC)) {
 			/* Include VHT Capability IE */
@@ -829,7 +834,8 @@ static QDF_STATUS lim_send_tdls_dis_rsp_frame(struct mac_context *mac,
 	if (QDF_STATUS_E_FAILURE == populate_dot11f_rates_tdls(mac,
 					&tdlsDisRsp.SuppRates,
 					&tdlsDisRsp.ExtSuppRates,
-					pe_session->currentOperChannel))
+					wlan_reg_freq_to_chan(
+					mac->pdev, pe_session->curr_op_freq)))
 		pe_err("could not populate supported data rates");
 
 	/* populate extended capability IE */
@@ -980,9 +986,11 @@ static void populate_dotf_tdls_vht_aid(struct mac_context *mac, uint32_t selfDot
 				       tDot11fIEAID *Aid,
 				       struct pe_session *pe_session)
 {
-	if (((pe_session->currentOperChannel <= SIR_11B_CHANNEL_END) &&
+	if (((wlan_reg_freq_to_chan(mac->pdev, pe_session->curr_op_freq) <=
+		SIR_11B_CHANNEL_END) &&
 	     mac->mlme_cfg->vht_caps.vht_cap_info.b24ghz_band) ||
-	    (pe_session->currentOperChannel >= SIR_11B_CHANNEL_END)) {
+	    (wlan_reg_freq_to_chan(mac->pdev, pe_session->curr_op_freq) >=
+		SIR_11B_CHANNEL_END)) {
 		if (IS_DOT11_MODE_VHT(selfDot11Mode) &&
 		    IS_FEATURE_SUPPORTED_BY_FW(DOT11AC)) {
 
@@ -1138,7 +1146,8 @@ QDF_STATUS lim_send_tdls_link_setup_req_frame(struct mac_context *mac,
 	if (QDF_STATUS_E_FAILURE == populate_dot11f_rates_tdls(mac,
 					&tdlsSetupReq.SuppRates,
 					&tdlsSetupReq.ExtSuppRates,
-					pe_session->currentOperChannel))
+					wlan_reg_freq_to_chan(
+					mac->pdev, pe_session->curr_op_freq)))
 		pe_err("could not populate supported data rates");
 
 	/* Populate extended capability IE */
@@ -1598,7 +1607,8 @@ static QDF_STATUS lim_send_tdls_setup_rsp_frame(struct mac_context *mac,
 	if (QDF_STATUS_E_FAILURE == populate_dot11f_rates_tdls(mac,
 					&tdlsSetupRsp.SuppRates,
 					&tdlsSetupRsp.ExtSuppRates,
-					pe_session->currentOperChannel))
+					wlan_reg_freq_to_chan(
+					mac->pdev, pe_session->curr_op_freq)))
 		pe_err("could not populate supported data rates");
 
 	/* Populate extended capability IE */
@@ -2177,7 +2187,8 @@ lim_tdls_populate_dot11f_vht_caps(struct mac_context *mac,
 		uVHTCapabilityInfo.vhtCapInfo.vhtLinkAdaptCap;
 	pDot11f->rxAntPattern = uVHTCapabilityInfo.vhtCapInfo.rxAntPattern;
 	pDot11f->txAntPattern = uVHTCapabilityInfo.vhtCapInfo.txAntPattern;
-	pDot11f->reserved1 = uVHTCapabilityInfo.vhtCapInfo.reserved1;
+	pDot11f->extended_nss_bw_supp =
+		uVHTCapabilityInfo.vhtCapInfo.extended_nss_bw_supp;
 
 	pDot11f->rxMCSMap = add_sta_req->vht_cap.supp_mcs.rx_mcs_map;
 
@@ -2185,6 +2196,8 @@ lim_tdls_populate_dot11f_vht_caps(struct mac_context *mac,
 	uVHTSupDataRateInfo.nCfgValue16 = nCfgValue & 0xffff;
 	pDot11f->rxHighSupDataRate =
 		uVHTSupDataRateInfo.vhtRxsupDataRateInfo.rxSupDataRate;
+	pDot11f->max_nsts_total =
+		uVHTSupDataRateInfo.vhtRxsupDataRateInfo.max_nsts_total;
 
 	pDot11f->txMCSMap = add_sta_req->vht_cap.supp_mcs.tx_mcs_map;
 
@@ -2193,7 +2206,8 @@ lim_tdls_populate_dot11f_vht_caps(struct mac_context *mac,
 	pDot11f->txSupDataRate =
 		uVHTSupDataRateInfo.vhtTxSupDataRateInfo.txSupDataRate;
 
-	pDot11f->reserved3 = uVHTSupDataRateInfo.vhtTxSupDataRateInfo.reserved;
+	pDot11f->vht_extended_nss_bw_cap =
+	uVHTSupDataRateInfo.vhtTxSupDataRateInfo.vht_extended_nss_bw_cap;
 
 	lim_log_vht_cap(mac, pDot11f);
 
@@ -2350,7 +2364,7 @@ lim_tdls_populate_matching_rate_set(struct mac_context *mac_ctx,
 		}
 	}
 
-	if (IS_5G_CH(session_entry->currentOperChannel))
+	if (wlan_reg_is_5ghz_ch_freq(session_entry->curr_op_freq))
 		nss = mac_ctx->vdev_type_nss_5g.tdls;
 	else
 		nss = mac_ctx->vdev_type_nss_2g.tdls;
@@ -2388,7 +2402,7 @@ lim_tdls_populate_matching_rate_set(struct mac_context *mac_ctx,
 		}
 	}
 	lim_populate_vht_mcs_set(mac_ctx, &stads->supportedRates, vht_caps,
-				 session_entry, nss);
+				 session_entry, nss, NULL);
 	/**
 	 * Set the erpEnabled bit if the phy is in G mode and at least
 	 * one A rate is supported
@@ -2443,6 +2457,7 @@ static void lim_tdls_update_hash_node_info(struct mac_context *mac,
 		pe_debug("sta->htSupportedChannelWidthSet: 0x%x",
 				sta->htSupportedChannelWidthSet);
 
+		sta->ch_width = sta->htSupportedChannelWidthSet;
 		sta->htMIMOPSState = htCaps->mimoPowerSave;
 		sta->htMaxAmsduLength = htCaps->maximalAMSDUsize;
 		sta->htAMpduDensity = htCaps->mpduDensity;
@@ -2500,7 +2515,8 @@ static void lim_tdls_update_hash_node_info(struct mac_context *mac,
 	 */
 	if (pe_session->htSupportedChannelWidthSet) {
 		cbMode = lim_select_cb_mode(sta, pe_session,
-				    pe_session->currentOperChannel,
+				    wlan_reg_freq_to_chan(
+				    mac->pdev, pe_session->curr_op_freq),
 				    sta->vhtSupportedChannelWidthSet);
 
 		if (sta->mlmStaContext.vhtCapability)
@@ -2662,9 +2678,7 @@ static QDF_STATUS lim_send_sme_tdls_add_sta_rsp(struct mac_context *mac,
 
 	add_sta_rsp->session_id = sessionId;
 	add_sta_rsp->status_code = status;
-	if (sta) {
-		add_sta_rsp->sta_id = sta->staIndex;
-	}
+
 	if (peerMac) {
 		qdf_mem_copy(add_sta_rsp->peermac.bytes,
 			     (uint8_t *) peerMac, QDF_MAC_ADDR_SIZE);
@@ -2701,8 +2715,7 @@ QDF_STATUS lim_process_tdls_add_sta_rsp(struct mac_context *mac, void *msg,
 	uint16_t aid = 0;
 
 	SET_LIM_PROCESS_DEFD_MESGS(mac, true);
-	pe_debug("staIdx: %d, staMac: "QDF_MAC_ADDR_STR,
-	       pAddStaParams->staIdx,
+	pe_debug("staMac: "QDF_MAC_ADDR_STR,
 	       QDF_MAC_ADDR_ARRAY(pAddStaParams->staMac));
 
 	if (pAddStaParams->status != QDF_STATUS_SUCCESS) {
@@ -2720,8 +2733,6 @@ QDF_STATUS lim_process_tdls_add_sta_rsp(struct mac_context *mac, void *msg,
 		goto add_sta_error;
 	}
 
-	sta->bssId = pAddStaParams->bss_idx;
-	sta->staIndex = pAddStaParams->staIdx;
 	sta->mlmStaContext.mlmState = eLIM_MLM_LINK_ESTABLISHED_STATE;
 	sta->valid = 1;
 add_sta_error:
@@ -2739,6 +2750,7 @@ add_sta_error:
  * @msg_type:         Indicates message type
  * @result_code:       Indicates the result of previously issued
  *                    eWNI_SME_msg_type_REQ message
+ * @vdev_id: vdev id
  *
  * This function is called by lim_process_sme_req_messages() to send
  * eWNI_SME_START_RSP, eWNI_SME_STOP_BSS_RSP
@@ -2750,7 +2762,7 @@ add_sta_error:
 
 static void
 lim_send_tdls_comp_mgmt_rsp(struct mac_context *mac_ctx, uint16_t msg_type,
-	 tSirResultCodes result_code, uint8_t sme_session_id)
+	 tSirResultCodes result_code, uint8_t vdev_id)
 {
 	struct scheduler_msg msg = {0};
 	struct tdls_send_mgmt_rsp *sme_rsp;
@@ -2764,7 +2776,7 @@ lim_send_tdls_comp_mgmt_rsp(struct mac_context *mac_ctx, uint16_t msg_type,
 		return;
 
 	sme_rsp->status_code = (enum legacy_result_code)result_code;
-	sme_rsp->session_id = sme_session_id;
+	sme_rsp->vdev_id = vdev_id;
 	sme_rsp->psoc = mac_ctx->psoc;
 
 	msg.type = msg_type;
@@ -2927,10 +2939,6 @@ static QDF_STATUS lim_send_sme_tdls_del_sta_rsp(struct mac_context *mac,
 
 	del_sta_rsp->session_id = sessionId;
 	del_sta_rsp->status_code = status;
-	if (sta) {
-		del_sta_rsp->sta_id = sta->staIndex;
-	} else
-		del_sta_rsp->sta_id = STA_INVALID_IDX;
 
 	qdf_copy_macaddr(&del_sta_rsp->peermac, &peerMac);
 

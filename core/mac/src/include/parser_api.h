@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -201,7 +201,7 @@ typedef struct sSirProbeRespBeacon {
 	tSirMacSSid ssId;
 	tSirMacRateSet supportedRates;
 	tSirMacRateSet extendedRates;
-	tSirMacChanNum channelNumber;
+	uint32_t chan_freq;
 	tSirMacCfParamSet cfParamSet;
 	tSirMacTim tim;
 	tSirMacEdcaParamSetIE edcaParams;
@@ -329,6 +329,7 @@ typedef struct sSirAssocReq {
 	tSirMacSupportedChannelIE supportedChannels;
 	tDot11fIEHTCaps HTCaps;
 	tDot11fIEWMMInfoStation WMMInfoStation;
+	tDot11fIESuppOperatingClasses supp_operating_classes;
 	/* / This is set if the frame is a reassoc request: */
 	uint8_t reassocRequest;
 	uint8_t ssidPresent;
@@ -357,6 +358,7 @@ typedef struct sSirAssocReq {
 	tDot11fIEvendor_vht_ie vendor_vht_ie;
 	tDot11fIEhs20vendor_ie hs20vendor_ie;
 	tDot11fIEhe_cap he_cap;
+	tDot11fIEhe_6ghz_band_cap he_6ghz_band_cap;
 	tDot11fIEqcn_ie qcn_ie;
 	bool is_sae_authenticated;
 } tSirAssocReq, *tpSirAssocReq;
@@ -459,6 +461,7 @@ typedef struct sSirAssocRsp {
 	tDot11fIEqcn_ie qcn_ie;
 	tDot11fIEhe_cap he_cap;
 	tDot11fIEhe_op he_op;
+	tDot11fIEhe_6ghz_band_cap he_6ghz_band_cap;
 	bool mu_edca_present;
 	tSirMacEdcaParamSetIE mu_edca;
 #ifdef WLAN_FEATURE_FILS_SK
@@ -697,7 +700,7 @@ populate_dot_11_f_ext_chann_switch_ann(struct mac_context *mac_ptr,
 void
 populate_dot11f_vht_tx_power_env(struct mac_context *mac,
 				 tDot11fIEvht_transmit_power_env *pDot11f,
-				 enum phy_ch_width ch_width, uint8_t chan);
+				 enum phy_ch_width ch_width, uint32_t chan_freq);
 /* / Populate a tDot11fIEChannelSwitchWrapper */
 void
 populate_dot11f_chan_switch_wrapper(struct mac_context *mac,
@@ -1146,6 +1149,18 @@ QDF_STATUS populate_dot11f_he_caps(struct mac_context *, struct pe_session *,
 				   tDot11fIEhe_cap *);
 QDF_STATUS populate_dot11f_he_operation(struct mac_context *, struct pe_session *,
 					tDot11fIEhe_op *);
+/**
+ * populate_dot11f_he_6ghz_cap() - pouldate HE 6GHz caps IE
+ * @mac_ctx: Global MAC context
+ * @session: PE session
+ * @he_6g_cap: pointer to HE 6GHz IE
+ *
+ * Populdate the HE 6GHz IE based on the session.
+ */
+QDF_STATUS
+populate_dot11f_he_6ghz_cap(struct mac_context *mac_ctx,
+			    struct pe_session *session,
+			    tDot11fIEhe_6ghz_band_cap *he_6g_cap);
 #ifdef WLAN_FEATURE_11AX_BSS_COLOR
 QDF_STATUS populate_dot11f_he_bss_color_change(struct mac_context *mac_ctx,
 				struct pe_session *session,
@@ -1168,6 +1183,14 @@ static inline QDF_STATUS populate_dot11f_he_caps(struct mac_context *mac_ctx,
 
 static inline QDF_STATUS populate_dot11f_he_operation(struct mac_context *mac_ctx,
 			struct pe_session *session, tDot11fIEhe_op *he_op)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS
+populate_dot11f_he_6ghz_cap(struct mac_context *mac_ctx,
+			    struct pe_session *session,
+			    tDot11fIEhe_6ghz_band_cap *he_6g_cap)
 {
 	return QDF_STATUS_SUCCESS;
 }

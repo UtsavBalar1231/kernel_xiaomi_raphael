@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -43,12 +43,6 @@ uint8_t lim_compare_capabilities(struct mac_context *,
 				 tSirAssocReq *,
 				 tSirMacCapabilityInfo *, struct pe_session *);
 uint8_t lim_check_rx_basic_rates(struct mac_context *, tSirMacRateSet, struct pe_session *);
-uint8_t lim_check_rx_rsn_ie_match(struct mac_context *mac_ctx,
-				  tDot11fIERSN * const rx_rsn_ie,
-				  struct pe_session *session_entry, uint8_t sta_is_ht,
-				  bool *pmf_connection);
-uint8_t lim_check_rx_wpa_ie_match(struct mac_context *, tDot11fIEWPA *, struct pe_session *,
-				  uint8_t);
 uint8_t lim_check_mcs_set(struct mac_context *mac, uint8_t *supportedMCSSet);
 QDF_STATUS lim_cleanup_rx_path(struct mac_context *, tpDphHashNode,
 			       struct pe_session *);
@@ -62,7 +56,8 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 				      uint8_t basicOnly,
 				      struct pe_session *pe_session,
 				      tDot11fIEVHTCaps *pVHTCaps,
-				      tDot11fIEhe_cap *he_caps);
+				      tDot11fIEhe_cap *he_caps,
+				      struct sDphHashNode *sta_ds);
 
 /**
  * lim_populate_own_rate_set() - comprises the basic and extended rates read
@@ -107,7 +102,7 @@ QDF_STATUS lim_populate_matching_rate_set(struct mac_context *mac_ctx,
 QDF_STATUS lim_add_sta(struct mac_context *, tpDphHashNode, uint8_t, struct pe_session *);
 QDF_STATUS lim_del_bss(struct mac_context *, tpDphHashNode, uint16_t, struct pe_session *);
 QDF_STATUS lim_del_sta(struct mac_context *, tpDphHashNode, bool, struct pe_session *);
-QDF_STATUS lim_add_sta_self(struct mac_context *, uint16_t, uint8_t, struct pe_session *);
+QDF_STATUS lim_add_sta_self(struct mac_context *, uint8_t, struct pe_session *);
 
 #ifdef WLAN_FEATURE_HOST_ROAM
 void lim_restore_pre_reassoc_state(struct mac_context *,
@@ -186,12 +181,52 @@ void lim_update_assoc_sta_datas(struct mac_context *mac,
 				tpDphHashNode sta, tpSirAssocRsp pAssocRsp,
 				struct pe_session *pe_session);
 
-QDF_STATUS lim_sta_send_add_bss(struct mac_context *mac, tpSirAssocRsp pAssocRsp,
-				   tpSchBeaconStruct pBeaconStruct,
-				   struct bss_description *bssDescription,
-				   uint8_t updateEntry, struct pe_session *pe_session);
-QDF_STATUS lim_sta_send_add_bss_pre_assoc(struct mac_context *mac, uint8_t updateEntry,
-					     struct pe_session *pe_session);
+/**
+ * lim_sta_add_bss_update_ht_parameter() - function to update ht related
+ *                                         parameters when add bss request
+ * @bss_chan_freq: operating frequency of bss
+ * @ht_cap: ht capability extract from beacon/assoc response
+ * @ht_inf: ht information extract from beacon/assoc response
+ * @chan_width_support: local wide bandwith support capability
+ * @add_bss: add bss request struct to be updated
+ *
+ * Return: none
+ */
+void lim_sta_add_bss_update_ht_parameter(uint32_t bss_chan_freq,
+					 tDot11fIEHTCaps* ht_cap,
+					 tDot11fIEHTInfo* ht_inf,
+					 bool chan_width_support,
+					 struct bss_params *add_bss);
+
+/**
+ * lim_sta_send_add_bss() - add bss and send peer assoc after receive assoc
+ * rsp in sta mode
+ *.@mac: pointer to Global MAC structure
+ * @pAssocRsp: contains the structured assoc/reassoc Response got from AP
+ * @beaconstruct: the ProbeRsp/Beacon structured details
+ * @bssDescription: bss description passed to PE from the SME
+ * @updateEntry: bool flag of whether update bss and sta
+ * @pe_session: pointer to pe session
+ *
+ * Return: none
+ */
+QDF_STATUS lim_sta_send_add_bss(struct mac_context *mac,
+				tpSirAssocRsp pAssocRsp,
+				tpSchBeaconStruct pBeaconStruct,
+				struct bss_description *bssDescription,
+				uint8_t updateEntry,
+				struct pe_session *pe_session);
+
+/**
+ * lim_sta_send_add_bss_pre_assoc() - add bss after channel switch and before
+ * associate req in sta mode
+ *.@mac: pointer to Global MAC structure
+ * @pe_session: pointer to pe session
+ *
+ * Return: none
+ */
+QDF_STATUS lim_sta_send_add_bss_pre_assoc(struct mac_context *mac,
+					  struct pe_session *pe_session);
 
 void lim_prepare_and_send_del_sta_cnf(struct mac_context *mac,
 				      tpDphHashNode sta,
@@ -271,6 +306,7 @@ void lim_send_sme_tsm_ie_ind(struct mac_context *mac,
  * @peer_vht_caps: pointer to peer vht capabilities
  * @session_entry: pe session entry
  * @nss: number of spatial streams
+ * @sta_ds: pointer to peer sta data structure
  *
  * Populates vht mcs rate set based on peer and self capabilities
  *
@@ -280,7 +316,8 @@ QDF_STATUS lim_populate_vht_mcs_set(struct mac_context *mac_ctx,
 				    struct supported_rates *rates,
 				    tDot11fIEVHTCaps *peer_vht_caps,
 				    struct pe_session *session_entry,
-				    uint8_t nss);
+				    uint8_t nss,
+				    struct sDphHashNode *sta_ds);
 
 /**
  * lim_extract_ies_from_deauth_disassoc() - Extract IEs from deauth/disassoc

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -128,11 +128,19 @@ struct hdd_context;
 #define TDLS_MGMT_VERSION2 0
 #endif
 
+/**
+ * hdd_convert_cfgdot11mode_to_80211mode() - Function to convert cfg dot11 mode
+ *  to 80211 mode
+ * @mode: cfg dot11 mode
+ *
+ * Return: 80211 mode
+ */
+enum qca_wlan_802_11_mode
+hdd_convert_cfgdot11mode_to_80211mode(enum csr_cfgdot11mode mode);
 #endif
 
 #define HDD_SET_BIT(__param, __val)    ((__param) |= (1 << (__val)))
 
-#define MAX_CHANNEL (NUM_24GHZ_CHANNELS + NUM_5GHZ_CHANNELS)
 #define MAX_SCAN_SSID 10
 
 #define IS_CHANNEL_VALID(channel) ((channel >= 0 && channel < 15) \
@@ -316,9 +324,9 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 				 struct regulatory_request *request);
 
 QDF_STATUS wlan_hdd_validate_operation_channel(struct hdd_adapter *adapter,
-					       int channel);
+					       uint32_t ch_freq);
 
-void hdd_select_cbmode(struct hdd_adapter *adapter, uint8_t operationChannel,
+void hdd_select_cbmode(struct hdd_adapter *adapter, uint32_t oper_freq,
 		       struct ch_params *ch_params);
 
 /**
@@ -359,11 +367,14 @@ int wlan_hdd_send_avoid_freq_event(struct hdd_context *hdd_ctx,
  * wlan_hdd_send_hang_reason_event() - Send hang reason to the userspace
  * @hdd_ctx: Pointer to hdd context
  * @reason: cds recovery reason
+ * @data: Hang Data
+ * @data_len: Hang Data len
  *
  * Return: 0 on success or failure reason
  */
 int wlan_hdd_send_hang_reason_event(struct hdd_context *hdd_ctx,
-				    uint32_t reason);
+				    uint32_t reason, void *data,
+				    size_t data_len);
 
 int wlan_hdd_send_avoid_freq_for_dnbs(struct hdd_context *hdd_ctx,
 				      uint8_t op_chan);
@@ -433,7 +444,18 @@ void hdd_send_roam_scan_ch_list_event(struct hdd_context *hdd_ctx,
 #endif
 
 int wlan_hdd_cfg80211_update_apies(struct hdd_adapter *adapter);
-int wlan_hdd_request_pre_cac(struct hdd_context *hdd_ctx, uint8_t channel);
+
+/**
+ * wlan_hdd_request_pre_cac() - Start pre CAC in the driver
+ * @hdd_ctx: the HDD context to operate against
+ * @chan_freq: channel freq option provided by userspace
+ *
+ * Sets the driver to the required hardware mode and start an adapter for
+ * pre CAC which will mimic an AP.
+ *
+ * Return: Zero on success, non-zero value on error
+ */
+int wlan_hdd_request_pre_cac(struct hdd_context *hdd_ctx, uint32_t chan_freq);
 int wlan_hdd_sap_cfg_dfs_override(struct hdd_adapter *adapter);
 
 int wlan_hdd_enable_dfs_chan_scan(struct hdd_context *hdd_ctx,
@@ -492,7 +514,7 @@ wlan_hdd_inform_bss_frame(struct hdd_adapter *adapter,
 /**
  * wlan_hdd_change_hw_mode_for_given_chnl() - change HW mode for given channel
  * @adapter: pointer to adapter
- * @channel: given channel number
+ * @chan_freq: given channel frequency
  * @reason: reason for HW mode change is needed
  *
  * This API decides and sets hardware mode to DBS based on given channel.
@@ -502,8 +524,8 @@ wlan_hdd_inform_bss_frame(struct hdd_adapter *adapter,
  * Return: 0 for success and non-zero for failure
  */
 int wlan_hdd_change_hw_mode_for_given_chnl(struct hdd_adapter *adapter,
-				uint8_t channel,
-				enum policy_mgr_conn_update_reason reason);
+					   uint32_t chan_freq,
+					   enum policy_mgr_conn_update_reason reason);
 
 /**
  * hdd_rate_info_bw: an HDD internal rate bandwidth representation
@@ -563,17 +585,6 @@ int wlan_hdd_try_disconnect(struct hdd_adapter *adapter,
  */
 int wlan_hdd_disconnect(struct hdd_adapter *adapter, u16 reason,
 			tSirMacReasonCodes mac_reason);
-
-/**
- * hdd_update_cca_info_cb() - stores congestion value in station context
- * @hdd_handle: HDD handle
- * @congestion: congestion
- * @vdev_id: vdev id
- *
- * Return: None
- */
-void hdd_update_cca_info_cb(hdd_handle_t hdd_handle, uint32_t congestion,
-			    uint32_t vdev_id);
 
 /**
  * wlan_hdd_get_adjacent_chan(): Gets next/previous channel

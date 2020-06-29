@@ -125,7 +125,7 @@ void ipa_set_dp_handle(struct wlan_objmgr_psoc *psoc, void *dp_soc)
 	wlan_objmgr_pdev_release_ref(pdev, WLAN_IPA_ID);
 }
 
-void ipa_set_txrx_handle(struct wlan_objmgr_psoc *psoc, void *txrx_handle)
+void ipa_set_pdev_id(struct wlan_objmgr_psoc *psoc, uint8_t pdev_id)
 {
 	struct wlan_objmgr_pdev *pdev;
 	struct wlan_ipa_priv *ipa_obj;
@@ -150,7 +150,7 @@ void ipa_set_txrx_handle(struct wlan_objmgr_psoc *psoc, void *txrx_handle)
 		return;
 	}
 
-	ipa_obj->dp_pdev = txrx_handle;
+	ipa_obj->dp_pdev_id = pdev_id;
 	wlan_objmgr_pdev_release_ref(pdev, WLAN_IPA_ID);
 }
 
@@ -516,7 +516,7 @@ QDF_STATUS ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
 }
 
 QDF_STATUS ipa_wlan_evt(struct wlan_objmgr_pdev *pdev, qdf_netdev_t net_dev,
-			uint8_t device_mode, uint8_t sta_id, uint8_t session_id,
+			uint8_t device_mode, uint8_t session_id,
 			enum wlan_ipa_wlan_event ipa_event_type,
 			uint8_t *mac_addr)
 {
@@ -528,7 +528,7 @@ QDF_STATUS ipa_wlan_evt(struct wlan_objmgr_pdev *pdev, qdf_netdev_t net_dev,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	return wlan_ipa_wlan_evt(net_dev, device_mode, sta_id, session_id,
+	return wlan_ipa_wlan_evt(net_dev, device_mode, session_id,
 				 ipa_event_type, mac_addr);
 }
 

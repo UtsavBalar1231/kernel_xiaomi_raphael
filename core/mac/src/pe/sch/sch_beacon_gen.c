@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -245,6 +245,7 @@ sch_set_fixed_beacon_fields(struct mac_context *mac_ctx, struct pe_session *sess
 	uint8_t *addn_ie = NULL;
 	tDot11fIEExtCap extracted_extcap;
 	bool extcap_present = true, addnie_present = false;
+	bool is_6ghz_chsw;
 
 	bcn_1 = qdf_mem_malloc(sizeof(tDot11fBeacon1));
 	if (!bcn_1)
@@ -301,7 +302,8 @@ sch_set_fixed_beacon_fields(struct mac_context *mac_ctx, struct pe_session *sess
 	populate_dot11f_supp_rates(mac_ctx, POPULATE_DOT11F_RATES_OPERATIONAL,
 				   &bcn_1->SuppRates, session);
 	populate_dot11f_ds_params(mac_ctx, &bcn_1->DSParams,
-				  session->currentOperChannel);
+				  wlan_reg_freq_to_chan(
+				  mac_ctx->pdev, session->curr_op_freq));
 	populate_dot11f_ibss_params(mac_ctx, &bcn_1->IBSSParams, session);
 
 	offset = sizeof(tAniBeaconStruct);
@@ -343,11 +345,14 @@ sch_set_fixed_beacon_fields(struct mac_context *mac_ctx, struct pe_session *sess
 		 session->schBeaconOffsetBegin);
 
 	/* Initialize the 'new' fields at the end of the beacon */
-
-	if ((session->limSystemRole == eLIM_AP_ROLE) &&
+	is_6ghz_chsw =
+		WLAN_REG_IS_6GHZ_CHAN_FREQ(session->curr_op_freq) ||
+		WLAN_REG_IS_6GHZ_CHAN_FREQ
+			(session->gLimChannelSwitch.sw_target_freq);
+	if (session->limSystemRole == eLIM_AP_ROLE &&
 	    session->dfsIncludeChanSwIe == true) {
 		if (!CHAN_HOP_ALL_BANDS_ENABLE ||
-		    session->lim_non_ecsa_cap_num == 0) {
+		    session->lim_non_ecsa_cap_num == 0 || is_6ghz_chsw) {
 			tDot11fIEext_chan_switch_ann *ext_csa =
 						&bcn_2->ext_chan_switch_ann;
 			populate_dot_11_f_ext_chann_switch_ann(mac_ctx,
@@ -389,12 +394,15 @@ sch_set_fixed_beacon_fields(struct mac_context *mac_ctx, struct pe_session *sess
 			 * and SAP has instructed to announce channel switch IEs
 			 * in beacon and probe responses
 			 */
-			populate_dot11f_chan_switch_ann(mac_ctx,
-						&bcn_2->ChanSwitchAnn, session);
-			pe_debug("csa: mode:%d chan:%d count:%d",
-				 bcn_2->ChanSwitchAnn.switchMode,
-				 bcn_2->ChanSwitchAnn.newChannel,
-				 bcn_2->ChanSwitchAnn.switchCount);
+			if (!is_6ghz_chsw) {
+				populate_dot11f_chan_switch_ann
+					(mac_ctx, &bcn_2->ChanSwitchAnn,
+					 session);
+				pe_debug("csa: mode:%d chan:%d count:%d",
+					 bcn_2->ChanSwitchAnn.switchMode,
+					 bcn_2->ChanSwitchAnn.newChannel,
+					 bcn_2->ChanSwitchAnn.switchCount);
+			}
 			/*
 			 * TODO: depending the CB mode, extended channel switch
 			 * announcement need to be called
@@ -429,7 +437,7 @@ sch_set_fixed_beacon_fields(struct mac_context *mac_ctx, struct pe_session *sess
 			}
 		}
 	}
-	if (mac_ctx->rrm.rrmConfig.rrm_enabled)
+	if (mac_ctx->rrm.rrmConfig.sap_rrm_enabled)
 		populate_dot11f_rrm_ie(mac_ctx, &bcn_2->RRMEnabledCap,
 			session);
 
@@ -458,17 +466,19 @@ sch_set_fixed_beacon_fields(struct mac_context *mac_ctx, struct pe_session *sess
 		populate_dot11f_vht_tx_power_env(mac_ctx,
 						 &bcn_2->vht_transmit_power_env,
 						 session->ch_width,
-						 session->currentOperChannel);
+						 session->curr_op_freq);
 		populate_dot11f_qcn_ie(mac_ctx, &bcn_2->qcn_ie,
 				       QCN_IE_ATTR_ID_ALL);
 	}
 
 	if (lim_is_session_he_capable(session)) {
-		pe_warn("Populate HE IEs");
+		pe_debug("Populate HE IEs");
 		populate_dot11f_he_caps(mac_ctx, session,
 					&bcn_2->he_cap);
 		populate_dot11f_he_operation(mac_ctx, session,
 					&bcn_2->he_op);
+		populate_dot11f_he_6ghz_cap(mac_ctx, session,
+					    &bcn_2->he_6ghz_band_cap);
 		populate_dot11f_he_bss_color_change(mac_ctx, session,
 					&bcn_2->bss_color_change);
 	}
@@ -889,6 +899,14 @@ void lim_update_probe_rsp_template_ie_bitmap_beacon2(struct mac_context *mac,
 		qdf_mem_copy((void *)&prb_rsp->he_op,
 			     (void *)&beacon2->he_op,
 			     sizeof(beacon2->he_op));
+	}
+
+	if (beacon2->he_6ghz_band_cap.present) {
+		set_probe_rsp_ie_bitmap(DefProbeRspIeBitmap,
+					DOT11F_EID_HE_6GHZ_BAND_CAP);
+		qdf_mem_copy((void *)&prb_rsp->he_6ghz_band_cap,
+			     (void *)&beacon2->he_6ghz_band_cap,
+			     sizeof(beacon2->he_6ghz_band_cap));
 	}
 
 }

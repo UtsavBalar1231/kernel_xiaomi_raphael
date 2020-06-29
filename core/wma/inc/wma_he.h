@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -127,23 +127,12 @@ void wma_populate_peer_he_cap(struct peer_assoc_params *peer,
 
 /**
  * wma_update_vdev_he_ops() - update he ops in vdev start request
- * @req: pointer to vdev start request
- * @add_bss: pointer to ADD BSS params
+ * @he_ops: target he ops
+ * @he_op: source he ops
  *
  * Return: None
  */
-void wma_update_vdev_he_ops(struct wma_vdev_start_req *req,
-		tpAddBssParams add_bss);
-
-/**
- * wma_copy_vdev_start_he_ops() - copy HE ops from vdev start req to vdev start
- * @params: pointer to vdev_start_params
- * @req: pointer to vdev start request
- *
- * Return: None
- */
-void wma_copy_vdev_start_he_ops(struct vdev_start_params *params,
-		struct wma_vdev_start_req *req);
+void wma_update_vdev_he_ops(uint32_t *he_ops, tDot11fIEhe_op *he_op);
 
 #define DOT11AX_HEMU_MODE 0x30
 #define HE_SUBFEE 0
@@ -176,12 +165,12 @@ void wma_set_he_txbf_cfg(struct mac_context *mac, uint8_t vdev_id);
  * wma_vdev_set_he_bss_params() - set HE OPs in vdev start
  * @wma: pointer to wma handle
  * @vdev_id: VDEV id
- * @req: pointer to vdev start request
+ * @he_info: pointer to he info
  *
  * Return: None
  */
 void wma_vdev_set_he_bss_params(tp_wma_handle wma, uint8_t vdev_id,
-				struct wma_vdev_start_req *req);
+				struct vdev_mlme_he_ops_info *he_info);
 
 /**
  * wma_vdev_set_he_config() - set HE Config in vdev start
@@ -192,22 +181,12 @@ void wma_vdev_set_he_bss_params(tp_wma_handle wma, uint8_t vdev_id,
  * Return: None
  */
 void wma_vdev_set_he_config(tp_wma_handle wma, uint8_t vdev_id,
-				tpAddBssParams add_bss);
+				struct bss_params *add_bss);
 
 static inline bool wma_is_peer_he_capable(tpAddStaParams params)
 {
 	return params->he_capable;
 }
-
-/**
- * wma_update_vdev_he_capable() - update vdev start request he capability
- * @req: pointer to vdev start request
- * @params: pointer to chan switch params
- *
- * Return: None
- */
-void wma_update_vdev_he_capable(struct wma_vdev_start_req *req,
-		tpSwitchChannelParams params);
 
 /**
  * wma_update_he_ops_ie() - update the HE OPS IE to firmware
@@ -300,13 +279,8 @@ static inline void wma_populate_peer_he_cap(struct peer_assoc_params *peer,
 {
 }
 
-static inline void wma_update_vdev_he_ops(struct wma_vdev_start_req *req,
-			tpAddBssParams add_bss)
-{
-}
-
-static inline void wma_copy_vdev_start_he_ops(struct vdev_start_params *params,
-			struct wma_vdev_start_req *req)
+static inline
+void wma_update_vdev_he_ops(uint32_t *he_ops, tDot11fIEhe_op *he_op)
 {
 }
 
@@ -325,24 +299,20 @@ static inline  QDF_STATUS wma_update_he_ops_ie(tp_wma_handle wma,
 	return QDF_STATUS_SUCCESS;
 }
 
-static inline void wma_vdev_set_he_bss_params(tp_wma_handle wma,
-				uint8_t vdev_id, struct wma_vdev_start_req *req)
+static inline
+void wma_vdev_set_he_bss_params(tp_wma_handle wma, uint8_t vdev_id,
+				struct vdev_mlme_he_ops_info *he_info)
 {
 }
 
 static inline void wma_vdev_set_he_config(tp_wma_handle wma, uint8_t vdev_id,
-					tpAddBssParams add_bss)
+					struct bss_params *add_bss)
 {
 }
 
 static inline bool wma_is_peer_he_capable(tpAddStaParams params)
 {
 	return false;
-}
-
-static inline void wma_update_vdev_he_capable(struct wma_vdev_start_req *req,
-					      tpSwitchChannelParams params)
-{
 }
 
 static inline void wma_set_he_vdev_param(struct wma_txrx_node *intr,
