@@ -7348,12 +7348,14 @@ static inline bool task_fits_capacity(struct task_struct *p,
 
 	if (capacity_orig_of(task_cpu(p)) > capacity_orig_of(cpu))
 		margin = schedtune_task_boost(p) > 0 &&
-			  !schedtune_prefer_high_cap(p) ?
+			  !schedtune_prefer_high_cap(p) &&
+			   p->prio <= DEFAULT_PRIO ?
 			sched_capacity_margin_down_boosted[task_cpu(p)] :
 			sched_capacity_margin_down[task_cpu(p)];
 	else
 		margin = schedtune_task_boost(p) > 0 &&
-			  !schedtune_prefer_high_cap(p) ?
+			  !schedtune_prefer_high_cap(p) &&
+			   p->prio <= DEFAULT_PRIO ?
 			sched_capacity_margin_up_boosted[task_cpu(p)] :
 			sched_capacity_margin_up[task_cpu(p)];
 
@@ -7850,7 +7852,7 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 		if ((prefer_idle && best_idle_cpu != -1) ||
 		    (prefer_high_cap &&
 		     (best_idle_cpu != -1 || target_cpu != -1))) {
-			if (prefer_high_cap) {
+			if (prefer_high_cap && p->prio <= DEFAULT_PRIO) {
 				/*
 				 * For prefer_high_cap task, stop searching when an idle
 				 * cpu is found in mid cluster.
