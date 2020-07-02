@@ -67,15 +67,6 @@ void dwc3_usb3_phy_suspend(struct dwc3 *dwc, int suspend)
 		reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
 
 	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
-
-	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(1));
-
-	if (suspend)
-		reg |= DWC3_GUSB3PIPECTL_SUSPHY;
-	else
-		reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
-
-	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(1), reg);
 }
 
 /**
@@ -152,10 +143,6 @@ void dwc3_en_sleep_mode(struct dwc3 *dwc)
 	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
 	reg |= DWC3_GUSB2PHYCFG_ENBLSLPM;
 	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
-
-	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(1));
-	reg |= DWC3_GUSB2PHYCFG_ENBLSLPM;
-	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(1), reg);
 }
 
 void dwc3_dis_sleep_mode(struct dwc3 *dwc)
@@ -575,17 +562,15 @@ static int dwc3_core_ulpi_init(struct dwc3 *dwc)
  */
 static int dwc3_phy_setup(struct dwc3 *dwc)
 {
-	u32 reg, reg1;
+	u32 reg;
 
 	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(0));
-	reg1 = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(1));
 
 	/*
 	 * Make sure UX_EXIT_PX is cleared as that causes issues with some
 	 * PHYs. Also, this bit is not supposed to be used in normal operation.
 	 */
 	reg &= ~DWC3_GUSB3PIPECTL_UX_EXIT_PX;
-	reg1 &= ~DWC3_GUSB3PIPECTL_UX_EXIT_PX;
 
 	/*
 	 * Above 1.94a, it is recommended to set DWC3_GUSB3PIPECTL_SUSPHY
@@ -626,15 +611,11 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 	if (dwc->dis_del_phy_power_chg_quirk)
 		reg &= ~DWC3_GUSB3PIPECTL_DEPOCHANGE;
 
-	if (dwc->ssp_u3_u0_quirk) {
+	if (dwc->ssp_u3_u0_quirk)
 		reg |= (DWC3_GUSB3PIPECTL_UX_EXIT_PX |
 				DWC3_GUSB3PIPECTL_P3EXSIGP2);
-		reg1 |= (DWC3_GUSB3PIPECTL_UX_EXIT_PX |
-				DWC3_GUSB3PIPECTL_P3EXSIGP2);
-	}
 
 	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
-	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(1), reg1);
 
 	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
 

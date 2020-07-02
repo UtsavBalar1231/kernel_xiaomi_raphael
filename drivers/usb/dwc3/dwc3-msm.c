@@ -2369,9 +2369,6 @@ static int dwc3_msm_prepare_suspend(struct dwc3_msm *mdwc, bool ignore_p3_state)
 	reg = dwc3_msm_read_reg(mdwc->base, DWC3_GUSB2PHYCFG(0));
 	dwc3_msm_write_reg(mdwc->base, DWC3_GUSB2PHYCFG(0),
 		reg | DWC3_GUSB2PHYCFG_ENBLSLPM | DWC3_GUSB2PHYCFG_SUSPHY);
-	reg = dwc3_msm_read_reg(mdwc->base, DWC3_GUSB2PHYCFG(1));
-	dwc3_msm_write_reg(mdwc->base, DWC3_GUSB2PHYCFG(1),
-		reg | DWC3_GUSB2PHYCFG_ENBLSLPM | DWC3_GUSB2PHYCFG_SUSPHY);
 
 	/* Wait for PHY to go into L2 */
 	timeout = jiffies + msecs_to_jiffies(5);
@@ -2774,10 +2771,6 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool force_power_collapse,
 
 			reg |= DWC3_GUSB3PIPECTL_DISRXDETU3;
 			dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
-
-			reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(1));
-			reg |= DWC3_GUSB3PIPECTL_DISRXDETU3;
-			dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(1), reg);
 		}
 		/* indicate phy about SS mode */
 		dwc3_msm_is_superspeed(mdwc);
@@ -2987,10 +2980,6 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 
 			reg &= ~DWC3_GUSB3PIPECTL_DISRXDETU3;
 			dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
-
-			reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(1));
-			reg &= ~DWC3_GUSB3PIPECTL_DISRXDETU3;
-			dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(1), reg);
 		}
 	}
 
@@ -3026,9 +3015,6 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	/* Disable HSPHY auto suspend */
 	dwc3_msm_write_reg(mdwc->base, DWC3_GUSB2PHYCFG(0),
 		dwc3_msm_read_reg(mdwc->base, DWC3_GUSB2PHYCFG(0)) &
-				~DWC3_GUSB2PHYCFG_SUSPHY);
-	dwc3_msm_write_reg(mdwc->base, DWC3_GUSB2PHYCFG(1),
-		dwc3_msm_read_reg(mdwc->base, DWC3_GUSB2PHYCFG(1)) &
 				~DWC3_GUSB2PHYCFG_SUSPHY);
 
 	if (mdwc->dual_port)
@@ -4626,15 +4612,6 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 			dev_dbg(mdwc->dev, "LU3:%08x\n",
 				dwc3_msm_read_reg(mdwc->base,
 					DWC31_LINK_LU3LFPSRXTIM(0)));
-			dwc3_msm_write_reg_field(mdwc->base,
-					DWC31_LINK_LU3LFPSRXTIM(1),
-					GEN2_U3_EXIT_RSP_RX_CLK_MASK, 6);
-			dwc3_msm_write_reg_field(mdwc->base,
-					DWC31_LINK_LU3LFPSRXTIM(1),
-					GEN1_U3_EXIT_RSP_RX_CLK_MASK, 5);
-			dev_dbg(mdwc->dev, "LU3:%08x\n",
-				dwc3_msm_read_reg(mdwc->base,
-					DWC31_LINK_LU3LFPSRXTIM(1)));
 		}
 
 		/* xHCI should have incremented child count as necessary */
