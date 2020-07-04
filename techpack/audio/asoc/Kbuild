@@ -199,6 +199,7 @@ ifeq ($(TARGET_PRODUCT), $(filter $(TARGET_PRODUCT),cepheus hercules orion))
 	CDEFINES += -DCONFIG_SND_SOC_CS35L41_FOR_CEPH
 endif
 
+
 KBUILD_CPPFLAGS += $(CDEFINES)
 
 # Currently, for versions of gcc which support it, the kernel Makefile
