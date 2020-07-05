@@ -771,6 +771,10 @@ typedef struct {
     A_UINT32 num_mu_peer_blacklisted;
     /* Num of times mu_ofdma seq posted */
     A_UINT32 mu_ofdma_seq_posted;
+    /* Num of times UL MU MIMO seq posted */
+    A_UINT32 ul_mumimo_seq_posted;
+    /* Num of times UL OFDMA seq posted */
+    A_UINT32 ul_ofdma_seq_posted;
 } htt_tx_pdev_stats_cmn_tlv;
 
 #define HTT_TX_PDEV_STATS_URRN_TLV_SZ(_num_elems) (sizeof(A_UINT32) * (_num_elems))
@@ -2669,6 +2673,9 @@ typedef struct {
     A_UINT32 desc_threshold;
     A_UINT32 hwsch_tqm_invalid_status;
     A_UINT32 missed_tqm_gen_mpdus;
+    A_UINT32 tqm_active_tids;
+    A_UINT32 tqm_inactive_tids;
+    A_UINT32 tqm_active_msduq_flows;
 } htt_tx_tqm_cmn_stats_tlv;
 
 typedef struct {
@@ -3589,6 +3596,8 @@ typedef struct {
 #define HTT_RX_PDEV_STATS_NUM_GI_COUNTERS 4
 #define HTT_RX_PDEV_STATS_NUM_DCM_COUNTERS 5
 #define HTT_RX_PDEV_STATS_NUM_BW_COUNTERS 4
+#define HTT_RX_PDEV_STATS_TOTAL_BW_COUNTERS \
+    (HTT_RX_PDEV_STATS_NUM_BW_EXT_COUNTERS + HTT_RX_PDEV_STATS_NUM_BW_COUNTERS)
 #define HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS 8
 #define HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS 8
 #define HTT_RX_PDEV_STATS_NUM_PREAMBLE_TYPES HTT_STATS_PREAM_COUNT
@@ -3894,6 +3903,15 @@ typedef struct {
     /* Stats for MCS 12/13 */
     A_UINT32 ul_mumimo_rx_mcs_ext[HTT_RX_PDEV_STATS_NUM_EXTRA_MCS_COUNTERS];
     A_UINT32 ul_mumimo_rx_gi_ext[HTT_RX_PDEV_STATS_NUM_GI_COUNTERS][HTT_RX_PDEV_STATS_NUM_EXTRA_MCS_COUNTERS];
+
+    /* RSSI in dBm for Rx TB PPDUs */
+    A_INT8 rx_ul_mumimo_chain_rssi_in_dbm[HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS][HTT_RX_PDEV_STATS_TOTAL_BW_COUNTERS];
+    /* Target RSSI stats for UL MUMIMO triggers. Units dBm */
+    A_INT8 rx_ul_mumimo_target_rssi[HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS][HTT_RX_PDEV_STATS_NUM_BW_COUNTERS];
+    /* FD RSSI stats for UL TB PPDUs. Units dBm */
+    A_INT8 rx_ul_mumimo_fd_rssi[HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS][HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS];
+    /* Pilot EVM Stats */
+    A_INT8 rx_ulmumimo_pilot_evm_dB_mean[HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS][HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS];
 } htt_rx_pdev_ul_mumimo_trig_stats_tlv;
 
 /* STATS_TYPE : HTT_DBG_EXT_STATS_PDEV_UL_MUMIMO_TRIG_STATS
@@ -4728,6 +4746,7 @@ typedef struct {
 
 #define HTT_LATENCY_PROFILE_MAX_HIST        3
 #define HTT_STATS_MAX_PROF_STATS_NAME_LEN  32
+#define HTT_INTERRUPTS_LATENCY_PROFILE_MAX_HIST 3
 typedef struct {
     htt_tlv_hdr_t   tlv_hdr;
     /* print_header:
@@ -4753,6 +4772,20 @@ typedef struct {
      */
     A_UINT32 hist_intvl;
     A_UINT32 hist[HTT_LATENCY_PROFILE_MAX_HIST];
+    A_UINT32 page_fault_max;   /* max page faults in any 1 sampling window */
+    A_UINT32 page_fault_total; /* summed over all sampling windows */
+    /* ignored_latency_count:
+     * ignore some of profile latency to avoid avg skewing
+     */
+    A_UINT32 ignored_latency_count;
+    /* interrupts_max: max interrupts within any single sampling window */
+    A_UINT32 interrupts_max;
+    /* interrupts_hist: histogram of interrupt rate
+     * bin0 contains the number of sampling windows that had 0 interrupts,
+     * bin1 contains the number of sampling windows that had 1-4 interrupts,
+     * bin2 contains the number of sampling windows that had > 4 interrupts
+     */
+    A_UINT32 interrupts_hist[HTT_INTERRUPTS_LATENCY_PROFILE_MAX_HIST];
 } htt_latency_prof_stats_tlv;
 
 typedef struct {
