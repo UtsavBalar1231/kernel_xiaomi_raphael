@@ -5129,7 +5129,7 @@ static int ETH_PTPCLK_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ETH_PPS_
 
 	pdata->ptpclk_freq = eth_pps_cfg->ptpclk_freq;
 	ret = hw_if->config_default_addend(pdata, (ULONG)eth_pps_cfg->ptpclk_freq);
-	ret |= hw_if->config_sub_second_increment( (ULONG)eth_pps_cfg->ptpclk_freq);
+	ret |= hw_if->config_sub_second_increment(eth_pps_cfg->ptpclk_freq);
 
 	return ret;
 }
@@ -5728,11 +5728,11 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		break;
 
 	case DWC_ETH_QOS_DCB_ALGORITHM:
-		DWC_ETH_QOS_program_dcb_algorithm(pdata, req);
+		ret = DWC_ETH_QOS_program_dcb_algorithm(pdata, req);
 		break;
 
 	case DWC_ETH_QOS_AVB_ALGORITHM:
-		DWC_ETH_QOS_program_avb_algorithm(pdata, req);
+		ret = DWC_ETH_QOS_program_avb_algorithm(pdata, req);
 		break;
 
 	case DWC_ETH_QOS_RX_SPLIT_HDR_CMD:
@@ -6805,19 +6805,22 @@ static void DWC_ETH_QOS_config_tx_pbl(struct DWC_ETH_QOS_prv_data *pdata,
  * \retval none
  */
 
-static void DWC_ETH_QOS_program_dcb_algorithm(
+static int DWC_ETH_QOS_program_dcb_algorithm(
 	struct DWC_ETH_QOS_prv_data *pdata,
 	struct ifr_data_struct *req)
 {
 	struct DWC_ETH_QOS_dcb_algorithm l_dcb_struct, *u_dcb_struct =
 		(struct DWC_ETH_QOS_dcb_algorithm *)req->ptr;
 	struct hw_if_struct *hw_if = &pdata->hw_if;
+	int ret = 0;
 
 	DBGPR("-->DWC_ETH_QOS_program_dcb_algorithm\n");
 
 	if (copy_from_user(&l_dcb_struct, u_dcb_struct,
-			   sizeof(struct DWC_ETH_QOS_dcb_algorithm)))
+			   sizeof(struct DWC_ETH_QOS_dcb_algorithm))) {
 		dev_alert(&pdata->pdev->dev, "Failed to fetch DCB Struct info from user\n");
+		return -EFAULT;
+	}
 
 	hw_if->set_tx_queue_operating_mode(l_dcb_struct.qinx,
 		(UINT)l_dcb_struct.op_mode);
@@ -6825,6 +6828,7 @@ static void DWC_ETH_QOS_program_dcb_algorithm(
 	hw_if->set_dcb_queue_weight(l_dcb_struct.qinx, l_dcb_struct.weight);
 
 	DBGPR("<--DWC_ETH_QOS_program_dcb_algorithm\n");
+	return ret;
 }
 /*!
  * \details This function configure
@@ -6877,18 +6881,21 @@ void DWC_ETH_QOS_program_avb_algorithm_hw_register(
  * \retval none
  */
 
-static void DWC_ETH_QOS_program_avb_algorithm(
+static int DWC_ETH_QOS_program_avb_algorithm(
 	struct DWC_ETH_QOS_prv_data *pdata,
 	struct ifr_data_struct *req)
 {
 	struct DWC_ETH_QOS_avb_algorithm l_avb_struct, *u_avb_struct =
 		(struct DWC_ETH_QOS_avb_algorithm *)req->ptr;
+	int ret = 0;
 
 	DBGPR("-->DWC_ETH_QOS_program_avb_algorithm\n");
 
 	if (copy_from_user(&l_avb_struct, u_avb_struct,
-			   sizeof(struct DWC_ETH_QOS_avb_algorithm)))
+			   sizeof(struct DWC_ETH_QOS_avb_algorithm))) {
 		dev_alert(&pdata->pdev->dev, "Failed to fetch AVB Struct info from user\n");
+		return -EFAULT;
+	}
 
 
 	/*Application uses 1 for CLASS A traffic and 2 for CLASS B traffic
@@ -6910,6 +6917,7 @@ static void DWC_ETH_QOS_program_avb_algorithm(
 	/*Backup speed*/
 	pdata->avb_algorithm_speed_backup = pdata->speed;
 	DBGPR("<--DWC_ETH_QOS_program_avb_algorithm\n");
+	return ret;
 }
 
 /*!
