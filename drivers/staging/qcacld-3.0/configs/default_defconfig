@@ -298,6 +298,7 @@ CONFIG_DP_LFR := y
 CONFIG_HTT_PADDR64 := y
 CONFIG_RX_OL := y
 CONFIG_TX_TID_OVERRIDE := y
+CONFIG_WLAN_CLD_PM_QOS := y
 endif
 
 #Enable WLAN/Power debugfs feature only if debug_fs is enabled
