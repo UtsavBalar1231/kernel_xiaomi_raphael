@@ -4047,6 +4047,7 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 	struct DWC_ETH_QOS_prv_data *pdata = rx_queue->pdata;
 	/* divide the budget evenly among all the queues */
 	int per_q_budget = budget / DWC_ETH_QOS_RX_QUEUE_CNT;
+	int q_budget_used = 0;
 	int qinx = 0;
 	int received = 0, per_q_received = 0;
 	unsigned long flags;
@@ -4077,6 +4078,10 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 		received += per_q_received;
 		pdata->xstats.rx_pkt_n += per_q_received;
 		pdata->xstats.q_rx_pkt_n[qinx] += per_q_received;
+
+		if (per_q_received > 0)
+			q_budget_used += per_q_budget;
+
 #ifdef DWC_INET_LRO
 		if (rx_queue->lro_flush_needed)
 			lro_flush_all(&rx_queue->lro_mgr);
@@ -4086,7 +4091,7 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 	/* If we processed all pkts, we are done;
 	 * tell the kernel & re-enable interrupt
 	 */
-	if (received < budget) {
+	if ((received < q_budget_used) || (received == 0)) {
 		if (pdata->dev->features & NETIF_F_GRO) {
 			/* to turn off polling */
 			napi_complete(napi);
@@ -4106,11 +4111,12 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 			DWC_ETH_QOS_enable_all_ch_rx_interrpt(pdata);
 			spin_unlock_irqrestore(&pdata->lock, flags);
 		}
+		return received;
 	}
 
 	DBGPR("<--DWC_ETH_QOS_poll_mq\n");
 
-	return received;
+	return budget;
 }
 
 /*!
