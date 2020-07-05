@@ -240,6 +240,8 @@ enum mgmt_auth_type diag_auth_type_from_csr_type(eCsrAuthType authtype)
 		n = AUTH_WPA_PSK;
 		break;
 	case eCSR_AUTH_TYPE_RSN:
+	case eCSR_AUTH_TYPE_SUITEB_EAP_SHA256:
+	case eCSR_AUTH_TYPE_SUITEB_EAP_SHA384:
 #ifdef WLAN_FEATURE_11W
 	case eCSR_AUTH_TYPE_RSN_8021X_SHA256:
 #endif
@@ -4674,20 +4676,10 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 		csr_dump_connection_stats(pMac, pSession, roam_info, u1, u2);
 
 	if (NULL != pSession->callback) {
-		if (roam_info) {
+		if (roam_info)
 			roam_info->sessionId = (uint8_t) sessionId;
-			/*
-			 * the reasonCode will be passed to supplicant by
-			 * cfg80211_disconnected. Based on the document,
-			 * the reason code passed to supplicant needs to set
-			 * to 0 if unknown. eSIR_BEACON_MISSED reason code is
-			 * not recognizable so that we set to 0 instead.
-			 */
-			if (roam_info->reasonCode == eSIR_MAC_BEACON_MISSED)
-				roam_info->reasonCode = 0;
-		}
 		status = pSession->callback(pSession->pContext, roam_info,
-					roamId, u1, u2);
+					    roamId, u1, u2);
 	}
 	/*
 	 * EVENT_WLAN_STATUS_V2: eCSR_ROAM_ASSOCIATION_COMPLETION,
@@ -6353,6 +6345,8 @@ static bool csr_roam_select_bss(tpAniSirGlobal mac_ctx,
 	enum policy_mgr_con_mode mode;
 	uint8_t chan_id;
 	QDF_STATUS qdf_status;
+	eCsrPhyMode self_phymode = mac_ctx->roam.configParam.phyMode;
+	tDot11fBeaconIEs *bcn_ies;
 
 	vdev = wlan_objmgr_get_vdev_by_id_from_pdev(mac_ctx->pdev,
 						    vdev_id,
@@ -6375,6 +6369,29 @@ static bool csr_roam_select_bss(tpAniSirGlobal mac_ctx,
 		 * sessions exempted
 		 */
 		result = &scan_result->Result;
+		bcn_ies = result->pvIes;
+		/*
+		 * If phymode is configured to DOT11 Only profile.
+		 * Don't connect to profile which is less than them.
+		 */
+		if (bcn_ies && ((self_phymode == eCSR_DOT11_MODE_11n_ONLY &&
+		   !bcn_ies->HTCaps.present) ||
+		   (self_phymode == eCSR_DOT11_MODE_11ac_ONLY &&
+		   !bcn_ies->VHTCaps.present) ||
+		   (self_phymode == eCSR_DOT11_MODE_11ax_ONLY &&
+		   !bcn_ies->he_cap.present))) {
+			sme_info("self_phymode %d mismatch HT %d VHT %d HE %d",
+				self_phymode, bcn_ies->HTCaps.present,
+				bcn_ies->VHTCaps.present,
+				bcn_ies->he_cap.present);
+			*roam_state = eCsrStopRoamingDueToConcurrency;
+			status = true;
+			*roam_bss_entry = csr_ll_next(&bss_list->List,
+						      *roam_bss_entry,
+						      LL_ACCESS_LOCK);
+			continue;
+		}
+
 		/*
 		 * Ignore the BSS if any other vdev is already connected
 		 * to it.
@@ -7315,6 +7332,8 @@ static QDF_STATUS csr_roam_save_params(tpAniSirGlobal mac_ctx,
 	    (eCSR_AUTH_TYPE_FT_RSN_PSK == auth_type) ||
 	    (eCSR_AUTH_TYPE_FT_SAE == auth_type) ||
 	    (eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384 == auth_type) ||
+	    (eCSR_AUTH_TYPE_SUITEB_EAP_SHA256 == auth_type) ||
+	    (eCSR_AUTH_TYPE_SUITEB_EAP_SHA384 == auth_type) ||
 #if defined WLAN_FEATURE_11W
 	    (eCSR_AUTH_TYPE_RSN_PSK_SHA256 == auth_type) ||
 	    (eCSR_AUTH_TYPE_RSN_8021X_SHA256 == auth_type) ||
@@ -7498,6 +7517,8 @@ static QDF_STATUS csr_roam_save_security_rsp_ie(tpAniSirGlobal pMac,
 		(eCSR_AUTH_TYPE_FT_RSN_PSK == authType)
 		|| (eCSR_AUTH_TYPE_FT_SAE == authType)
 		|| (eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384 == authType)
+		|| (eCSR_AUTH_TYPE_SUITEB_EAP_SHA256 == authType)
+		|| (eCSR_AUTH_TYPE_SUITEB_EAP_SHA384 == authType)
 #ifdef FEATURE_WLAN_WAPI
 		|| (eCSR_AUTH_TYPE_WAPI_WAI_PSK == authType) ||
 		(eCSR_AUTH_TYPE_WAPI_WAI_CERTIFICATE == authType)
@@ -15995,63 +16016,40 @@ void csr_clear_sae_single_pmk(tpAniSirGlobal pMac, uint8_t vdev_id,
 #endif
 
 void csr_roam_del_pmk_cache_entry(struct csr_roam_session *session,
-				  tPmkidCacheInfo *cached_pmksa)
+				  tPmkidCacheInfo *cached_pmksa, u32 del_idx)
 {
 	u32 curr_idx;
-	u8 del_pmk[CSR_RSN_MAX_PMK_LEN] = {0};
-	u32 i, del_idx;
+	u32 i;
 
-	/* copy the PMK of matched BSSID */
-	qdf_mem_copy(del_pmk, cached_pmksa->pmk, cached_pmksa->pmk_len);
-
-	/* Search for matching PMK in session PMK cache */
-	for (del_idx = 0; del_idx != session->NumPmkidCache; del_idx++) {
-		cached_pmksa = &session->PmkidCacheInfo[del_idx];
-		if (cached_pmksa->pmk_len && (!qdf_mem_cmp
-		    (cached_pmksa->pmk, del_pmk, cached_pmksa->pmk_len))) {
-			/* Clear this - matched entry */
-			qdf_mem_zero(cached_pmksa, sizeof(tPmkidCacheInfo));
-
-			/* Match Found, Readjust the other entries */
-			curr_idx = session->curr_cache_idx;
-			if (del_idx < curr_idx) {
-				for (i = del_idx; i < (curr_idx - 1); i++) {
-					qdf_mem_copy(&session->
-						     PmkidCacheInfo[i],
-						     &session->
-						     PmkidCacheInfo[i + 1],
-						     sizeof(tPmkidCacheInfo));
-				}
-
-				session->curr_cache_idx--;
-				qdf_mem_zero(&session->PmkidCacheInfo
-					     [session->curr_cache_idx],
-					     sizeof(tPmkidCacheInfo));
-			} else if (del_idx > curr_idx) {
-				for (i = del_idx; i > (curr_idx); i--) {
-					qdf_mem_copy(&session->
-						     PmkidCacheInfo[i],
-						     &session->
-						     PmkidCacheInfo[i - 1],
-						     sizeof(tPmkidCacheInfo));
-				}
-
-				qdf_mem_zero(&session->PmkidCacheInfo
-					     [session->curr_cache_idx],
-					     sizeof(tPmkidCacheInfo));
-			}
-
-			/* Decrement the count since an entry is been deleted */
-			session->NumPmkidCache--;
-			sme_debug("PMKID at index=%d deleted, current index=%d cache count=%d",
-				  del_idx, session->curr_cache_idx,
-				  session->NumPmkidCache);
-			/* As we re-adjusted entries by one position search
-			 * again from current index
-			 */
-			del_idx--;
+	/* Clear this - matched entry */
+	qdf_mem_zero(cached_pmksa, sizeof(tPmkidCacheInfo));
+	/* Match Found, Readjust the other entries */
+	curr_idx = session->curr_cache_idx;
+	if (del_idx < curr_idx) {
+		for (i = del_idx; i < (curr_idx - 1); i++) {
+			qdf_mem_copy(&session->PmkidCacheInfo[i],
+				     &session->PmkidCacheInfo[i + 1],
+				     sizeof(tPmkidCacheInfo));
 		}
+
+		session->curr_cache_idx--;
+		qdf_mem_zero(&session->PmkidCacheInfo[session->curr_cache_idx],
+			     sizeof(tPmkidCacheInfo));
+	} else if (del_idx > curr_idx) {
+		for (i = del_idx; i > (curr_idx); i--) {
+			qdf_mem_copy(&session->PmkidCacheInfo[i],
+				     &session->PmkidCacheInfo[i - 1],
+				     sizeof(tPmkidCacheInfo));
+		}
+
+		qdf_mem_zero(&session->PmkidCacheInfo[session->curr_cache_idx],
+			     sizeof(tPmkidCacheInfo));
 	}
+
+	/* Decrement the count since an entry is been deleted */
+	session->NumPmkidCache--;
+	sme_debug("PMKID at index=%d deleted, current index=%d cache count=%d",
+		  del_idx, session->curr_cache_idx, session->NumPmkidCache);
 }
 
 QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
@@ -16063,6 +16061,9 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 	bool fMatchFound = false;
 	uint32_t Index;
 	tPmkidCacheInfo *cached_pmksa;
+	u32 del_idx;
+	u8 del_pmk[CSR_RSN_MAX_PMK_LEN] = {0};
+
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -16104,8 +16105,35 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 			fMatchFound = 1;
 
 		if (fMatchFound) {
-			/* Delete the matched PMK cache entry */
-			csr_roam_del_pmk_cache_entry(pSession, cached_pmksa);
+			/* copy the PMK of matched BSSID */
+			qdf_mem_copy(del_pmk, cached_pmksa->pmk,
+				     cached_pmksa->pmk_len);
+
+			/* Free the matched entry to address null pmk_len case*/
+			csr_roam_del_pmk_cache_entry(pSession, cached_pmksa,
+						     Index);
+
+			/* Search for matching PMK in session PMK cache */
+			for (del_idx = 0; del_idx != pSession->NumPmkidCache;
+			     del_idx++) {
+				cached_pmksa =
+					&pSession->PmkidCacheInfo[del_idx];
+				if (cached_pmksa->pmk_len && (!qdf_mem_cmp
+				    (cached_pmksa->pmk, del_pmk,
+				    cached_pmksa->pmk_len))) {
+					/* Delete the matched PMK cache entry */
+					csr_roam_del_pmk_cache_entry(
+						pSession, cached_pmksa,
+						del_idx);
+					/* Search again from current index as we
+					 * re-adjusted entries by one position
+					 */
+					del_idx--;
+				}
+			}
+			/* reset stored pmk */
+			qdf_mem_zero(del_pmk, CSR_RSN_MAX_PMK_LEN);
+
 			break;
 		}
 	}
@@ -17527,7 +17555,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		/* Fill rrm config parameters */
 		qdf_mem_copy(&csr_join_req->rrm_config,
-			     &pMac->rrm.rrmSmeContext.rrmConfig,
+			     &pMac->rrm.rrmConfig,
 			     sizeof(struct rrm_config_param));
 
 		pAP_capabilityInfo =
@@ -19882,8 +19910,10 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 			mac_ctx->roam.configParam.roam_trigger_reason_bitmask;
 	req_buf->roaming_scan_policy =
 			mac_ctx->roam.configParam.roaming_scan_policy;
+	/* Do not force RSSI triggers in case controlled roaming enable */
 	req_buf->roam_force_rssi_trigger =
-			mac_ctx->roam.configParam.roam_force_rssi_trigger;
+			(!neighbor_roam_info->roam_control_enable &&
+			 mac_ctx->roam.configParam.roam_force_rssi_trigger);
 
 	csr_update_roam_req_adaptive_11r(session, req_buf);
 
@@ -21743,6 +21773,13 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	if (CSR_IS_AUTH_TYPE_SAE(roam_profile_akm) &&
 	    !CSR_IS_FW_SAE_ROAM_SUPPORTED(fw_akm_bitmap)) {
 		sme_info("Roaming not suppprted for SAE connection");
+		return QDF_STATUS_SUCCESS;
+	}
+
+	if ((roam_profile_akm == eCSR_AUTH_TYPE_SUITEB_EAP_SHA256 ||
+	    roam_profile_akm == eCSR_AUTH_TYPE_SUITEB_EAP_SHA384) &&
+	    !CSR_IS_FW_SUITEB_ROAM_SUPPORTED(fw_akm_bitmap)) {
+		sme_info("Roaming not supported for SUITEB connection");
 		return QDF_STATUS_SUCCESS;
 	}
 
@@ -23759,6 +23796,8 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 	tpCsrNeighborRoamControlInfo neigh_roam_info =
 				&mac_ctx->roam.neighborRoamInfo[session_id];
 	uint32_t chan_id;
+	bool abort_host_scan_cap = false;
+	wlan_scan_id scan_id;
 
 	if (!session) {
 		sme_err("LFR3: Session not found");
@@ -23791,8 +23830,29 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 				ROAMING_OFFLOAD_TIMER_START);
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_START, eCSR_ROAM_RESULT_SUCCESS);
+		/*
+		 * For emergency deauth roaming, firmware sends ROAM start
+		 * instead of ROAM scan start notification as data path queues
+		 * will be stopped only during roam start notification.
+		 * This is because, for deauth/disassoc triggered roam, the
+		 * AP has sent deauth, and packets shouldn't be sent to AP
+		 * after that. Since firmware is sending roam start directly
+		 * host sends scan abort during roam scan, but in other
+		 * triggers, the host receives roam start after candidate
+		 * selection and roam scan is complete. So when host sends
+		 * roam abort for emergency deauth roam trigger, the firmware
+		 * roam scan is also aborted. This results in roaming failure.
+		 * So send scan_id as CANCEL_HOST_SCAN_ID to scan module to
+		 * abort only host triggered scans.
+		 */
+		abort_host_scan_cap = mac_ctx->stop_all_host_scan_support;
+		if (abort_host_scan_cap)
+			scan_id = CANCEL_HOST_SCAN_ID;
+		else
+			scan_id = INVAL_SCAN_ID;
+
 		wlan_abort_scan(mac_ctx->pdev, INVAL_PDEV_ID,
-				session_id, INVAL_SCAN_ID, false);
+				session_id, scan_id, false);
 		return status;
 	case SIR_ROAMING_ABORT:
 		csr_roam_roaming_offload_timer_action(mac_ctx,
