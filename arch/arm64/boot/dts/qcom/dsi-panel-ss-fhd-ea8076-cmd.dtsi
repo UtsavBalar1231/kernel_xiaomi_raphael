@@ -247,12 +247,12 @@
 			timing@1{
 				qcom,mdss-dsi-panel-width = <1080>;
 				qcom,mdss-dsi-panel-height = <2340>;
-				qcom,mdss-dsi-h-front-porch = <42>;
-				qcom,mdss-dsi-h-back-porch = <42>;
-				qcom,mdss-dsi-h-pulse-width = <12>;
-				qcom,mdss-dsi-v-back-porch = <42>;
-				qcom,mdss-dsi-v-front-porch = <42>;
-				qcom,mdss-dsi-v-pulse-width = <12>;
+				qcom,mdss-dsi-h-front-porch = <32>;
+				qcom,mdss-dsi-h-back-porch = <32>;
+				qcom,mdss-dsi-h-pulse-width = <16>;
+				qcom,mdss-dsi-v-back-porch = <32>;
+				qcom,mdss-dsi-v-front-porch = <32>;
+				qcom,mdss-dsi-v-pulse-width = <16>;
 				qcom,mdss-dsi-h-left-border = <0>;
 				qcom,mdss-dsi-h-right-border = <0>;
 				qcom,mdss-dsi-v-top-border = <0>;
@@ -264,7 +264,7 @@
 					05 01 00 00 0A 00 02 11 00
 					39 00 00 00 00 00 03 F0 5A 5A
 					39 00 00 00 00 00 02 35 00
-					39 00 00 00 00 00 03 B7 01 4B
+					39 00 00 00 00 00 03 B7 01 5A //smooth transition
 					39 01 00 00 00 00 03 F0 A5 A5
 					39 01 00 00 00 00 05 2B 00 00 09 23
 					39 00 00 00 00 00 03 F0 5A 5A /* esd */
