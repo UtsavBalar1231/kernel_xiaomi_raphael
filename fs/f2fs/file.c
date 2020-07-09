@@ -1365,6 +1365,8 @@ static int f2fs_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	truncate_pagecache(inode, offset);
 
 	new_size = i_size_read(inode) - len;
+	truncate_pagecache(inode, new_size);
+
 	ret = f2fs_truncate_blocks(inode, new_size, true);
 	up_write(&F2FS_I(inode)->i_mmap_sem);
 	if (!ret)
@@ -3642,7 +3644,7 @@ static int f2fs_sec_trim_file(struct file *filp, unsigned long arg)
 	struct f2fs_sectrim_range range;
 	pgoff_t index, pg_end;
 	block_t prev_block = 0, len = 0;
-	u64 end_addr;
+	loff_t end_addr;
 	bool to_end;
 	int ret = 0;
 
@@ -3669,14 +3671,16 @@ static int f2fs_sec_trim_file(struct file *filp, unsigned long arg)
 		goto err;
 	}
 
-	if (inode->i_size == 0)
-		goto err;
-
-	end_addr = range.start + range.len;
-	if (end_addr > inode->i_size) {
+	if (range.start >= inode->i_size) {
 		ret = -EINVAL;
 		goto err;
 	}
+
+	if (inode->i_size - range.start < range.len) {
+		ret = -E2BIG;
+		goto err;
+	}
+	end_addr = range.start + range.len;
 
 	to_end = (end_addr == inode->i_size);
 	if (!IS_ALIGNED(range.start, F2FS_BLKSIZE) ||
