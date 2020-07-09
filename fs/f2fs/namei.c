@@ -569,17 +569,15 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 
 	trace_f2fs_unlink_enter(dir, dentry);
 
-	if (unlikely(f2fs_cp_error(sbi))) {
-		err = -EIO;
-		goto fail;
-	}
+	if (unlikely(f2fs_cp_error(sbi)))
+		return -EIO;
 
 	err = dquot_initialize(dir);
 	if (err)
-		goto fail;
+		return err;
 	err = dquot_initialize(inode);
 	if (err)
-		goto fail;
+		return err;
 
 	de = f2fs_find_entry(dir, &dentry->d_name, &page);
 	if (!de) {
