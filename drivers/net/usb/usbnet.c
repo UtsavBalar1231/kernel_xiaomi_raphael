@@ -122,12 +122,7 @@ static int debug_mask;
 module_param(debug_mask, int, 0644);
 MODULE_PARM_DESC(debug_mask, "Control data packet IPC logging");
 
-#define dbg_log_string(fmt, ...) do { \
-if ((dev->netdev_id == USBNET_RMNET_USB1 && debug_mask == 1) || \
-					debug_mask == 2) \
-	ipc_log_string(dev->ipc_log_ctxt, "%s: " fmt, \
-		       __func__, ##__VA_ARGS__); \
-} while (0)
+#define dbg_log_string(fmt, ...) ((void)0)
 
 /*-------------------------------------------------------------------------*/
 
@@ -2292,7 +2287,7 @@ static int __init usbnet_init(void)
 			ipc_log_context_create(IPC_LOG_NUM_PAGES,
 					       netdev_names[i], 0);
 		if (!usbnet_ipc_log_ctxt[i])
-			pr_err("%s: Error getting ipc_log_ctxt\n", __func__);
+			pr_debug("%s: Error getting ipc_log_ctxt\n", __func__);
 	}
 
 	return 0;

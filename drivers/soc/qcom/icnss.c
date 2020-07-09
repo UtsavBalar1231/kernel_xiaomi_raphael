@@ -4099,12 +4099,12 @@ static int __init icnss_initialize(void)
 	icnss_ipc_log_context = ipc_log_context_create(NUM_LOG_PAGES,
 						       "icnss", 0);
 	if (!icnss_ipc_log_context)
-		icnss_pr_err("Unable to create log context\n");
+		icnss_pr_dbg("Unable to create log context\n");
 
 	icnss_ipc_log_long_context = ipc_log_context_create(NUM_LOG_LONG_PAGES,
 						       "icnss_long", 0);
 	if (!icnss_ipc_log_long_context)
-		icnss_pr_err("Unable to create log long context\n");
+		icnss_pr_dbg("Unable to create log long context\n");
 
 	return platform_driver_register(&icnss_driver);
 }
