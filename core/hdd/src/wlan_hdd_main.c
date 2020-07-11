@@ -2236,6 +2236,10 @@ int hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	hdd_ctx->curr_band = hdd_ctx->config->nBandCapability;
 	hdd_ctx->psoc->soc_nif.user_config.band_capability = hdd_ctx->curr_band;
 
+	status = ucfg_reg_set_band(hdd_ctx->pdev, hdd_ctx->curr_band);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("Failed to update regulatory band info");
+
 	if (!cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		hdd_ctx->reg.reg_domain = cfg->reg_domain;
 		hdd_ctx->reg.eeprom_rd_ext = cfg->eeprom_rd_ext;
@@ -2543,10 +2547,11 @@ static int hdd_mon_open(struct net_device *dev)
  */
 static int __hdd_pktcapture_open(struct net_device *dev)
 {
-	int ret;
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	struct hdd_adapter *sta_adapter;
+	QDF_STATUS status;
+	int ret;
 
 	hdd_enter_dev(dev);
 
@@ -2568,12 +2573,12 @@ static int __hdd_pktcapture_open(struct net_device *dev)
 
 	hdd_mon_mode_ether_setup(dev);
 
-	ret = ucfg_pkt_capture_register_callbacks(adapter->vdev,
-						  hdd_mon_rx_packet_cbk,
-						  adapter);
+	status = ucfg_pkt_capture_register_callbacks(adapter->vdev,
+						     hdd_mon_rx_packet_cbk,
+						     adapter);
+	ret = qdf_status_to_os_return(status);
 	if (ret) {
-		hdd_objmgr_put_vdev(sta_adapter->vdev);
-		adapter->vdev = NULL;
+		hdd_objmgr_put_vdev(adapter->vdev);
 		return -EINVAL;
 	}
 	set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
@@ -2599,6 +2604,52 @@ static int hdd_pktcapture_open(struct net_device *net_dev)
 	cds_ssr_unprotect(__func__);
 
 	return ret;
+}
+
+/**
+ * hdd_del_monitor_interface() - Delete monitor interface
+ * @hdd_ctx: hdd context
+ *
+ * Return: void
+ */
+static void hdd_del_monitor_interface(struct hdd_context *hdd_ctx)
+{
+	struct hdd_adapter *adapter;
+
+	adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
+	if (adapter) {
+		if (hdd_is_interface_up(adapter)) {
+			hdd_stop_adapter(hdd_ctx, adapter);
+			hdd_deinit_adapter(hdd_ctx, adapter, true);
+		}
+
+		hdd_close_adapter(hdd_ctx, adapter, true);
+	}
+}
+
+/**
+ * hdd_close_monitor_interface() - Close monitor interface
+ * @hdd_ctx: hdd context
+ *
+ * Return: void
+ */
+static void hdd_close_monitor_interface(struct hdd_context *hdd_ctx)
+{
+	struct hdd_adapter *adapter;
+
+	adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
+	if (adapter)
+		wlan_hdd_del_monitor(hdd_ctx, adapter, true);
+}
+#else
+static inline void
+hdd_del_monitor_interface(struct hdd_context *hdd_ctx)
+{
+}
+
+static inline void
+hdd_close_monitor_interface(struct hdd_context *hdd_ctx)
+{
 }
 #endif
 
@@ -3630,13 +3681,8 @@ static int __hdd_stop(struct net_device *dev)
 	if (adapter->device_mode == QDF_STA_MODE) {
 		hdd_lpass_notify_stop(hdd_ctx);
 
-		if (ucfg_pkt_capture_get_mode(hdd_ctx->psoc)) {
-			struct hdd_adapter *adapter;
-
-			adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
-			if (adapter)
-				wlan_hdd_del_monitor(hdd_ctx, adapter, true);
-		}
+		if (ucfg_pkt_capture_get_mode(hdd_ctx->psoc))
+			hdd_close_monitor_interface(hdd_ctx);
 	}
 
 	if (wlan_hdd_is_session_type_monitor(adapter->device_mode) &&
@@ -6052,19 +6098,8 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 	hdd_enter();
 
 	if (adapter->device_mode == QDF_STA_MODE &&
-	    ucfg_pkt_capture_get_mode(hdd_ctx->psoc)) {
-		struct hdd_adapter *adapter;
-
-		adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
-		if (adapter) {
-			if (hdd_is_interface_up(adapter)) {
-				hdd_stop_adapter(hdd_ctx, adapter);
-				hdd_deinit_adapter(hdd_ctx, adapter,
-						   true);
-			}
-			hdd_close_adapter(hdd_ctx, adapter, true);
-		}
-	}
+	    ucfg_pkt_capture_get_mode(hdd_ctx->psoc))
+		hdd_del_monitor_interface(hdd_ctx);
 
 	if (adapter->session_id != HDD_SESSION_ID_INVALID)
 		wlan_hdd_cfg80211_deregister_frames(adapter);
@@ -9996,7 +10031,8 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 						  frame_ind->frameBuf,
 						  frame_ind->frameType,
 						  frame_ind->rxChan,
-						  frame_ind->rxRssi);
+						  frame_ind->rxRssi,
+						  frame_ind->rx_flags);
 			wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
 		}
 
@@ -10013,7 +10049,8 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 						frame_ind->frameBuf,
 						frame_ind->frameType,
 						frame_ind->rxChan,
-						frame_ind->rxRssi);
+						frame_ind->rxRssi,
+						frame_ind->rx_flags);
 }
 
 void hdd_acs_response_timeout_handler(void *context)
@@ -10833,8 +10870,11 @@ static int hdd_open_interfaces(struct hdd_context *hdd_ctx, bool rtnl_held)
 		hdd_debug("NAN separate vdev%s supported by host,%s supported by firmware",
 			   nan_iface_support ? "" : " not",
 			   hdd_ctx->nan_seperate_vdev_supported ? "" : " not");
+	if (!wlan_hdd_nan_is_supported(hdd_ctx))
+		hdd_debug("NAN is disabled");
 
-	if (hdd_ctx->nan_seperate_vdev_supported && nan_iface_support) {
+	if (wlan_hdd_nan_is_supported(hdd_ctx) &&
+	    hdd_ctx->nan_seperate_vdev_supported && nan_iface_support) {
 		adapter = hdd_open_adapter(hdd_ctx, QDF_NAN_DISC_MODE, "wifi-aware%d",
 				   wlan_hdd_get_intf_addr(hdd_ctx,
 							  QDF_NAN_DISC_MODE),
@@ -13645,6 +13685,7 @@ static void __hdd_bus_bw_compute_timer_stop(struct hdd_context *hdd_ctx)
 	/* work callback is long running; flush outside of lock */
 	cancel_work_sync(&hdd_ctx->bus_bw_work);
 	hdd_reset_tcp_delack(hdd_ctx);
+	hdd_reset_tcp_adv_win_scale(hdd_ctx);
 }
 
 void hdd_bus_bw_compute_timer_stop(struct hdd_context *hdd_ctx)
@@ -14041,7 +14082,7 @@ static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 		goto exit;
 	}
 
-	if (!cds_is_driver_loaded()) {
+	if (!cds_is_driver_loaded() || cds_is_driver_recovering()) {
 		init_completion(&wlan_start_comp);
 		rc = wait_for_completion_timeout(&wlan_start_comp,
 				msecs_to_jiffies(HDD_WLAN_START_WAIT_TIME));
@@ -14050,7 +14091,6 @@ static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 			ret = -EINVAL;
 			return ret;
 		}
-
 		hdd_start_complete(0);
 	}
 

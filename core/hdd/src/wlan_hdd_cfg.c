@@ -5667,11 +5667,19 @@ struct reg_table_entry g_registry_table[] = {
 
 #ifdef WLAN_FEATURE_SAE
 	REG_VARIABLE(CFG_IS_SAE_ENABLED_NAME, WLAN_PARAM_Integer,
-		struct hdd_config, is_sae_enabled,
-		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		CFG_IS_SAE_ENABLED_DEFAULT,
-		CFG_IS_SAE_ENABLED_MIN,
-		CFG_IS_SAE_ENABLED_MAX),
+		     struct hdd_config, is_sae_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_IS_SAE_ENABLED_DEFAULT,
+		     CFG_IS_SAE_ENABLED_MIN,
+		     CFG_IS_SAE_ENABLED_MAX),
+
+	REG_VARIABLE(CFG_IS_SAP_SAE_ENABLED_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, sap_sae_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_IS_SAP_SAE_ENABLED_DEFAULT,
+		     CFG_IS_SAP_SAE_ENABLED_MIN,
+		     CFG_IS_SAP_SAE_ENABLED_MAX),
 #endif
 
 	REG_VARIABLE(CFG_BTM_SOLICITED_TIMEOUT, WLAN_PARAM_Integer,
@@ -7290,8 +7298,11 @@ static void hdd_wlm_cfg_log(struct hdd_context *hdd_ctx)
 static void hdd_cfg_print_sae(struct hdd_context *hdd_ctx)
 {
 	hdd_debug("Name = [%s] value = [%u]",
-		CFG_IS_SAE_ENABLED_NAME,
-		hdd_ctx->config->is_sae_enabled);
+		  CFG_IS_SAE_ENABLED_NAME,
+		  hdd_ctx->config->is_sae_enabled);
+	hdd_debug("Name = [%s] value = [%u]",
+		  CFG_IS_SAP_SAE_ENABLED_NAME,
+		  hdd_ctx->config->sap_sae_enabled);
 }
 #else
 static void hdd_cfg_print_sae(struct hdd_context *hdd_ctx)
@@ -9137,7 +9148,14 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 			hdd_err("Couldn't pass on WNI_CFG_VHT_MAX_MPDU_LENGTH to CFG");
 		}
 
-		if (config->enable2x2 && config->enable_su_tx_bformer) {
+		/* Get SU Bformer HW capability */
+		if (sme_cfg_get_int(mac_handle, WNI_CFG_VHT_SU_BEAMFORMER_CAP, &val) ==
+							QDF_STATUS_E_FAILURE) {
+			status = false;
+			hdd_err("Could not get WNI_CFG_VHT_SU_BEAMFORMER_CAP");
+		}
+
+		if (val && !config->enable_su_tx_bformer) {
 			if (sme_cfg_set_int(mac_handle,
 					WNI_CFG_VHT_SU_BEAMFORMER_CAP,
 					config->enable_su_tx_bformer) ==
@@ -9161,8 +9179,16 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 		hdd_err("Couldn't pass on WNI_CFG_VHT_RXSTBC to CFG");
 	}
 
+	/* first get HW TX STBC capability */
+	if (sme_cfg_get_int(mac_handle, WNI_CFG_VHT_TXSTBC, &val) ==
+							QDF_STATUS_E_FAILURE) {
+		status = false;
+		hdd_err("Could not get WNI_CFG_VHT_TXSTBC");
+	}
+
+	/* set TX STBC combined with ini setting capability */
 	if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_TXSTBC,
-			    config->enableTxSTBC) == QDF_STATUS_E_FAILURE) {
+			    config->enableTxSTBC && val) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_VHT_TXSTBC to CFG");
 	}
@@ -9520,6 +9546,13 @@ bool hdd_update_config_cfg(struct hdd_context *hdd_ctx)
 				QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_ASSOC_STA_LIMIT to CFG");
+	}
+
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_SAP_SAE_ENABLED,
+			    config->sap_sae_enabled) ==
+			    QDF_STATUS_E_FAILURE) {
+		status = false;
+		hdd_err("Couldn't pass on WNI_CFG_SAP_SAE_ENABLED to CCM");
 	}
 
 	return status;
