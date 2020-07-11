@@ -63,3 +63,7 @@ config ION_DEFER_FREE_NO_SCHED_IDLE
 	  Choose this option to remove the SCHED_IDLE flag in case of defer free
 	  thereby increasing the priority of defer free thread.
 	  if you're not sure say Y here.
+
+config ALLOC_BUFFERS_IN_4K_CHUNKS
+	bool "Allocate ion buffers in 4k chunks"
+	default n
