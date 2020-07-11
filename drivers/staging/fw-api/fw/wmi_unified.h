@@ -434,6 +434,8 @@ typedef enum {
     WMI_PDEV_SET_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID,
     /** OBSS BSSID enable bitmap for NON_SRG based spatial reuse feature */
     WMI_PDEV_SET_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID,
+    /** TPC stats display command */
+    WMI_PDEV_GET_TPC_STATS_CMDID,
 
     /* VDEV (virtual device) specific commands */
     /** vdev create */
@@ -1446,6 +1448,10 @@ typedef enum {
      */
     WMI_PDEV_MULTIPLE_VDEV_RESTART_RESP_EVENTID,
 
+    /** WMI event in response to TPC STATS command */
+    WMI_PDEV_GET_TPC_STATS_EVENTID,
+
+
     /* VDEV specific events */
     /** VDEV started event in response to VDEV_START request */
     WMI_VDEV_START_RESP_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_VDEV),
@@ -1510,6 +1516,8 @@ typedef enum {
     WMI_VDEV_SEND_BIG_DATA_EVENTID,
     /** send BIG DATA stats to host phase 2 */
     WMI_VDEV_SEND_BIG_DATA_P2_EVENTID,
+    /** Latency related information received from beacon IE */
+    WMI_VDEV_BCN_LATENCY_EVENTID,
 
 
     /* peer specific events */
@@ -3657,6 +3665,7 @@ typedef struct {
      * (maximum number of beacons after which VAP profiles repeat)
      * for any EMA VAP on any pdev.
      */
+
     A_UINT32 ema_max_profile_period;
     /** @brief max_ndp_sessions
      * This is the max ndp sessions sent by the host which is the minimum
@@ -3665,6 +3674,12 @@ typedef struct {
      * SERVICE_READY_EXT2_EVENT message).
      */
     A_UINT32 max_ndp_sessions;
+
+    /** @brief max_ndi_supported
+     * This is the max ndi interfaces sent by the host based on the value
+     * specified by the host's ini configuration.
+     */
+    A_UINT32 max_ndi_interfaces;
 } wmi_resource_config;
 
 #define WMI_MSDU_FLOW_AST_ENABLE_GET(msdu_flow_config0, ast_x) \
@@ -6793,6 +6808,16 @@ typedef enum {
     /* Parameter used to enable/disable SR prohibit feature */
     WMI_PDEV_PARAM_ENABLE_SR_PROHIBIT,
 
+    /*
+     * Parameter used to enable/disable UL OFDMA mBSSID support for
+     * trigger frames. It is disabled by default.
+     * bit | config_mode
+     * -----------------
+     *  0  | Enable/Disable mBSSID trigger support for basic triggers.
+     *  1  | Enable/Disable mBSSID trigger support for BSR triggers.
+     */
+    WMI_PDEV_PARAM_ENABLE_MBSSID_CTRL_FRAME,
+
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
@@ -6929,6 +6954,151 @@ typedef struct {
     /** mac address of diversity peer */
     wmi_mac_addr macaddr;
 } wmi_pdev_div_get_rssi_antid_fixed_param;
+
+typedef enum {
+    WMI_TPC_STATS_EVENT_SEND_REG          = 0x00000001,
+    WMI_TPC_STATS_EVENT_SEND_RATE         = 0x00000002,
+    WMI_TPC_STATS_EVENT_SEND_CTL          = 0x00000004,
+    WMI_TPC_STATS_EVENT_SEND_REG_RATE_CTL = 0x00000007, /* REG | RATE | CTL */
+} WMI_PDEV_TPC_STATS_PARAMS;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_get_tpc_stats_cmd_fixed_param */
+    /** pdev_id for identifying the MAC
+     * See macros starting with WMI_PDEV_ID_ for values.
+     */
+    A_UINT32 pdev_id;
+    /** parameter -
+     * This is to specify whether we want only the target power
+     * information (rates array) or the CTL power or the regulatory
+     * power information. At present, we send all of them.
+     */
+    A_UINT32 param; /* Currently expect WMI_TPC_STATS_EVENT_SEND_REG_RATE_CTL
+                     * as a host specification that rates array, regulatory
+                     * power array, and ctl power array are all to be sent.
+                     * See WMI_PDEV_TPC_STATS_PARAMS.
+                     */
+} wmi_pdev_get_tpc_stats_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_get_tpc_stats_event_fixed_param */
+    A_UINT32 pdev_id; /* pdev_id for identifying the MAC. See macros starting with WMI_PDEV_ID_ for values */
+    A_UINT32 end_of_event; /* The total response to the WMI command will be split into multiple event chunks to fit into the WMI svc msg size limit: 0 indicates more events to follow: 1 indicates end of event  */
+    A_UINT32 event_count; /* Incremented for every event chunk for Host to know the sequence */
+    /* wmi_tpc_configs TLV to optionally follow */
+    /* wmi_max_reg_power_allowed TLVs to optionally follow */
+    /* wmi_tpc_rates_array TLVs to optionally follow */
+    /* wmi_tpc_ctl_pwr_table TLVs to optionally follow */
+} wmi_pdev_get_tpc_stats_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_tpc_configs */
+    A_UINT32 regDomain;
+    A_UINT32 chanFreq; /* current channel in MHz */
+    A_UINT32 phyMode;  /* current phy mode - See WLAN_PHY_MODE for the different phy modes */
+    A_UINT32 maxAntennaGain; /* Maximum antenna gain for the current regulatory in 0.25 dBm steps */
+    A_UINT32 twiceMaxRDPower; /* Maximum transmit power allowed in the regulatory domain in 0.25 dBm steps */
+    A_INT32 userAntennaGain; /* User specified antenna gain in 0.25 dBm steps */
+    A_UINT32 powerLimit; /* The overall power limit in 0.25 dBm steps */
+    A_UINT32 rateMax; /* The total number of rates supported */
+    A_UINT32 numTxChain; /* The total number of active chains */
+    A_UINT32 ctl; /* See CONFORMANCE_TEST_LIMITS enumeration */
+    A_UINT32 flags; /* See WMI_TPC_CONFIG_EVENT_FLAG */
+} wmi_tpc_configs;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_max_reg_power_allowed */
+    A_UINT32 reg_power_type; /* 0: maxRegAllowedPower (1D array),
+                              * 1: maxRegAllowedPowerAGCDD (2D array),
+                              * 2: maxRegAllowedPowerAGSTBC (2D array),
+                              * 3: maxRegAllowedPowerAGTXBF (2D array)
+                              */
+    A_UINT32 reg_power_array_len; /* Length of the regulatory power array being sent in bytes */
+    A_UINT32 d1;  /* the length of 1st (innermost) dimension array */
+    A_UINT32 d2;  /* the length of 2nd dimension array */
+    A_UINT32 d3;  /* the length of 3rd dimension array (for future use) */
+    A_UINT32 d4;  /* the length of 4th dimension array (for future use) */
+    /*
+     * This TLV is followed by an A_INT16 TLV-array that will carry
+     * one of the four types of regulatory power arrays.
+     *
+     * The multi-dimensional regulatory power array will be communicated
+     * as a flat array: Host to stitch it back as 2D array.
+     * For an array[a][b][c][d], d1 = d, d2 = c, d3 = b, d4 = a
+     * For a 2D array, array[a][b], d1 = b, d2 = a, d3 = 1, d4 = 1
+     * The possible types of following A_INT16 TLV arrays are
+     * 1. A_INT16  maxRegAllowedPower[WHAL_TPC_TX_NUM_CHAIN];
+     * 2. A_INT16  maxRegAllowedPowerAGCDD[WHAL_TPC_TX_NUM_CHAIN - 1][WHAL_TPC_TX_NUM_CHAIN - 1];
+     * 3. A_INT16  maxRegAllowedPowerAGSTBC[WHAL_TPC_TX_NUM_CHAIN - 1][WHAL_TPC_TX_NUM_CHAIN - 1];
+     * 4. A_INT16  maxRegAllowedPowerAGTXBF[WHAL_TPC_TX_NUM_CHAIN - 1][WHAL_TPC_TX_NUM_CHAIN - 1];
+     * where WHAL_TPC_TX_NUM_CHAIN=2 for CYP and 8 for HK.
+     */
+} wmi_max_reg_power_allowed;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_tpc_rates_array */
+    A_UINT32 rate_array_type; /* 0: ratesArray,
+                               * 1: ratesArray2 (for chain > 4),
+                               * 2: dl_ofdma rate array
+                               */
+    A_UINT32 rate_array_len;
+    /* This TLV will be followed by an A_UINT16 TLV array that will
+     * carry one of the types of TPC rate arrays.
+     * All the rates arrays are 1D arrays.
+     * The possible types of following A_UINT16 TLV arrays are
+     * 1. A_UINT16 ratesArray[WHAL_TPC_RATE_MAX];
+     *    This array has to be referred when number of active chains is < 4
+     * 2. A_UINT16 ratesArray2[WHAL_TPC_RATE_MAX];
+     *    This array has to be referred when number of active chains is > 4
+     * 3. A_UINT16 ratesArray_DL_OFDMA[72];
+     * WHAL_TPC_RATE_MAX is 748 for HK (considering PHY A0 8x8)
+     * WHAL_TPC_RATE_MAX is 188 for CYP (considering PHY A0 2x2)
+     * Each 16 bit value in the rates array carries both SU and MU
+     * target power information.
+     * Bits 0:7 contained the SU target power (signed value, 0.25 dBm units),
+     * bits 8:15 denote the MU target power (signed value, 0.25 dBm units).
+     */
+} wmi_tpc_rates_array;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_tpc_ctl_pwr_table */
+    A_UINT32 ctl_array_type; /* 0: ctl_array,
+                              * 1: ctl_160 array,
+                              * 2: ctl_dlOfdma array,
+                              * 3: ctl_ulOfdma array
+                              */
+    A_UINT32 ctl_array_len; /* Length of the CTL array being sent in bytes */
+    A_UINT32 end_of_ctl_pwr; /* Message MAY be split into smaller chunks
+                              * to fit in the WMI svc msg size limit:
+                              * 0 indicates more chunks of CTL info to follow,
+                              * 1 indicates end of CTL info.
+                              */
+    A_UINT32 ctl_pwr_count; /* Incremented for every CTL info chunk
+                             * for Host to know the sequence.
+                             */
+    A_UINT32 d1;  /* the length of 1st (innermost) dimension array */
+    A_UINT32 d2;  /* the length of 2nd dimension array */
+    A_UINT32 d3;  /* the length of 3rd dimension array */
+    A_UINT32 d4;  /* the length of 4th dimension array */
+    /* This TLV will be followed by an A_INT8 TLV-array that will
+     * carry one the types of CTL power arrays.
+     * The CTL array will be multi-dimensional, but will be communicated as
+     * a flat array; the host has to stitch it back into a 4D array.
+     * The possible types of following A_INT8 arrays are
+     * 1. A_INT8 ctlEdgePwrBF[WHAL_MAX_NUM_CHAINS][2][10][8];
+     * 2. A_INT8 ctlEdgePwr160[WHAL_MAX_NUM_CHAINS/2][2][2][4];
+     * 3. A_INT8 ctlEdgePwrBF_dlOFDMA[WHAL_MAX_NUM_CHAINS][2][3][8];
+     * For e.g., in ctlEdgePwrBF
+     * D4 = WHAL_MAX_NUM_CHAINS = 8 for HK, 2 for CYP, 4 for Pine
+     * D3 = BF on/off = 2
+     * D2 = 10 which the number of different tx modes,
+     *      like cck, legacy, HT20, HT40, VHT80, etc.
+     * D1 = NSS = 8, number of spatial streams
+     * Total number of elements = D4*D3*D2*D1
+     * The same will apply for ctl_dlOfdma array, except that the values
+     * of d1,d2,d3,d4 will be different.
+     */
+} wmi_tpc_ctl_pwr_table;
 
 typedef struct {
     A_UINT32 tlv_header; /* WMITLV_TAG_STRUC_wmi_pdev_bss_chan_info_request_fixed_param */
@@ -14340,6 +14510,20 @@ typedef enum
     (((roam_reason) & WMI_ROAM_REQUEST_HOST_HW_MODE_CHANGE_MASK) >> \
      WMI_ROAM_REQUEST_HOST_HW_MODE_CHANGE_SHIFT)
 
+/* Bits  0-3: stores 4 LSbs of trigger reason.
+ *            Old host will get trigger reasons <= 15 from this bitfield.
+ * Bit 7 will be 1 always to indicate that bits 8-15 are valid.
+ * Bits 8-15: full trigger_reason, including values > 15.
+ *            New host will gett full trigger_reason from this bitfield.
+ *            Bits 8-11 and bits 0-3 store matching values.
+ */
+#define WMI_SET_ROAM_EXT_TRIGGER_REASON(roam_reason, trigger_reason) \
+    do { \
+        (roam_reason) |= (trigger_reason & 0xf); \
+        (roam_reason) |= 0x80; \
+        (roam_reason) |= ((trigger_reason & 0xff) << 8); \
+    } while (0)
+
 /* roaming notification */
 #define WMI_ROAM_NOTIF_INVALID           0x0 /** invalid notification. Do not interpret notif field  */
 #define WMI_ROAM_NOTIF_ROAM_START        0x1 /** indicate that roaming is started. sent only in non WOW state */
@@ -19927,10 +20111,13 @@ typedef struct {
     /** auth_status: connected or authorized */
     A_UINT32 auth_status;
     /** roam_reason:
-     * bits 0-3 for roam reason   see WMI_ROAM_REASON_XXX
-     * bits 4-5 for subnet status see WMI_ROAM_SUBNET_CHANGE_STATUS_XXX.
-     * bit  6   for HW mode status, set 1 to indicate host to schedule
-     *          HW mode change, see WMI_ROAM_REQUEST_HOST_HW_MODE_CHANGE.
+     * bits 0-3  roam trigger reason LSbs - see WMI_ROAM_TRIGGER_REASON_XXX
+     * bits 4-5  subnet status - see WMI_ROAM_SUBNET_CHANGE_STATUS_XXX.
+     * bit  6    HW mode status, set 1 to indicate host to schedule
+     *           HW mode change, see WMI_ROAM_REQUEST_HOST_HW_MODE_CHANGE.
+     * bit  7    0x1 to show bits 8-15 are valid
+     * bits 8-15 full WMI_ROAM_TRIGGER_REASON_ID/WMI_ROAM_TRIGGER_EXT_REASON_ID
+     *           since 4 bits are not enough.
      */
     A_UINT32 roam_reason;
     /** associated AP's rssi calculated by FW when reason code is WMI_ROAM_REASON_LOW_RSSI. not valid if roam_reason is BMISS */
@@ -21433,6 +21620,29 @@ typedef struct  {
     A_UINT32 bss_color_bitmap_bit0to31;     /* Bit set indicating BSS color present */
     A_UINT32 bss_color_bitmap_bit32to63;    /* Bit set indicating BSS color present */
 } wmi_obss_color_collision_evt_fixed_param;
+
+/*
+ * WMI event to notify host if latency_flags/latency_level got changed
+ * or if latency got enabled/disabled.
+ * When latency disable is received in the beacon vendor IE and wlm
+ * parameters are restored, latency_enable will be zero.
+ * latency level and latency flags will be those of wlm params.
+ * Lay out of latency flags is as follows. The field is same as flags
+ * in wmi_wlm_config_cmd_fixed_param.
+ *
+ * |31 19|  18 | 17|16 14| 13 | 12| 11 | 10 |  9  |  8 |7  6|5  4|3  2| 1 | 0 |
+ * +-----+-----+---+-----+----+---+----+----+-----+----+----+----+----+---+---+
+ * | RSVD|SRATE|RTS| NSS |EDCA|TRY|SSLP|CSLP|DBMPS|RSVD|Roam|RSVD|DWLT|DFS|SUP|
+ * +------------------------------+---------------+---------+-----------------+
+ * |              WAL             |    PS         |  Roam   |     Scan        |
+ */
+typedef struct  {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_bcn_latency_fixed_param */
+    A_UINT32 vdev_id;
+    A_UINT32 latency_enable;
+    A_UINT32 latency_level;
+    A_UINT32 latency_flags;
+} wmi_vdev_bcn_latency_fixed_param;
 
 /**
  * OCB DCC types and structures.
@@ -26314,6 +26524,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_SIMULATION_TEST_CMDID);
         WMI_RETURN_STRING(WMI_AUDIO_AGGR_SET_RTSCTS_CONFIG_CMDID);
         WMI_RETURN_STRING(WMI_REQUEST_CTRL_PATH_STATS_CMDID);
+        WMI_RETURN_STRING(WMI_PDEV_GET_TPC_STATS_CMDID);
     }
 
     return "Invalid WMI cmd";
