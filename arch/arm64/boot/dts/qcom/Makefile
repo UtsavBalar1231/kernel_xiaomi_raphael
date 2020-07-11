@@ -8,7 +8,7 @@ ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 		sa8155p-adp-star-lpass-overlay.dtbo \
 		sa8155-v2-adp-air-overlay.dtbo \
                 sa8155p-v2-adp-air-overlay.dtbo \
-		sa8155p-v2-adp-air-lpass-overlay.dts
+		sa8155p-v2-adp-air-lpass-overlay.dtbo
 
 sm8150-cdp-overlay.dtbo-base := sm8150.dtb sm8150-v2.dtb sm8150p.dtb sm8150p-v2.dtb
 sa8155-adp-star-overlay.dtbo-base := sa8155.dtb sa8155-v2.dtb
@@ -21,7 +21,7 @@ else
 dtb-$(CONFIG_ARCH_SM8150)	+= sm8150-cdp.dtb \
 	sa8155-adp-star.dtb \
 	sa8155p-adp-star.dtb \
-	sa8155p-adp-star-lpass \
+	sa8155p-adp-star-lpass.dtb \
 	sa8155-v2-adp-star.dtb \
 	sa8155p-v2-adp-star.dtb \
 	sa8155-v2-adp-air.dtb \
@@ -48,12 +48,12 @@ ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 	dtbo-$(CONFIG_ARCH_SM6150) += \
 		sa6155-adp-star-overlay.dtbo \
 		sa6155p-adp-star-overlay.dtbo \
-		sa6155p-adp-star-lpass-overlay.dts \
+		sa6155p-adp-star-lpass-overlay.dtbo \
 		sa6155-adp-air-overlay.dtbo \
 		sa6155p-adp-air-overlay.dtbo \
 		sa6155p-v2-adp-star-overlay.dtbo \
 		sa6155p-v2-adp-air-overlay.dtbo \
-		sa6155p-v2-adp-air-lpass-overlay.dts
+		sa6155p-v2-adp-air-lpass-overlay.dtbo
 
 sa6155-adp-star-overlay.dtbo-base := sa6155.dtb
 sa6155p-adp-star-overlay.dtbo-base := sa6155p.dtb
@@ -102,6 +102,8 @@ dtb-$(CONFIG_ARCH_QCS405) += qcs405-iot-sku1.dtb \
 		qcs405-iot-sku12.dtb \
 		qcs407-iot-sku12.dtb \
 		sa2150p-ccard-emmc.dtb \
+		sa2145p-ccard-nand-dc.dtb \
+		sa2150p-ccard-nand-dc.dtb \
 		sa2150p-ccard-nand.dtb \
 		qcs405-iot-sku13.dtb \
 		qcs407-iot-sku13.dtb \
@@ -250,9 +252,9 @@ sa6155p-v2-adp-star-overlay.dtbo-base := sa6155p.dtb
 sa6155-adp-air-overlay.dtbo-base := sa6155.dtb
 sa6155p-adp-air-overlay.dtbo-base := sa6155p.dtb
 sa6155p-v2-adp-air-overlay.dtbo-base := sa6155p.dtb
-qcs610-iot-overlay.dtbo-base := sm6150.dtb
-qcs610-ipc-overlay.dtbo-base := sm6150.dtb
-qcs410-iot-overlay.dtbo-base := sm6150.dtb
+qcs610-iot-overlay.dtbo-base := qcs610.dtb
+qcs610-ipc-overlay.dtbo-base := qcs610.dtb
+qcs410-iot-overlay.dtbo-base := qcs410.dtb
 else
 dtb-$(CONFIG_ARCH_SM6150)	+= sm6150-rumi.dtb \
 	sm6150-qrd.dtb \
@@ -319,7 +321,17 @@ ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 		trinket-external-codec-idp-overlay.dtbo \
 		trinket-usbc-external-codec-idp-overlay.dtbo \
 		trinket-usbc-idp-overlay.dtbo \
-		trinket-dp-idp-overlay.dtbo
+		trinket-dp-idp-overlay.dtbo \
+		qcm6125-iot-idp-overlay.dtbo \
+		qcs6125-iot-idp-overlay.dtbo \
+		qcm6125-iot-external-codec-idp-overlay.dtbo \
+		qcs6125-iot-external-codec-idp-overlay.dtbo \
+		qcm6125-iot-usbc-external-codec-idp-overlay.dtbo \
+		qcs6125-iot-usbc-external-codec-idp-overlay.dtbo \
+		qcm6125-iot-usbc-idp-overlay.dtbo \
+		qcs6125-iot-usbc-idp-overlay.dtbo \
+		qcm6125-iot-dp-idp-overlay.dtbo \
+		qcs6125-iot-dp-idp-overlay.dtbo
 
 trinket-rumi-overlay.dtbo-base := trinket.dtb
 trinket-idp-overlay.dtbo-base := trinket.dtb
@@ -328,6 +340,16 @@ trinket-external-codec-idp-overlay.dtbo-base := trinket.dtb
 trinket-usbc-external-codec-idp-overlay.dtbo-base := trinket.dtb
 trinket-usbc-idp-overlay.dtbo-base := trinket.dtb
 trinket-dp-idp-overlay.dtbo-base := trinket.dtb
+qcm6125-iot-idp-overlay.dtbo-base := qcm6125.dtb
+qcs6125-iot-idp-overlay.dtbo-base := qcs6125.dtb
+qcm6125-iot-external-codec-idp-overlay.dtbo-base := qcm6125.dtb
+qcs6125-iot-external-codec-idp-overlay.dtbo-base := qcs6125.dtb
+qcm6125-iot-usbc-external-codec-idp-overlay.dtbo-base := qcm6125.dtb
+qcs6125-iot-usbc-external-codec-idp-overlay.dtbo-base := qcs6125.dtb
+qcm6125-iot-usbc-idp-overlay.dtbo-base := qcm6125.dtb
+qcs6125-iot-usbc-idp-overlay.dtbo-base := qcs6125.dtb
+qcm6125-iot-dp-idp-overlay.dtbo-base := qcm6125.dtb
+qcs6125-iot-dp-idp-overlay.dtbo-base := qcs6125.dtb
 else
 dtb-$(CONFIG_ARCH_TRINKET)	+= trinket-rumi.dtb \
 	trinket-idp.dtb \
@@ -335,7 +357,17 @@ dtb-$(CONFIG_ARCH_TRINKET)	+= trinket-rumi.dtb \
 	trinket-external-codec-idp.dtb \
 	trinket-usbc-external-codec-idp.dtb \
 	trinket-usbc-idp.dtb \
-	trinket-dp-idp.dtb
+	trinket-dp-idp.dtb \
+	qcm6125-iot-idp.dtb \
+	qcs6125-iot-idp.dtb \
+	qcm6125-iot-external-codec-idp.dtb \
+	qcs6125-iot-external-codec-idp.dtb \
+	qcm6125-iot-usbc-external-codec-idp.dtb \
+	qcs6125-iot-usbc-external-codec-idp.dtb \
+	qcm6125-iot-usbc-idp.dtb \
+	qcs6125-iot-usbc-idp.dtb \
+	qcm6125-iot-dp-idp.dtb \
+	qcs6125-iot-dp-idp.dtb
 endif
 
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
@@ -404,20 +436,22 @@ dtb-$(CONFIG_ARCH_SDXPRAIRIE) += sdxprairie-rumi.dtb \
 	sdxprairie-v2-mtp-v1.1.dtb \
 	sdxprairie-v2-mtp-le-cpe.dtb \
 	sdxprairie-v2-ttp-cpe.dtb \
-        sa515m-v2-ttp.dtb \
-        sa515m-v2-ttp-usb-ep.dtb \
-        sa515m-v2-ttp-pcie-ep.dtb \
-        sa515m-v2-ttp-flashless-usb-ep.dtb \
-        sa515m-v2-ttp-flashless-pcie-ep.dtb \
-        sa515m-v2-ttp-emmc.dtb \
+	sa515m-v2-ttp.dtb \
+	sa515m-v2-ttp-usb-ep.dtb \
+	sa515m-v2-ttp-pcie-ep.dtb \
+	sa515m-v2-ttp-flashless-usb-ep.dtb \
+	sa515m-v2-ttp-flashless-pcie-ep.dtb \
+	sa515m-v2-ttp-emmc.dtb \
 	sa515m-ccard.dtb \
 	sa515m-ccard-pcie-ep.dtb \
 	sa515m-ccard-usb-ep.dtb \
-        sa515m-v2-ccard-flashless-pcie-ep.dtb \
-        sa515m-v2-ccard-flashless-usb-ep.dtb \
+	sa515m-ccard-eth-ep.dtb \
+	sa515m-v2-ccard-flashless-pcie-ep.dtb \
+	sa515m-v2-ccard-flashless-usb-ep.dtb \
 	sa515m-v2-ccard.dtb \
 	sa515m-v2-ccard-pcie-ep.dtb \
-	sa515m-v2-ccard-usb-ep.dtb
+	sa515m-v2-ccard-usb-ep.dtb \
+	sa515m-v2-ccard-eth-ep.dtb
 
 dtb-$(CONFIG_ARCH_MDM9607) += mdm9607-cdp.dtb \
         mdm9607-mtp.dtb \
@@ -434,7 +468,8 @@ ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 		sdm660-rcm-internal-codec-overlay.dtbo \
 		sda660-mtp-external-codec-overlay.dtbo \
 		sda660-cdp-external-codec-overlay.dtbo \
-		sda660-rcm-external-codec-overlay.dtbo
+		sda660-rcm-external-codec-overlay.dtbo \
+		sdm660-usbc-audio-mtp-overlay.dtbo
 
 sdm660-mtp-external-codec-overlay.dtbo-base := sdm660-pm660l.dtb
 
@@ -449,6 +484,8 @@ sdm660-qrd-external-codec-overlay.dtbo-base := sdm660-pm660l.dtb
 sdm660-rcm-external-codec-overlay.dtbo-base := sdm660-pm660l.dtb
 
 sdm660-rcm-internal-codec-overlay.dtbo-base := sdm660-pm660l.dtb
+
+sdm660-usbc-audio-mtp-overlay.dtbo-base := sdm660-pm660l.dtb
 
 sda660-mtp-external-codec-overlay.dtbo-base := sda660-pm660l.dtb
 

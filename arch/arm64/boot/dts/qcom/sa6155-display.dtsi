@@ -49,6 +49,7 @@
 	vdda-1p2-supply = <&pm6155_1_l11>;
 	vdda-0p9-supply = <&pm6155_1_l5>;
 	/delete-property/ qcom,dp-aux-switch;
+	/delete-property/ pinctrl-names;
 	qcom,mst-enable;
 	qcom,dp-aux-bridge-sim = <&sde_dp_mst_sim>;
 
@@ -161,7 +162,7 @@
 	dsi_anx_7625_1: qcom,dsi-display@17 {
 		label = "dsi_anx_7625_1";
 		qcom,dsi-display-active;
-		qcom,display-label = "primary";
+		qcom,display-type = "primary";
 
 		qcom,dsi-ctrl-num = <0>;
 		qcom,dsi-phy-num = <0>;

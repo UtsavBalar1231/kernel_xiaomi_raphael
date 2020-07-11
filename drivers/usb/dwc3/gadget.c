@@ -1684,17 +1684,18 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 				goto out0;
 
 			if (r->num_pending_sgs) {
-				struct dwc3_trb *trb;
+				struct dwc3_trb *trb = r->trb;
 				int i = 0;
 
 				for (i = 0; i < r->num_pending_sgs; i++) {
-					trb = r->trb + i;
 					trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
 					dwc3_ep_inc_deq(dep);
+					trb++;
+					if (trb->ctrl & DWC3_TRBCTL_LINK_TRB)
+						trb = dep->trb_pool;
 				}
 
 				if (r->unaligned || r->zero) {
-					trb = r->trb + r->num_pending_sgs + 1;
 					trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
 					dwc3_ep_inc_deq(dep);
 				}
@@ -1705,7 +1706,9 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 				dwc3_ep_inc_deq(dep);
 
 				if (r->unaligned || r->zero) {
-					trb = r->trb + 1;
+					trb++;
+					if (trb->ctrl & DWC3_TRBCTL_LINK_TRB)
+						trb = dep->trb_pool;
 					trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
 					dwc3_ep_inc_deq(dep);
 				}
@@ -3885,20 +3888,6 @@ static irqreturn_t dwc3_check_event_buf(struct dwc3_event_buffer *evt)
 	if (dwc->err_evt_seen)
 		return IRQ_HANDLED;
 
-	/* Controller is being halted, ignore the interrupts */
-	if (!dwc->pullups_connected) {
-		/*
-		 * Even with controller halted, there is a possibility
-		 * that the interrupt line is kept asserted.
-		 * As per the databook (3.00A - 6.3.57) read the GEVNTCOUNT
-		 * to ensure that the interrupt line is de-asserted.
-		 */
-		count = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(0));
-		count &= DWC3_GEVNTCOUNT_MASK;
-		dbg_event(0xFF, "NO_PULLUP", count);
-		return IRQ_HANDLED;
-	}
-
 	/*
 	 * With PCIe legacy interrupt, test shows that top-half irq handler can
 	 * be called again after HW interrupt deassertion. Check if bottom-half
@@ -3912,6 +3901,13 @@ static irqreturn_t dwc3_check_event_buf(struct dwc3_event_buffer *evt)
 	count &= DWC3_GEVNTCOUNT_MASK;
 	if (!count)
 		return IRQ_NONE;
+
+	/* Controller is halted; ignore new/pending events */
+	if (!dwc->pullups_connected) {
+		dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(0), count);
+		dbg_event(0xFF, "NO_PULLUP", count);
+		return IRQ_HANDLED;
+	}
 
 	if (count > evt->length) {
 		dbg_event(0xFF, "HUGE_EVCNT", count);
