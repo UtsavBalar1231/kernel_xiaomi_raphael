@@ -159,13 +159,7 @@ static inline void cpu_load_update_active(struct rq *this_rq) { }
 #ifdef CONFIG_64BIT
 # define NICE_0_LOAD_SHIFT	(SCHED_FIXEDPOINT_SHIFT + SCHED_FIXEDPOINT_SHIFT)
 # define scale_load(w)		((w) << SCHED_FIXEDPOINT_SHIFT)
-# define scale_load_down(w) \
-({ \
-	unsigned long __w = (w); \
-	if (__w) \
-		__w = max(2UL, __w >> SCHED_FIXEDPOINT_SHIFT); \
-	__w; \
-})
+# define scale_load_down(w)	((w) >> SCHED_FIXEDPOINT_SHIFT)
 #else
 # define NICE_0_LOAD_SHIFT	(SCHED_FIXEDPOINT_SHIFT)
 # define scale_load(w)		(w)
@@ -1966,7 +1960,7 @@ u64 sched_ktime_clock(void);
 #else
 static inline u64 sched_ktime_clock(void)
 {
-	return sched_clock();
+	return 0;
 }
 #endif
 
@@ -2525,20 +2519,16 @@ DECLARE_PER_CPU(struct update_util_data *, cpufreq_update_util_data);
 static inline void cpufreq_update_util(struct rq *rq, unsigned int flags)
 {
 	struct update_util_data *data;
-	u64 clock;
 
 #ifdef CONFIG_SCHED_WALT
 	if (!(flags & SCHED_CPUFREQ_WALT))
 		return;
-	clock = sched_ktime_clock();
-#else
-	clock = rq_clock(rq);
 #endif
 
 	data = rcu_dereference_sched(*per_cpu_ptr(&cpufreq_update_util_data,
 					cpu_of(rq)));
 	if (data)
-		data->func(data, clock, flags);
+		data->func(data, sched_ktime_clock(), flags);
 }
 #else
 static inline void cpufreq_update_util(struct rq *rq, unsigned int flags) {}

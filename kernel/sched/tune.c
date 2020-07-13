@@ -633,7 +633,7 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	if (!strcmp(css->cgroup->kn->name, "top-app"))
 		boost = 1;
 
-	if (boost < -100 || boost > 100)
+	if (boost < 0 || boost > 100)
 		return -EINVAL;
 
 	st->boost = boost;
