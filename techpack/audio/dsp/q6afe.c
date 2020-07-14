@@ -3478,10 +3478,10 @@ int afe_tdm_port_start(u16 port_id, struct afe_tdm_port_config *tdm_port,
 
 	if (cal_block != NULL) {
 		afe_top = (struct audio_cal_info_afe_top *)cal_block->cal_info;
-		pr_info("%s: top_id:%x acdb_id:%d port_id:0x%x\n",
+		pr_debug("%s: top_id:%x acdb_id:%d port_id:0x%x\n",
 			__func__, afe_top->topology, afe_top->acdb_id, port_id);
 	} else {
-		pr_info("%s: port_id:0x%x\n", __func__, port_id);
+		pr_debug("%s: port_id:0x%x\n", __func__, port_id);
 	}
 
 	ret = afe_send_cmd_port_start(port_id);
@@ -4502,10 +4502,10 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 
 	if (cal_block != NULL) {
 		afe_top = (struct audio_cal_info_afe_top *)cal_block->cal_info;
-		pr_info("%s: top_id:%x acdb_id:%d port_id:0x%x\n",
+		pr_debug("%s: top_id:%x acdb_id:%d port_id:0x%x\n",
 			__func__, afe_top->topology, afe_top->acdb_id, port_id);
 	} else {
-		pr_info("%s: port_id:0x%x\n", __func__, port_id);
+		pr_debug("%s: port_id:0x%x\n", __func__, port_id);
 	}
 
 	ret = afe_send_cmd_port_start(port_id);
@@ -7117,7 +7117,7 @@ int afe_close(int port_id)
 		ret = -EINVAL;
 		goto fail_cmd;
 	}
-	pr_info("%s: port_id = 0x%x\n", __func__, port_id);
+	pr_debug("%s: port_id = 0x%x\n", __func__, port_id);
 	if ((port_id == RT_PROXY_DAI_001_RX) ||
 			(port_id == RT_PROXY_DAI_002_TX)) {
 		pr_debug("%s: before decrementing pcm_afe_instance %d\n",
