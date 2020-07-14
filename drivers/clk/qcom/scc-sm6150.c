@@ -37,8 +37,8 @@
 static DEFINE_VDD_REGULATORS(vdd_scc_cx, VDD_NUM, 1, vdd_corner);
 
 enum {
-	P_AOSS_CC_RO_CLK,
 	P_AON_SLEEP_CLK,
+	P_AOSS_CC_RO_CLK,
 	P_CORE_PI_CXO_CLK,
 	P_QDSP6SS_PLL_OUT_AUX,
 	P_SCC_PLL_OUT_AUX,
@@ -67,6 +67,51 @@ static const char * const scc_parent_names_0[] = {
 	"qdsp6ss_pll_out_aux",
 	"scc_pll",
 	"ssc_bi_pll_test_se",
+};
+
+static struct pll_vco scc_pll_vco[] = {
+	{ 500000000, 1000000000, 2 },
+};
+
+/* 600MHz configuration */
+static const struct alpha_pll_config scc_pll_config = {
+	.l = 0x1F,
+	.alpha_u = 0x40,
+	.alpha_en_mask = BIT(24),
+	.vco_val = 0x2 << 20,
+	.vco_mask = 0x3 << 20,
+	.post_div_val = 0x3 << 15,
+	.post_div_mask = 0x7 << 15,
+	.aux_output_mask = BIT(1),
+	.aux2_output_mask = BIT(2),
+	.config_ctl_val = 0x4001055b,
+	.test_ctl_hi_val = 0x1,
+	.test_ctl_hi_mask = 0x1,
+};
+
+static struct clk_alpha_pll scc_pll_out_aux2 = {
+	.offset = 0x0,
+	.vco_table = scc_pll_vco,
+	.num_vco = ARRAY_SIZE(scc_pll_vco),
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "scc_pll_out_aux2",
+		.parent_names = (const char *[]){ "bi_tcxo" },
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_ops,
+		.vdd_class = &vdd_scc_cx,
+		.num_rate_max = VDD_NUM,
+		.rate_max = (unsigned long[VDD_NUM]) {
+			[VDD_MIN] = 1000000000,
+			[VDD_NOMINAL] = 2000000000},
+	},
+};
+
+static const struct clk_div_table post_div_table[] = {
+	{ 0x0, 1 },
+	{ 0x3, 3 },
+	{ 0x5, 5 },
+	{ 0x7, 7 },
+	{ }
 };
 
 static const struct freq_tbl ftbl_scc_main_rcg_clk_src[] = {
@@ -509,6 +554,8 @@ static int scc_sm6150_probe(struct platform_device *pdev)
 		pr_err("Failed to map the scc registers\n");
 		return PTR_ERR(regmap);
 	}
+
+	clk_alpha_pll_configure(&scc_pll_out_aux2, regmap, &scc_pll_config);
 
 	ret = qcom_cc_really_probe(pdev, &scc_sm6150_desc, regmap);
 	if (ret) {
