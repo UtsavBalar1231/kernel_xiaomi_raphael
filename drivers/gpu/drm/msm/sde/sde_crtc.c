@@ -3230,7 +3230,7 @@ void sde_crtc_fod_ui_ready(struct drm_crtc *crtc,
 		finger_down = cstate->finger_down;
 		notify_data.data = &finger_down;
 		notify_data.is_primary = true;
-		pr_err("fingerprint status: %s",
+		pr_debug("fingerprint status: %s",
 			      finger_down ? "pressed" : "up");
 		dsi_display->panel->fod_ui_ready = finger_down;
 		sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "fod_ui_ready");

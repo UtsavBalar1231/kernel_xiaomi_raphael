@@ -871,12 +871,12 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	}
 
 	if (bl_lvl > 0 && panel->last_bl_lvl == 0) {
-		pr_info("crc off when quickly power on\n");
+		pr_debug("crc off when quickly power on\n");
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_CRC_OFF);
 	}
 
 	if (bl_lvl == 0) {
-		pr_info("DC off when last backlight is 0\n");
+		pr_debug("DC off when last backlight is 0\n");
 		panel->dc_enable = false;
 	}
 	panel->last_bl_lvl = bl_lvl;
