@@ -816,6 +816,9 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 			/* QG-D */
 			if (strstr(line, "healthd")||
 				strstr(line, "cacert") ||
+				strstr(line, "ueventd") ||
+				strstr(line, "logd") ||
+				strstr(line, "CSPL") ||
 				strcmp(line, "CP: Couldn't"))
 				goto free;
 		}
