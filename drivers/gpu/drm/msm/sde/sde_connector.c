@@ -801,7 +801,7 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 		}
 	}
 	pr_debug("dim_layer_status:%d fod_dimlayer_hbm_enabled:%d\n", dim_layer_status, dsi_display->panel->fod_dimlayer_hbm_enabled);
-	return rc;
+	return 0;
 }
 
 int sde_connector_pre_kickoff(struct drm_connector *connector)
