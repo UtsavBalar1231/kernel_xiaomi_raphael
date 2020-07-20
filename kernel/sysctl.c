@@ -421,10 +421,10 @@ static struct ctl_table kern_table[] = {
 		.procname	= "sched_walt_rotate_big_tasks",
 		.data		= &sysctl_sched_walt_rotate_big_tasks,
 		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
+		.mode		= 0444,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero,
-		.extra2		= &one,
+		.extra2		= &zero,
 	},
 	{
 		.procname	= "sched_min_task_util_for_boost",
