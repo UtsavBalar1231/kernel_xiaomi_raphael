@@ -2396,7 +2396,7 @@ static void tfa98xx_container_loaded(const struct firmware *cont, void *context)
 
 		/* we should be power-down device when parameter is loaded. */
 		tfa_dev_stop(tfa98xx->tfa);
-		ret = tfa98xx->dsp_init = TFA98XX_DSP_INIT_STOPPED;
+		tfa98xx->dsp_init = TFA98XX_DSP_INIT_STOPPED;
 
 		mutex_unlock(&tfa98xx->dsp_lock);
 	}
