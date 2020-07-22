@@ -222,6 +222,8 @@ const char *ipa_clients_strings[IPA_CLIENT_MAX] = {
 	__stringify(IPA_CLIENT_MHI_QDSS_CONS),
 	__stringify(RESERVERD_PROD_108),
 	__stringify(IPA_CLIENT_WLAN2_CONS1),
+	__stringify(IPA_CLIENT_RTK_ETHERNET_PROD),
+	__stringify(IPA_CLIENT_RTK_ETHERNET_CONS),
 };
 
 /**
@@ -3869,6 +3871,104 @@ static pci_ers_result_t ipa_pci_io_slot_reset(struct pci_dev *pci_dev)
 static void ipa_pci_io_resume(struct pci_dev *pci_dev)
 {
 }
+
+int ipa_eth_rtk_connect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_rtk_connect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_rtk_connect);
+
+int ipa_eth_aqc_connect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_aqc_connect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_aqc_connect);
+
+int ipa_eth_emac_connect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_emac_connect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_emac_connect);
+
+int ipa_eth_rtk_disconnect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_rtk_disconnect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_rtk_disconnect);
+
+int ipa_eth_aqc_disconnect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_aqc_disconnect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_aqc_disconnect);
+
+int ipa_eth_emac_disconnect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_emac_disconnect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_emac_disconnect);
+
+int ipa_eth_client_conn_evt(struct ipa_ecm_msg *msg)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_client_conn_evt, msg);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_client_conn_evt);
+
+int ipa_eth_client_disconn_evt(struct ipa_ecm_msg *msg)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_client_disconn_evt, msg);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_client_disconn_evt);
 
 static int __init ipa_module_init(void)
 {
