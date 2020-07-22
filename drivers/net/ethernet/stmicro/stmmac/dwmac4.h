@@ -148,6 +148,7 @@ enum power_event {
 /* MAC config */
 #define GMAC_CONFIG_IPC			BIT(27)
 #define GMAC_CONFIG_2K			BIT(22)
+#define GMAC_CONFIG_CRC			BIT(21)
 #define GMAC_CONFIG_ACS			BIT(20)
 #define GMAC_CONFIG_BE			BIT(18)
 #define GMAC_CONFIG_JD			BIT(17)
@@ -228,6 +229,8 @@ enum power_event {
 #define MTL_CHAN_RX_DEBUG(x)		(MTL_CHANX_BASE_ADDR(x) + 0x38)
 
 #define MTL_OP_MODE_RSF			BIT(5)
+#define MTL_OP_MODE_TXQEN_MASK		GENMASK(3, 2)
+#define MTL_OP_MODE_TXQEN_AV		BIT(2)
 #define MTL_OP_MODE_TXQEN		BIT(3)
 #define MTL_OP_MODE_TSF			BIT(1)
 

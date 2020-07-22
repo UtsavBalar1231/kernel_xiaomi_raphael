@@ -851,26 +851,22 @@ static int cnss_qca6174_ramdump(struct cnss_pci_data *pci_priv)
 static int cnss_pci_force_wake_get(struct cnss_pci_data *pci_priv)
 {
 	struct device *dev = &pci_priv->pci_dev->dev;
-	u32 timeout = 0;
 	int ret;
 
-	ret = cnss_pci_force_wake_request(dev);
+	ret = cnss_pci_force_wake_request_sync(dev,
+					       FORCE_WAKE_DELAY_TIMEOUT_US);
 	if (ret) {
-		cnss_pr_err("Failed to request force wake\n");
+		if (ret != -EAGAIN)
+			cnss_pr_err("Failed to request force wake\n");
 		return ret;
 	}
 
-	while (!cnss_pci_is_device_awake(dev) &&
-	       timeout <= FORCE_WAKE_DELAY_TIMEOUT_US) {
-		usleep_range(FORCE_WAKE_DELAY_MIN_US, FORCE_WAKE_DELAY_MAX_US);
-		timeout += FORCE_WAKE_DELAY_MAX_US;
-	}
-
-	if (cnss_pci_is_device_awake(dev) != true) {
-		cnss_pr_err("Timed out to request force wake\n");
-		cnss_pci_force_wake_release(dev);
-		return -ETIMEDOUT;
-	}
+	/* If device's M1 state-change event races here, it can be ignored,
+	 * as the device is expected to immediately move from M2 to M0
+	 * without entering low power state.
+	 */
+	if (cnss_pci_is_device_awake(dev) != true)
+		cnss_pr_warn("MHI not in M0, while reg still accessible\n");
 
 	return 0;
 }
@@ -1405,6 +1401,27 @@ static int cnss_pci_init_smmu(struct cnss_pci_data *pci_priv)
 			cnss_pr_err("Failed to set SMMU fast attribute, err = %d\n",
 				    ret);
 			goto release_mapping;
+		}
+
+		if (pci_priv->iommu_geometry) {
+			struct iommu_domain_geometry geometry = {0};
+
+			/* Need revisit if iova and ipa not continuous */
+			CNSS_ASSERT(pci_priv->smmu_iova_start +
+				    pci_priv->smmu_iova_len ==
+				    pci_priv->smmu_iova_ipa_start);
+
+			geometry.aperture_start = pci_priv->smmu_iova_start;
+			geometry.aperture_end = pci_priv->smmu_iova_start +
+						pci_priv->smmu_iova_len +
+						pci_priv->smmu_iova_ipa_len;
+			ret = iommu_domain_set_attr(mapping->domain,
+						    DOMAIN_ATTR_GEOMETRY,
+						    &geometry);
+			/* Not fatal failure, fall-thru */
+			if (ret)
+				cnss_pr_err("Failed to set GEOMETRY, err = %d\n",
+					    ret);
 		}
 
 		ret = iommu_domain_set_attr(mapping->domain,
@@ -1950,6 +1967,31 @@ int cnss_pm_request_resume(struct cnss_pci_data *pci_priv)
 
 	return pm_request_resume(&pci_dev->dev);
 }
+
+int cnss_pci_force_wake_request_sync(struct device *dev, int timeout_us)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
+	struct cnss_plat_data *plat_priv;
+	struct mhi_controller *mhi_ctrl;
+
+	if (pci_priv->device_id != QCA6390_DEVICE_ID)
+		return 0;
+
+	mhi_ctrl = pci_priv->mhi_ctrl;
+	if (!mhi_ctrl)
+		return -EINVAL;
+
+	plat_priv = pci_priv->plat_priv;
+	if (!plat_priv)
+		return -ENODEV;
+
+	if (test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state))
+		return -EAGAIN;
+
+	return mhi_device_get_sync_atomic(mhi_ctrl->mhi_dev, timeout_us);
+}
+EXPORT_SYMBOL(cnss_pci_force_wake_request_sync);
 
 int cnss_pci_force_wake_request(struct device *dev)
 {
@@ -2966,6 +3008,11 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 	if (!mhi_ctrl->log_buf)
 		cnss_pr_err("Unable to create CNSS MHI IPC log context\n");
 
+	mhi_ctrl->cntrl_log_buf = ipc_log_context_create(CNSS_IPC_LOG_PAGES,
+							 "cnss-mhi-cntrl", 0);
+	if (!mhi_ctrl->cntrl_log_buf)
+		cnss_pr_err("Unable to create CNSS MHICNTRL IPC log context\n");
+
 	ret = of_register_mhi_controller(mhi_ctrl);
 	if (ret) {
 		cnss_pr_err("Failed to register to MHI bus, err = %d\n", ret);
@@ -2981,6 +3028,7 @@ static void cnss_pci_unregister_mhi(struct cnss_pci_data *pci_priv)
 
 	mhi_unregister_mhi_controller(mhi_ctrl);
 	ipc_log_context_destroy(mhi_ctrl->log_buf);
+	ipc_log_context_destroy(mhi_ctrl->cntrl_log_buf);
 	kfree(mhi_ctrl->irq);
 }
 
@@ -3322,6 +3370,11 @@ static int cnss_pci_get_smmu_cfg(struct cnss_plat_data *plat_priv)
 		    "converged dt" : "single dt"),
 		    &pci_priv->smmu_iova_ipa_start,
 		    pci_priv->smmu_iova_ipa_len);
+
+	pci_priv->iommu_geometry =
+		of_property_read_bool(dev_node, "qcom,iommu-geometry");
+	cnss_pr_dbg("DOMAIN_ATTR_GEOMETRY: %d\n", pci_priv->iommu_geometry);
+
 	return 0;
 
 out:

@@ -106,6 +106,18 @@ SoCs:
 - SDA429W
   compatible = "qcom,sda429w"
 
+- QCM6125
+  compatible = "qcom,qcm6125"
+
+- QCS6125
+  compatible = "qcom,qcs6125"
+
+- SA2145P
+  compatible = "qcom,sa2145p"
+
+- SA2150P
+  compatible = "qcom,sa2150p"
+
 Generic board variants:
 
 - CDP device:
@@ -223,6 +235,7 @@ compatible = "qcom,sa6155p-adp-air"
 compatible = "qcom,qcs405-rumi"
 compatible = "qcom,qcs405-iot"
 compatible = "qcom,sa2150p-ccard"
+compatible = "qcom,sa2145p-ccard"
 compatible = "qcom,qcs403-iot"
 compatible = "qcom,qcs401-iot"
 compatible = "qcom,qcs404-iot"
@@ -230,6 +243,7 @@ compatible = "qcom,qcs407-iot"
 compatible = "qcom,sa8155-adp-star"
 compatible = "qcom,sa8155p-adp-star"
 compatible = "qcom,sa8195p-adp-star"
+compatible = "qcom,sa8195p-v2-adp-air"
 compatible = "qcom,sa8195p"
 compatible = "qcom,adp-star"
 compatible = "qcom,sa8155-v2-adp-air"
@@ -298,3 +312,7 @@ compatible = "qcom,sda429w-wdp"
 compatible = "qcom,sda429-wdp"
 compatible = "qcom,sdm429w-wdp"
 compatible = "qcom,sdm429-wdp"
+compatible = "qcom,qcm6125"
+compatible = "qcom,qcs6125"
+compatible = "qcom,qcm6125-idp"
+compatible = "qcom,qcs6125-idp"

@@ -69,6 +69,8 @@ obj-$(CONFIG_MSM_JTAGV8) += jtagv8.o jtagv8-etm.o
 obj-$(CONFIG_MSM_CDSP_LOADER) += qdsp6v2/
 obj-$(CONFIG_QCOM_SMCINVOKE) += smcinvoke.o
 obj-$(CONFIG_SDX_EXT_IPC) += sdx_ext_ipc.o
+obj-$(CONFIG_MSM_PIL_SSR_BG) += subsys-pil-bg.o
+obj-$(CONFIG_QTI_NOTIFY_SIDEBAND) += sideband_notify.o
 
 ifdef CONFIG_MSM_SUBSYSTEM_RESTART
        obj-y += subsystem_notif.o
@@ -95,6 +97,8 @@ ifdef CONFIG_MSM_RPM_SMD
 	obj-$(CONFIG_QTI_RPM_STATS_LOG) += rpm_master_stat.o
 endif
 obj-$(CONFIG_QMP_DEBUGFS_CLIENT) += qmp-debugfs-client.o
+obj-$(CONFIG_MSM_BGCOM) += bgcom_spi.o
+obj-$(CONFIG_MSM_BGCOM_INTERFACE) += bgcom_interface.o
 obj-$(CONFIG_MSM_PERFORMANCE) += msm_performance.o
 obj-$(CONFIG_MSM_DRM_NOTIFY) += msm_drm_notify.o
 ifdef CONFIG_DEBUG_FS
@@ -113,3 +117,4 @@ obj-$(CONFIG_RMNET_CTL) += rmnet_ctl/
 obj-$(CONFIG_QCOM_ADSP_MANUAL_VOTE) += adsp_vote_qmi.o adsp_lpm_voting_v01.o
 obj-$(CONFIG_CPU_V7) += idle-v7.o
 obj-$(CONFIG_MSM_BAM_DMUX) += bam_dmux.o
+obj-$(CONFIG_WCNSS_CORE) += wcnss/

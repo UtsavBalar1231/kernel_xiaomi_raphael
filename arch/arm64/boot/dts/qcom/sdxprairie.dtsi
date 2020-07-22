@@ -545,8 +545,8 @@
 		qcom,mhi-event-ring-id-limits = <9 14>; /* start and end */
 		qcom,modem-cfg-emb-pipe-flt;
 		qcom,use-ipa-pm;
+		qcom,use-xbl-boot;
 		qcom,arm-smmu;
-		qcom,smmu-fast-map;
 		qcom,wlan-ce-db-over-pcie;
 		qcom,bandwidth-vote-for-ipa;
 		qcom,msm-bus,name = "ipa";
@@ -607,6 +607,8 @@
 				/* modem tables in IMEM */
 				<0x14688000 0x14688000 0x3000>;
 			qcom,ipa-q6-smem-size = <26624>;
+			qcom,smmu-fast-map;
+			qcom,geometry-mapping = <0x0 0xF0000000>;
 		};
 
 		ipa_smmu_wlan: ipa_smmu_wlan {
@@ -843,7 +845,6 @@
 				<125 512 0 0>,
 				<125 512 393600 393600>;
 		qcom,no-clock-support;
-		qcom,smmu-s1-enable;
 		iommus = <&apps_smmu 0x0066 0x0011>,
 			<&apps_smmu 0x0076 0x0011>;
 	};
@@ -872,7 +873,6 @@
 		qcom,use-sw-ahash-algo;
 		qcom,use-sw-hmac-algo;
 		qcom,no-clock-support;
-		qcom,smmu-s1-enable;
 		iommus = <&apps_smmu 0x0064 0x0011>,
 			<&apps_smmu 0x0074 0x0011>;
 	};
@@ -1061,6 +1061,7 @@
 		qcom,wlan-ramdump-dynamic = <0x400000>;
 		qcom,smmu-s1-enable;
 		qcom,set-wlaon-pwr-ctrl;
+		qcom,iommu-geometry;
 
 		mhi,max-channels = <30>;
 		mhi,buffer-len = <0x8000>;
@@ -1234,7 +1235,7 @@
 		qcom,pcie-active-config;
 		qcom,pcie-aggregated-irq;
 		qcom,pcie-mhi-a7-irq;
-		qcom,phy-status-reg = <0x814>;
+		qcom,phy-status-reg2 = <0x1214>;
 		qcom,mhi-soc-reset-offset = <0xb01b8>;
 
 		qcom,phy-init = <0x1240 0x001 0x0 0x1
@@ -1487,6 +1488,7 @@
 			<&tlmm 90 2>, <&pdc 0 290 1>, <&pdc 0 291 1>;
 		interrupt-names = "macirq", "eth_lpi",
 			"phy-intr",	"ptp_pps_irq_0", "ptp_pps_irq_1";
+		snps,crc_strip;
 		qcom,msm-bus,name = "emac";
 		qcom,msm-bus,num-cases = <4>;
 		qcom,msm-bus,num-paths = <2>;
@@ -1524,6 +1526,7 @@
 			compatible = "qcom,emac-smmu-embedded";
 			iommus = <&apps_smmu 0x1c0 0xf>;
 			qcom,iova-mapping = <0x80000000 0x40000000>;
+			qcom,smmu-geometry;
 		};
 	};
 
@@ -1585,14 +1588,19 @@
 			compatible = "qcom,emac-smmu-embedded";
 			iommus = <&apps_smmu 0x1c0 0xf>;
 			qcom,iova-mapping = <0x80000000 0x40000000>;
+			qcom,smmu-geometry;
 		};
 	};
 
 	sdx_ext_ipc: qcom,sdx_ext_ipc {
 		compatible = "qcom,sdx-ext-ipc";
-		qcom,ap2mdm-status-gpio = <&tlmm 64 0x00>;
-		qcom,mdm2ap-status-gpio = <&tlmm 63 0x00>;
-		qcom,mdm2ap-status2-gpio = <&tlmm 66 0x00>;
+		qcom,status-in-gpio = <&tlmm 64 0x00>;
+		qcom,status-out-gpio = <&tlmm 63 0x00>;
+		qcom,status-out2-gpio = <&tlmm 66 0x00>;
+		qcom,wakeup-gpio-in = <&tlmm 87 0x00>;
+		qcom,wakeup-gpio-out = <&tlmm 22 0x00>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wakeup_gpio_default>;
 		status = "disabled";
 	};
 };
@@ -1610,6 +1618,7 @@
 #include "sdxprairie-coresight.dtsi"
 #include "sdxprairie-aqc.dtsi"
 #include "sdxprairie-thermal.dtsi"
+#include "sdxprairie-qcom-smmu.dtsi"
 
 &gdsc_usb30 {
 	status = "ok";

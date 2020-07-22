@@ -215,8 +215,8 @@ static int uart_line_id;
 static int msm_geni_serial_get_ver_info(struct uart_port *uport);
 static void msm_geni_serial_set_manual_flow(bool enable,
 				struct msm_geni_serial_port *port);
-static int msm_geni_serial_ssr_down(struct device *dev);
-static int msm_geni_serial_ssr_up(struct device *dev);
+static void msm_geni_serial_ssr_down(struct device *dev);
+static void msm_geni_serial_ssr_up(struct device *dev);
 
 #define GET_DEV_PORT(uport) \
 	container_of(uport, struct msm_geni_serial_port, uport)
@@ -1613,7 +1613,7 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
 	unsigned int rx_bytes = 0;
 	struct tty_port *tport;
-	int ret;
+	int ret = 0;
 	unsigned int geni_status;
 
 	if (msm_port->uart_ssr.is_ssr_down) {
@@ -1726,6 +1726,10 @@ static irqreturn_t msm_geni_serial_isr(int isr, void *dev)
 							SE_GENI_M_IRQ_CLEAR);
 		geni_write_reg_nolog(s_irq_status, uport->membase,
 							SE_GENI_S_IRQ_CLEAR);
+		dma_tx_status = geni_read_reg_nolog(uport->membase,
+							SE_DMA_TX_IRQ_STAT);
+		dma_rx_status = geni_read_reg_nolog(uport->membase,
+							SE_DMA_RX_IRQ_STAT);
 		if (dma_tx_status)
 			geni_write_reg_nolog(dma_tx_status, uport->membase,
 						SE_DMA_TX_IRQ_CLR);
@@ -3048,8 +3052,6 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	 * SSR functionalities are required for SSC QUP in
 	 * Automotive platform only
 	 */
-	dev_port->serial_rsc.rsc_ssr.ssr_enable = of_property_read_bool(
-			pdev->dev.of_node, "ssr-enable");
 	dev_port->serial_rsc.rsc_ssr.force_suspend =
 			msm_geni_serial_ssr_down;
 	dev_port->serial_rsc.rsc_ssr.force_resume =
@@ -3083,8 +3085,7 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	return 0;
 
 exit_geni_serial_probe:
-	IPC_LOG_MSG(dev_port->ipc_log_misc, "%s: fail port:%s ret:%d\n",
-		    __func__, uport->name, ret);
+	IPC_LOG_MSG(dev_port->ipc_log_misc, "%s: ret:%d\n", __func__, ret);
 	return ret;
 }
 
@@ -3287,7 +3288,7 @@ static const struct dev_pm_ops msm_geni_serial_pm_ops = {
 	.thaw = msm_geni_serial_sys_hib_resume_noirq,
 };
 
-static int msm_geni_serial_ssr_down(struct device *dev)
+static void msm_geni_serial_ssr_down(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
@@ -3309,10 +3310,9 @@ static int msm_geni_serial_ssr_down(struct device *dev)
 	IPC_LOG_MSG(port->ipc_log_misc, "%s: Force suspend done\n", __func__);
 exit:
 	mutex_unlock(&port->uart_ssr.ssr_lock);
-	return ret;
 }
 
-static int msm_geni_serial_ssr_up(struct device *dev)
+static void msm_geni_serial_ssr_up(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
@@ -3322,7 +3322,6 @@ static int msm_geni_serial_ssr_up(struct device *dev)
 	port->port_setup = false;
 	IPC_LOG_MSG(port->ipc_log_misc, "%s: Force resume done\n", __func__);
 	mutex_unlock(&port->uart_ssr.ssr_lock);
-	return 0;
 }
 
 static struct platform_driver msm_geni_serial_platform_driver = {

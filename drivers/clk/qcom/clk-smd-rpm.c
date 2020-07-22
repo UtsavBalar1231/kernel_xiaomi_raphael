@@ -1001,12 +1001,9 @@ DEFINE_CLK_SMD_RPM(sdm429w, pnoc_clk, pnoc_a_clk, QCOM_SMD_RPM_BUS_CLK, 0);
 DEFINE_CLK_SMD_RPM(sdm429w, snoc_clk, snoc_a_clk, QCOM_SMD_RPM_BUS_CLK, 1);
 
 DEFINE_CLK_SMD_RPM(sdm429w, bimc_clk, bimc_a_clk, QCOM_SMD_RPM_MEM_CLK, 0);
-DEFINE_CLK_SMD_RPM(sdm429w, bimc_gpu_clk, bimc_gpu_a_clk, QCOM_SMD_RPM_MEM_CLK,
-			 2);
 
-DEFINE_CLK_SMD_RPM(sdm429w, ipa_clk, ipa_a_clk, QCOM_SMD_RPM_IPA_CLK, 0);
 DEFINE_CLK_SMD_RPM(sdm429w, sysmmnoc_clk, sysmmnoc_a_clk, QCOM_SMD_RPM_BUS_CLK,
-			 0);
+			 2);
 
 DEFINE_CLK_SMD_RPM_QDSS(sdm429w, qdss_clk, qdss_a_clk, QCOM_SMD_RPM_MISC_CLK,
 			1);
@@ -1035,16 +1032,16 @@ static struct clk_hw *sdm429w_clks[] = {
 	[RPM_SMD_SNOC_A_CLK] = &sdm429w_snoc_a_clk.hw,
 	[RPM_SMD_BIMC_CLK] = &sdm429w_bimc_clk.hw,
 	[RPM_SMD_BIMC_A_CLK] = &sdm429w_bimc_a_clk.hw,
-	[RPM_SMD_BIMC_GPU_CLK] = &sdm429w_bimc_gpu_clk.hw,
-	[RPM_SMD_BIMC_GPU_A_CLK] = &sdm429w_bimc_gpu_a_clk.hw,
-	[RPM_SMD_IPA_CLK] = &sdm429w_ipa_clk.hw,
-	[RPM_SMD_IPA_A_CLK] = &sdm429w_ipa_a_clk.hw,
 	[RPM_SMD_SYSMMNOC_CLK] = &sdm429w_sysmmnoc_clk.hw,
 	[RPM_SMD_SYSMMNOC_A_CLK] = &sdm429w_sysmmnoc_a_clk.hw,
 	[RPM_SMD_BB_CLK1] = &sdm429w_bb_clk1.hw,
 	[RPM_SMD_BB_CLK1_A] = &sdm429w_bb_clk1_a.hw,
 	[RPM_SMD_BB_CLK2] = &sdm429w_bb_clk2.hw,
 	[RPM_SMD_BB_CLK2_A] = &sdm429w_bb_clk2_a.hw,
+	[RPM_SMD_BB_CLK1_PIN] = &sdm429w_bb_clk1_pin.hw,
+	[RPM_SMD_BB_CLK1_A_PIN]	= &sdm429w_bb_clk1_a_pin.hw,
+	[RPM_SMD_BB_CLK2_PIN] = &sdm429w_bb_clk2_pin.hw,
+	[RPM_SMD_BB_CLK2_A_PIN]	= &sdm429w_bb_clk2_a_pin.hw,
 	[RPM_SMD_RF_CLK2] = &sdm429w_rf_clk2.hw,
 	[RPM_SMD_RF_CLK2_A] = &sdm429w_rf_clk2_a.hw,
 	[RPM_SMD_DIV_CLK2] = &sdm429w_div_clk2.hw,

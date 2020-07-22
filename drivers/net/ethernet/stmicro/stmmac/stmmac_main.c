@@ -51,8 +51,7 @@
 #include <linux/of_mdio.h>
 #include "dwmac1000.h"
 
-
-#define	STMMAC_ALIGN(x)		__ALIGN_KERNEL(x, SMP_CACHE_BYTES)
+#define	STMMAC_ALIGN(x)		ALIGN(ALIGN(x, SMP_CACHE_BYTES), 16)
 #define	TSO_MAX_BUFF_SIZE	(SZ_16K - 1)
 
 /* Module parameters */
@@ -843,7 +842,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 
 		writel(ctrl, priv->ioaddr + MAC_CTRL_REG);
 
-		if (!priv->oldlink) {
+		if (!priv->oldlink || (priv->oldlink == -1)) {
 			new_state = true;
 			priv->oldlink = true;
 		}
@@ -954,7 +953,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	int interface = priv->plat->interface;
 	int max_speed = priv->plat->max_speed;
 	int ret = 0;
-	priv->oldlink = false;
+	priv->oldlink = -1;
 	priv->boot_kpi = false;
 	priv->speed = SPEED_UNKNOWN;
 	priv->oldduplex = DUPLEX_UNKNOWN;
@@ -1001,9 +1000,6 @@ static int stmmac_init_phy(struct net_device *dev)
 		}
 	}
 
-	pr_info(" qcom-ethqos: %s early eth setting stmmac init\n",
-				 __func__);
-
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
 	if ((interface == PHY_INTERFACE_MODE_MII) ||
 	    (interface == PHY_INTERFACE_MODE_RMII) ||
@@ -1028,15 +1024,9 @@ static int stmmac_init_phy(struct net_device *dev)
 		phydev->speed = SPEED_100;
 		phydev->duplex = DUPLEX_FULL;
 
-		phydev->supported =
-			SUPPORTED_100baseT_Full | SUPPORTED_TP | SUPPORTED_MII |
-			SUPPORTED_10baseT_Full;
-		phydev->supported &= ~SUPPORTED_Autoneg;
-
 		phydev->advertising = phydev->supported;
-		phydev->advertising &= ~ADVERTISED_Autoneg;
+		phydev->advertising &= ~(SUPPORTED_1000baseT_Full);
 
-		phy_set_max_speed(phydev, SPEED_100);
 		pr_info(" qcom-ethqos: %s early eth setting successful\n",
 			__func__);
 
@@ -1135,7 +1125,9 @@ static int stmmac_set_bfsize(int mtu, int bufsize)
 {
 	int ret = bufsize;
 
-	if (mtu >= BUF_SIZE_4KiB)
+	if (mtu >= BUF_SIZE_8KiB)
+		ret = BUF_SIZE_16KiB;
+	else if (mtu >= BUF_SIZE_4KiB)
 		ret = BUF_SIZE_8KiB;
 	else if (mtu >= BUF_SIZE_2KiB)
 		ret = BUF_SIZE_4KiB;
@@ -1875,6 +1867,7 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 	u32 rxmode = 0;
 	u32 chan = 0;
 	u32 mtl_rx_int;
+	u8 qmode = 0;
 
 	if (rxfifosz == 0)
 		rxfifosz = priv->dma_cap.rx_fifo_size;
@@ -1907,8 +1900,10 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 	/* configure all channels */
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
 		for (chan = 0; chan < rx_channels_count; chan++) {
+			qmode = priv->plat->rx_queues_cfg[chan].mode_to_use;
+
 			priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
-						   rxfifosz);
+						   rxfifosz, qmode);
 			if (priv->rx_queue[chan].skip_sw) {
 				mtl_rx_int = readl_relaxed(priv->ioaddr +
 							   (0x00000d00 + 0x2c));
@@ -1918,9 +1913,12 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 			}
 		}
 
-		for (chan = 0; chan < tx_channels_count; chan++)
+		for (chan = 0; chan < tx_channels_count; chan++) {
+			qmode = priv->plat->tx_queues_cfg[chan].mode_to_use;
+
 			priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan,
-						   txfifosz);
+						   txfifosz, qmode);
+		}
 	} else {
 		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
 					rxfifosz);
@@ -1974,6 +1972,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 			} else {
 				priv->dev->stats.tx_packets++;
 				priv->xstats.tx_pkt_n++;
+				priv->xstats.q_tx_pkt_n[queue]++;
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER
 if (priv->dev->stats.tx_packets == 1)
 	place_marker("M - Ethernet first packet transmitted");
@@ -2060,6 +2059,13 @@ static void stmmac_tx_err(struct stmmac_priv *priv, u32 chan)
 	struct stmmac_tx_queue *tx_q = &priv->tx_queue[chan];
 	int i;
 
+	if (tx_q->skip_sw) {
+		ethqos_ipa_offload_event_handler(priv, EV_DEV_CLOSE);
+		ethqos_ipa_offload_event_handler(priv, EV_DEV_OPEN);
+		priv->dev->stats.tx_errors++;
+		return;
+	}
+
 	netif_tx_stop_queue(netdev_get_tx_queue(priv->dev, chan));
 
 	stmmac_stop_tx_dma(priv, chan);
@@ -2095,6 +2101,8 @@ static void stmmac_tx_err(struct stmmac_priv *priv, u32 chan)
 static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 					  u32 rxmode, u32 chan)
 {
+	u8 rxqmode = priv->plat->rx_queues_cfg[chan].mode_to_use;
+	u8 txqmode = priv->plat->tx_queues_cfg[chan].mode_to_use;
 	u32 rx_channels_count = priv->plat->rx_queues_to_use;
 	u32 tx_channels_count = priv->plat->tx_queues_to_use;
 	int rxfifosz = priv->plat->rx_fifo_size;
@@ -2111,9 +2119,9 @@ static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
 		priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
-					   rxfifosz);
+					   rxfifosz, rxqmode);
 		priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan,
-					   txfifosz);
+					   txfifosz, txqmode);
 	} else {
 		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
 					rxfifosz);
@@ -2135,13 +2143,12 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 	struct stmmac_rx_queue *rx_q;
 
 	for (chan = 0; chan < tx_channel_count; chan++) {
-		if (priv->tx_queue[chan].skip_sw)
-			continue;
 		rx_q = &priv->rx_queue[chan];
 
 		status = priv->hw->dma->dma_interrupt(priv->ioaddr,
 						      &priv->xstats, chan);
-		if (likely((status & handle_rx)) || (status & handle_tx)) {
+		if ((likely((status & handle_rx)) || (status & handle_tx)) &&
+		    !rx_q->skip_sw) {
 			if (likely(napi_schedule_prep(&rx_q->napi))) {
 				stmmac_disable_dma_irq(priv, chan);
 				__napi_schedule(&rx_q->napi);
@@ -2624,6 +2631,8 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 			priv->hw->ps = 0;
 		}
 	}
+	priv->hw->crc_strip_en = priv->plat->crc_strip_en;
+	priv->hw->acs_strip_en = 0;
 
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->hw, dev);
@@ -2907,6 +2916,12 @@ static void stmmac_tso_allocator(struct stmmac_priv *priv, unsigned int des,
 			0, 1,
 			(last_segment) && (tmp_len <= TSO_MAX_BUFF_SIZE),
 			0, 0);
+
+		if (last_segment && tmp_len <= TSO_MAX_BUFF_SIZE) {
+			priv->tx_count_frames = 0;
+			priv->hw->desc->set_tx_ic(desc);
+			priv->xstats.tx_set_ic_bit++;
+		}
 
 		tmp_len -= TSO_MAX_BUFF_SIZE;
 	}
@@ -3600,8 +3615,13 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			 * feature is always disabled and packets need to be
 			 * stripped manually.
 			 */
-			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00) ||
-			    unlikely(status != llc_snap))
+			if ((likely(priv->synopsys_id >= DWMAC_CORE_4_00) &&
+			     ((unlikely(!priv->hw->crc_strip_en) &&
+			       status != llc_snap) ||
+			      (unlikely(!priv->hw->acs_strip_en) &&
+			       status == llc_snap))) ||
+			    (unlikely(priv->synopsys_id < DWMAC_CORE_4_00) &&
+			     unlikely(status != llc_snap)))
 				frame_len -= ETH_FCS_LEN;
 
 			if (netif_msg_rx_status(priv)) {
@@ -3696,6 +3716,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 	stmmac_rx_refill(priv, queue);
 
 	priv->xstats.rx_pkt_n += count;
+	priv->xstats.q_rx_pkt_n[queue] += count;
 
 	return count;
 }
@@ -3787,11 +3808,23 @@ static void stmmac_set_rx_mode(struct net_device *dev)
 static int stmmac_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	int txfifosz = priv->plat->tx_fifo_size;
+
+	if (txfifosz == 0)
+		txfifosz = priv->dma_cap.tx_fifo_size;
+
+	txfifosz /= priv->plat->tx_queues_to_use;
 
 	if (netif_running(dev)) {
 		netdev_err(priv->dev, "must be stopped to change its MTU\n");
 		return -EBUSY;
 	}
+
+	new_mtu = STMMAC_ALIGN(new_mtu);
+
+	/* If condition true, FIFO is too small or MTU too large */
+	if ((txfifosz < new_mtu) || (new_mtu > BUF_SIZE_16KiB))
+		return -EINVAL;
 
 	dev->mtu = new_mtu;
 
@@ -4625,7 +4658,7 @@ int stmmac_suspend(struct device *dev)
 	}
 	mutex_unlock(&priv->lock);
 
-	priv->oldlink = false;
+	priv->oldlink = -1;
 	priv->speed = SPEED_UNKNOWN;
 	priv->oldduplex = DUPLEX_UNKNOWN;
 	return 0;

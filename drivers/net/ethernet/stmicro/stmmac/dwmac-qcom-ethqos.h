@@ -229,6 +229,7 @@ do {\
 #define LINK_STATE_MASK 0x4
 #define AUTONEG_STATE_MASK 0x20
 #define MICREL_LINK_UP_INTR_STATUS BIT(0)
+#define PHY_WOL 0x1
 
 #define VOTE_IDX_0MBPS 0
 #define VOTE_IDX_10MBPS 1
@@ -379,22 +380,9 @@ struct ethqos_emac_por {
 	unsigned int value;
 };
 
-static const struct ethqos_emac_por emac_v2_3_0_por[] = {
-	{ .offset = RGMII_IO_MACRO_CONFIG,	.value = 0x00C01343 },
-	{ .offset = SDCC_HC_REG_DLL_CONFIG,	.value = 0x2004642C },
-	{ .offset = SDCC_HC_REG_DDR_CONFIG,	.value = 0x00000000 },
-	{ .offset = SDCC_HC_REG_DLL_CONFIG2,	.value = 0x00200000 },
-	{ .offset = SDCC_USR_CTL,		.value = 0x00010800 },
-	{ .offset = RGMII_IO_MACRO_CONFIG2,	.value = 0x00002060 },
-};
-
-static const struct ethqos_emac_por emac_v2_3_2_por[] = {
-	{ .offset = RGMII_IO_MACRO_CONFIG,	.value = 0x00C01343 },
-	{ .offset = SDCC_HC_REG_DLL_CONFIG,	.value = 0x2004642C },
-	{ .offset = SDCC_HC_REG_DDR_CONFIG,	.value = 0x80040800 },
-	{ .offset = SDCC_HC_REG_DLL_CONFIG2,	.value = 0x00200000 },
-	{ .offset = SDCC_USR_CTL,		.value = 0x00010800 },
-	{ .offset = RGMII_IO_MACRO_CONFIG2,	.value = 0x00002060 },
+struct ethqos_emac_driver_data {
+	struct ethqos_emac_por *por;
+	unsigned int num_por;
 };
 
 struct qcom_ethqos {
@@ -414,7 +402,7 @@ struct qcom_ethqos {
 	/* Work struct for handling phy interrupt */
 	struct work_struct emac_phy_work;
 
-	const struct ethqos_emac_por *por;
+	struct ethqos_emac_por *por;
 	unsigned int num_por;
 	unsigned int emac_ver;
 
@@ -583,7 +571,7 @@ struct dwmac_qcom_avb_algorithm {
 	enum dwmac_qcom_queue_operating_mode op_mode;
 };
 
-void dwmac_qcom_program_avb_algorithm(
+int dwmac_qcom_program_avb_algorithm(
 	struct stmmac_priv *priv, struct ifr_data_struct *req);
 unsigned int dwmac_qcom_get_plat_tx_coal_frames(
 	struct sk_buff *skb);

@@ -61,7 +61,6 @@
 #define DEBUGFS_SIZE			3072
 #define PID_SIZE			10
 #define UL_SIZE				25
-#define FASTRPC_STATIC_HANDLE_KERNEL	1
 
 #define VIRTIO_FASTRPC_CMD_OPEN		1
 #define VIRTIO_FASTRPC_CMD_CLOSE	2
@@ -97,6 +96,33 @@
 		else\
 			memmove((dst), (src), (size));\
 	} while (0)
+
+#define PERF_KEYS \
+	"count:flush:map:copy:rpmsg:getargs:putargs:invalidate:invoke:tid:ptr"
+#define FASTRPC_STATIC_HANDLE_KERNEL	1
+#define FASTRPC_STATIC_HANDLE_LISTENER	3
+#define FASTRPC_STATIC_HANDLE_MAX	20
+
+#define PERF_END (void)0
+
+#define PERF(enb, cnt, ff) \
+	{\
+		struct timespec startT = {0};\
+		int64_t *counter = cnt;\
+		if (enb && counter) {\
+			getnstimeofday(&startT);\
+		} \
+		ff ;\
+		if (enb && counter) {\
+			*counter += getnstimediff(&startT);\
+		} \
+	}
+
+#define GET_COUNTER(perf_ptr, offset)  \
+	(perf_ptr != NULL ?\
+		(((offset >= 0) && (offset < PERF_KEY_MAX)) ?\
+			(int64_t *)(perf_ptr + offset)\
+				: (int64_t *)NULL) : (int64_t *)NULL)
 
 struct virt_msg_hdr {
 	u32 pid;	/* GVM pid */
@@ -181,9 +207,37 @@ struct fastrpc_apps {
 	struct virt_fastrpc_msg *msgtable[FASTRPC_MSG_MAX];
 };
 
+enum fastrpc_perfkeys {
+	PERF_COUNT = 0,
+	PERF_FLUSH = 1,
+	PERF_MAP = 2,
+	PERF_COPY = 3,
+	PERF_LINK = 4,
+	PERF_GETARGS = 5,
+	PERF_PUTARGS = 6,
+	PERF_INVARGS = 7,
+	PERF_INVOKE = 8,
+	PERF_KEY_MAX = 9,
+};
+
+struct fastrpc_perf {
+	int64_t count;
+	int64_t flush;
+	int64_t map;
+	int64_t copy;
+	int64_t link;
+	int64_t getargs;
+	int64_t putargs;
+	int64_t invargs;
+	int64_t invoke;
+	int64_t tid;
+	struct hlist_node hn;
+};
+
 struct fastrpc_file {
 	spinlock_t hlock;
 	struct hlist_head maps;
+	struct hlist_head perf;
 	struct hlist_head remote_bufs;
 	uint32_t mode;
 	uint32_t profile;
@@ -195,6 +249,7 @@ struct fastrpc_file {
 	int dsp_proc_init;
 	struct fastrpc_apps *apps;
 	struct dentry *debugfs_file;
+	struct mutex perf_mutex;
 	struct mutex map_mutex;
 	/* Identifies the device (MINOR_NUM_DEV / MINOR_NUM_SECURE_DEV) */
 	int dev_minor;
@@ -219,10 +274,9 @@ struct fastrpc_mmap {
 struct fastrpc_buf {
 	struct hlist_node hn_rem;
 	struct fastrpc_file *fl;
-	void *virt;
-	uint64_t phys;
 	size_t size;
-	unsigned long dma_attr;
+	struct sg_table sgt;
+	struct page **pages;
 	uintptr_t raddr;
 	uint32_t flags;
 	int remote;
@@ -241,6 +295,45 @@ static inline int64_t getnstimediff(struct timespec *start)
 	b = timespec_sub(ts, *start);
 	ns = timespec_to_ns(&b);
 	return ns;
+}
+
+static inline int64_t *getperfcounter(struct fastrpc_file *fl, int key)
+{
+	int err = 0;
+	int64_t *val = NULL;
+	struct fastrpc_perf *perf = NULL, *fperf = NULL;
+	struct hlist_node *n = NULL;
+
+	VERIFY(err, !IS_ERR_OR_NULL(fl));
+	if (err)
+		goto bail;
+
+	mutex_lock(&fl->perf_mutex);
+	hlist_for_each_entry_safe(perf, n, &fl->perf, hn) {
+		if (perf->tid == current->pid) {
+			fperf = perf;
+			break;
+		}
+	}
+
+	if (IS_ERR_OR_NULL(fperf)) {
+		fperf = kzalloc(sizeof(*fperf), GFP_KERNEL);
+
+		VERIFY(err, !IS_ERR_OR_NULL(fperf));
+		if (err) {
+			mutex_unlock(&fl->perf_mutex);
+			kfree(fperf);
+			goto bail;
+		}
+
+		fperf->tid = current->pid;
+		hlist_add_head(&fperf->hn, &fl->perf);
+	}
+
+	val = ((int64_t *)fperf) + key;
+	mutex_unlock(&fl->perf_mutex);
+bail:
+	return val;
 }
 
 static void *get_a_tx_buf(void)
@@ -487,6 +580,11 @@ static int virt_fastrpc_invoke(struct fastrpc_file *fl, uint32_t kernel,
 	struct fastrpc_mmap **maps;
 	size_t copylen = 0, size = 0;
 	char *payload;
+	struct timespec invoket = {0};
+	int64_t *perf_counter = getperfcounter(fl, PERF_COUNT);
+
+	if (fl->profile)
+		getnstimeofday(&invoket);
 
 	bufs = REMOTE_SCALARS_LENGTH(invoke->sc);
 	size = bufs * sizeof(*lpra) + bufs * sizeof(*fds)
@@ -509,6 +607,7 @@ static int virt_fastrpc_invoke(struct fastrpc_file *fl, uint32_t kernel,
 		fds = NULL;
 	}
 
+	PERF(fl->profile, GET_COUNTER(perf_counter, PERF_MAP),
 	/* calculate len required for copying */
 	for (i = 0; i < inbufs + outbufs; i++) {
 		size_t len = lpra[i].buf.len;
@@ -531,6 +630,7 @@ static int virt_fastrpc_invoke(struct fastrpc_file *fl, uint32_t kernel,
 		if (i < inbufs)
 			outbufs_offset += len;
 	}
+	PERF_END);
 	size = bufs * sizeof(*rpra) + copylen + sizeof(*vmsg);
 	msg = virt_alloc_msg(size);
 	if (!msg)
@@ -552,6 +652,7 @@ static int virt_fastrpc_invoke(struct fastrpc_file *fl, uint32_t kernel,
 	rpra = (struct virt_fastrpc_buf *)vmsg->pra;
 	payload = (char *)&rpra[bufs];
 
+	PERF(fl->profile, GET_COUNTER(perf_counter, PERF_COPY),
 	for (i = 0; i < inbufs + outbufs; i++) {
 		size_t len = lpra[i].buf.len;
 		struct sg_table *table;
@@ -583,7 +684,16 @@ static int virt_fastrpc_invoke(struct fastrpc_file *fl, uint32_t kernel,
 			payload += len;
 		}
 	}
+	PERF_END);
 
+	if (fl->profile) {
+		int64_t *count = GET_COUNTER(perf_counter, PERF_GETARGS);
+
+		if (count)
+			*count += getnstimediff(&invoket);
+	}
+
+	PERF(fl->profile, GET_COUNTER(perf_counter, PERF_LINK),
 	sg_init_one(sg, vmsg, size);
 
 	mutex_lock(&me->lock);
@@ -595,6 +705,7 @@ static int virt_fastrpc_invoke(struct fastrpc_file *fl, uint32_t kernel,
 
 	virtqueue_kick(me->svq);
 	mutex_unlock(&me->lock);
+	PERF_END);
 
 	wait_for_completion(&msg->work);
 
@@ -606,6 +717,7 @@ static int virt_fastrpc_invoke(struct fastrpc_file *fl, uint32_t kernel,
 	rpra = (struct virt_fastrpc_buf *)rsp->pra;
 	payload = (char *)&rpra[bufs] + outbufs_offset;
 
+	PERF(fl->profile, GET_COUNTER(perf_counter, PERF_PUTARGS),
 	for (i = inbufs; i < inbufs + outbufs; i++) {
 		if (!maps[i]) {
 			K_COPY_TO_USER(err, kernel, lpra[i].buf.pv,
@@ -620,6 +732,7 @@ static int virt_fastrpc_invoke(struct fastrpc_file *fl, uint32_t kernel,
 		}
 		payload += rpra[i].len;
 	}
+	PERF_END);
 bail:
 	if (rsp) {
 		sg_init_one(sg, rsp, me->buf_size);
@@ -652,8 +765,11 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl,
 	int domain = fl->domain;
 	int handles, err = 0;
 	struct timespec invoket = {0};
+	int64_t *perf_counter = getperfcounter(fl, PERF_COUNT);
 
-	getnstimeofday(&invoket);
+	if (fl->profile)
+		getnstimeofday(&invoket);
+
 	if (!kernel) {
 		VERIFY(err, invoke->handle != FASTRPC_STATIC_HANDLE_KERNEL);
 		if (err) {
@@ -680,6 +796,20 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl,
 	}
 
 	err = virt_fastrpc_invoke(fl, kernel, inv);
+	if (fl->profile) {
+		if (invoke->handle != FASTRPC_STATIC_HANDLE_LISTENER) {
+			int64_t *count = GET_COUNTER(perf_counter, PERF_INVOKE);
+
+			if (count)
+				*count += getnstimediff(&invoket);
+		}
+		if (invoke->handle > FASTRPC_STATIC_HANDLE_MAX) {
+			int64_t *count = GET_COUNTER(perf_counter, PERF_COUNT);
+
+			if (count)
+				*count = *count + 1;
+		}
+	}
 bail:
 	return err;
 }
@@ -704,6 +834,8 @@ static ssize_t fastrpc_debugfs_read(struct file *filp, char __user *buffer,
 	if (fl) {
 		len += scnprintf(fileinfo + len, DEBUGFS_SIZE - len,
 				"\n%s %d\n", " CHANNEL =", fl->domain);
+		len += scnprintf(fileinfo + len, DEBUGFS_SIZE - len,
+				"%s %9s %d\n", "profile", ":", fl->profile);
 	}
 
 	if (len > DEBUGFS_SIZE)
@@ -719,9 +851,98 @@ static const struct file_operations debugfs_fops = {
 	.read = fastrpc_debugfs_read,
 };
 
+static inline void fastprc_free_pages(struct page **pages, int count)
+{
+	while (count--)
+		__free_page(pages[count]);
+	kvfree(pages);
+}
+
+static struct page **fastrpc_alloc_pages(unsigned int count, gfp_t gfp)
+{
+	struct page **pages;
+	unsigned long order_mask = (2U << MAX_ORDER) - 1;
+	unsigned int i = 0, array_size = count * sizeof(*pages);
+
+	if (array_size <= PAGE_SIZE)
+		pages = kzalloc(array_size, GFP_KERNEL);
+	else
+		pages = vzalloc(array_size);
+	if (!pages)
+		return NULL;
+
+	/* IOMMU can map any pages, so himem can also be used here */
+	gfp |= __GFP_NOWARN | __GFP_HIGHMEM;
+
+	while (count) {
+		struct page *page = NULL;
+		unsigned int order_size;
+
+		/*
+		 * Higher-order allocations are a convenience rather
+		 * than a necessity, hence using __GFP_NORETRY until
+		 * falling back to minimum-order allocations.
+		 */
+		for (order_mask &= (2U << __fls(count)) - 1;
+		     order_mask; order_mask &= ~order_size) {
+			unsigned int order = __fls(order_mask);
+
+			order_size = 1U << order;
+			page = alloc_pages(order ?
+					   (gfp | __GFP_NORETRY) &
+						~__GFP_RECLAIM : gfp, order);
+			if (!page)
+				continue;
+			if (!order)
+				break;
+			if (!PageCompound(page)) {
+				split_page(page, order);
+				break;
+			} else if (!split_huge_page(page)) {
+				break;
+			}
+			__free_pages(page, order);
+		}
+		if (!page) {
+			fastprc_free_pages(pages, i);
+			return NULL;
+		}
+		count -= order_size;
+		while (order_size--)
+			pages[i++] = page++;
+	}
+	return pages;
+}
+
+static struct page **fastrpc_alloc_buffer(struct fastrpc_buf *buf, gfp_t gfp)
+{
+	struct page **pages;
+	unsigned int count = PAGE_ALIGN(buf->size) >> PAGE_SHIFT;
+
+	pages = fastrpc_alloc_pages(count, gfp);
+	if (!pages)
+		return NULL;
+
+	if (sg_alloc_table_from_pages(&buf->sgt, pages, count, 0,
+				buf->size, GFP_KERNEL))
+		goto out_free_pages;
+	return pages;
+
+out_free_pages:
+	fastprc_free_pages(pages, count);
+	return NULL;
+}
+
+static inline void fastrpc_free_buffer(struct fastrpc_buf *buf)
+{
+	unsigned int count = PAGE_ALIGN(buf->size) >> PAGE_SHIFT;
+
+	sg_free_table(&buf->sgt);
+	fastprc_free_pages(buf->pages, count);
+}
+
 static void fastrpc_buf_free(struct fastrpc_buf *buf)
 {
-	struct fastrpc_apps *me = &gfa;
 	struct fastrpc_file *fl = buf == NULL ? NULL : buf->fl;
 
 	if (!fl)
@@ -735,15 +956,14 @@ static void fastrpc_buf_free(struct fastrpc_buf *buf)
 		buf->raddr = 0;
 	}
 
-	if (!IS_ERR_OR_NULL(buf->virt))
-		dma_free_attrs(me->dev, buf->size, buf->virt,
-					buf->phys, buf->dma_attr);
+	if (!IS_ERR_OR_NULL(buf->pages))
+		fastrpc_free_buffer(buf);
 	kfree(buf);
 }
 
 static int fastrpc_buf_alloc(struct fastrpc_file *fl, size_t size,
-				unsigned long dma_attr, uint32_t rflags,
-				int remote, struct fastrpc_buf **obuf)
+				uint32_t rflags, int remote,
+				struct fastrpc_buf **obuf)
 {
 	struct fastrpc_apps *me = &gfa;
 	struct fastrpc_buf *buf = NULL;
@@ -757,21 +977,16 @@ static int fastrpc_buf_alloc(struct fastrpc_file *fl, size_t size,
 	if (err)
 		goto bail;
 	buf->fl = fl;
-	buf->virt = NULL;
-	buf->phys = 0;
 	buf->size = size;
-	buf->dma_attr = 0;
 	buf->flags = rflags;
 	buf->raddr = 0;
 	buf->remote = 0;
-	buf->virt = dma_alloc_attrs(me->dev, buf->size,
-					(dma_addr_t *)&buf->phys,
-					GFP_KERNEL, buf->dma_attr);
-	if (IS_ERR_OR_NULL(buf->virt)) {
+	buf->pages = fastrpc_alloc_buffer(buf, GFP_KERNEL);
+	if (IS_ERR_OR_NULL(buf->pages)) {
 		err = -ENOMEM;
 		dev_err(me->dev,
-			"%s: %s: dma_alloc_attrs failed for size 0x%zx, returned %ld\n",
-			current->comm, __func__, size, PTR_ERR(buf->virt));
+			"%s: %s: fastrpc_alloc_buffer failed for size 0x%zx, returned %ld\n",
+			current->comm, __func__, size, PTR_ERR(buf->pages));
 		goto bail;
 	}
 
@@ -849,6 +1064,7 @@ static int fastrpc_open(struct inode *inode, struct file *filp)
 
 	spin_lock_init(&fl->hlock);
 	INIT_HLIST_HEAD(&fl->maps);
+	INIT_HLIST_HEAD(&fl->perf);
 	INIT_HLIST_HEAD(&fl->remote_bufs);
 	fl->tgid = current->tgid;
 	fl->apps = me;
@@ -861,13 +1077,14 @@ static int fastrpc_open(struct inode *inode, struct file *filp)
 	fl->dsp_proc_init = 0;
 	filp->private_data = fl;
 	mutex_init(&fl->map_mutex);
+	mutex_init(&fl->perf_mutex);
 	return 0;
 }
 
 static int fastrpc_file_free(struct fastrpc_file *fl)
 {
-	struct fastrpc_apps *me = &gfa;
 	struct fastrpc_mmap *map = NULL, *lmap = NULL;
+	struct fastrpc_perf *perf = NULL, *fperf = NULL;
 
 	if (!fl)
 		return 0;
@@ -893,6 +1110,21 @@ static int fastrpc_file_free(struct fastrpc_file *fl)
 		fastrpc_mmap_free(lmap);
 	} while (lmap);
 	mutex_unlock(&fl->map_mutex);
+
+	mutex_lock(&fl->perf_mutex);
+	do {
+		struct hlist_node *pn = NULL;
+
+		fperf = NULL;
+		hlist_for_each_entry_safe(perf, pn, &fl->perf, hn) {
+			hlist_del_init(&perf->hn);
+			fperf = perf;
+			break;
+		}
+		kfree(fperf);
+	} while (fperf);
+	mutex_unlock(&fl->perf_mutex);
+	mutex_destroy(&fl->perf_mutex);
 
 	fastrpc_remote_buf_list_free(fl);
 	mutex_destroy(&fl->map_mutex);
@@ -1122,8 +1354,13 @@ static int virt_fastrpc_mmap(struct fastrpc_file *fl, uint32_t flags,
 	sgbuf = vmsg->sgl;
 
 	for_each_sg(table, sgl, nents, sgl_index) {
-		sgbuf[sgl_index].pv = sg_dma_address(sgl);
-		sgbuf[sgl_index].len = sg_dma_len(sgl);
+		if (sg_dma_len(sgl)) {
+			sgbuf[sgl_index].pv = sg_dma_address(sgl);
+			sgbuf[sgl_index].len = sg_dma_len(sgl);
+		} else {
+			sgbuf[sgl_index].pv = page_to_phys(sg_page(sgl));
+			sgbuf[sgl_index].len = sgl->length;
+		}
 	}
 
 	sg_init_one(sg, vmsg, total_size);
@@ -1167,7 +1404,6 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 	struct fastrpc_apps *me = fl->apps;
 	struct fastrpc_mmap *map = NULL;
 	struct fastrpc_buf *rbuf = NULL;
-	unsigned long dma_attr = 0;
 	uintptr_t raddr = 0;
 	int err = 0;
 
@@ -1179,27 +1415,17 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 		goto bail;
 	}
 	if (ud->flags == ADSP_MMAP_ADD_PAGES) {
-		struct scatterlist sg[1];
-
 		if (ud->vaddrin) {
 			err = -EINVAL;
 			dev_err(me->dev, "%s: %s: ERROR: adding user allocated pages is not supported\n",
 					current->comm, __func__);
 			goto bail;
 		}
-		dma_attr = DMA_ATTR_EXEC_MAPPING |
-				DMA_ATTR_DELAYED_UNMAP |
-				DMA_ATTR_NO_KERNEL_MAPPING |
-				DMA_ATTR_FORCE_NON_COHERENT;
-		err = fastrpc_buf_alloc(fl, ud->size, dma_attr, ud->flags,
-					1, &rbuf);
+		err = fastrpc_buf_alloc(fl, ud->size, ud->flags, 1, &rbuf);
 		if (err)
 			goto bail;
-		sg_init_table(sg, 1);
-		sg_dma_address(sg) = rbuf->phys;
-		sg_dma_len(sg) = rbuf->size;
-		err = virt_fastrpc_mmap(fl, ud->flags, 0, sg,
-					1, rbuf->size, &raddr);
+		err = virt_fastrpc_mmap(fl, ud->flags, 0, rbuf->sgt.sgl,
+					rbuf->sgt.nents, rbuf->size, &raddr);
 		if (err)
 			goto bail;
 		rbuf->raddr = raddr;
@@ -1661,8 +1887,7 @@ static long fastrpc_ioctl(struct file *file, unsigned int ioctl_num,
 			fl->mode = (uint32_t)ioctl_param;
 			break;
 		case FASTRPC_MODE_PROFILE:
-			err = -ENOTTY;
-			dev_err(me->dev, "profile mode is not supported\n");
+			fl->profile = (uint32_t)ioctl_param;
 			break;
 		case FASTRPC_MODE_SESSION:
 			err = -ENOTTY;
@@ -1674,8 +1899,43 @@ static long fastrpc_ioctl(struct file *file, unsigned int ioctl_num,
 		}
 		break;
 	case FASTRPC_IOCTL_GETPERF:
-		err = -ENOTTY;
-		dev_err(me->dev, "get perf is not supported\n");
+		K_COPY_FROM_USER(err, 0, &p.perf,
+					param, sizeof(p.perf));
+		if (err)
+			goto bail;
+		p.perf.numkeys = sizeof(struct fastrpc_perf)/sizeof(int64_t);
+		if (p.perf.keys) {
+			char *keys = PERF_KEYS;
+
+			K_COPY_TO_USER(err, 0, (void *)p.perf.keys,
+						keys, strlen(keys)+1);
+			if (err)
+				goto bail;
+		}
+		if (p.perf.data) {
+			struct fastrpc_perf *perf = NULL, *fperf = NULL;
+			struct hlist_node *n = NULL;
+
+			mutex_lock(&fl->perf_mutex);
+			hlist_for_each_entry_safe(perf, n, &fl->perf, hn) {
+				if (perf->tid == current->pid) {
+					fperf = perf;
+					break;
+				}
+			}
+
+			mutex_unlock(&fl->perf_mutex);
+
+			if (fperf) {
+				K_COPY_TO_USER(err, 0,
+					(void *)p.perf.data, fperf,
+					sizeof(*fperf) -
+					sizeof(struct hlist_node));
+			}
+		}
+		K_COPY_TO_USER(err, 0, param, &p.perf, sizeof(p.perf));
+		if (err)
+			goto bail;
 		break;
 	case FASTRPC_IOCTL_CONTROL:
 		K_COPY_FROM_USER(err, 0, &p.cp, param,
