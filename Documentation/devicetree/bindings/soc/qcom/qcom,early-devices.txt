@@ -1,0 +1,35 @@
+* early-devices
+
+Some initcall stage takes long time to finish and it's better we launch some
+of our userspace applications earlier before these initcalls. This way, the
+userspace applications we care after system booting can start to work earlier
+and provide better user experience.
+To achieve this, we need to populate and probe some platform devices earlier
+(thus its name early-devices) since these devices are commonly needed by all
+other subsystems. Usually this list of devices includes clock, regulator,
+bus components, iommu, crypto device, etc. and it's soc related(depends on
+how these devices are connected in hardware in specific soc).
+
+Required properties:
+- compatible:
+	Usage: required for early-devices
+	Value type: <stringlist>
+	Definition: must be "qcom,early-devices"
+- devices:
+	Usage: required
+	Value type: <phandle array>
+	Definition: nodes handle for early devices.
+
+Example:
+	early-devices {
+		compatible = "qcom,early-devices";
+		devices = <&ufs_phy_gdsc &clock_rpmh &clock_gcc
+			&ad_hoc_bus &ufs_ice &ufsphy_mem
+			&ufshc_mem &apps_rsc &cmd_db
+			&ldoa10 &ldoc5 &ldoc8
+			&smpa4 &tlmm &ldoa5
+			&cxlvl &mxlvl &bps_gdsc
+			&ipe_0_gdsc &ipe_1_gdsc &ife_0_gdsc
+			&ife_1_gdsc &titan_top_gdsc &mvsc_gdsc
+			&mvs0_gdsc &mvs1_gdsc>;
+	};

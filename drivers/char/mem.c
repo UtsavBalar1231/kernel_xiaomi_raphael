@@ -959,4 +959,4 @@ static int __init chr_dev_init(void)
 	return tty_init();
 }
 
-fs_initcall(chr_dev_init);
+early_fs_initcall(chr_dev_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);

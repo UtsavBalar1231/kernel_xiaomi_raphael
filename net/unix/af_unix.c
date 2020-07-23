@@ -2973,7 +2973,7 @@ static void __exit af_unix_exit(void)
    request_module() don't end up in a loop when modprobe tries
    to use a UNIX socket. But later than subsys_initcall() because
    we depend on stuff initialised there */
-fs_initcall(af_unix_init);
+early_fs_initcall(af_unix_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
 module_exit(af_unix_exit);
 
 MODULE_LICENSE("GPL");

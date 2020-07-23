@@ -1758,6 +1758,10 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 			}
 
 			mhi_cntrl->bhie = mhi_cntrl->regs + bhie_off;
+			memset_io(mhi_cntrl->bhie + BHIE_RXVECADDR_LOW_OFFS, 0,
+				  BHIE_RXVECSTATUS_OFFS - BHIE_RXVECADDR_LOW_OFFS + 4);
+		} else {
+			MHI_ERR("Don't do memset_io for qcn7605\n");
 		}
 
 		if (mhi_cntrl->rddm_image)

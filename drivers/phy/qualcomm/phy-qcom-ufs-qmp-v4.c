@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,6 +10,9 @@
  * GNU General Public License for more details.
  *
  */
+
+#include <linux/ctype.h>
+#include <linux/cpu.h>
 
 #include "phy-qcom-ufs-qmp-v4.h"
 
@@ -288,7 +291,8 @@ static struct platform_driver ufs_qcom_phy_qmp_v4_driver = {
 	},
 };
 
-module_platform_driver(ufs_qcom_phy_qmp_v4_driver);
+early_module_platform_driver(ufs_qcom_phy_qmp_v4_driver, EARLY_SUBSYS_1,
+EARLY_INIT_LEVEL2);
 
 MODULE_DESCRIPTION("Universal Flash Storage (UFS) QCOM PHY QMP v4");
 MODULE_LICENSE("GPL v2");

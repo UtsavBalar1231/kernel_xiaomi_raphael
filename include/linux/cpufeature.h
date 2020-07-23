@@ -57,5 +57,18 @@ static int __init cpu_feature_match_ ## x ## _init(void)	\
 }								\
 module_init(cpu_feature_match_ ## x ## _init)
 
+#define early_module_cpu_feature_match(x, __initfunc, subsys, level) \
+static struct cpu_feature const __maybe_unused cpu_feature_match_ ## x[] = \
+	{ { .feature = cpu_feature(x) }, { } };			\
+MODULE_DEVICE_TABLE(cpu, cpu_feature_match_ ## x);		\
+								\
+static int __init cpu_feature_match_ ## x ## _init(void)	\
+{								\
+	if (!cpu_have_feature(cpu_feature(x)))			\
+		return -ENODEV;					\
+	return __initfunc();					\
+}								\
+early_module_init(cpu_feature_match_ ## x ## _init, subsys, level)
+
 #endif
 #endif

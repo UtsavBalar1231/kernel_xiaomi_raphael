@@ -915,4 +915,5 @@ static int __init blk_settings_init(void)
 	blk_max_pfn = max_pfn - 1;
 	return 0;
 }
-subsys_initcall(blk_settings_init);
+early_subsys_initcall(blk_settings_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL8);

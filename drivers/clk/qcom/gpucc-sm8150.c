@@ -540,7 +540,8 @@ static int __init gpu_cc_sm8150_init(void)
 {
 	return platform_driver_register(&gpu_cc_sm8150_driver);
 }
-subsys_initcall(gpu_cc_sm8150_init);
+early_subsys_initcall(gpu_cc_sm8150_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL5);
 
 static void __exit gpu_cc_sm8150_exit(void)
 {

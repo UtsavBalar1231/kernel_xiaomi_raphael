@@ -1289,7 +1289,8 @@ static int __init clk_cpu_osm_init(void)
 {
 	return platform_driver_register(&clk_cpu_osm_driver);
 }
-subsys_initcall(clk_cpu_osm_init);
+early_subsys_initcall(clk_cpu_osm_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL5);
 
 static void __exit clk_cpu_osm_exit(void)
 {

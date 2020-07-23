@@ -1517,11 +1517,13 @@ static int32_t cam_cci_read(struct v4l2_subdev *sd,
 			rc = wait_for_completion_timeout(
 			&cci_dev->cci_master_info[master].reset_complete,
 			CCI_TIMEOUT);
-		}
-		if (rc <= 0) {
-			CAM_ERR(CAM_CCI,
-				"wait_for_completion_timeout rc = %d, rc");
-		}
+			if (rc <= 0) {
+				CAM_ERR(CAM_CCI,
+					"wait_for_completion_timeout rc = %d, rc");
+			} else
+				rc = 0;
+		} else
+			rc = 0;
 	}
 
 	read_words = cam_io_r_mb(base +

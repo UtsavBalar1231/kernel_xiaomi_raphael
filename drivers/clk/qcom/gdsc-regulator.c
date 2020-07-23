@@ -1060,7 +1060,7 @@ static int __init gdsc_init(void)
 {
 	return platform_driver_register(&gdsc_driver);
 }
-subsys_initcall(gdsc_init);
+early_subsys_initcall(gdsc_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL0);
 
 static void __exit gdsc_exit(void)
 {

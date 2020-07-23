@@ -4737,7 +4737,7 @@ static int __init usbpd_init(void)
 	usbpd_ipc_log = ipc_log_context_create(NUM_LOG_PAGES, "usb_pd", 0);
 	return class_register(&usbpd_class);
 }
-module_init(usbpd_init);
+early_module_init(usbpd_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
 
 static void __exit usbpd_exit(void)
 {

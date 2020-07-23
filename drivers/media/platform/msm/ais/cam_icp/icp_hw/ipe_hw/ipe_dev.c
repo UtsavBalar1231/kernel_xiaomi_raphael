@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -200,7 +200,7 @@ static void __exit cam_ipe_exit_module(void)
 	platform_driver_unregister(&cam_ipe_driver);
 }
 
-module_init(cam_ipe_init_module);
+early_module_init(cam_ipe_init_module, EARLY_SUBSYS_3, EARLY_INIT_LEVEL2);
 module_exit(cam_ipe_exit_module);
 MODULE_DESCRIPTION("CAM IPE driver");
 MODULE_LICENSE("GPL v2");

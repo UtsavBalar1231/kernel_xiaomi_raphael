@@ -1166,10 +1166,9 @@ static int ais_ife_csid_reserve(void *hw_priv,
 
 	if (csid_hw->device_enabled == 0) {
 		rc = ais_ife_csid_reset_retain_sw_reg(csid_hw);
-		if (rc < 0) {
+		if (rc < 0)
 			CAM_ERR(CAM_ISP, "CSID: Failed in SW reset");
-			goto disable_csi2;
-		} else {
+		else {
 			CAM_DBG(CAM_ISP, "CSID: SW reset Successful");
 			spin_lock_irqsave(&csid_hw->lock_state, flags);
 			csid_hw->device_enabled = 1;

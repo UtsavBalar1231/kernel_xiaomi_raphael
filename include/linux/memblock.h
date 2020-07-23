@@ -322,6 +322,8 @@ void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
 void memblock_mem_limit_remove_map(phys_addr_t limit);
 bool memblock_is_memory(phys_addr_t addr);
 int memblock_is_map_memory(phys_addr_t addr);
+int memblock_search_pfn_and_next(unsigned long start_pfn, unsigned long size,
+			unsigned long *valid_size, unsigned long *next_pfn);
 int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
 bool memblock_is_reserved(phys_addr_t addr);
 bool memblock_is_region_reserved(phys_addr_t base, phys_addr_t size);
@@ -423,6 +425,12 @@ static inline phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align)
 
 static inline unsigned long memblock_reserved_memory_within(phys_addr_t start_addr,
 		phys_addr_t end_addr)
+{
+	return 0;
+}
+
+static inline int memblock_search_pfn_and_next(unsigned long start_pfn,
+	unsigned long size, unsigned long *valid_size, unsigned long *next_pfn)
 {
 	return 0;
 }

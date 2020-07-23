@@ -44,7 +44,7 @@
 	};
 
 	/* PM8195_1 S2 = VDDCX_MM supply */
-	rpmh-regulator-mmcxlvl {
+	mmcxlvl: rpmh-regulator-mmcxlvl {
 		compatible = "qcom,rpmh-arc-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "mmcx.lvl";
@@ -145,7 +145,7 @@
 	};
 
 	/* PM8195_1 S10 = VDD_MX supply */
-	rpmh-regulator-mxlvl {
+	mxlvl: rpmh-regulator-mxlvl {
 		compatible = "qcom,rpmh-arc-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "mx.lvl";
@@ -213,7 +213,7 @@
 		};
 	};
 
-	rpmh-regulator-ldoa5 {
+	ldoa5: rpmh-regulator-ldoa5 {
 		compatible = "qcom,rpmh-vrm-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "ldoa5";
@@ -252,7 +252,7 @@
 		};
 	};
 
-	rpmh-regulator-ldoa10 {
+	ldoa10: rpmh-regulator-ldoa10 {
 		compatible = "qcom,rpmh-vrm-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "ldoa10";
@@ -459,7 +459,7 @@
 	};
 
 	/* PM8195_2 S10 + S9 + S8 + S7 + S6 = VDD_GFX supply */
-	rpmh-regulator-gfxlvl {
+	gfxlvl: rpmh-regulator-gfxlvl {
 		compatible = "qcom,rpmh-arc-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "gfx.lvl";
@@ -495,7 +495,7 @@
 		};
 	};
 
-	rpmh-regulator-ldoc5 {
+	ldoc5: rpmh-regulator-ldoc5 {
 		compatible = "qcom,rpmh-vrm-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "ldoc5";
@@ -592,7 +592,7 @@
 
 
 	/* PM8195_3 S3 + S2 + S1 = VDD_CX supply */
-	rpmh-regulator-cxlvl {
+	cxlvl: rpmh-regulator-cxlvl {
 		compatible = "qcom,rpmh-arc-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "cx.lvl";
@@ -708,7 +708,7 @@
 	};
 
 	/* pm8195_3 L8 - LPI_CX supply */
-	rpmh-regulator-lcxlvl {
+	lcxlvl: rpmh-regulator-lcxlvl {
 		compatible = "qcom,rpmh-arc-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "lcx.lvl";

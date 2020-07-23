@@ -76,7 +76,8 @@ static void __exit ais_ife_csid17x_exit_module(void)
 	platform_driver_unregister(&ais_ife_csid17x_driver);
 }
 
-module_init(ais_ife_csid17x_init_module);
+early_module_init(ais_ife_csid17x_init_module, EARLY_SUBSYS_3,
+EARLY_INIT_LEVEL2);
 module_exit(ais_ife_csid17x_exit_module);
 MODULE_DESCRIPTION("AIS IFE_CSID17X driver");
 MODULE_LICENSE("GPL v2");

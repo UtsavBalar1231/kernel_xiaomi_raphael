@@ -4970,7 +4970,7 @@ static void __exit cfq_exit(void)
 	kmem_cache_destroy(cfq_pool);
 }
 
-module_init(cfq_init);
+early_module_init(cfq_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
 module_exit(cfq_exit);
 
 MODULE_AUTHOR("Jens Axboe");

@@ -470,7 +470,7 @@ static int __init fsa4480_init(void)
 
 	return rc;
 }
-module_init(fsa4480_init);
+early_module_init(fsa4480_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL3);
 
 static void __exit fsa4480_exit(void)
 {

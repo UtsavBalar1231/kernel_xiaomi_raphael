@@ -1523,6 +1523,31 @@ static void __exit __driver##_exit(void) \
 } \
 module_exit(__driver##_exit);
 
+#define early_module_driver(__driver, subsys, level, __register, __unregister) \
+static int __init __driver##_init(void) \
+{ \
+	return __register(&(__driver)); \
+} \
+early_module_init(__driver##_init, subsys, level); \
+static void __exit __driver##_exit(void) \
+{ \
+	__unregister(&(__driver)); \
+} \
+module_exit(__driver##_exit)
+
+#define early_module_driver_async(__driver, subsys, level, __register, \
+	__unregister) \
+static int __init __driver##_init(void) \
+{ \
+	return __register(&(__driver)); \
+} \
+early_module_init_async(__driver##_init, subsys, level); \
+static void __exit __driver##_exit(void) \
+{ \
+	__unregister(&(__driver)); \
+} \
+module_exit(__driver##_exit)
+
 /**
  * builtin_driver() - Helper macro for drivers that don't do anything
  * special in init and have no exit. This eliminates some boilerplate.
