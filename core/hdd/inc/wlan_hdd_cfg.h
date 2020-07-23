@@ -6425,7 +6425,7 @@ enum hdd_link_speed_rpt_type {
  * gSapGetPeerInfo - Enable/Disable remote peer info query support
  * @Min: 0 - Disable remote peer info query support
  * @Max: 1 - Enable remote peer info query support
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to enable/disable remote peer info query support
  *
@@ -6436,7 +6436,7 @@ enum hdd_link_speed_rpt_type {
 #define CFG_SAP_GET_PEER_INFO                      "gSapGetPeerInfo"
 #define CFG_SAP_GET_PEER_INFO_MIN                   (0)
 #define CFG_SAP_GET_PEER_INFO_MAX                   (1)
-#define CFG_SAP_GET_PEER_INFO_DEFAULT               (0)
+#define CFG_SAP_GET_PEER_INFO_DEFAULT               (1)
 
 /*
  * <ini>
@@ -10073,6 +10073,27 @@ enum dot11p_mode {
 
 /*
  * <ini>
+ * enable_dynamic_nss_chain_config - Enable/Disable dynamic nss and chain config
+ * to FW.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * Related: STA/SAP/P2P/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG       "enable_dynamic_nss_chain_config"
+#define CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG_MIN   0
+#define CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG_MAX   1
+#define CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG_DEF   1
+
+/*
+ * <ini>
  * disable_rx_mrc_5g - Config Param to disable 2 chains in 1x1 nss mode
  * @Min: 0
  * @Max: 1
@@ -10236,6 +10257,27 @@ enum dot11p_mode {
 #define CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_MIN          (0)
 #define CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_MAX          (1)
 #define CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_DEFAULT      (1)
+
+/*
+ * <ini>
+ * g_enable_go_force_scc - Enable/Disable force SCC on P2P GO
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini and along with "gWlanMccToSccSwitchMode" is used to enable
+ * force SCC on P2P GO interface.
+ *
+ * Supported Feature: P2P GO
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_P2P_GO_ENABLE_FORCE_SCC              "g_enable_go_force_scc"
+#define CFG_P2P_GO_ENABLE_FORCE_SCC_MIN          (0)
+#define CFG_P2P_GO_ENABLE_FORCE_SCC_MAX          (1)
+#define CFG_P2P_GO_ENABLE_FORCE_SCC_DEFAULT      (0)
 
 /*
  * gPNOChannelPrediction will allow user to enable/disable the
@@ -18361,6 +18403,7 @@ struct hdd_config {
 	uint8_t dbs_scan_selection[CFG_DBS_SCAN_PARAM_LENGTH];
 	uint32_t sta_sap_scc_on_dfs_chan;
 	uint32_t sta_sap_scc_on_lte_coex_chan;
+	uint32_t go_force_scc;
 	bool     tx_chain_mask_cck;
 	uint8_t  tx_chain_mask_1ss;
 	bool smart_chainmask_enabled;
@@ -18716,6 +18759,7 @@ struct hdd_config {
 	bool disable_rx_mrc_2g;
 	bool disable_tx_mrc_5g;
 	bool disable_rx_mrc_5g;
+	bool enable_dynamic_nss_chains_cfg;
 	bool mac_provision;
 	uint32_t provisioned_intf_pool;
 	uint32_t derived_intf_pool;
