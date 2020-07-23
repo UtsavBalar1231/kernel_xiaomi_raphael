@@ -25,7 +25,7 @@ static const unsigned int orders[] = {9, 4, 0};
 static const unsigned int orders[] = {0};
 #endif
 
-#define NUM_ORDERS ARRAY_SIZE(orders)
+#define NUM_ORDERS (int)ARRAY_SIZE(orders)
 
 struct ion_system_heap {
 	struct ion_heap heap;
