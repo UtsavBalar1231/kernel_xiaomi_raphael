@@ -3917,6 +3917,15 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 									  "failed to do the RX dma map\n");
 
 							goto rx_tstmp_failed;
+						} else {
+						   /* HW timestamp consumes one full DMA descriptor.
+						   * We need to unmap the DMA buffer here otherwise when IOMMU
+						   * is enabled we leak the mappings and eventually run out of them.
+						   * The skb will be safely reused and doesn't need to be freed.
+						   */
+						   buffer = GET_RX_BUF_PTR(qinx, desc_data->cur_rx);
+						   dma_unmap_single(GET_MEM_PDEV_DEV, buffer->dma, pdata->rx_buffer_len, DMA_FROM_DEVICE);
+						   buffer->dma = 0;
 						}
 					}
 				}
