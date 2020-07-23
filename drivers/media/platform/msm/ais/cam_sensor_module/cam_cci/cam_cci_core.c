@@ -1513,6 +1513,7 @@ static int32_t cam_cci_read(struct v4l2_subdev *sd,
 	} else {
 		//If rd_done is complete with NACK wait until RESET_ACK
 		//is received.
+		rc = 0;
 		if (cci_dev->cci_master_info[master].status == -EINVAL) {
 			rc = wait_for_completion_timeout(
 			&cci_dev->cci_master_info[master].reset_complete,
@@ -1522,8 +1523,7 @@ static int32_t cam_cci_read(struct v4l2_subdev *sd,
 					"wait_for_completion_timeout rc = %d, rc");
 			} else
 				rc = 0;
-		} else
-			rc = 0;
+		}
 	}
 
 	read_words = cam_io_r_mb(base +

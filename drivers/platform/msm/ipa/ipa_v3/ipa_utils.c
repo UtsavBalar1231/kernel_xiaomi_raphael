@@ -409,7 +409,7 @@ static const struct rsrc_min_max ipa3_rsrc_src_grp_config
 	[IPA_4_5_MHI] = {
 		/* PCIE  DDR  DMA  QDSS  unused  N/A */
 		[IPA_v4_0_RSRC_GRP_TYPE_SRC_PKT_CONTEXTS] = {
-		{3, 8}, {4, 11}, {1, 1}, {1, 1}, {0, 0}, {0, 0} },
+		{3, 8}, {4, 11}, {1, 6}, {1, 1}, {0, 0}, {0, 0} },
 		[IPA_v4_0_RSRC_GRP_TYPE_SRS_DESCRIPTOR_LISTS] = {
 		{9, 9}, {12, 12}, {2, 2}, {2, 2}, {0, 0}, {0, 0} },
 		[IPA_v4_0_RSRC_GRP_TYPE_SRC_DESCRIPTOR_BUFF] = {
@@ -435,7 +435,7 @@ static const struct rsrc_min_max ipa3_rsrc_src_grp_config
 	[IPA_4_5_AUTO_MHI] = {
 		/* PCIE  DDR  DMA/CV2X  QDSS  unused  N/A */
 		[IPA_v4_0_RSRC_GRP_TYPE_SRC_PKT_CONTEXTS] = {
-		{3, 8}, {4, 11}, {1, 1}, {1, 1}, {0, 0}, {0, 0} },
+		{3, 8}, {4, 11}, {1, 6}, {1, 1}, {0, 0}, {0, 0} },
 		[IPA_v4_0_RSRC_GRP_TYPE_SRS_DESCRIPTOR_LISTS] = {
 		{9, 9}, {12, 12}, {2, 2}, {2, 2}, {0, 0}, {0, 0} },
 		[IPA_v4_0_RSRC_GRP_TYPE_SRC_DESCRIPTOR_BUFF] = {
@@ -2005,6 +2005,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_REP_SEQ_TYPE_2PKT_PROC_PASS_NO_DEC_UCP_DMAP,
 			QMB_MASTER_SELECT_DDR,
 			{ 9, 0, 8, 16, IPA_EE_UC } },
+	[IPA_4_1_APQ][IPA_CLIENT_WLAN2_PROD] = {
+			true, IPA_v4_0_GROUP_UL_DL,
+			true,
+			IPA_DPS_HPS_REP_SEQ_TYPE_2PKT_PROC_PASS_NO_DEC_UCP_DMAP,
+			QMB_MASTER_SELECT_DDR,
+			{ 7, 9, 8, 16, IPA_EE_AP } },
 	/* Only for test purpose */
 	[IPA_4_1_APQ][IPA_CLIENT_TEST_PROD]           = {
 			true, IPA_v4_0_GROUP_UL_DL,
@@ -2061,6 +2067,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_INVALID,
 			QMB_MASTER_SELECT_DDR,
 			{ 22, 1, 9, 9, IPA_EE_UC } },
+	[IPA_4_1_APQ][IPA_CLIENT_WLAN2_CONS] = {
+			true, IPA_v4_0_GROUP_UL_DL,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_INVALID,
+			QMB_MASTER_SELECT_DDR,
+			{ 17, 1, 8, 13, IPA_EE_AP } },
 	/* Only for test purpose */
 	/* MBIM aggregation test pipes should have the same QMB as USB_CONS */
 	[IPA_4_1_APQ][IPA_CLIENT_TEST_CONS]           = {
@@ -8021,6 +8033,16 @@ static int _ipa_suspend_resume_pipe(enum ipa_client_type client, bool suspend)
 			ipa_assert();
 		}
 	} else {
+		if (IPA_CLIENT_IS_APPS_PROD(client) ||
+			(client == IPA_CLIENT_APPS_WAN_CONS &&
+			coal_ep_idx != IPA_EP_NOT_ALLOCATED))
+			goto chan_statrt;
+		if (!atomic_read(&ep->sys->curr_polling_state)) {
+			IPADBG("switch ch %ld to callback\n", ep->gsi_chan_hdl);
+			gsi_config_channel_mode(ep->gsi_chan_hdl,
+					GSI_CHAN_MODE_CALLBACK);
+		}
+chan_statrt:
 		res = gsi_start_channel(ep->gsi_chan_hdl);
 		if (res) {
 			IPAERR("failed to start LAN channel\n");
@@ -8047,12 +8069,7 @@ static int _ipa_suspend_resume_pipe(enum ipa_client_type client, bool suspend)
 		gsi_config_channel_mode(ep->gsi_chan_hdl, GSI_CHAN_MODE_POLL);
 		if (!ipa3_gsi_channel_is_quite(ep))
 			return -EAGAIN;
-	} else if (!atomic_read(&ep->sys->curr_polling_state)) {
-		IPADBG("switch ch %ld to callback\n", ep->gsi_chan_hdl);
-		gsi_config_channel_mode(ep->gsi_chan_hdl,
-			GSI_CHAN_MODE_CALLBACK);
 	}
-
 	return 0;
 }
 
