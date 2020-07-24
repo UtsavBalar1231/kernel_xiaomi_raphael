@@ -36,7 +36,9 @@ int crus_sp_init(void);
 int msm_mdf_init(void);
 void msm_mdf_exit(void);
 #else
+#ifdef CONFIG_ELLIPTIC_ULTRASOUND
 int elliptic_driver_init(void);
+#endif
 /* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 int mius_driver_init(void);
@@ -81,7 +83,9 @@ void q6asm_exit(void);
 void afe_exit(void);
 void adm_exit(void);
 void adsp_err_exit(void);
+#ifdef CONFIG_ELLIPTIC_ULTRASOUND
 int elliptic_driver_exit(void);
+#endif
 /* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 int mius_driver_exit(void);

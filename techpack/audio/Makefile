@@ -69,6 +69,9 @@ endif
 
 obj-y += soc/
 obj-y += dsp/
+ifeq ($(CONFIG_ELLIPTIC_ULTRASOUND), y)
+obj-y += dsp/elliptic
+endif
 #for mius start
 ifeq ($(CONFIG_US_PROXIMITY), y)
 obj-y += dsp/mius
