@@ -1852,5 +1852,6 @@ static void __exit firmware_class_exit(void)
 #endif
 }
 
-fs_initcall(firmware_class_init);
+early_fs_initcall(firmware_class_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL8);
 module_exit(firmware_class_exit);

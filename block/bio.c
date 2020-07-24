@@ -2222,4 +2222,4 @@ static int __init init_bio(void)
 
 	return 0;
 }
-subsys_initcall(init_bio);
+early_subsys_initcall(init_bio, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);

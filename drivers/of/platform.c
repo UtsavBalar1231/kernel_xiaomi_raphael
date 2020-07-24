@@ -441,6 +441,13 @@ int of_platform_bus_probe(struct device_node *root,
 }
 EXPORT_SYMBOL(of_platform_bus_probe);
 
+int of_platform_node_probe(struct device_node *np,
+				struct device *parent)
+{
+	return of_platform_bus_create(np, of_default_bus_match_table, NULL,
+		parent, true);
+}
+
 /**
  * of_platform_populate() - Populate platform_devices from device tree data
  * @root: parent of the first level to probe or NULL for the root of the tree

@@ -1589,6 +1589,27 @@ static int __init_memblock memblock_search(struct memblock_type *type,
 	return -1;
 }
 
+/**
+ * addr is not in any of the memblocks and we find the first next memblock
+ * after addr
+ */
+static int __init_memblock memblock_search_next(struct memblock_type *type,
+					phys_addr_t addr)
+{
+	unsigned int left = 0, right = type->cnt;
+
+	do {
+		unsigned int mid = (right + left) / 2;
+
+		if (addr < type->regions[mid].base)
+			right = mid;
+		else if (addr >= (type->regions[mid].base +
+			type->regions[mid].size))
+			left = mid + 1;
+	} while (left < right);
+	return left;
+}
+
 bool __init_memblock memblock_is_reserved(phys_addr_t addr)
 {
 	return memblock_search(&memblock.reserved, addr) != -1;
@@ -1606,6 +1627,47 @@ int __init_memblock memblock_is_map_memory(phys_addr_t addr)
 	if (i == -1)
 		return false;
 	return !memblock_is_nomap(&memblock.memory.regions[i]);
+}
+
+/**
+ * memblock_search_pfn_and_next - check the valid size of current memblock
+ * and find the next memblock to check
+ *
+ * @start_pfn: start page to check
+ * @size: number of pages to check
+ * @valid_size: return valid pages in current memblock
+ * @next_pfn: return start pfn of first next memblock after
+ *
+ * RETURNS:
+ * 1 if next_pfn is valid, or 0 if no more memblock next
+ */
+int __init_memblock memblock_search_pfn_and_next(unsigned long start_pfn,
+	unsigned long size, unsigned long *valid_size, unsigned long *next_pfn)
+{
+	unsigned long size2end;
+	struct memblock_type *type = &memblock.memory;
+	int idx = memblock_search(&memblock.memory, PFN_PHYS(start_pfn));
+
+	if (idx == -1) {
+		*valid_size = 0;
+		idx = memblock_search_next(&memblock.memory,
+				PFN_PHYS(start_pfn));
+	} else {
+		size2end = PFN_DOWN(type->regions[idx].base +
+			type->regions[idx].size - PFN_PHYS(start_pfn));
+		if (size2end < size)
+			*valid_size = size2end;
+		else
+			*valid_size = size;
+		idx++;
+	}
+
+	if ((idx < memblock.memory.cnt) &&
+		(PFN_PHYS(start_pfn+size) > type->regions[idx].base)) {
+		*next_pfn = PFN_DOWN(type->regions[idx].base);
+		return 1;
+	} else
+		return 0;
 }
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
@@ -1833,12 +1895,14 @@ static bool __init memblock_in_no_hotplug_area(phys_addr_t addr)
 
 static int __init early_dyn_memhotplug(char *p)
 {
-	int idx = 0;
+	unsigned long idx = 0;
+	unsigned long old_cnt;
 	phys_addr_t addr, rgn_end;
 	struct memblock_region *rgn;
 	int blk = 0;
 
 	while (idx < memblock.memory.cnt) {
+		old_cnt = memblock.memory.cnt;
 		rgn = &memblock.memory.regions[idx++];
 		addr = ALIGN(rgn->base, MIN_MEMORY_BLOCK_SIZE);
 		rgn_end = rgn->base + rgn->size;
@@ -1849,6 +1913,8 @@ static int __init early_dyn_memhotplug(char *p)
 			}
 			addr += MIN_MEMORY_BLOCK_SIZE;
 		}
+		if (old_cnt != memblock.memory.cnt)
+			idx--;
 	}
 	return 0;
 }

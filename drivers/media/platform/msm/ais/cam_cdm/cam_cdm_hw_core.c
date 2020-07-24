@@ -1182,7 +1182,7 @@ static void __exit cam_hw_cdm_exit_module(void)
 	platform_driver_unregister(&cam_hw_cdm_driver);
 }
 
-module_init(cam_hw_cdm_init_module);
+early_module_init(cam_hw_cdm_init_module, EARLY_SUBSYS_3, EARLY_INIT_LEVEL2);
 module_exit(cam_hw_cdm_exit_module);
 MODULE_DESCRIPTION("MSM Camera HW CDM driver");
 MODULE_LICENSE("GPL v2");

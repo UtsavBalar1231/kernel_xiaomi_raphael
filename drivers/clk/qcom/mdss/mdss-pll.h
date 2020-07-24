@@ -51,6 +51,7 @@ enum {
 	MDSS_DSI_PLL_28LPM,
 	MDSS_DSI_PLL_14NM,
 	MDSS_DP_PLL_14NM,
+	MDSS_DSI_PLL_12NM,
 	MDSS_HDMI_PLL_28LPM,
 	MDSS_UNKNOWN_PLL,
 };
@@ -212,11 +213,14 @@ struct mdss_pll_vco_calc {
 
 static inline bool is_gdsc_disabled(struct mdss_pll_resources *pll_res)
 {
+	bool ret = false;
 	if (!pll_res->gdsc_base) {
 		WARN(1, "gdsc_base register is not defined\n");
 		return true;
 	}
-	return readl_relaxed(pll_res->gdsc_base) & BIT(31) ? false : true;
+	ret = ((readl_relaxed(pll_res->gdsc_base + 0x4) & BIT(31)) &&
+		(!(readl_relaxed(pll_res->gdsc_base) & BIT(0)))) ? false : true;
+	return ret;
 }
 
 static inline int mdss_pll_div_prepare(struct clk_hw *hw)

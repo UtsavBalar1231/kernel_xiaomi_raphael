@@ -15,7 +15,7 @@
 &soc {
 	/* RPMh regulators: */
 
-	rpmh-regulator-smpa4 {
+	smpa4: rpmh-regulator-smpa4 {
 		compatible = "qcom,rpmh-vrm-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "smpa4";
@@ -141,7 +141,7 @@
 		};
 	};
 
-	rpmh-regulator-ldoa5 {
+	ldoa5: rpmh-regulator-ldoa5 {
 		compatible = "qcom,rpmh-vrm-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "ldoa5";
@@ -218,7 +218,7 @@
 		};
 	};
 
-	rpmh-regulator-ldoa10 {
+	ldoa10: rpmh-regulator-ldoa10 {
 		compatible = "qcom,rpmh-vrm-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "ldoa10";
@@ -371,7 +371,7 @@
 	};
 
 	/* PM8150_2 S3 + S2 + S1 = 3 phase VDD_GFX supply */
-	rpmh-regulator-gfxlvl {
+	gfxlvl: rpmh-regulator-gfxlvl {
 		compatible = "qcom,rpmh-arc-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "gfx.lvl";
@@ -427,7 +427,7 @@
 	};
 
 	/* PM8150_2 S9 + S8 + S7 = VDD_CX supply */
-	rpmh-regulator-cxlvl {
+	cxlvl: rpmh-regulator-cxlvl {
 		compatible = "qcom,rpmh-arc-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "cx.lvl";
@@ -462,7 +462,7 @@
 	};
 
 	/* PM8150_2 S10 = VDD_MX supply */
-	rpmh-regulator-mxlvl {
+	mxlvl: rpmh-regulator-mxlvl {
 		compatible = "qcom,rpmh-arc-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "mx.lvl";
@@ -530,7 +530,7 @@
 		};
 	};
 
-	rpmh-regulator-ldoc5 {
+	ldoc5: rpmh-regulator-ldoc5 {
 		compatible = "qcom,rpmh-vrm-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "ldoc5";
@@ -568,7 +568,7 @@
 		};
 	};
 
-	rpmh-regulator-ldoc8 {
+	ldoc8: rpmh-regulator-ldoc8 {
 		compatible = "qcom,rpmh-vrm-regulator";
 		mboxes = <&apps_rsc 0>;
 		qcom,resource-name = "ldoc8";

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -445,7 +445,7 @@ static void __exit cam_actuator_driver_exit(void)
 	i2c_del_driver(&cam_actuator_driver_i2c);
 }
 
-module_init(cam_actuator_driver_init);
+early_module_init(cam_actuator_driver_init, EARLY_SUBSYS_3, EARLY_INIT_LEVEL2);
 module_exit(cam_actuator_driver_exit);
 MODULE_DESCRIPTION("cam_actuator_driver");
 MODULE_LICENSE("GPL v2");

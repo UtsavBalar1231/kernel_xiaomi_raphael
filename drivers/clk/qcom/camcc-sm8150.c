@@ -2578,7 +2578,8 @@ static int __init cam_cc_sm8150_init(void)
 {
 	return platform_driver_register(&cam_cc_sm8150_driver);
 }
-subsys_initcall(cam_cc_sm8150_init);
+early_subsys_initcall(cam_cc_sm8150_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL5);
 
 static void __exit cam_cc_sm8150_exit(void)
 {

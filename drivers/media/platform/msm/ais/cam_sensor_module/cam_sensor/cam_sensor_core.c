@@ -1304,7 +1304,6 @@ free_probe_cmd:
 		rc = cam_sensor_init_gpio_intr(
 				gpio_intr_cfg,
 				s_ctrl);
-
 		if (rc < 0)
 			CAM_ERR(CAM_SENSOR, "Failed in Updating intr Info");
 

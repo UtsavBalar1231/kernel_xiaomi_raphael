@@ -869,8 +869,8 @@ static void __exit cam_req_mgr_exit(void)
 	platform_driver_unregister(&cam_req_mgr_driver);
 }
 
-module_init(cam_req_mgr_init);
-late_initcall(cam_req_mgr_late_init);
+early_module_init(cam_req_mgr_init, EARLY_SUBSYS_3, EARLY_INIT_LEVEL2);
+early_late_initcall(cam_req_mgr_late_init, EARLY_SUBSYS_3, EARLY_INIT_LEVEL4);
 module_exit(cam_req_mgr_exit);
 MODULE_DESCRIPTION("Camera Request Manager");
 MODULE_LICENSE("GPL v2");

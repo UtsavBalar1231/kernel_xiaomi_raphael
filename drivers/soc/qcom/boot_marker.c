@@ -302,7 +302,7 @@ static int __init init_bootkpi(void)
 	set_bootloader_stats(false);
 	return 0;
 }
-subsys_initcall(init_bootkpi);
+early_subsys_initcall(init_bootkpi, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL0);
 
 static void __exit exit_bootkpi(void)
 {

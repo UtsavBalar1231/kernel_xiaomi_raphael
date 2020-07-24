@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -351,4 +351,5 @@ static int __init aop_qmp_clk_init(void)
 {
 	return platform_driver_register(&aop_qmp_clk_driver);
 }
-subsys_initcall(aop_qmp_clk_init);
+early_subsys_initcall(aop_qmp_clk_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL5);

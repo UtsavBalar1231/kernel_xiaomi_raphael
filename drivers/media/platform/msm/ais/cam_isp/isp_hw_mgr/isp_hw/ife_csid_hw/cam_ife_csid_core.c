@@ -416,10 +416,12 @@ static int cam_ife_csid_global_reset(struct cam_ife_csid_hw *csid_hw)
 			soc_info->reg_map[0].mem_base +
 			csid_reg->ppp_reg->csid_pxl_irq_clear_addr);
 
-	for (i = 0 ; i < csid_reg->cmn_reg->num_rdis; i++)
+	for (i = 0 ; i < csid_reg->cmn_reg->num_rdis; i++) {
+		csid_hw->prev_boot_timestamp[i] = 0;
 		cam_io_w_mb(csid_reg->cmn_reg->rdi_irq_mask_all,
 			soc_info->reg_map[0].mem_base +
 			csid_reg->rdi_reg[i]->csid_rdi_irq_clear_addr);
+		}
 
 	cam_io_w_mb(1, soc_info->reg_map[0].mem_base +
 		csid_reg->cmn_reg->csid_irq_cmd_addr);
@@ -1179,8 +1181,10 @@ static int cam_ife_csid_disable_hw(struct cam_ife_csid_hw *csid_hw)
 
 	csid_hw->ipp_path_config.measure_enabled = 0;
 	csid_hw->ppp_path_config.measure_enabled = 0;
-	for (i = 0; i <= CAM_IFE_PIX_PATH_RES_RDI_3; i++)
+	for (i = 0; i <= CAM_IFE_PIX_PATH_RES_RDI_3; i++) {
+		csid_hw->prev_boot_timestamp[i] = 0;
 		csid_hw->rdi_path_config[i].measure_enabled = 0;
+		}
 
 
 	csid_hw->hw_info->hw_state = CAM_HW_STATE_POWER_DOWN;
@@ -4270,8 +4274,10 @@ int cam_ife_csid_hw_probe_init(struct cam_hw_intf  *csid_hw_intf,
 
 	ife_csid_hw->ipp_path_config.measure_enabled = 0;
 	ife_csid_hw->ppp_path_config.measure_enabled = 0;
-	for (i = 0; i <= CAM_IFE_PIX_PATH_RES_RDI_3; i++)
+	for (i = 0; i <= CAM_IFE_PIX_PATH_RES_RDI_3; i++) {
+		ife_csid_hw->prev_boot_timestamp[i] = 0;
 		ife_csid_hw->rdi_path_config[i].measure_enabled = 0;
+		}
 
 
 	for (i = 0; i <= CAM_IFE_PIX_PATH_RES_MAX; i++)

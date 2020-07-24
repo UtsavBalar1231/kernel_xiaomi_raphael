@@ -476,15 +476,11 @@ static int ais_ife_dev_cb(void *priv, struct ais_ife_event_data *evt_data)
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&p_ife_dev->eventq_lock);
-
 	/* Queue the event */
 	memcpy(event.u.data, (void *)evt_data, sizeof(*evt_data));
 	event.id = V4L_EVENT_ID_AIS_IFE;
 	event.type = V4L_EVENT_TYPE_AIS_IFE;
 	v4l2_event_queue(p_ife_dev->cam_sd.sd.devnode, &event);
-
-	spin_unlock_bh(&p_ife_dev->eventq_lock);
 
 	return 0;
 }
@@ -697,7 +693,7 @@ static void __exit ais_ife_dev_exit_module(void)
 	platform_driver_unregister(&ife_driver);
 }
 
-module_init(ais_ife_dev_init_module);
+early_module_init(ais_ife_dev_init_module, EARLY_SUBSYS_3, EARLY_INIT_LEVEL2);
 module_exit(ais_ife_dev_exit_module);
 MODULE_DESCRIPTION("AIS IFE driver");
 MODULE_LICENSE("GPL v2");

@@ -564,7 +564,7 @@ void pfk_clear_on_reset(void)
 	pfk_kc_clear_on_reset();
 }
 
-module_init(pfk_init);
+early_module_init(pfk_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
 module_exit(pfk_exit);
 
 MODULE_LICENSE("GPL v2");

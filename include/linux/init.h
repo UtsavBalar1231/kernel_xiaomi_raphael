@@ -153,6 +153,23 @@ extern bool initcall_debug;
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_LTO_CLANG
+  /* prepend the variable name with __COUNTER__ to ensure correct ordering */
+  #define ___initcall_name2(c, fn, id) 	__initcall_##c##_##fn##id
+  #define ___initcall_name1(c, fn, id)	___initcall_name2(c, fn, id)
+  #define __initcall_name(fn, id) 	___initcall_name1(__COUNTER__, fn, id)
+  #define ___early_initcall_name2(c, fn, subsys, level) \
+	__early##subsys_initcall_##c##_##fn##level
+  #define ___early_initcall_name1(c, fn, subsys, level) \
+	___early_initcall_name2(c, fn, subsys, level)
+  #define __early_initcall_name(fn, subsys, level) \
+	___early_initcall_name1(__COUNTER__, fn, subsys, level)
+#else
+  #define __initcall_name(fn, id) 	__initcall_##fn##id
+  #define __early_initcall_name(fn, subsys, level) \
+	__early##subsys_initcall_##fn##level
+#endif
+
 /*
  * initcalls are now grouped by functionality into separate
  * subsections. Ordering inside the subsections is determined
@@ -196,6 +213,11 @@ extern bool initcall_debug;
 
 #define __define_initcall(fn, id) ___define_initcall(fn, id, .initcall##id)
 
+#define __define_early_initcall(fn, subsys, level) \
+	static initcall_t __early_initcall_name(fn, subsys, level) __used \
+	__attribute__((__section__(".early" #subsys ".initcall" #level ".init"\
+	))) = fn
+
 /*
  * Early initcalls run before initializing SMP.
  *
@@ -227,6 +249,66 @@ extern bool initcall_debug;
 #define device_initcall_sync(fn)	__define_initcall(fn, 6s)
 #define late_initcall(fn)		__define_initcall(fn, 7)
 #define late_initcall_sync(fn)		__define_initcall(fn, 7s)
+
+extern void early_subsys_finish(void);
+extern initcall_t __early0_initcall_start[];
+extern initcall_t __early1_initcall_start[];
+extern initcall_t __early2_initcall_start[];
+extern initcall_t __early3_initcall_start[];
+extern initcall_t __early4_initcall_start[];
+extern initcall_t __early5_initcall_start[];
+extern initcall_t __early6_initcall_start[];
+extern initcall_t __early7_initcall_start[];
+extern initcall_t __early_initcall_end[];
+extern bool is_early_userspace;
+
+#define early_initcall_type(type, fn, subsys, level) \
+	static int __init _##fn(void) \
+	{ \
+		if (is_early_userspace) \
+			return 0; \
+		return fn(); \
+	} \
+	type(_##fn); \
+	__define_early_initcall(fn, subsys, level)
+
+#define early_subsys_initcall(fn, subsys, level) \
+	early_initcall_type(subsys_initcall, fn, subsys, level)
+#define early_device_initcall(fn, subsys, level) \
+	early_initcall_type(device_initcall, fn, subsys, level)
+#define early_rootfs_initcall(fn, subsys, level) \
+	early_initcall_type(rootfs_initcall, fn, subsys, level)
+#define early_fs_initcall(fn, subsys, level) \
+	early_initcall_type(fs_initcall, fn, subsys, level)
+#define early_late_initcall(fn, subsys, level) \
+	early_initcall_type(late_initcall, fn, subsys, level)
+#define early_subsys_initcall_sync(fn, subsys, level) \
+	early_initcall_type(subsys_initcall_sync, fn, subsys, level)
+
+#define early_init(fn, subsys, level) \
+	__define_early_initcall(fn, subsys, level)
+#define __early_initcall(fn, subsys, level) \
+	early_device_initcall(fn, subsys, level)
+
+#define EARLY_SUBSYS_PLATFORM 0
+#define EARLY_SUBSYS_1 1
+#define EARLY_SUBSYS_2 2
+#define EARLY_SUBSYS_3 3
+#define EARLY_SUBSYS_4 4
+#define EARLY_SUBSYS_5 5
+#define EARLY_SUBSYS_6 6
+#define EARLY_SUBSYS_7 7
+#define EARLY_SUBSYS_NUM 8
+
+#define EARLY_INIT_LEVEL0 0
+#define EARLY_INIT_LEVEL1 1
+#define EARLY_INIT_LEVEL2 2
+#define EARLY_INIT_LEVEL3 3
+#define EARLY_INIT_LEVEL4 4
+#define EARLY_INIT_LEVEL5 5
+#define EARLY_INIT_LEVEL6 6
+#define EARLY_INIT_LEVEL7 7
+#define EARLY_INIT_LEVEL8 8
 
 #define __initcall(fn) device_initcall(fn)
 

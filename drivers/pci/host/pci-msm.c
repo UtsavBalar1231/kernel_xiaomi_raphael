@@ -50,7 +50,6 @@
 #include <linux/compiler.h>
 #include <linux/ipc_logging.h>
 #include <linux/msm_pcie.h>
-#include <linux/kthread.h>
 
 #define PCIE_VENDOR_ID_QCOM		0x17cb
 
@@ -5732,14 +5731,12 @@ static void msm_pcie_check_l1ss_support_all(struct msm_pcie_dev_t *dev)
 	pci_walk_bus(dev->dev->bus, msm_pcie_check_l1ss_support, dev);
 }
 
-static int __msm_pcie_probe(void *arg)
+static int msm_pcie_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int rc_idx = -1;
 	int i, j;
-	struct platform_device *pdev;
 
-	pdev = (struct platform_device *)arg;
 	PCIE_GEN_DBG("%s\n", __func__);
 
 	mutex_lock(&pcie_drv.drv_lock);
@@ -6225,24 +6222,6 @@ out:
 	mutex_unlock(&pcie_drv.drv_lock);
 
 	return ret;
-}
-
-static int msm_pcie_probe(struct platform_device *pdev)
-{
-#ifdef CONFIG_PLATFORM_AUTO
-	struct task_struct *msm_pcie_task =
-			kthread_run(__msm_pcie_probe, pdev,
-					"msm_pcie_probe");
-	if (IS_ERR(msm_pcie_task))
-		return PTR_ERR(msm_pcie_task);
-	else
-		return 0;
-#else
-	int ret = 0;
-
-	ret = __msm_pcie_probe(pdev);
-	return ret;
-#endif
 }
 
 static int msm_pcie_remove(struct platform_device *pdev)
@@ -6809,7 +6788,23 @@ static void __exit pcie_exit(void)
 		msm_pcie_sysfs_exit(&msm_pcie_dev[i]);
 }
 
-subsys_initcall_sync(pcie_init);
+static DECLARE_COMPLETION(pcie_init_start);
+
+static int __init pcie_init_sync(void)
+{
+	complete(&pcie_init_start);
+	return 0;
+}
+subsys_initcall_sync(pcie_init_sync);
+
+static int __init pcie_init_wait(void)
+{
+	wait_for_completion(&pcie_init_start);
+	return 0;
+}
+early_init(pcie_init_wait, EARLY_SUBSYS_5, EARLY_INIT_LEVEL3);
+
+early_subsys_initcall_sync(pcie_init, EARLY_SUBSYS_5, EARLY_INIT_LEVEL4);
 module_exit(pcie_exit);
 
 

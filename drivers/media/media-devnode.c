@@ -326,7 +326,7 @@ static void __exit media_devnode_exit(void)
 	unregister_chrdev_region(media_dev_t, MEDIA_NUM_DEVICES);
 }
 
-subsys_initcall(media_devnode_init);
+early_subsys_initcall(media_devnode_init, EARLY_SUBSYS_3, EARLY_INIT_LEVEL1);
 module_exit(media_devnode_exit)
 
 MODULE_AUTHOR("Laurent Pinchart <laurent.pinchart@ideasonboard.com>");

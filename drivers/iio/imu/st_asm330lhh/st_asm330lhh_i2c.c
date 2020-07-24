@@ -106,7 +106,7 @@ static struct i2c_driver st_asm330lhh_driver = {
 	.probe = st_asm330lhh_i2c_probe,
 	.id_table = st_asm330lhh_i2c_id_table,
 };
-module_i2c_driver(st_asm330lhh_driver);
+early_module_i2c_driver(st_asm330lhh_driver, EARLY_SUBSYS_6, EARLY_INIT_LEVEL2);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics st_asm330lhh i2c driver");

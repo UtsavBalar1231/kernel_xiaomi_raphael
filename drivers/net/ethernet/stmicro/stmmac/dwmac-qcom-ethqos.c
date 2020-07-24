@@ -141,18 +141,21 @@ u16 dwmac_qcom_select_queue(
 	return txqueue_select;
 }
 
-void dwmac_qcom_program_avb_algorithm(
+int dwmac_qcom_program_avb_algorithm(
 	struct stmmac_priv *priv, struct ifr_data_struct *req)
 {
 	struct dwmac_qcom_avb_algorithm l_avb_struct, *u_avb_struct =
 		(struct dwmac_qcom_avb_algorithm *)req->ptr;
 	struct dwmac_qcom_avb_algorithm_params *avb_params;
+	int ret = 0;
 
 	ETHQOSDBG("\n");
 
 	if (copy_from_user(&l_avb_struct, (void __user *)u_avb_struct,
-			   sizeof(struct dwmac_qcom_avb_algorithm)))
+			   sizeof(struct dwmac_qcom_avb_algorithm))) {
 		ETHQOSERR("Failed to fetch AVB Struct\n");
+		return -EFAULT;
+	}
 
 	if (priv->speed == SPEED_1000)
 		avb_params = &l_avb_struct.speed1000params;
@@ -187,6 +190,7 @@ void dwmac_qcom_program_avb_algorithm(
 	   l_avb_struct.qinx);
 
 	ETHQOSDBG("\n");
+	return ret;
 }
 
 unsigned int dwmac_qcom_get_plat_tx_coal_frames(
@@ -252,7 +256,7 @@ int ethqos_handle_prv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			ret = ppsout_config(pdata, &eth_pps_cfg);
 		break;
 	case ETHQOS_AVB_ALGORITHM:
-		dwmac_qcom_program_avb_algorithm(pdata, &req);
+		ret = dwmac_qcom_program_avb_algorithm(pdata, &req);
 		break;
 	default:
 		break;
@@ -1340,6 +1344,7 @@ static int stmmac_emb_smmu_cb_probe(struct platform_device *pdev)
 	int atomic_ctx = 1;
 	int fast = 1;
 	int bypass = 1;
+	struct iommu_domain_geometry geometry = {0};
 
 	ETHQOSDBG("EMAC EMB SMMU CB probe: smmu pdev=%p\n", pdev);
 
@@ -1353,6 +1358,10 @@ static int stmmac_emb_smmu_cb_probe(struct platform_device *pdev)
 	stmmac_emb_smmu_ctx.va_size = iova_ap_mapping[1];
 	stmmac_emb_smmu_ctx.va_end = stmmac_emb_smmu_ctx.va_start +
 				   stmmac_emb_smmu_ctx.va_size;
+
+	geometry.aperture_start = stmmac_emb_smmu_ctx.va_start;
+	geometry.aperture_end =
+	stmmac_emb_smmu_ctx.va_start + stmmac_emb_smmu_ctx.va_size;
 
 	stmmac_emb_smmu_ctx.smmu_pdev = pdev;
 
@@ -1398,6 +1407,19 @@ static int stmmac_emb_smmu_cb_probe(struct platform_device *pdev)
 			goto err_smmu_probe;
 		}
 		ETHQOSDBG("SMMU fast map set\n");
+		if (of_property_read_bool(dev->of_node,
+					  "qcom,smmu-geometry")) {
+			if (iommu_domain_set_attr
+			    (stmmac_emb_smmu_ctx.mapping->domain,
+			     DOMAIN_ATTR_GEOMETRY,
+			     &geometry)) {
+				ETHQOSERR("Couldn't set DOMAIN_ATTR_GEOMETRY");
+				result = -EIO;
+				goto err_smmu_probe;
+			}
+			ETHQOSDBG("SMMU DOMAIN_ATTR_GEOMETRY set\n");
+		}
+
 	}
 
 	result = arm_iommu_attach_device(&stmmac_emb_smmu_ctx.smmu_pdev->dev,
@@ -1746,6 +1768,14 @@ static int ethqos_set_early_eth_param(struct stmmac_priv *priv,
 	return ret;
 }
 
+bool qcom_ethqos_ipa_enabled(void)
+{
+#ifdef CONFIG_ETH_IPA_OFFLOAD
+	return pethqos->ipa_enabled;
+#endif
+	return false;
+}
+
 static int qcom_ethqos_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1790,6 +1820,13 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (IS_ERR(plat_dat)) {
 		dev_err(&pdev->dev, "dt configuration failed\n");
 		return PTR_ERR(plat_dat);
+	}
+
+	if (plat_dat->tx_sched_algorithm == MTL_TX_ALGORITHM_WFQ ||
+	    plat_dat->tx_sched_algorithm == MTL_TX_ALGORITHM_DWRR) {
+		ETHQOSERR("WFO and DWRR TX Algorithm is not supported\n");
+		ETHQOSDBG("Set TX Algorithm to default WRR\n");
+		plat_dat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rgmii");

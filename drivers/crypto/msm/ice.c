@@ -1835,7 +1835,8 @@ static struct platform_driver qcom_ice_driver = {
 		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 };
-module_platform_driver(qcom_ice_driver);
+early_module_platform_driver(qcom_ice_driver, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL8);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("QTI Inline Crypto Engine driver");

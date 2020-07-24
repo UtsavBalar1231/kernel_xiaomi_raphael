@@ -136,6 +136,8 @@ static int mdss_pll_resource_parse(struct platform_device *pdev,
 		pll_res->pll_interface_type = MDSS_DSI_PLL_7NM;
 	else if (!strcmp(compatible_stream, "qcom,mdss_dsi_pll_7nm_v2"))
 		pll_res->pll_interface_type = MDSS_DSI_PLL_7NM_V2;
+	else if (!strcmp(compatible_stream, "qcom,mdss_dsi_pll_12nm"))
+		pll_res->pll_interface_type = MDSS_DSI_PLL_12NM;
 	else if (!strcmp(compatible_stream, "qcom,mdss_dsi_pll_28lpm"))
 		pll_res->pll_interface_type = MDSS_DSI_PLL_28LPM;
 	else if (!strcmp(compatible_stream, "qcom,mdss_dsi_pll_14nm"))
@@ -424,7 +426,7 @@ static int __init mdss_pll_driver_init(void)
 
 	return rc;
 }
-fs_initcall(mdss_pll_driver_init);
+early_fs_initcall(mdss_pll_driver_init, EARLY_SUBSYS_2, EARLY_INIT_LEVEL2);
 
 static void __exit mdss_pll_driver_deinit(void)
 {

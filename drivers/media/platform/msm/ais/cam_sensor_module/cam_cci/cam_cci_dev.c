@@ -527,8 +527,8 @@ static void __exit cam_cci_exit_module(void)
 	platform_driver_unregister(&cci_driver);
 }
 
-module_init(cam_cci_init_module);
-late_initcall(cam_cci_late_init);
+early_module_init(cam_cci_init_module, EARLY_SUBSYS_3, EARLY_INIT_LEVEL2);
+early_late_initcall(cam_cci_late_init, EARLY_SUBSYS_3, EARLY_INIT_LEVEL4);
 module_exit(cam_cci_exit_module);
 MODULE_DESCRIPTION("MSM CCI driver");
 MODULE_LICENSE("GPL v2");

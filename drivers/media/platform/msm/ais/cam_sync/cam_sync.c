@@ -1265,7 +1265,7 @@ static void __exit cam_sync_exit(void)
 	kfree(sync_dev);
 }
 
-module_init(cam_sync_init);
+early_module_init(cam_sync_init, EARLY_SUBSYS_3, EARLY_INIT_LEVEL2);
 module_exit(cam_sync_exit);
 MODULE_DESCRIPTION("Camera sync driver");
 MODULE_LICENSE("GPL v2");

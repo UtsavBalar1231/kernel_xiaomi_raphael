@@ -1016,7 +1016,8 @@ static int __init genhd_device_init(void)
 	return 0;
 }
 
-subsys_initcall(genhd_device_init);
+early_subsys_initcall(genhd_device_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL8);
 
 static ssize_t disk_range_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)

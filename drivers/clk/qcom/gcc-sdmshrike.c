@@ -5275,7 +5275,8 @@ static int __init gcc_sdmshrike_init(void)
 {
 	return platform_driver_register(&gcc_sdmshrike_driver);
 }
-subsys_initcall(gcc_sdmshrike_init);
+early_subsys_initcall(gcc_sdmshrike_init, EARLY_SUBSYS_PLATFORM,
+EARLY_INIT_LEVEL0);
 
 static void __exit gcc_sdmshrike_exit(void)
 {

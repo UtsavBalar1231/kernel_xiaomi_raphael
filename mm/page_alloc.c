@@ -6303,6 +6303,8 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
 	for (j = 0; j < MAX_NR_ZONES; j++) {
 		struct zone *zone = pgdat->node_zones + j;
 		unsigned long size, realsize, freesize, memmap_pages;
+		unsigned long valid_size, next_pfn;
+		int rc;
 		unsigned long zone_start_pfn = zone->zone_start_pfn;
 
 		size = zone->spanned_pages;
@@ -6361,7 +6363,17 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
 		set_pageblock_order();
 		setup_usemap(pgdat, zone, zone_start_pfn, size);
 		init_currently_empty_zone(zone, zone_start_pfn, size);
-		memmap_init(size, nid, j, zone_start_pfn);
+		while (1) {
+			rc = memblock_search_pfn_and_next(
+			zone_start_pfn, size, &valid_size, &next_pfn);
+			if (valid_size)
+				memmap_init(valid_size, nid, j,
+					zone_start_pfn);
+			if (!rc)
+				break;
+			size -= (next_pfn - zone_start_pfn);
+			zone_start_pfn = next_pfn;
+		}
 	}
 }
 
