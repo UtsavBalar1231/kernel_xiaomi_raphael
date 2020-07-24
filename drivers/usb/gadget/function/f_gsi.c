@@ -40,29 +40,10 @@ static struct f_gsi *__gsi[USB_PROT_MAX];
 static void *ipc_log_ctxt;
 
 #define NUM_LOG_PAGES 15
-#define log_event_err(x, ...) do { \
-	if (gsi) { \
-		ipc_log_string(ipc_log_ctxt, "id%d:"x, gsi->prot_id, \
-				##__VA_ARGS__); \
-		pr_err("id%d:"x, gsi->prot_id, ##__VA_ARGS__); \
-	} \
-} while (0)
 
-#define log_event_dbg(x, ...) do { \
-	if (gsi) { \
-		ipc_log_string(ipc_log_ctxt, "id%d:"x, gsi->prot_id, \
-				##__VA_ARGS__); \
-		pr_debug("id%d:"x, gsi->prot_id, ##__VA_ARGS__); \
-	} \
-} while (0)
-
-#define log_event_info(x, ...) do { \
-	if (gsi) { \
-		ipc_log_string(ipc_log_ctxt, "id%d:"x, gsi->prot_id, \
-		##__VA_ARGS__); \
-		pr_info("id%d:"x, gsi->prot_id, ##__VA_ARGS__); \
-	} \
-} while (0)
+#define log_event_err(x, ...) ((void)0)
+#define log_event_dbg(x, ...) ((void)0)
+#define log_event_info(x, ...) ((void)0)
 
 #define MAX_CDEV_INSTANCES		6
 
