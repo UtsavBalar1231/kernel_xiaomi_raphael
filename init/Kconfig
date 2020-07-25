@@ -115,6 +115,15 @@ config LOCALVERSION_AUTO
 
 	  which is done within the script "scripts/setlocalversion".)
 
+config LOCALVERSION_COMMIT_SHA
+	bool "Leave only commit sha"
+	default y
+	depends on LOCALVERSION_AUTO
+	depends on !COMPILE_TEST
+	help
+	  A cleaner version of LOCALVERSION_AUTO, contains
+	  commit sha of HEAD.
+
 config HAVE_KERNEL_GZIP
 	bool
 
