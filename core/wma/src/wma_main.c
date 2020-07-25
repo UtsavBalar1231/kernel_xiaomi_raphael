@@ -98,6 +98,7 @@
 #include "nan_ucfg_api.h"
 #include "wma_coex.h"
 #include "target_if_vdev_mgr_rx_ops.h"
+#include "wlan_tdls_cfg_api.h"
 #include "wlan_policy_mgr_i.h"
 #include "target_if_psoc_timer_tx_ops.h"
 
@@ -314,7 +315,7 @@ static void wma_set_default_tgt_config(tp_wma_handle wma_handle,
 	tgt_cfg->max_frag_entries = CFG_TGT_MAX_FRAG_TABLE_ENTRIES;
 	tgt_cfg->num_tdls_vdevs = CFG_TGT_NUM_TDLS_VDEVS;
 	tgt_cfg->num_tdls_conn_table_entries =
-		CFG_TGT_NUM_TDLS_CONN_TABLE_ENTRIES;
+			cfg_tdls_get_max_peer_count(wma_handle->psoc);
 	tgt_cfg->beacon_tx_offload_max_vdev =
 		CFG_TGT_DEFAULT_BEACON_TX_OFFLOAD_MAX_VDEV;
 	tgt_cfg->num_multicast_filter_entries =
@@ -336,8 +337,14 @@ static void wma_set_default_tgt_config(tp_wma_handle wma_handle,
 	tgt_cfg->mgmt_comp_evt_bundle_support = true;
 	tgt_cfg->tx_msdu_new_partition_id_support = true;
 
+	cfg_nan_get_max_ndi(wma_handle->psoc,
+			    &tgt_cfg->max_ndi);
+
 	if (cds_get_conparam() == QDF_GLOBAL_MONITOR_MODE)
 		tgt_cfg->rx_decap_mode = CFG_TGT_RX_DECAP_MODE_RAW;
+
+	cfg_nan_get_ndp_max_sessions(wma_handle->psoc,
+				     &tgt_cfg->max_ndp_sessions);
 
 	wma_set_ipa_disable_config(tgt_cfg);
 }
@@ -6473,6 +6480,12 @@ static QDF_STATUS wma_update_hw_mode_list(t_wma_handle *wma_handle,
 	num_hw_modes = target_psoc_get_num_hw_modes(tgt_hdl);
 	mac_phy_cap = target_psoc_get_mac_phy_cap(tgt_hdl);
 	tgt_cap_info = target_psoc_get_target_caps(tgt_hdl);
+
+	if (!mac_phy_cap) {
+		WMA_LOGE("mac_phy_cap Null");
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	/*
 	 * This list was updated as part of service ready event. Re-populate
 	 * HW mode list from the device capabilities.

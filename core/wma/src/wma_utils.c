@@ -3296,7 +3296,7 @@ wma_peer_phymode(tSirNwType nw_type, uint8_t sta_type,
 			else
 				phymode = (CH_WIDTH_40MHZ == ch_width) ?
 					  WLAN_PHYMODE_11AC_VHT40 :
-					  WLAN_PHYMODE_11AC_VHT20;
+					  WLAN_PHYMODE_11AC_VHT20_2G;
 		} else if (is_ht) {
 			phymode = (CH_WIDTH_40MHZ == ch_width) ?
 				   WLAN_PHYMODE_11NG_HT40 :
@@ -4937,7 +4937,6 @@ int wma_oem_event_handler(void *wma_ctx, uint8_t *event_buff, uint32_t len)
 	oem_event_data.data = param_buf->data;
 	pmac->sme.oem_data_event_handler_cb(&oem_event_data,
 					    pmac->sme.oem_data_vdev_id);
-	pmac->sme.oem_data_event_handler_cb = NULL;
 
 	return QDF_STATUS_SUCCESS;
 }

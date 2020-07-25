@@ -1297,11 +1297,27 @@ void wma_populate_peer_he_cap(struct peer_assoc_params *peer,
 	wma_print_he_mac_cap_w2(mac_cap[1]);
 	wma_print_he_ppet(&peer->peer_ppet);
 
-	qdf_mem_copy(&peer->peer_he_caps_6ghz,
-		     ((uint8_t *)&params->he_6ghz_band_caps) + 1,
-		     DOT11F_IE_HE_6GHZ_BAND_CAP_MAX_LEN);
-	WMA_LOGD(FL("HE 6GHz band caps: %0x"), peer->peer_he_caps_6ghz);
-	return;
+	if (params->he_6ghz_band_caps.present) {
+		peer->peer_he_caps_6ghz =
+			(params->he_6ghz_band_caps.min_mpdu_start_spacing <<
+			 HE_6G_MIN_MPDU_START_SAPCE_BIT_POS) |
+			(params->he_6ghz_band_caps.max_ampdu_len_exp <<
+			 HE_6G_MAX_AMPDU_LEN_EXP_BIT_POS) |
+			(params->he_6ghz_band_caps.max_mpdu_len <<
+			 HE_6G_MAX_MPDU_LEN_BIT_POS) |
+			(params->he_6ghz_band_caps.sm_pow_save <<
+			 HE_6G_SMPS_BIT_POS) |
+			(params->he_6ghz_band_caps.rd_responder <<
+			 HE_6G_RD_RESP_BIT_POS) |
+			(params->he_6ghz_band_caps.rx_ant_pattern_consistency <<
+			 HE_6G_RX_ANT_PATTERN_BIT_POS) |
+			(params->he_6ghz_band_caps.tx_ant_pattern_consistency <<
+			 HE_6G_TX_ANT_PATTERN_BIT_POS);
+		WMA_LOGD(FL("HE 6GHz band caps: %0x"), peer->peer_he_caps_6ghz);
+	} else {
+		WMA_LOGD(FL("HE 6GHz band caps not present"));
+		peer->peer_he_caps_6ghz = 0;
+	}
 }
 
 void wma_update_vdev_he_ops(uint32_t *he_ops, tDot11fIEhe_op *he_op)
@@ -1388,6 +1404,11 @@ void wma_set_he_txbf_params(uint8_t vdev_id, bool su_bfer,
 	uint32_t hemu_mode;
 	QDF_STATUS status;
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wma) {
+		wma_err("Invalid WMA handle");
+		return;
+	}
 
 	hemu_mode = DOT11AX_HEMU_MODE;
 	hemu_mode |= ((su_bfer << HE_SUBFER) | (su_bfee << HE_SUBFEE) |

@@ -54,6 +54,9 @@ static void nan_cfg_init(struct wlan_objmgr_psoc *psoc,
 	nan_obj->cfg_param.ndp_keep_alive_period =
 					cfg_get(psoc,
 						CFG_NDP_KEEP_ALIVE_PERIOD);
+	nan_obj->cfg_param.max_ndp_sessions = cfg_get(psoc,
+						      CFG_NDP_MAX_SESSIONS);
+	nan_obj->cfg_param.max_ndi = cfg_get(psoc, CFG_NDI_MAX_SUPPORT);
 }
 
 /**
@@ -755,13 +758,20 @@ post_msg:
 
 	if (req_type != NAN_GENERIC_REQ) {
 		err = osif_request_wait_for_response(request);
-		if (err)
+		if (err) {
 			nan_debug("NAN request: %u timed out: %d",
 				  req_type, err);
 
+			if (req_type == NAN_ENABLE_REQ) {
+				nan_set_discovery_state(psoc,
+							NAN_DISC_DISABLED);
+				policy_mgr_check_n_start_opportunistic_timer(
+									psoc);
+			} else if (req_type == NAN_DISABLE_REQ)
+				nan_disable_cleanup(psoc);
+		}
 		if (req_type == NAN_DISABLE_REQ)
 			psoc_priv->is_explicit_disable = false;
-
 		osif_request_put(request);
 	}
 
@@ -1099,6 +1109,12 @@ ucfg_nan_is_sta_nan_ndi_4_port_allowed(struct wlan_objmgr_psoc *psoc)
 }
 
 static inline bool
+ucfg_is_nan_enabled(struct nan_psoc_priv_obj *psoc_nan_obj)
+{
+	return psoc_nan_obj->cfg_param.enable;
+}
+
+static inline bool
 ucfg_nan_is_vdev_creation_supp_by_fw(struct nan_psoc_priv_obj *psoc_nan_obj)
 {
 	return psoc_nan_obj->nan_caps.nan_vdev_allowed;
@@ -1147,6 +1163,11 @@ bool ucfg_nan_is_vdev_creation_allowed(struct wlan_objmgr_psoc *psoc)
 	psoc_nan_obj = nan_get_psoc_priv_obj(psoc);
 	if (!psoc_nan_obj) {
 		nan_err("psoc_nan_obj is null");
+		return false;
+	}
+
+	if (!ucfg_is_nan_enabled(psoc_nan_obj)) {
+		nan_debug("NAN is not enabled");
 		return false;
 	}
 
