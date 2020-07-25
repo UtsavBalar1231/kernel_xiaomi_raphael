@@ -120,7 +120,7 @@
 
 			qcom,pipe0 {
 				label = "ssusb-qdss-in-0";
-				qcom,usb-bam-mem-type = <2>;
+				qcom,usb-bam-mem-type = <1>;
 				qcom,dir = <1>;
 				qcom,pipe-num = <0>;
 				qcom,peer-bam = <0>;
