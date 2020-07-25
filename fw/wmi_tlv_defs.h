@@ -1089,6 +1089,15 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_tpc_rates_array,
     WMITLV_TAG_STRUC_wmi_tpc_ctl_pwr_table,
     WMITLV_TAG_STRUC_wmi_vdev_bcn_latency_fixed_param,
+    WMITLV_TAG_STRUC_wmi_audio_aggr_set_sched_method,
+    WMITLV_TAG_STRUC_wmi_audio_aggr_get_sched_method,
+    WMITLV_TAG_STRUC_wmi_audio_aggr_sched_method_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_vdev_disconnect_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_roam_btm_response_info_tlv_param,
+    WMITLV_TAG_STRUC_wmi_roam_initial_info_tlv_param,
+    WMITLV_TAG_STRUC_wmi_pdev_twt_session_stats_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_twt_session_stats_info,
+    WMITLV_TAG_STRUC_wmi_configure_roam_trigger_parameters,
 } WMITLV_TAG_ID;
 
 /*
@@ -1535,6 +1544,8 @@ typedef enum {
     OP(WMI_PDEV_SET_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID) \
     OP(WMI_REQUEST_CTRL_PATH_STATS_CMDID) \
     OP(WMI_PDEV_GET_TPC_STATS_CMDID) \
+    OP(WMI_AUDIO_AGGR_SET_SCHED_METHOD_CMDID) \
+    OP(WMI_AUDIO_AGGR_GET_SCHED_METHOD_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -1788,6 +1799,9 @@ typedef enum {
     OP(WMI_CTRL_PATH_STATS_EVENTID) \
     OP(WMI_PDEV_GET_TPC_STATS_EVENTID) \
     OP(WMI_VDEV_BCN_LATENCY_EVENTID) \
+    OP(WMI_AUDIO_AGGR_SCHED_METHOD_EVENTID) \
+    OP(WMI_VDEV_DISCONNECT_EVENTID) \
+    OP(WMI_TWT_SESSION_STATS_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -3274,7 +3288,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_IDLE_TRIGGER_MONITOR_CMDID);
 
 /* Enable or disable roaming trigger reason */
 #define WMITLV_TABLE_WMI_ROAM_ENABLE_DISABLE_TRIGGER_REASON_CMDID(id,op,buf,len) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_roam_enable_disable_trigger_reason_fixed_param, wmi_roam_enable_disable_trigger_reason_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_roam_enable_disable_trigger_reason_fixed_param, wmi_roam_enable_disable_trigger_reason_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_configure_roam_trigger_parameters, config_roam_trigger_param, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_ENABLE_DISABLE_TRIGGER_REASON_CMDID);
 
 /* DSM filter parameters */
@@ -4121,7 +4136,9 @@ WMITLV_CREATE_PARAM_STRUC(WMI_WLM_CONFIG_CMDID);
   WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_roam_result, roam_result, WMITLV_SIZE_VAR) \
   WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_roam_neighbor_report_info, roam_neighbor_report_info, WMITLV_SIZE_VAR) \
   WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_roam_neighbor_report_channel_info, roam_neighbor_report_chan_info, WMITLV_SIZE_VAR) \
-  WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_roam_frame_info, roam_frame_info, WMITLV_SIZE_VAR)
+  WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_roam_frame_info, roam_frame_info, WMITLV_SIZE_VAR) \
+  WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_roam_initial_info, roam_initial_info, WMITLV_SIZE_VAR) \
+  WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_roam_btm_response_info, roam_btm_response_info, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_STATS_EVENTID);
 
 /* Motion detection cmd */
@@ -4350,6 +4367,14 @@ WMITLV_CREATE_PARAM_STRUC(WMI_AUDIO_AGGR_RESET_STATISTICS_CMDID);
 #define WMITLV_TABLE_WMI_AUDIO_AGGR_SET_RTSCTS_CONFIG_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_audio_aggr_set_rtscts_config, wmi_audio_aggr_set_rtscts_config_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_AUDIO_AGGR_SET_RTSCTS_CONFIG_CMDID);
+
+#define WMITLV_TABLE_WMI_AUDIO_AGGR_SET_SCHED_METHOD_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_audio_aggr_set_sched_method,wmi_audio_aggr_set_sched_method_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_AUDIO_AGGR_SET_SCHED_METHOD_CMDID);
+
+#define WMITLV_TABLE_WMI_AUDIO_AGGR_GET_SCHED_METHOD_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_audio_aggr_get_sched_method,wmi_audio_aggr_get_sched_method_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_AUDIO_AGGR_GET_SCHED_METHOD_CMDID);
 
 /* CFR Capture Filter cmd */
 #define WMITLV_TABLE_WMI_CFR_CAPTURE_FILTER_CMDID(id,op,buf,len) \
@@ -4662,9 +4687,14 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_STOPPED_EVENTID);
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_DELETE_RESP_EVENTID);
 
 /* VDEV Install Key Complete Event */
-#define WMITLV_TABLE_WMI_VDEV_INSTALL_KEY_COMPLETE_EVENTID(id,op,buf,len)                                           \
+#define WMITLV_TABLE_WMI_VDEV_INSTALL_KEY_COMPLETE_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_install_key_complete_event_fixed_param, wmi_vdev_install_key_complete_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_INSTALL_KEY_COMPLETE_EVENTID);
+
+/* VDEV disconnect Event */
+#define WMITLV_TABLE_WMI_VDEV_DISCONNECT_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_disconnect_event_fixed_param, wmi_vdev_disconnect_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_DISCONNECT_EVENTID);
 
 /* Peer STA Kickout Event */
 #define WMITLV_TABLE_WMI_PEER_STA_KICKOUT_EVENTID(id,op,buf,len)                                                         \
@@ -5968,6 +5998,10 @@ WMITLV_CREATE_PARAM_STRUC(WMI_NAN_DMESG_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_audio_aggr_peer_stats, peer_stats, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_AUDIO_AGGR_REPORT_STATISTICS_EVENTID);
 
+#define WMITLV_TABLE_WMI_AUDIO_AGGR_SCHED_METHOD_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_audio_aggr_sched_method_event_fixed_param, wmi_audio_aggr_sched_method_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_AUDIO_AGGR_SCHED_METHOD_EVENTID);
+
 /* Send sscan fw params to host */
 #define WMITLV_TABLE_WMI_PDEV_SSCAN_FW_PARAM_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_sscan_fw_cmd_fixed_param, wmi_pdev_sscan_fw_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
@@ -5995,6 +6029,13 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_GET_TPC_STATS_EVENTID);
 #define WMITLV_TABLE_WMI_VDEV_BCN_LATENCY_EVENTID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_bcn_latency_fixed_param, wmi_vdev_bcn_latency_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_BCN_LATENCY_EVENTID);
+
+/* TWT Stats session event */
+#define WMITLV_TABLE_WMI_TWT_SESSION_STATS_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_twt_session_stats_event_fixed_param, wmi_pdev_twt_session_stats_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_twt_session_stats_info, twt_sessions, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_TWT_SESSION_STATS_EVENTID);
+
 
 #ifdef __cplusplus
 }
