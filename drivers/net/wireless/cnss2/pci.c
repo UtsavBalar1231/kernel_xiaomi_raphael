@@ -826,26 +826,22 @@ static int cnss_qca6174_ramdump(struct cnss_pci_data *pci_priv)
 static int cnss_pci_force_wake_get(struct cnss_pci_data *pci_priv)
 {
 	struct device *dev = &pci_priv->pci_dev->dev;
-	u32 timeout = 0;
 	int ret;
 
-	ret = cnss_pci_force_wake_request(dev);
+	ret = cnss_pci_force_wake_request_sync(dev,
+					       FORCE_WAKE_DELAY_TIMEOUT_US);
 	if (ret) {
-		cnss_pr_err("Failed to request force wake\n");
+		if (ret != -EAGAIN)
+			cnss_pr_err("Failed to request force wake\n");
 		return ret;
 	}
 
-	while (!cnss_pci_is_device_awake(dev) &&
-	       timeout <= FORCE_WAKE_DELAY_TIMEOUT_US) {
-		usleep_range(FORCE_WAKE_DELAY_MIN_US, FORCE_WAKE_DELAY_MAX_US);
-		timeout += FORCE_WAKE_DELAY_MAX_US;
-	}
-
-	if (cnss_pci_is_device_awake(dev) != true) {
-		cnss_pr_err("Timed out to request force wake\n");
-		cnss_pci_force_wake_release(dev);
-		return -ETIMEDOUT;
-	}
+	/* If device's M1 state-change event races here, it can be ignored,
+	 * as the device is expected to immediately move from M2 to M0
+	 * without entering low power state.
+	 */
+	if (cnss_pci_is_device_awake(dev) != true)
+		cnss_pr_warn("MHI not in M0, while reg still accessible\n");
 
 	return 0;
 }
@@ -1384,6 +1380,27 @@ static int cnss_pci_init_smmu(struct cnss_pci_data *pci_priv)
 			goto release_mapping;
 		}
 
+		if (pci_priv->iommu_geometry) {
+			struct iommu_domain_geometry geometry = {0};
+
+			/* Need revisit if iova and ipa not continuous */
+			CNSS_ASSERT(pci_priv->smmu_iova_start +
+				    pci_priv->smmu_iova_len ==
+				    pci_priv->smmu_iova_ipa_start);
+
+			geometry.aperture_start = pci_priv->smmu_iova_start;
+			geometry.aperture_end = pci_priv->smmu_iova_start +
+						pci_priv->smmu_iova_len +
+						pci_priv->smmu_iova_ipa_len;
+			ret = iommu_domain_set_attr(mapping->domain,
+						    DOMAIN_ATTR_GEOMETRY,
+						    &geometry);
+			/* Not fatal failure, fall-thru */
+			if (ret)
+				cnss_pr_err("Failed to set GEOMETRY, err = %d\n",
+					    ret);
+		}
+
 		ret = iommu_domain_set_attr(mapping->domain,
 					    DOMAIN_ATTR_CB_STALL_DISABLE,
 					    &cb_stall_disable);
@@ -1914,10 +1931,36 @@ int cnss_pm_request_resume(struct cnss_pci_data *pci_priv)
 	return pm_request_resume(&pci_dev->dev);
 }
 
+int cnss_pci_force_wake_request_sync(struct device *dev, int timeout_us)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
+	struct cnss_plat_data *plat_priv;
+	struct mhi_controller *mhi_ctrl;
+
+	if (pci_priv->device_id != QCA6390_DEVICE_ID)
+		return 0;
+
+	mhi_ctrl = pci_priv->mhi_ctrl;
+	if (!mhi_ctrl)
+		return -EINVAL;
+
+	plat_priv = pci_priv->plat_priv;
+	if (!plat_priv)
+		return -ENODEV;
+
+	if (test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state))
+		return -EAGAIN;
+
+	return mhi_device_get_sync_atomic(mhi_ctrl->mhi_dev, timeout_us);
+}
+EXPORT_SYMBOL(cnss_pci_force_wake_request_sync);
+
 int cnss_pci_force_wake_request(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
+	struct cnss_plat_data *plat_priv;
 	struct mhi_controller *mhi_ctrl;
 
 	if (!pci_priv)
@@ -1930,9 +1973,14 @@ int cnss_pci_force_wake_request(struct device *dev)
 	if (!mhi_ctrl)
 		return -EINVAL;
 
-	read_lock_bh(&mhi_ctrl->pm_lock);
-	mhi_ctrl->wake_get(mhi_ctrl, true);
-	read_unlock_bh(&mhi_ctrl->pm_lock);
+	plat_priv = pci_priv->plat_priv;
+	if (!plat_priv)
+		return -ENODEV;
+
+	if (test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state))
+		return -EAGAIN;
+
+	mhi_device_get(mhi_ctrl->mhi_dev, MHI_VOTE_DEVICE);
 
 	return 0;
 }
@@ -1962,6 +2010,7 @@ int cnss_pci_force_wake_release(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
+	struct cnss_plat_data *plat_priv;
 	struct mhi_controller *mhi_ctrl;
 
 	if (!pci_priv)
@@ -1974,9 +2023,14 @@ int cnss_pci_force_wake_release(struct device *dev)
 	if (!mhi_ctrl)
 		return -EINVAL;
 
-	read_lock_bh(&mhi_ctrl->pm_lock);
-	mhi_ctrl->wake_put(mhi_ctrl, false);
-	read_unlock_bh(&mhi_ctrl->pm_lock);
+	plat_priv = pci_priv->plat_priv;
+	if (!plat_priv)
+		return -ENODEV;
+
+	if (test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state))
+		return -EAGAIN;
+
+	mhi_device_put(mhi_ctrl->mhi_dev, MHI_VOTE_DEVICE);
 
 	return 0;
 }
@@ -2151,6 +2205,34 @@ void cnss_pci_fw_boot_timeout_hdlr(struct cnss_pci_data *pci_priv)
 
 	cnss_schedule_recovery(&pci_priv->pci_dev->dev,
 			       CNSS_REASON_TIMEOUT);
+}
+
+int cnss_pci_get_iova(struct cnss_pci_data *pci_priv, u64 *addr, u64 *size)
+{
+	if (!pci_priv)
+		return -ENODEV;
+
+	if (!pci_priv->smmu_iova_len)
+		return -EINVAL;
+
+	*addr = pci_priv->smmu_iova_start;
+	*size = pci_priv->smmu_iova_len;
+
+	return 0;
+}
+
+int cnss_pci_get_iova_ipa(struct cnss_pci_data *pci_priv, u64 *addr, u64 *size)
+{
+	if (!pci_priv)
+		return -ENODEV;
+
+	if (!pci_priv->smmu_iova_ipa_len)
+		return -EINVAL;
+
+	*addr = pci_priv->smmu_iova_ipa_start;
+	*size = pci_priv->smmu_iova_ipa_len;
+
+	return 0;
 }
 
 struct dma_iommu_mapping *cnss_smmu_get_mapping(struct device *dev)
@@ -3292,6 +3374,11 @@ static int cnss_pci_get_smmu_cfg(struct cnss_plat_data *plat_priv)
 		    "converged dt" : "single dt"),
 		    &pci_priv->smmu_iova_ipa_start,
 		    pci_priv->smmu_iova_ipa_len);
+
+	pci_priv->iommu_geometry =
+		of_property_read_bool(dev_node, "qcom,iommu-geometry");
+	cnss_pr_dbg("DOMAIN_ATTR_GEOMETRY: %d\n", pci_priv->iommu_geometry);
+
 	return 0;
 
 out:

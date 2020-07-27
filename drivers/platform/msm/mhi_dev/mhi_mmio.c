@@ -583,6 +583,18 @@ int mhi_dev_mmio_set_env(struct mhi_dev *dev, uint32_t value)
 }
 EXPORT_SYMBOL(mhi_dev_mmio_set_env);
 
+int mhi_dev_mmio_clear_reset(struct mhi_dev *dev)
+{
+	if (WARN_ON(!dev))
+		return -EINVAL;
+
+	mhi_dev_mmio_masked_write(dev, MHICTRL,
+		MHICTRL_RESET_MASK, MHICTRL_RESET_SHIFT, 0);
+
+	return 0;
+}
+EXPORT_SYMBOL(mhi_dev_mmio_clear_reset);
+
 int mhi_dev_mmio_reset(struct mhi_dev *dev)
 {
 	if (WARN_ON(!dev))
@@ -677,6 +689,8 @@ EXPORT_SYMBOL(mhi_dev_get_mhi_addr);
 
 int mhi_dev_mmio_init(struct mhi_dev *dev)
 {
+	int rc = 0;
+
 	if (WARN_ON(!dev))
 		return -EINVAL;
 
@@ -685,7 +699,14 @@ int mhi_dev_mmio_init(struct mhi_dev *dev)
 	mhi_dev_mmio_masked_read(dev, MHICFG, MHICFG_NER_MASK,
 				MHICFG_NER_SHIFT, &dev->cfg.event_rings);
 
-	mhi_dev_mmio_read(dev, CHDBOFF, &dev->cfg.chdb_offset);
+	rc = mhi_dev_mmio_masked_read(dev, MHICFG, MHICFG_NHWER_MASK,
+				MHICFG_NHWER_SHIFT, &dev->cfg.hw_event_rings);
+	if (rc)
+		return rc;
+
+	rc = mhi_dev_mmio_read(dev, CHDBOFF, &dev->cfg.chdb_offset);
+	if (rc)
+		return rc;
 
 	mhi_dev_mmio_read(dev, ERDBOFF, &dev->cfg.erdb_offset);
 
@@ -700,13 +721,21 @@ EXPORT_SYMBOL(mhi_dev_mmio_init);
 
 int mhi_dev_update_ner(struct mhi_dev *dev)
 {
+	int rc = 0, mhi_cfg = 0;
+
 	if (WARN_ON(!dev))
 		return -EINVAL;
 
-	mhi_dev_mmio_masked_read(dev, MHICFG, MHICFG_NER_MASK,
-				  MHICFG_NER_SHIFT, &dev->cfg.event_rings);
+	rc = mhi_dev_mmio_read(dev, MHICFG, &mhi_cfg);
+	if (rc)
+		return rc;
 
-	pr_debug("NER in HW :%d\n", dev->cfg.event_rings);
+	pr_debug("MHICFG: 0x%x", mhi_cfg);
+
+	dev->cfg.event_rings =
+		(mhi_cfg & MHICFG_NER_MASK) >> MHICFG_NER_SHIFT;
+	dev->cfg.hw_event_rings =
+		(mhi_cfg & MHICFG_NHWER_MASK) >> MHICFG_NHWER_SHIFT;
 
 	return 0;
 }

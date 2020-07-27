@@ -355,6 +355,9 @@ void mhi_destroy_sysfs(struct mhi_controller *mhi_cntrl)
 		}
 		spin_unlock(&mhi_tsync->lock);
 
+		if (mhi_tsync->db_response_pending)
+			complete(&mhi_tsync->db_completion);
+
 		kfree(mhi_cntrl->mhi_tsync);
 		mhi_cntrl->mhi_tsync = NULL;
 		mutex_unlock(&mhi_cntrl->tsync_mutex);
@@ -510,6 +513,12 @@ static int mhi_init_debugfs_mhi_vote_open(struct inode *inode, struct file *fp)
 	return single_open(fp, mhi_debugfs_mhi_vote_show, inode->i_private);
 }
 
+static int mhi_init_debugfs_mhi_regdump_open(struct inode *inode,
+					     struct file *fp)
+{
+	return single_open(fp, mhi_debugfs_mhi_regdump_show, inode->i_private);
+}
+
 static const struct file_operations debugfs_state_ops = {
 	.open = mhi_init_debugfs_mhi_states_open,
 	.release = single_release,
@@ -534,8 +543,17 @@ static const struct file_operations debugfs_vote_ops = {
 	.read = seq_read,
 };
 
+static const struct file_operations debugfs_regdump_ops = {
+	.open = mhi_init_debugfs_mhi_regdump_open,
+	.release = single_release,
+	.read = seq_read,
+};
+
 DEFINE_DEBUGFS_ATTRIBUTE(debugfs_trigger_reset_fops, NULL,
 			 mhi_debugfs_trigger_reset, "%llu\n");
+
+DEFINE_DEBUGFS_ATTRIBUTE(debugfs_trigger_soc_reset_fops, NULL,
+			 mhi_debugfs_trigger_soc_reset, "%llu\n");
 
 void mhi_init_debugfs(struct mhi_controller *mhi_cntrl)
 {
@@ -562,6 +580,11 @@ void mhi_init_debugfs(struct mhi_controller *mhi_cntrl)
 			    &debugfs_vote_ops);
 	debugfs_create_file("reset", 0444, dentry, mhi_cntrl,
 			    &debugfs_trigger_reset_fops);
+	debugfs_create_file("regdump", 0444, dentry, mhi_cntrl,
+			    &debugfs_regdump_ops);
+	debugfs_create_file("soc_reset", 0444, dentry, mhi_cntrl,
+			    &debugfs_trigger_soc_reset_fops);
+
 	mhi_cntrl->dentry = dentry;
 }
 
@@ -1511,9 +1534,9 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
 	INIT_WORK(&mhi_cntrl->st_worker, mhi_pm_st_worker);
 	init_waitqueue_head(&mhi_cntrl->state_event);
 
-	mhi_cntrl->special_wq = alloc_ordered_workqueue("mhi_special_w",
+	mhi_cntrl->wq = alloc_ordered_workqueue("mhi_w",
 						WQ_MEM_RECLAIM | WQ_HIGHPRI);
-	if (!mhi_cntrl->special_wq)
+	if (!mhi_cntrl->wq)
 		goto error_alloc_cmd;
 
 	INIT_WORK(&mhi_cntrl->special_work, mhi_special_purpose_work);
@@ -1639,7 +1662,7 @@ error_add_dev:
 
 error_alloc_dev:
 	kfree(mhi_cntrl->mhi_cmd);
-	destroy_workqueue(mhi_cntrl->special_wq);
+	destroy_workqueue(mhi_cntrl->wq);
 
 error_alloc_cmd:
 	vfree(mhi_cntrl->mhi_chan);
