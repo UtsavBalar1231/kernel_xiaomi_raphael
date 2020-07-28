@@ -20,7 +20,6 @@
 #include <linux/ipa_mhi.h>
 #include "../ipa_common_i.h"
 #include "ipa_i.h"
-#include "ipa_qmi_service.h"
 
 #define IPA_MHI_DRV_NAME "ipa_mhi"
 
@@ -106,33 +105,6 @@ bool ipa3_mhi_stop_gsi_channel(enum ipa_client_type client)
 	return false;
 }
 
-static int ipa3_mhi_send_endp_ind_to_modem(void)
-{
-	struct ipa_endp_desc_indication_msg_v01 req;
-	struct ipa_ep_id_type_v01 *ep_info;
-	int ipa_mhi_prod_ep_idx =
-		ipa3_get_ep_mapping(IPA_CLIENT_MHI_LOW_LAT_PROD);
-	int ipa_mhi_cons_ep_idx =
-		ipa3_get_ep_mapping(IPA_CLIENT_MHI_LOW_LAT_CONS);
-
-	memset(&req, 0, sizeof(struct ipa_endp_desc_indication_msg_v01));
-	req.ep_info_len = 2;
-	req.ep_info_valid = true;
-	req.num_eps_valid = true;
-	req.num_eps = 2;
-	ep_info = &req.ep_info[0];
-	ep_info->ep_id = ipa_mhi_cons_ep_idx;
-	ep_info->ic_type = DATA_IC_TYPE_MHI_V01;
-	ep_info->ep_type = DATA_EP_DESC_TYPE_EMB_FLOW_CTL_PROD_V01;
-	ep_info->ep_status = DATA_EP_STATUS_CONNECTED_V01;
-	ep_info = &req.ep_info[1];
-	ep_info->ep_id = ipa_mhi_prod_ep_idx;
-	ep_info->ic_type = DATA_IC_TYPE_MHI_V01;
-	ep_info->ep_type = DATA_EP_DESC_TYPE_EMB_FLOW_CTL_CONS_V01;
-	ep_info->ep_status = DATA_EP_STATUS_CONNECTED_V01;
-	return ipa3_qmi_send_endp_desc_indication(&req);
-}
-
 static int ipa3_mhi_reset_gsi_channel(enum ipa_client_type client)
 {
 	int res;
@@ -216,7 +188,8 @@ static int ipa3_mhi_get_ch_poll_cfg(enum ipa_client_type client,
 }
 
 static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
-	int ipa_ep_idx, struct start_gsi_channel *params)
+	int ipa_ep_idx, struct start_gsi_channel *params,
+	struct ipa_ep_cfg *ipa_ep_cfg)
 {
 	int res = 0;
 	struct gsi_evt_ring_props ev_props;
@@ -228,6 +201,7 @@ static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 	const struct ipa_gsi_ep_config *ep_cfg;
 	struct ipa_ep_cfg_ctrl ep_cfg_ctrl;
 	bool burst_mode_enabled = false;
+	int code = 0;
 
 	IPA_MHI_FUNC_ENTRY();
 
@@ -400,6 +374,37 @@ static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 
 	*params->mhi = ch_scratch.mhi;
 
+	res = ipa3_enable_data_path(ipa_ep_idx);
+	if (res) {
+		IPA_MHI_ERR("enable data path failed res=%d clnt=%d.\n", res,
+			ipa_ep_idx);
+		goto fail_ep_cfg;
+	}
+
+	if (!ep->skip_ep_cfg) {
+		if (ipa3_cfg_ep(ipa_ep_idx, ipa_ep_cfg)) {
+			IPAERR("fail to configure EP.\n");
+			goto fail_ep_cfg;
+		}
+		if (ipa3_cfg_ep_status(ipa_ep_idx, &ep->status)) {
+			IPAERR("fail to configure status of EP.\n");
+			goto fail_ep_cfg;
+		}
+		IPA_MHI_DBG("ep configuration successful\n");
+	} else {
+		IPA_MHI_DBG("skipping ep configuration\n");
+		if (IPA_CLIENT_IS_PROD(ipa3_ctx->ep[ipa_ep_idx].client) &&
+			ipa3_ctx->ep[ipa_ep_idx].client == IPA_CLIENT_MHI_PROD
+				&& !ipa3_is_mhip_offload_enabled()) {
+			if (ipa3_cfg_ep_seq(ipa_ep_idx,
+					&ipa_ep_cfg->seq)) {
+				IPA_MHI_ERR("fail to configure USB pipe seq\n");
+				goto fail_ep_cfg;
+			}
+		}
+	}
+
+
 	if (IPA_CLIENT_IS_PROD(ep->client) && ep->skip_ep_cfg) {
 		memset(&ep_cfg_ctrl, 0, sizeof(struct ipa_ep_cfg_ctrl));
 		ep_cfg_ctrl.ipa_ep_delay = true;
@@ -414,6 +419,9 @@ static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 		ep->ep_delay_set = false;
 	}
 
+	if (!ep->skip_ep_cfg && IPA_CLIENT_IS_PROD(client))
+		ipa3_install_dflt_flt_rules(ipa_ep_idx);
+
 	IPA_MHI_DBG("Starting channel\n");
 	res = gsi_start_channel(ep->gsi_chan_hdl);
 	if (res) {
@@ -421,9 +429,22 @@ static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 		goto fail_ch_start;
 	}
 
+	if (IPA_CLIENT_IS_PROD(ep->client) && ep->skip_ep_cfg &&
+		ipa3_ctx->ipa_endp_delay_wa &&
+		!ipa3_is_mhip_offload_enabled()) {
+		res = gsi_enable_flow_control_ee(ep->gsi_chan_hdl, 0, &code);
+		if (res == GSI_STATUS_SUCCESS) {
+			IPA_MHI_DBG("flow ctrl sussess gsi ch %d code %d\n",
+					ep->gsi_chan_hdl, code);
+		} else {
+			IPA_MHI_DBG("failed to flow ctrll gsi ch %d code %d\n",
+				ep->gsi_chan_hdl, code);
+		}
+	}
 	IPA_MHI_FUNC_EXIT();
 	return 0;
-
+fail_ep_cfg:
+	ipa3_disable_data_path(ipa_ep_idx);
 fail_ch_start:
 fail_ch_scratch:
 	gsi_dealloc_channel(ep->gsi_chan_hdl);
@@ -498,10 +519,6 @@ int ipa3_connect_mhi_pipe(struct ipa_mhi_connect_params_internal *in,
 	int ipa_ep_idx;
 	int res;
 	enum ipa_client_type client;
-	int ipa_mhi_prod_ep_idx =
-		ipa3_get_ep_mapping(IPA_CLIENT_MHI_LOW_LAT_PROD);
-	int ipa_mhi_cons_ep_idx =
-		ipa3_get_ep_mapping(IPA_CLIENT_MHI_LOW_LAT_CONS);
 
 	IPA_MHI_FUNC_ENTRY();
 
@@ -535,57 +552,25 @@ int ipa3_connect_mhi_pipe(struct ipa_mhi_connect_params_internal *in,
 	ep->keep_ipa_awake = in->sys->keep_ipa_awake;
 
 	res = ipa_mhi_start_gsi_channel(client,
-					ipa_ep_idx, &in->start.gsi);
+					ipa_ep_idx, &in->start.gsi,
+					&in->sys->ipa_ep_cfg);
 	if (res) {
 		IPA_MHI_ERR("ipa_mhi_start_gsi_channel failed %d\n",
 			res);
 		goto fail_start_channel;
 	}
-
-	res = ipa3_enable_data_path(ipa_ep_idx);
-	if (res) {
-		IPA_MHI_ERR("enable data path failed res=%d clnt=%d.\n", res,
-			ipa_ep_idx);
-		goto fail_ep_cfg;
-	}
-
-	if (!ep->skip_ep_cfg) {
-		if (ipa3_cfg_ep(ipa_ep_idx, &in->sys->ipa_ep_cfg)) {
-			IPAERR("fail to configure EP.\n");
-			goto fail_ep_cfg;
-		}
-		if (ipa3_cfg_ep_status(ipa_ep_idx, &ep->status)) {
-			IPAERR("fail to configure status of EP.\n");
-			goto fail_ep_cfg;
-		}
-		IPA_MHI_DBG("ep configuration successful\n");
-	} else {
-		IPA_MHI_DBG("skipping ep configuration\n");
-	}
-
 	*clnt_hdl = ipa_ep_idx;
 
 	if (!ep->skip_ep_cfg && IPA_CLIENT_IS_PROD(client))
 		ipa3_install_dflt_flt_rules(ipa_ep_idx);
 
 	ipa3_ctx->skip_ep_cfg_shadow[ipa_ep_idx] = ep->skip_ep_cfg;
-	IPA_MHI_DBG("client %d (ep: %d) connected\n", client,
-		ipa_ep_idx);
-
-	if ((client == IPA_CLIENT_MHI_LOW_LAT_PROD ||
-		client == IPA_CLIENT_MHI_LOW_LAT_CONS) &&
-		ipa_mhi_prod_ep_idx != -1 &&
-		ipa3_ctx->ep[ipa_mhi_prod_ep_idx].valid &&
-		ipa_mhi_cons_ep_idx != -1 &&
-		ipa3_ctx->ep[ipa_mhi_cons_ep_idx].valid)
-		ipa3_mhi_send_endp_ind_to_modem();
+	IPA_MHI_DBG("client %d (ep: %d) connected\n", client, ipa_ep_idx);
 
 	IPA_MHI_FUNC_EXIT();
 
 	return 0;
 
-fail_ep_cfg:
-	ipa3_disable_data_path(ipa_ep_idx);
 fail_start_channel:
 	memset(ep, 0, offsetof(struct ipa3_ep_context, sys));
 	return -EPERM;
