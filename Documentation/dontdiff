@@ -54,6 +54,7 @@
 *.ver
 *.xml
 *.xz
+*.zst
 *_MODULES
 *_vga16.c
 *~
