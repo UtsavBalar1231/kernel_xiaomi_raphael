@@ -263,6 +263,7 @@ struct mhi_config {
 	uint32_t	mhi_reg_len;
 	uint32_t	version;
 	uint32_t	event_rings;
+	uint32_t	hw_event_rings;
 	uint32_t	channels;
 	uint32_t	chdb_offset;
 	uint32_t	erdb_offset;
@@ -270,7 +271,8 @@ struct mhi_config {
 
 #define NUM_CHANNELS			128
 #define HW_CHANNEL_BASE			100
-#define HW_CHANNEL_END			107
+#define NUM_HW_CHANNELS			15
+#define HW_CHANNEL_END			110
 #define MHI_ENV_VALUE			2
 #define MHI_MASK_ROWS_CH_EV_DB		4
 #define TRB_MAX_DATA_SIZE		8192
@@ -553,7 +555,7 @@ struct mhi_dev {
 	size_t			ch_ring_start;
 
 	/* IPA Handles */
-	u32				ipa_clnt_hndl[4];
+	u32				ipa_clnt_hndl[NUM_HW_CHANNELS];
 	struct workqueue_struct		*ring_init_wq;
 	struct work_struct		ring_init_cb_work;
 	struct work_struct		re_init;
@@ -981,6 +983,12 @@ int mhi_dev_mmio_get_cmd_db(struct mhi_dev_ring *ring, uint64_t *wr_offset);
  * @value:	Value of the EXEC EVN.
  */
 int mhi_dev_mmio_set_env(struct mhi_dev *dev, uint32_t value);
+
+/**
+ * mhi_dev_mmio_clear_reset() - Clear the reset bit
+ * @dev:	MHI device structure.
+ */
+int mhi_dev_mmio_clear_reset(struct mhi_dev *dev);
 
 /**
  * mhi_dev_mmio_reset() - Reset the MMIO done as part of initialization.
