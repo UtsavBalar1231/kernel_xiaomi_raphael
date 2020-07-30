@@ -4123,6 +4123,8 @@ static inline bool f2fs_force_buffered_io(struct inode *inode,
 	if (f2fs_encrypted_file(inode) &&
 	    !fscrypt_using_hardware_encryption(inode))
 		return true;
+	if (f2fs_compressed_file(inode))
+		return true;
 	if (f2fs_is_multi_device(sbi))
 		return true;
 	/*
