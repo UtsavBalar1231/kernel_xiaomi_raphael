@@ -55,8 +55,7 @@ static void __exit ais_ife_csid_lite_exit_module(void)
 	platform_driver_unregister(&ais_ife_csid_lite_driver);
 }
 
-early_module_init(ais_ife_csid_lite_init_module, EARLY_SUBSYS_3,
-EARLY_INIT_LEVEL2);
+module_init(ais_ife_csid_lite_init_module);
 module_exit(ais_ife_csid_lite_exit_module);
 MODULE_DESCRIPTION("CAM IFE_CSID_LITE driver");
 MODULE_LICENSE("GPL v2");

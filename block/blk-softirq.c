@@ -178,5 +178,4 @@ static __init int blk_softirq_init(void)
 				  blk_softirq_cpu_dead);
 	return 0;
 }
-early_subsys_initcall(blk_softirq_init, EARLY_SUBSYS_PLATFORM,
-EARLY_INIT_LEVEL8);
+subsys_initcall(blk_softirq_init);

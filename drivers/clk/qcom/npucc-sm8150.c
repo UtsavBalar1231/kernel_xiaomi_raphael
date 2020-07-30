@@ -822,8 +822,7 @@ static int __init npu_cc_sm8150_init(void)
 {
 	return platform_driver_register(&npu_cc_sm8150_driver);
 }
-early_subsys_initcall(npu_cc_sm8150_init, EARLY_SUBSYS_PLATFORM,
-EARLY_INIT_LEVEL5);
+subsys_initcall(npu_cc_sm8150_init);
 
 static void __exit npu_cc_sm8150_exit(void)
 {

@@ -1329,7 +1329,7 @@ static int __init pil_tz_init(void)
 {
 	return platform_driver_register(&pil_tz_driver);
 }
-early_module_init(pil_tz_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
+module_init(pil_tz_init);
 
 static void __exit pil_tz_exit(void)
 {

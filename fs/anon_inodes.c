@@ -175,4 +175,5 @@ static int __init anon_inode_init(void)
 	return 0;
 }
 
-early_fs_initcall(anon_inode_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
+fs_initcall(anon_inode_init);
+

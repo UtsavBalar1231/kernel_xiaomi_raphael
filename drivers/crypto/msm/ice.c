@@ -1834,8 +1834,7 @@ static struct platform_driver qcom_ice_driver = {
 		.of_match_table = qcom_ice_match,
 	},
 };
-early_module_platform_driver(qcom_ice_driver, EARLY_SUBSYS_PLATFORM,
-EARLY_INIT_LEVEL8);
+module_platform_driver(qcom_ice_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("QTI Inline Crypto Engine driver");

@@ -96,8 +96,6 @@
 #include <asm/cacheflush.h>
 #include <soc/qcom/boot_stats.h>
 
-#include "do_mounts.h"
-
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -1007,8 +1005,7 @@ static void mark_readonly(void)
 		 * flushed so that we don't hit false positives looking for
 		 * insecure pages which are W+X.
 		 */
-		if (!is_early_userspace)
-			rcu_barrier_sched();
+		rcu_barrier_sched();
 		mark_rodata_ro();
 		rodata_test();
 	} else
@@ -1024,18 +1021,12 @@ static inline void mark_readonly(void)
 static int __ref kernel_init(void *unused)
 {
 	int ret;
-#ifdef CONFIG_EARLY_SERVICES
-	int status = 0;
-#endif
+
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
-	if (!is_early_userspace) {
-		ftrace_free_init_mem();
-		free_initmem();
-	} else {
-		early_subsys_finish();
-	}
+	ftrace_free_init_mem();
+	free_initmem();
 	mark_readonly();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
@@ -1043,15 +1034,6 @@ static int __ref kernel_init(void *unused)
 	rcu_end_inkernel_boot();
 	place_marker("M - DRIVER Kernel Boot Done");
 
-#ifdef CONFIG_EARLY_SERVICES
-	status = get_early_services_status();
-	if (status) {
-		struct kstat stat;
-		/* Wait for early services SE policy load completion signal */
-		while (vfs_stat("/dev/sedone", &stat) != 0)
-			;
-	}
-#endif
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);
 		if (!ret)

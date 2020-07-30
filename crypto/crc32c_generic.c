@@ -165,7 +165,7 @@ static void __exit crc32c_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-early_module_init(crc32c_mod_init, EARLY_SUBSYS_1, EARLY_INIT_LEVEL4);
+module_init(crc32c_mod_init);
 module_exit(crc32c_mod_fini);
 
 MODULE_AUTHOR("Clay Haapala <chaapala@cisco.com>");
