@@ -1303,4 +1303,4 @@ static int __init sx150x_init(void)
 {
 	return i2c_add_driver(&sx150x_driver);
 }
-early_subsys_initcall(sx150x_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL3);
+subsys_initcall(sx150x_init);

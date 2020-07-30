@@ -1322,7 +1322,7 @@ static int __init devfreq_init(void)
 
 	return 0;
 }
-early_subsys_initcall(devfreq_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL7);
+subsys_initcall(devfreq_init);
 
 /*
  * The following are helper functions for devfreq user device drivers with

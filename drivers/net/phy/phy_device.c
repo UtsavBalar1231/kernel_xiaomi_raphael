@@ -1982,5 +1982,5 @@ static void __exit phy_exit(void)
 	mdio_bus_exit();
 }
 
-early_subsys_initcall(phy_init, EARLY_SUBSYS_4, EARLY_INIT_LEVEL1);
+subsys_initcall(phy_init);
 module_exit(phy_exit);

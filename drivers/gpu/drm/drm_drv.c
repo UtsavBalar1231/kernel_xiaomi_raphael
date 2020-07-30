@@ -1004,5 +1004,5 @@ error:
 	return ret;
 }
 
-early_module_init(drm_core_init, EARLY_SUBSYS_2, EARLY_INIT_LEVEL4);
+module_init(drm_core_init);
 module_exit(drm_core_exit);

@@ -1946,6 +1946,6 @@ exit_netlink:
 	return ret;
 }
 
-early_subsys_initcall(thermal_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL7);
+subsys_initcall(thermal_init);
 fs_initcall(thermal_netlink_init);
 module_exit(thermal_exit);

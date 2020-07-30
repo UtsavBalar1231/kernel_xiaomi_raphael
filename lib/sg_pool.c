@@ -168,5 +168,5 @@ static __exit void sg_pool_exit(void)
 	}
 }
 
-early_module_init(sg_pool_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
+module_init(sg_pool_init);
 module_exit(sg_pool_exit);

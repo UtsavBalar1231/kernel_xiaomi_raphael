@@ -48,8 +48,7 @@ static int __init devfreq_powersave_init(void)
 {
 	return devfreq_add_governor(&devfreq_powersave);
 }
-early_subsys_initcall(devfreq_powersave_init, EARLY_SUBSYS_PLATFORM,
-EARLY_INIT_LEVEL7);
+subsys_initcall(devfreq_powersave_init);
 
 static void __exit devfreq_powersave_exit(void)
 {

@@ -8912,4 +8912,4 @@ out:
 	return rc;
 }
 
-early_subsys_initcall(net_dev_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
+subsys_initcall(net_dev_init);

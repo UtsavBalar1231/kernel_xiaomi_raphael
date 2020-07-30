@@ -5068,8 +5068,3 @@
 	eipv6=	[KNL] Sets ipv6 address at boot up for early ethernet.
 
 	ermac=	[KNL] Sets mac address at boot up for early ethernet.
-
-	early_userspace [KNL]
-			Enable early userspace feature where we adjust the
-			normal booting sequence and get rootfs mounted and
-			other subsystems ready much earlier.

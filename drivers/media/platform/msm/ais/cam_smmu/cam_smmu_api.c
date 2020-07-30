@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -3615,7 +3615,7 @@ static void __exit cam_smmu_exit_module(void)
 	platform_driver_unregister(&cam_smmu_driver);
 }
 
-early_module_init(cam_smmu_init_module, EARLY_SUBSYS_3, EARLY_INIT_LEVEL2);
+module_init(cam_smmu_init_module);
 module_exit(cam_smmu_exit_module);
 MODULE_DESCRIPTION("MSM Camera SMMU driver");
 MODULE_LICENSE("GPL v2");

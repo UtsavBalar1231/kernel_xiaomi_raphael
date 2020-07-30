@@ -6788,23 +6788,7 @@ static void __exit pcie_exit(void)
 		msm_pcie_sysfs_exit(&msm_pcie_dev[i]);
 }
 
-static DECLARE_COMPLETION(pcie_init_start);
-
-static int __init pcie_init_sync(void)
-{
-	complete(&pcie_init_start);
-	return 0;
-}
-subsys_initcall_sync(pcie_init_sync);
-
-static int __init pcie_init_wait(void)
-{
-	wait_for_completion(&pcie_init_start);
-	return 0;
-}
-early_init(pcie_init_wait, EARLY_SUBSYS_5, EARLY_INIT_LEVEL3);
-
-early_subsys_initcall_sync(pcie_init, EARLY_SUBSYS_5, EARLY_INIT_LEVEL4);
+subsys_initcall_sync(pcie_init);
 module_exit(pcie_exit);
 
 

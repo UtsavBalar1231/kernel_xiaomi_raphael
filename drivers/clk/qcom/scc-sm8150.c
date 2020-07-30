@@ -732,8 +732,7 @@ static int __init scc_sm8150_init(void)
 {
 	return platform_driver_register(&scc_sm8150_driver);
 }
-early_subsys_initcall(scc_sm8150_init, EARLY_SUBSYS_PLATFORM,
-EARLY_INIT_LEVEL5);
+subsys_initcall(scc_sm8150_init);
 
 static void __exit scc_sm8150_exit(void)
 {

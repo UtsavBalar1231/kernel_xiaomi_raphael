@@ -51,8 +51,7 @@ static int __init devfreq_performance_init(void)
 {
 	return devfreq_add_governor(&devfreq_performance);
 }
-early_subsys_initcall(devfreq_performance_init, EARLY_SUBSYS_PLATFORM,
-EARLY_INIT_LEVEL7);
+subsys_initcall(devfreq_performance_init);
 
 static void __exit devfreq_performance_exit(void)
 {

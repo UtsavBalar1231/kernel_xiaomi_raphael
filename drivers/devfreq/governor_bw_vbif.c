@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017, 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -122,8 +122,7 @@ static int __init devfreq_vbif_init(void)
 {
 	return devfreq_add_governor(&devfreq_vbif);
 }
-early_subsys_initcall(devfreq_vbif_init, EARLY_SUBSYS_PLATFORM,
-EARLY_INIT_LEVEL7);
+subsys_initcall(devfreq_vbif_init);
 
 static void __exit devfreq_vbif_exit(void)
 {

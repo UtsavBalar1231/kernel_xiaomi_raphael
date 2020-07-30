@@ -1089,4 +1089,4 @@ MODULE_AUTHOR("Jens Axboe");
 MODULE_DESCRIPTION(BSG_DESCRIPTION);
 MODULE_LICENSE("GPL");
 
-early_device_initcall(bsg_init, EARLY_SUBSYS_PLATFORM, EARLY_INIT_LEVEL8);
+device_initcall(bsg_init);

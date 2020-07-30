@@ -5212,7 +5212,7 @@ err:
 	return result;
 }
 
-early_module_init(kgsl_core_init, EARLY_SUBSYS_2, EARLY_INIT_LEVEL4);
+module_init(kgsl_core_init);
 module_exit(kgsl_core_exit);
 
 MODULE_DESCRIPTION("MSM GPU driver");

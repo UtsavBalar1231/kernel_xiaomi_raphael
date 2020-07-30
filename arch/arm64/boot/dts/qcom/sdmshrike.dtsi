@@ -735,12 +735,6 @@
 
 };
 
-&soc {
-	early_devices: early-devices {
-		compatible = "qcom,early-devices";
-	};
-};
-
 #include "sdmshrike-gdsc.dtsi"
 #include "sdmshrike-sde-pll.dtsi"
 #include "sdmshrike-sde.dtsi"

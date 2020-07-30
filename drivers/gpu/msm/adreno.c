@@ -4115,7 +4115,7 @@ static void __exit kgsl_3d_exit(void)
 	platform_driver_unregister(&kgsl_bus_platform_driver);
 }
 
-early_module_init(kgsl_3d_init, EARLY_SUBSYS_2, EARLY_INIT_LEVEL4);
+module_init(kgsl_3d_init);
 module_exit(kgsl_3d_exit);
 
 MODULE_DESCRIPTION("3D Graphics driver");
