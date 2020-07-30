@@ -1728,7 +1728,7 @@ continue_unlock:
 					set_dentry_mark(page,
 						f2fs_need_dentry_mark(sbi, ino));
 				}
-				/*  may be written by other thread */
+				/* may be written by other thread */
 				if (!PageDirty(page))
 					set_page_dirty(page);
 			}
@@ -1816,12 +1816,11 @@ static bool flush_dirty_inode(struct page *page)
 	return true;
 }
 
-int f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
+void f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
 {
 	pgoff_t index = 0;
 	struct pagevec pvec;
 	int nr_pages;
-	int ret = 0;
 
 	pagevec_init(&pvec, 0);
 
@@ -1860,7 +1859,6 @@ continue_unlock:
 		pagevec_release(&pvec);
 		cond_resched();
 	}
-	return ret;
 }
 
 int f2fs_sync_node_pages(struct f2fs_sb_info *sbi,
@@ -1926,8 +1924,12 @@ continue_unlock:
 				goto continue_unlock;
 			}
 
-			/* flush inline_data, if it's async context. */
-			if (do_balance && is_inline_node(page)) {
+			/* flush inline_data/inode, if it's async context. */
+			if (!do_balance)
+				goto write_node;
+
+			/* flush inline_data */
+			if (is_inline_node(page)) {
 				clear_inline_node(page);
 				unlock_page(page);
 				flush_inline_data(sbi, ino_of_node(page));
@@ -1940,7 +1942,7 @@ continue_unlock:
 				if (flush_dirty_inode(page))
 					goto lock_node;
 			}
-
+write_node:
 			f2fs_wait_on_page_writeback(page, NODE, true, true);
 
 			if (!clear_page_dirty_for_io(page))
@@ -2099,7 +2101,7 @@ const struct address_space_operations f2fs_node_aops = {
 	.invalidatepage	= f2fs_invalidate_page,
 	.releasepage	= f2fs_release_page,
 #ifdef CONFIG_MIGRATION
-	.migratepage    = f2fs_migrate_page,
+	.migratepage	= f2fs_migrate_page,
 #endif
 };
 

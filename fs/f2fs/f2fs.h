@@ -402,12 +402,8 @@ static inline bool __has_cursum_space(struct f2fs_journal *journal,
 }
 
 /*
- * ioctl commands
+ * f2fs-specific ioctl commands
  */
-#define F2FS_IOC_GETFLAGS		FS_IOC_GETFLAGS
-#define F2FS_IOC_SETFLAGS		FS_IOC_SETFLAGS
-#define F2FS_IOC_GETVERSION		FS_IOC_GETVERSION
-
 #define F2FS_IOCTL_MAGIC		0xf5
 #define F2FS_IOC_START_ATOMIC_WRITE	_IO(F2FS_IOCTL_MAGIC, 1)
 #define F2FS_IOC_COMMIT_ATOMIC_WRITE	_IO(F2FS_IOCTL_MAGIC, 2)
@@ -437,10 +433,6 @@ static inline bool __has_cursum_space(struct f2fs_journal *journal,
 #define F2FS_IOC_SEC_TRIM_FILE		_IOW(F2FS_IOCTL_MAGIC, 20,	\
 						struct f2fs_sectrim_range)
 
-#define F2FS_IOC_SET_ENCRYPTION_POLICY	FS_IOC_SET_ENCRYPTION_POLICY
-#define F2FS_IOC_GET_ENCRYPTION_POLICY	FS_IOC_GET_ENCRYPTION_POLICY
-#define F2FS_IOC_GET_ENCRYPTION_PWSALT	FS_IOC_GET_ENCRYPTION_PWSALT
-
 /*
  * should be same as XFS_IOC_GOINGDOWN.
  * Flags for going down operation used by FS_IOC_GOINGDOWN
@@ -458,18 +450,6 @@ static inline bool __has_cursum_space(struct f2fs_journal *journal,
 #define F2FS_TRIM_FILE_DISCARD		0x1	/* send discard command */
 #define F2FS_TRIM_FILE_ZEROOUT		0x2	/* zero out */
 #define F2FS_TRIM_FILE_MASK		0x3
-
-#if defined(__KERNEL__) && defined(CONFIG_COMPAT)
-/*
- * ioctl commands in 32 bit emulation
- */
-#define F2FS_IOC32_GETFLAGS		FS_IOC32_GETFLAGS
-#define F2FS_IOC32_SETFLAGS		FS_IOC32_SETFLAGS
-#define F2FS_IOC32_GETVERSION		FS_IOC32_GETVERSION
-#endif
-
-#define F2FS_IOC_FSGETXATTR		FS_IOC_FSGETXATTR
-#define F2FS_IOC_FSSETXATTR		FS_IOC_FSSETXATTR
 
 struct f2fs_gc_range {
 	u32 sync;
@@ -1459,7 +1439,7 @@ struct f2fs_sb_info {
 	unsigned long last_time[MAX_TIME];	/* to store time in jiffies */
 	long interval_time[MAX_TIME];		/* to store thresholds */
 
-	struct inode_management im[MAX_INO_ENTRY];      /* manage inode cache */
+	struct inode_management im[MAX_INO_ENTRY];	/* manage inode cache */
 
 	spinlock_t fsync_node_lock;		/* for node entry lock */
 	struct list_head fsync_node_list;	/* node list head */
@@ -1540,7 +1520,7 @@ struct f2fs_sb_info {
 	unsigned int rapid_gc;			/* is rapid GC running */
 
 	/* for skip statistic */
-	unsigned int atomic_files;              /* # of opened atomic file */
+	unsigned int atomic_files;		/* # of opened atomic file */
 	unsigned long long skipped_atomic_files[2];	/* FG_GC and BG_GC */
 	unsigned long long skipped_gc_rwsem;		/* FG_GC only */
 
@@ -3308,7 +3288,7 @@ void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid);
 struct page *f2fs_get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid);
 struct page *f2fs_get_node_page_ra(struct page *parent, int start);
 int f2fs_move_node_page(struct page *node_page, int gc_type);
-int f2fs_flush_inline_data(struct f2fs_sb_info *sbi);
+void f2fs_flush_inline_data(struct f2fs_sb_info *sbi);
 int f2fs_fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
 			struct writeback_control *wbc, bool atomic,
 			unsigned int *seq_id);
