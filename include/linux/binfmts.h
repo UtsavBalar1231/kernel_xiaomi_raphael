@@ -149,7 +149,6 @@ extern int do_execveat(int, struct filename *,
 		       const char __user * const __user *,
 		       int);
 
-#ifndef CONFIG_CPU_BOOST
 static inline bool task_is_booster(struct task_struct *tsk)
 {
 	char comm[sizeof(tsk->comm)];
@@ -164,5 +163,5 @@ static inline bool task_is_booster(struct task_struct *tsk)
 	       !strcmp(comm, "iop@") ||
 	       !strcmp(comm, "init.qcom.post_");
 }
-#endif /* CONFIG_CPU_BOOST=n */
+
 #endif /* _LINUX_BINFMTS_H */
