@@ -82,6 +82,12 @@ Optional properties:
 				case.
 - qcom,pon-sw-debounce		Boolean property to enable software debouncing
 				logic for pon input keys.
+- qcom,pon-sw-dbc-delay		The debounce delay for the power-key interrupt
+				specified in us. This can be set to any value
+				as it is handled in software rather than by the
+				PMIC hardware. Only used if qcom,pon-sw-debounce
+				is enabled. Defaults to the value of
+				qcom,pon-dbc-delay if not specified.
 - qcom,resin-pon-reset:		Boolean property which indicates that resin
 				needs to be configured during reset in addition
 				to the primary PON device that is configured

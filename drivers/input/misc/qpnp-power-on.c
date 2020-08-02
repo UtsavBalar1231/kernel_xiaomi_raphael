@@ -225,6 +225,7 @@ struct qpnp_pon {
 	int			pon_trigger_reason;
 	int			pon_power_off_reason;
 	u32			dbc_time_us;
+	u32			sw_dbc_time_us;
 	u32			uvlo;
 	int			warm_reset_poff_type;
 	int			hard_reset_poff_type;
@@ -964,7 +965,7 @@ static int qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	if (pon->sw_dbc_enable) {
 		elapsed_us = ktime_us_delta(ktime_get(),
 				pon->sw_dbc_last_release_time[cfg->pon_type]);
-		if (elapsed_us < pon->dbc_time_us) {
+		if (elapsed_us < pon->sw_dbc_time_us) {
 			pr_debug("Ignoring kpdpwr event; within debounce time\n");
 			return 0;
 		}
@@ -2426,6 +2427,20 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 
 	pon->sw_dbc_enable = of_property_read_bool(dev->of_node,
 						"qcom,pon-sw-debounce");
+	if (pon->sw_dbc_enable) {
+		rc = of_property_read_u32(dev->of_node,
+					"qcom,pon-sw-dbc-delay",
+					&pon->sw_dbc_time_us);
+		if (rc) {
+			if (rc == -EINVAL) {
+				pon->sw_dbc_time_us = pon->dbc_time_us;
+			} else {
+				dev_err(dev, "Unable to read software debounce delay rc: %d\n",
+					rc);
+				return rc;
+			}
+		}
+	}
 
 	pon->store_hard_reset_reason = of_property_read_bool(dev->of_node,
 					"qcom,store-hard-reset-reason");
