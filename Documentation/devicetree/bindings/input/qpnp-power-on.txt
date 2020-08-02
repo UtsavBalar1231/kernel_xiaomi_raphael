@@ -80,8 +80,8 @@ Optional properties:
 - qcom,shutdown-poweroff-type:	Same description as qcom,warm-reset-poweroff-
 				type but this applies for the system shutdown
 				case.
-- qcom,kpdpwr-sw-debounce:	Boolean property to enable the debounce logic
-				on the KPDPWR_N rising edge.
+- qcom,pon-sw-debounce		Boolean property to enable software debouncing
+				logic for pon input keys.
 - qcom,resin-pon-reset:		Boolean property which indicates that resin
 				needs to be configured during reset in addition
 				to the primary PON device that is configured
