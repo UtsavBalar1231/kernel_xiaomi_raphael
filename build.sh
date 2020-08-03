@@ -6,14 +6,14 @@ export KBUILD_BUILD_HOST=CuntsSpace
 make ARCH=arm64 \
 	O=${OUT_DIR} \
 	raphael_defconfig \
-	-j4
+	-j8
 
 scripts/config --file ${OUT_DIR}/.config \
 	-d LTO \
 	-d LTO_CLANG \
+	-e SHADOW_CALL_STACK \
 	-e TOOLS_SUPPORT_RELR \
-	-e LD_LLD \
-	-e LLVM_POLLY
+	-e LD_LLD
 
 cd ${OUT_DIR}
 make O=${OUT_DIR} \
@@ -24,7 +24,7 @@ cd ../
 PATH=/home/utsavthecunt/proton-clang/bin/:$PATH
 
 make ARCH=arm64 \
-	O=out \
+	O=${OUT_DIR} \
 	CC="ccache clang" \
 	LD="ld.lld" \
 	AR="llvm-ar" \
@@ -35,6 +35,6 @@ make ARCH=arm64 \
 	CLANG_TRIPLE="aarch64-linux-gnu-" \
 	CROSS_COMPILE="aarch64-linux-gnu-" \
 	CROSS_COMPILE_ARM32="arm-linux-gnueabi-" \
-	-j4
+	-j8
 
-rm out/.version
+rm ${OUT_DIR}/.version

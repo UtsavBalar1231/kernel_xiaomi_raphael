@@ -4,9 +4,10 @@ OUT_DIR=out/
 make ARCH=arm64 \
 	O=${OUT_DIR} \
 	raphael_defconfig \
-	-j4
+	-j8
 
 cp ${OUT_DIR}/.config arch/arm64/configs/raphael_defconfig
 
-git add arch/
+git add arch/arm64/configs/raphael_defconfig
+
 git commit -s -m "ARM64: configs: raphael: Update defconfig"

@@ -1,0 +1,10 @@
+#!/bin/bash
+OUT_DIR=out/
+
+make ARCH=arm64 \
+	O=${OUT_DIR} \
+	raphael_defconfig \
+	-j$(nproc --all)
+
+mv out/.config arch/arm64/configs/raphael_defconfig
+git diff
