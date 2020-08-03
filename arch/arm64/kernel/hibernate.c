@@ -303,7 +303,6 @@ int swsusp_arch_suspend(void)
 		sleep_cpu = smp_processor_id();
 		ret = swsusp_save();
 	} else {
-		place_marker("M - Image Kernel Start");
 		/* Clean kernel core startup/idle code to PoC*/
 		dcache_clean_range(__mmuoff_data_start, __mmuoff_data_end);
 		dcache_clean_range(__idmap_text_start, __idmap_text_end);
@@ -339,7 +338,6 @@ int swsusp_arch_suspend(void)
 	}
 
 	local_dbg_restore(flags);
-	place_marker("PM: Kernel restore start!");
 
 	return ret;
 }

@@ -811,9 +811,6 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gi2c->dev = &pdev->dev;
-	snprintf(boot_marker, sizeof(boot_marker),
-				"M - DRIVER GENI_I2C Init");
-	place_marker(boot_marker);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -954,9 +951,6 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	pm_runtime_enable(gi2c->dev);
 	i2c_add_adapter(&gi2c->adap);
 
-	snprintf(boot_marker, sizeof(boot_marker),
-				"M - DRIVER GENI_I2C_%d Ready", gi2c->adap.nr);
-	place_marker(boot_marker);
 	dev_dbg(gi2c->dev, "I2C probed\n");
 	return 0;
 }

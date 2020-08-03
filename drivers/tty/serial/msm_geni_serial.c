@@ -2441,14 +2441,6 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 		line = pdev->id;
 	}
 
-	if (strcmp(id->compatible, "qcom,msm-geni-console") == 0)
-		snprintf(boot_marker, sizeof(boot_marker),
-				"M - DRIVER GENI_UART_%d Init", line);
-	else
-		snprintf(boot_marker, sizeof(boot_marker),
-				"M - DRIVER GENI_HS_UART_%d Init", line);
-	place_marker(boot_marker);
-
 #ifdef SERIAL_CONSOLE
 	is_console = (drv->cons ? true : false);
 	dev_port = get_port_from_line(line, is_console);
@@ -2638,15 +2630,6 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 		goto exit_geni_serial_probe;
 
 	ret = uart_add_one_port(drv, uport);
-	if (!ret) {
-		if (strcmp(id->compatible, "qcom,msm-geni-console") == 0)
-			snprintf(boot_marker, sizeof(boot_marker),
-				"M - DRIVER GENI_UART_%d Ready", line);
-		else
-			snprintf(boot_marker, sizeof(boot_marker),
-				"M - DRIVER GENI_HS_UART_%d Ready", line);
-		place_marker(boot_marker);
-	}
 exit_geni_serial_probe:
 	return ret;
 }

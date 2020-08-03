@@ -1895,8 +1895,6 @@ int ep_pcie_core_enable_endpoint(enum ep_pcie_options opt)
 			"PCIe V%d: link initialized for LE PCIe endpoint\n",
 			dev->rev);
 		pr_crit("PCIe - link initialized for LE PCIe endpoint\n");
-		place_marker(
-			"PCIe - link initialized for LE PCIe endpoint\n");
 	}
 
 checkbme:

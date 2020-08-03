@@ -335,7 +335,6 @@ static int create_image(int platform_mode)
  Platform_finish:
 	platform_finish(platform_mode);
 
-	place_marker("M - Hibernation: start device resume");
 	dpm_resume_start(in_suspend ?
 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
 
@@ -411,7 +410,6 @@ int hibernation_snapshot(int platform_mode)
 
 	resume_console();
 	dpm_complete(msg);
-	place_marker("M - Hibernation: end device resume");
  Close:
 	platform_end(platform_mode);
 	return error;
@@ -751,7 +749,6 @@ int hibernate(void)
 		in_suspend = 0;
 		pm_restore_gfp_mask();
 	} else {
-		place_marker("M - PM: Image restored!");
 		pm_pr_dbg("Image restored successfully.\n");
 	}
 
@@ -766,7 +763,6 @@ int hibernate(void)
 			error = load_image_and_restore();
 	}
 	thaw_processes();
-	place_marker("M - Hibernation: processes thaw done");
 
 	/* Don't bother checking whether freezer_test_done is true */
 	freezer_test_done = false;
@@ -776,7 +772,6 @@ int hibernate(void)
 	atomic_inc(&snapshot_device_available);
  Unlock:
 	unlock_system_sleep();
-	place_marker("M - PM: Hibernation Exit!");
 	pr_info("hibernation exit\n");
 
 	return error;
@@ -906,7 +901,6 @@ static int software_resume(void)
 
 	error = load_image_and_restore();
 	thaw_processes();
-	place_marker("M - PM: Thaw processes completed!");
  Finish:
 	__pm_notifier_call_chain(PM_POST_RESTORE, nr_calls, NULL);
 	pm_restore_console();

@@ -5116,7 +5116,6 @@ static int __init kgsl_core_init(void)
 	int result = 0;
 	struct sched_param param = { .sched_priority = 2 };
 
-	place_marker("M - DRIVER KGSL Init");
 
 	/* alloc major and minor device numbers */
 	result = alloc_chrdev_region(&kgsl_driver.major, 0, KGSL_DEVICE_MAX,
@@ -5203,7 +5202,6 @@ static int __init kgsl_core_init(void)
 
 	kgsl_memfree_init();
 
-	place_marker("M - DRIVER KGSL Ready");
 
 	return 0;
 

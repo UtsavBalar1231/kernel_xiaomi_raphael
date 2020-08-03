@@ -945,9 +945,6 @@ static int pil_init_mmap(struct pil_desc *desc, const struct pil_mdt *mdt)
 	if (ret)
 		return ret;
 
-	if (!strcmp(desc->name, "modem"))
-		place_marker("M - Modem Image Start Loading");
-
 	pil_info(desc, "loading from %pa to %pa\n", &priv->region_start,
 							&priv->region_end);
 
@@ -1407,9 +1404,6 @@ int pil_boot(struct pil_desc *desc)
 		goto err_auth_and_reset;
 	}
 	pil_log("reset_done", desc);
-
-	if (!strcmp(desc->name, "modem"))
-		place_marker("M - Modem out of reset");
 
 	pil_info(desc, "Brought out of reset\n");
 	desc->modem_ssr = false;

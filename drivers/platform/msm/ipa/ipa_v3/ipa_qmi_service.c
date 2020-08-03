@@ -685,7 +685,6 @@ static int ipa3_qmi_init_modem_send_sync_msg(void)
 
 	pr_info("QMI_IPA_INIT_MODEM_DRIVER_REQ_V01 response received\n");
 
-	place_marker("M - QMI ready for commands");
 
 	return ipa3_check_qmi_response(rc,
 		QMI_IPA_INIT_MODEM_DRIVER_REQ_V01, resp.resp.result,

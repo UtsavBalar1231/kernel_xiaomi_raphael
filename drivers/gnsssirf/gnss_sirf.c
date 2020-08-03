@@ -238,10 +238,6 @@ static int gnss_sirf_probe(struct platform_device *pdev)
 			onOffPin = of_get_named_gpio(pdev->dev.of_node,
 					 "ssVonoff-gpio", 0);
 			ret = configurePins(pdev);
-			if (ret == 0) {
-				snprintf(boot_marker, sizeof(boot_marker),
-						"M - DRIVER GNSS Ready");
-				place_marker(boot_marker);
 			}
 		}
 	}

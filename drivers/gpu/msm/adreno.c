@@ -1190,7 +1190,6 @@ static int adreno_probe(struct platform_device *pdev)
 	struct adreno_device *adreno_dev;
 	int status;
 
-	place_marker("M - DRIVER GPU Init");
 
 	adreno_dev = adreno_get_dev(pdev);
 
@@ -1319,7 +1318,6 @@ static int adreno_probe(struct platform_device *pdev)
 			"Failed to get gpuhtw LLC slice descriptor %ld\n",
 			PTR_ERR(adreno_dev->gpuhtw_llc_slice));
 
-	place_marker("M - DRIVER GPU Ready");
 out:
 	if (status) {
 		adreno_ringbuffer_close(adreno_dev);
@@ -1528,7 +1526,6 @@ static int adreno_init(struct kgsl_device *device)
 	if (test_bit(ADRENO_DEVICE_INITIALIZED, &adreno_dev->priv))
 		return 0;
 
-	place_marker("M - DRIVER ADRENO Init");
 
 	/*
 	 * Either the microcode read failed because the usermodehelper isn't
@@ -1603,7 +1600,6 @@ static int adreno_init(struct kgsl_device *device)
 
 	}
 
-	place_marker("M - DRIVER ADRENO Ready");
 
 	return 0;
 }

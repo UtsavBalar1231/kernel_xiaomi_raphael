@@ -534,7 +534,6 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 	struct device *dev;
 	int nr = BASE_DEVICE_NUMBER;
 
-	place_marker("M - DRIVER Video Start");
 
 	if (!vidc_driver) {
 		dprintk(VIDC_ERR, "Invalid vidc driver\n");
@@ -642,7 +641,6 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 		goto err_fail_sub_device_probe;
 	}
 
-	place_marker("M - DRIVER Video Ready");
 	return rc;
 
 err_fail_sub_device_probe:
@@ -785,7 +783,6 @@ static int msm_vidc_pm_suspend(struct device *dev)
 
 static int msm_vidc_pm_resume(struct device *dev)
 {
-	place_marker("vidc resumed");
 	dprintk(VIDC_INFO, "%s\n", __func__);
 	return 0;
 }
@@ -855,11 +852,9 @@ static int msm_vidc_pm_freeze(struct device *dev)
 		return 0;
 
 	if (of_device_is_compatible(dev->of_node, "qcom,msm-vidc")) {
-		place_marker("vidc hibernation start");
 
 		rc = msm_vidc_freeze_core(core);
 
-		place_marker("vidc hibernation end");
 	}
 
 	dprintk(VIDC_INFO, "%s: done\n", __func__);
