@@ -660,7 +660,6 @@ void __init prepare_namespace(void)
 
 	md_run_setup();
 	dm_run_setup();
-	dm_verity_setup();
 
 	// Try to mount partition labeled "system" first
 	ROOT_DEV = name_to_dev_t("PARTLABEL=system");
@@ -669,8 +668,8 @@ void __init prepare_namespace(void)
 		goto mount;
 	}
 
-		if (initrd_load())
-			goto out;
+	if (initrd_load())
+		goto out;
 
 	if (saved_root_name[0]) {
 		root_device_name = saved_root_name;

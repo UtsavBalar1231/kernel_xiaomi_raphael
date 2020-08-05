@@ -302,7 +302,7 @@ config DM_DEFAULT_KEY
 	  To compile this code as a module, choose M here: the module will be
 	  called dm-default-key.
 
-	  If unsure, say N. =======
+	  If unsure, say N.
 
 config DM_SNAPSHOT
        tristate "Snapshot target"

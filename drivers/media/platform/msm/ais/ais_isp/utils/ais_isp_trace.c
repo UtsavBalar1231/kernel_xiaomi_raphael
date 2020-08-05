@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,13 +8,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
  */
 
-#ifndef DM_IOCTRL_INTERNAL_H
-#define DM_IOCTRL_INTERNAL_H
-
-#include <linux/dm-ioctl.h>
-
-int dm_ioctrl(uint cmd, struct dm_ioctl *param);
-
-#endif
+/* Instantiate tracepoints */
+#define CREATE_TRACE_POINTS
+#include "ais_isp_trace.h"
