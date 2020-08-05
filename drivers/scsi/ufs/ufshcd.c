@@ -6721,6 +6721,7 @@ static int ufshcd_disable_auto_bkops(struct ufs_hba *hba)
 
 	hba->auto_bkops_enabled = false;
 	trace_ufshcd_auto_bkops_state(dev_name(hba->dev), 0);
+	hba->is_urgent_bkops_lvl_checked = false;
 out:
 	return err;
 }
