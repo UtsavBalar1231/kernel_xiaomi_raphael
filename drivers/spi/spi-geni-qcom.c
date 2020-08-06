@@ -342,9 +342,15 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 	if (mode & SPI_CPOL)
 		cpol |= CPOL;
 
-	if (!spi->slave) {
-		if (mode & SPI_CPHA)
-			cpha |= CPHA;
+	if (mode & SPI_CPHA)
+		cpha |= CPHA;
+
+	/* SPI slave supports only mode 1, log unsuppoted mode and exit */
+	if (spi->slave && !(cpol == 0 && cpha == 1)) {
+		GENI_SE_DBG(mas->ipc, false, mas->dev,
+			"%s: Unsupported SPI Slave mode cpol %d cpha %d\n",
+							__func__, cpol, cpha);
+		return -EINVAL;
 	}
 
 	if (spi_slv->mode & SPI_CS_HIGH)
@@ -1274,15 +1280,15 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 		return -EINVAL;
 	}
 
-	mutex_lock(&mas->spi_ssr.ssr_lock);
-	if (mas->spi_ssr.is_ssr_down || !mas->spi_ssr.xfer_prepared) {
-		mutex_unlock(&mas->spi_ssr.ssr_lock);
-		return -EINVAL;
-	}
-
 	/* Check for zero length transfer */
 	if (xfer->len < 1) {
 		dev_err(mas->dev, "Zero length transfer\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&mas->spi_ssr.ssr_lock);
+	if (mas->spi_ssr.is_ssr_down || !mas->spi_ssr.xfer_prepared) {
+		mutex_unlock(&mas->spi_ssr.ssr_lock);
 		return -EINVAL;
 	}
 

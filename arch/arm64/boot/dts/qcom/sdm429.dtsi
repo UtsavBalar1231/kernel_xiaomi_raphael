@@ -32,6 +32,11 @@
 	firmware: firmware {
 	     android {
 		compatible = "android,firmware";
+		vbmeta {
+		   compatible = "android,vbmeta";
+		   parts = "vbmeta,boot,system,vendor,dtbo,recovery";
+		};
+
 		fstab {
 		   compatible = "android,fstab";
 		   vendor {
@@ -939,6 +944,7 @@
 			qcom,smd-edge = <1>;
 			qcom,ipc = <&apcs 0 8>;
 			qcom,remote-pid = <2>;
+			mbox-names = "adsp_smem";
 			interrupts = <GIC_SPI 289 IRQ_TYPE_EDGE_RISING>;
 			label = "adsp";
 
@@ -946,6 +952,9 @@
 			qcom,adsp_qrtr {
 				qcom,net-id = <1>;
 				qcom,low-latency;
+			};
+			qcom,apr_tal_rpmsg {
+				qcom,smd-channels = "apr_audio_svc";
 			};
 		};
 
@@ -1262,6 +1271,21 @@
 		qcom,has-vsys-adc-channel;
 	};
 
+	bluetooth: bt_wcn3990 {
+		compatible = "qca,wcn3990";
+		qca,bt-3P3-en-gpio = <&tlmm 47 0>; /* WCN3980_3P3_EN_*/
+		qca,bt-1P3-en-gpio = <&tlmm 57 0>; /* WCN3980_1P3_EN */
+
+		qca,bt-vdd-xtal-supply = <&pm660_l12>;
+		qca,bt-vdd-io-supply = <&pm660_l13>;
+
+		qca,bt-vdd-xtal-voltage-level = <1800000 1900000>;
+		qca,bt-vdd-io-voltage-level = <1800000 1900000>;
+
+		qca,bt-vdd-xtal-current-level = <80000>;
+		qca,bt-vdd-io-current-level = <10000>;
+	};
+
 	qcom,bam_dmux@4044000 {
 		compatible = "qcom,bam_dmux";
 		reg = <0x4044000 0x19000>;
@@ -1293,11 +1317,6 @@
 		qcom,ea-pc = <0x230>;
 		status = "disabled";
 	};
-	qcom,msm-adsp-loader {
-		status = "ok";
-		compatible = "qcom,adsp-loader";
-		qcom,adsp-state = <0>;
-	};
 };
 
 #include "sdm429-gdsc.dtsi"
@@ -1305,6 +1324,7 @@
 #include "sdm429w-regulator.dtsi"
 #include "sdm429-mdss.dtsi"
 #include "sdm429-mdss-pll.dtsi"
+#include "sdm429-audio.dtsi"
 
 &venus_gdsc {
 	clock-names = "bus_clk", "core_clk";
@@ -1375,3 +1395,8 @@
 	clocks = <&gcc GCC_OXILI_GFX3D_CLK>;
 	status = "okay";
 };
+
+&blsp2_uart2_hs {
+	status = "okay";
+};
+
