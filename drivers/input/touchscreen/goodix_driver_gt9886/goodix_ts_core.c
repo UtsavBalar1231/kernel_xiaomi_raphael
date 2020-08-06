@@ -2190,6 +2190,7 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	}
 #endif
 
+	device_enable_async_suspend(&pdev->dev);
 out:
 	backlight_unregister_notifier(&core_data->bl_notifier);
 	ts_info("goodix_ts_probe OUT, r:%d", r);
@@ -2230,6 +2231,7 @@ static struct platform_driver goodix_ts_driver = {
 #ifdef CONFIG_PM
 		.pm = &dev_pm_ops,
 #endif
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = goodix_ts_probe,
 	.remove = goodix_ts_remove,
