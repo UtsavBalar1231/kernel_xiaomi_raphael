@@ -2874,7 +2874,7 @@ enum Tfa98xx_Error tfa98xx_adsp_send_calib_values(void)
 	if (tfa98xx_device_count == 1) {
 		memcpy(&bytes[7], &bytes[4], sizeof(char)*3);
 	}
-	pr_info("tfa98xx_device_count=%d  bytes[0]=%d\n", tfa98xx_device_count, bytes[0]);
+	pr_debug("tfa98xx_device_count=%d  bytes[0]=%d\n", tfa98xx_device_count, bytes[0]);
 
 	/* we will send it to host DSP algorithm once calibraion value loaded from all device. */
 	if (tfa98xx_device_count == bytes[0]) {
@@ -2902,7 +2902,7 @@ static int tfa98xx_send_mute_cmd(void)
 {
 	uint8_t cmd[9] = {0x04, 0x81, 0x04,  0x00, 0x00, 0xff, 0x00, 0x00, 0xff};
 
-	pr_info("send mute command to host DSP.\n");
+	pr_debug("send mute command to host DSP.\n");
 	return send_tfa_cal_in_band(&cmd[0], sizeof(cmd));
 }
 #endif
