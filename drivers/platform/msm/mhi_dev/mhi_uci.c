@@ -860,8 +860,11 @@ static int open_client_mhi_channels(struct uci_client *uci_client)
 {
 	int rc = 0;
 
-	if (!mhi_uci_are_channels_connected(uci_client))
+	if (!mhi_uci_are_channels_connected(uci_client)) {
+		uci_log(UCI_DBG_ERROR, "%s:Channels are not connected\n",
+			__func__);
 		return -ENODEV;
+	}
 
 	uci_log(UCI_DBG_DBG,
 			"Starting channels %d %d.\n",
@@ -1160,6 +1163,12 @@ static int __mhi_uci_client_read(struct uci_client *uci_handle,
 	ureq.len = uci_handle->in_buf_list[0].buf_size;
 
 	do {
+		if (!mhi_uci_are_channels_connected(uci_handle)) {
+			uci_log(UCI_DBG_ERROR,
+				"%s:Channels are not connected\n", __func__);
+			return -ENODEV;
+		}
+
 		if (!uci_handle->pkt_loc &&
 			!atomic_read(&uci_ctxt.mhi_disabled)) {
 			ret_val = uci_handle->read(uci_handle, &ureq,
@@ -1315,6 +1324,12 @@ static ssize_t mhi_uci_client_write(struct file *file,
 			"Client %d attempted to write while MHI is disabled\n",
 			uci_handle->out_chan);
 		return -EIO;
+	}
+
+	if (!mhi_uci_are_channels_connected(uci_handle)) {
+		uci_log(UCI_DBG_ERROR, "%s:Channels are not connected\n",
+			__func__);
+		return -ENODEV;
 	}
 
 	if (count > TRB_MAX_DATA_SIZE) {
