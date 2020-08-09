@@ -24991,6 +24991,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_roam_scan_chan_list_id] =
 		WMI_ROAM_SCAN_CHANNEL_LIST_EVENTID;
 
+	event_ids[wmi_vdev_bcn_latency_event_id] =
+			WMI_VDEV_BCN_LATENCY_EVENTID;
 }
 
 /**
@@ -25664,6 +25666,8 @@ static void populate_vdev_param_tlv(uint32_t *vdev_param)
 					WMI_VDEV_PARAM_CAPABILITIES;
 	vdev_param[wmi_vdev_param_autorate_misc_cfg] =
 					WMI_VDEV_PARAM_AUTORATE_MISC_CFG;
+	vdev_param[wmi_vdev_param_nan_config_features] =
+			WMI_VDEV_PARAM_ENABLE_DISABLE_NAN_CONFIG_FEATURES;
 }
 #endif
 
