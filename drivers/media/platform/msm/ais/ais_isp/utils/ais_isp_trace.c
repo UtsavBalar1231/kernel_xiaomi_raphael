@@ -8,17 +8,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
  */
 
-/dts-v1/;
-
-#include "sdxprairie-v2-mtp-cpe.dtsi"
-
-/ {
-	model = "Qualcomm Technologies, Inc. SDXPRAIRIE V2 TTP (CPE)";
-	compatible = "qcom,sdxprairie-ttp",
-		"qcom,sdxprairie", "qcom,ttp";
-	qcom,board-id = <0x08010008 0x0>;
-};
-
-
+/* Instantiate tracepoints */
+#define CREATE_TRACE_POINTS
+#include "ais_isp_trace.h"
