@@ -2601,8 +2601,9 @@ perst_irq:
 	perst_irq = gpio_to_irq(dev->gpio[EP_PCIE_GPIO_PERST].num);
 	ret = devm_request_irq(pdev, perst_irq,
 		ep_pcie_handle_perst_irq,
-		(atomic_read(&dev->perst_deast) ?
-			IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH),
+		((atomic_read(&dev->perst_deast) ?
+			IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH)
+			| IRQF_EARLY_RESUME),
 		"ep_pcie_perst", dev);
 	if (ret) {
 		EP_PCIE_ERR(dev,
