@@ -3068,6 +3068,7 @@ struct ipa_smmu_cb_ctx *ipa3_get_smmu_ctx(enum ipa_smmu_cb_type);
 struct iommu_domain *ipa3_get_smmu_domain(void);
 struct iommu_domain *ipa3_get_uc_smmu_domain(void);
 struct iommu_domain *ipa3_get_wlan_smmu_domain(void);
+struct device *ipa3_get_wlan_device(void);
 struct iommu_domain *ipa3_get_smmu_domain_by_type
 	(enum ipa_smmu_cb_type cb_type);
 int ipa3_iommu_map(struct iommu_domain *domain, unsigned long iova,

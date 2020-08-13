@@ -413,18 +413,29 @@ struct iommu_domain *ipa3_get_uc_smmu_domain(void)
 struct iommu_domain *ipa3_get_wlan_smmu_domain(void)
 {
 	if (smmu_cb[IPA_SMMU_CB_WLAN].valid)
-		return smmu_cb[IPA_SMMU_CB_WLAN].iommu;
+		return smmu_cb[IPA_SMMU_CB_WLAN].mapping->domain;
 
 	IPAERR("CB not valid\n");
 
 	return NULL;
 }
 
+struct device *ipa3_get_wlan_device(void)
+{
+	if (ipa3_ctx->ipa_hw_type == IPA_HW_v4_5 &&
+		ipa3_get_wdi_version() == IPA_WDI_1) {
+
+		if (smmu_cb[IPA_SMMU_CB_WLAN].valid)
+			return smmu_cb[IPA_SMMU_CB_WLAN].dev;
+
+		IPAERR("CB not valid\n");
+		return NULL;
+	}
+	return ipa3_ctx->pdev;
+}
+
 struct iommu_domain *ipa3_get_smmu_domain_by_type(enum ipa_smmu_cb_type cb_type)
 {
-
-	if (cb_type == IPA_SMMU_CB_WLAN && smmu_cb[IPA_SMMU_CB_WLAN].valid)
-		return smmu_cb[IPA_SMMU_CB_WLAN].iommu;
 
 	if (smmu_cb[cb_type].valid)
 		return smmu_cb[cb_type].mapping->domain;
@@ -8115,6 +8126,7 @@ static int ipa_smmu_wlan_cb_probe(struct device *dev)
 	int bypass = 1;
 	int ret;
 	u32 add_map_size;
+	u32 iova_ap_mapping[2];
 	const u32 *add_map;
 	int i;
 
@@ -8125,17 +8137,46 @@ static int ipa_smmu_wlan_cb_probe(struct device *dev)
 		return 0;
 	}
 
+	ret = of_property_read_u32_array(dev->of_node, "qcom,iova-mapping",
+			iova_ap_mapping, 2);
+	if (ret) {
+		IPAERR("Fail to read UC start/size iova addresses\n");
+		return ret;
+	}
+	cb->va_start = iova_ap_mapping[0];
+	cb->va_size = iova_ap_mapping[1];
+	cb->va_end = cb->va_start + cb->va_size;
+	IPADBG("WLAN va_start=0x%x va_sise=0x%x\n", cb->va_start, cb->va_size);
+
+	if (smmu_info.use_64_bit_dma_mask) {
+		if (dma_set_mask(dev, DMA_BIT_MASK(64)) ||
+				dma_set_coherent_mask(dev, DMA_BIT_MASK(64))) {
+			IPAERR("DMA set 64bit mask failed\n");
+			return -EOPNOTSUPP;
+		}
+	} else {
+		if (dma_set_mask(dev, DMA_BIT_MASK(32)) ||
+				dma_set_coherent_mask(dev, DMA_BIT_MASK(32))) {
+			IPAERR("DMA set 32bit mask failed\n");
+			return -EOPNOTSUPP;
+		}
+	}
+	IPADBG("WLAN CB PROBE=%pK create IOMMU mapping\n", dev);
+
 	cb->dev = dev;
-	cb->iommu = iommu_domain_alloc(dev->bus);
-	if (!cb->iommu) {
-		IPAERR("could not alloc iommu domain\n");
+	cb->mapping = arm_iommu_create_mapping(dev->bus,
+			cb->va_start, cb->va_size);
+	if (IS_ERR_OR_NULL(cb->mapping)) {
+		IPADBG("Fail to create mapping\n");
 		/* assume this failure is because iommu driver is not ready */
 		return -EPROBE_DEFER;
 	}
 
 	cb->is_cache_coherent = of_property_read_bool(dev->of_node,
 							"dma-coherent");
+	IPADBG("SMMU mapping created\n");
 	cb->valid = true;
+	IPADBG("WLAN CB PROBE sub pdev=%pK set attribute\n", dev);
 
 	if (of_property_read_bool(dev->of_node,
 			"qcom,smmu-fast-map"))
@@ -8146,24 +8187,22 @@ static int ipa_smmu_wlan_cb_probe(struct device *dev)
 		ipa3_ctx->s1_bypass_arr[IPA_SMMU_CB_WLAN] = true;
 		cb->is_cache_coherent = false;
 
-		if (iommu_domain_set_attr(cb->iommu,
+		if (iommu_domain_set_attr(cb->mapping->domain,
 					DOMAIN_ATTR_S1_BYPASS,
 					&bypass)) {
 			IPAERR("couldn't set bypass\n");
-			cb->valid = false;
-			return -EIO;
+			goto release_mapping;
 		}
 		IPADBG("WLAN SMMU S1 BYPASS\n");
 	} else {
 		smmu_info.s1_bypass_arr[IPA_SMMU_CB_WLAN] = false;
 		ipa3_ctx->s1_bypass_arr[IPA_SMMU_CB_WLAN] = false;
 
-		if (iommu_domain_set_attr(cb->iommu,
+		if (iommu_domain_set_attr(cb->mapping->domain,
 					DOMAIN_ATTR_ATOMIC,
 					&atomic_ctx)) {
 			IPAERR("couldn't disable coherent HTW\n");
-			cb->valid = false;
-			return -EIO;
+			goto release_mapping;
 		}
 		IPADBG(" WLAN SMMU ATTR ATOMIC\n");
 
@@ -8173,8 +8212,7 @@ static int ipa_smmu_wlan_cb_probe(struct device *dev)
 						DOMAIN_ATTR_FAST,
 						&fast)) {
 				IPAERR("couldn't set fast map\n");
-				cb->valid = false;
-				return -EIO;
+				goto release_mapping;
 			}
 			IPADBG("SMMU fast map set\n");
 		}
@@ -8184,11 +8222,10 @@ static int ipa_smmu_wlan_cb_probe(struct device *dev)
 		smmu_info.s1_bypass_arr[IPA_SMMU_CB_WLAN],
 				smmu_info.fast_map_arr[IPA_SMMU_CB_WLAN]);
 
-	ret = iommu_attach_device(cb->iommu, dev);
+	ret = arm_iommu_attach_device(cb->dev, cb->mapping);
 	if (ret) {
 		IPAERR("could not attach device ret=%d\n", ret);
-		cb->valid = false;
-		return ret;
+		goto release_mapping;
 	}
 	/* MAP ipa-uc ram */
 	add_map = of_get_property(dev->of_node,
@@ -8197,8 +8234,8 @@ static int ipa_smmu_wlan_cb_probe(struct device *dev)
 		/* mapping size is an array of 3-tuple of u32 */
 		if (add_map_size % (3 * sizeof(u32))) {
 			IPAERR("wrong additional mapping format\n");
-			cb->valid = false;
-			return -EFAULT;
+			arm_iommu_detach_device(cb->dev);
+			goto release_mapping;
 		}
 
 		/* iterate of each entry of the additional mapping array */
@@ -8219,7 +8256,12 @@ static int ipa_smmu_wlan_cb_probe(struct device *dev)
 				IOMMU_READ | IOMMU_WRITE | IOMMU_MMIO);
 		}
 	}
+	cb->next_addr = cb->va_end;
 	return 0;
+release_mapping:
+	arm_iommu_release_mapping(cb->mapping);
+	cb->valid = false;
+	return -EIO;
 }
 
 static int ipa_smmu_uc_cb_probe(struct device *dev)
