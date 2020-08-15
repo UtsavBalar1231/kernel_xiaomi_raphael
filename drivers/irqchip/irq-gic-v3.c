@@ -31,7 +31,6 @@
 #include <linux/msm_rtb.h>
 #include <linux/wakeup_reason.h>
 
-
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic-common.h>
 #include <linux/irqchip/arm-gic-v3.h>
