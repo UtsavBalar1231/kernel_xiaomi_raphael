@@ -37,7 +37,7 @@ struct task_security_struct {
 	u32 create_sid;		/* fscreate SID */
 	u32 keycreate_sid;	/* keycreate SID */
 	u32 sockcreate_sid;	/* fscreate SID */
-};
+} __randomize_layout;
 
 /*
  * get the subjective security ID of the current task

@@ -218,8 +218,13 @@ static inline bool is_gdsc_disabled(struct mdss_pll_resources *pll_res)
 		WARN(1, "gdsc_base register is not defined\n");
 		return true;
 	}
-	ret = ((readl_relaxed(pll_res->gdsc_base + 0x4) & BIT(31)) &&
-		(!(readl_relaxed(pll_res->gdsc_base) & BIT(0)))) ? false : true;
+	if (pll_res->pll_interface_type == MDSS_DSI_PLL_12NM)
+		ret = ((readl_relaxed(pll_res->gdsc_base + 0x4) & BIT(31)) &&
+			(!(readl_relaxed(pll_res->gdsc_base) & BIT(0)))) ?
+			false : true;
+	else
+		ret = readl_relaxed(pll_res->gdsc_base) & BIT(31) ?
+			false : true;
 	return ret;
 }
 

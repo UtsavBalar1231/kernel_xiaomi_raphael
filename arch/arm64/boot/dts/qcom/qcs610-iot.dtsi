@@ -25,6 +25,7 @@
 #include "sm6150-sde-pll.dtsi"
 #include "sm6150-sde-display.dtsi"
 #include "qcs610-camera-sensor-idp.dtsi"
+#include "sm6150-audio-overlay.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. QCS610 IOT";
@@ -322,6 +323,10 @@
 
 &pil_gpu_mem {
 	reg = <0 0x97115000 0 0x2000>;
+};
+
+&msm_gpu {
+	/delete-node/qcom,gpu-mempools;
 };
 
 &sdhc_1 {
