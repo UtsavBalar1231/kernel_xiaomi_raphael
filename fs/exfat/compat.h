@@ -18,7 +18,7 @@
        "please use the driver from https://github.com/arter97/exfat-linux/tree/old"
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
 #include <linux/iversion.h>
 #else
 #define inode_inc_iversion(inode) (inode->i_version++)
