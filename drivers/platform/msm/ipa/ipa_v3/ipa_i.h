@@ -1824,6 +1824,7 @@ struct ipa3_app_clock_vote {
  * @wdi3_ctx: IPA wdi3 context
  * @gsi_info: channel/protocol info for GSI offloading uC stats
  * @app_vote: holds userspace application clock vote count
+ * @ipa_in_cpe_cfg : boolean denotes whether CPE config is enabled
  * IPA context - holds all relevant info about IPA driver and its state
  */
 struct ipa3_context {
@@ -1997,6 +1998,7 @@ struct ipa3_context {
 	bool ipa_mhi_proxy;
 	bool ipa_wan_skb_page;
 	struct ipa3_app_clock_vote app_clock_vote;
+	bool ipa_in_cpe_cfg;
 };
 
 struct ipa3_plat_drv_res {
@@ -2045,6 +2047,7 @@ struct ipa3_plat_drv_res {
 	u32 secure_debug_check_action;
 	bool ipa_mhi_proxy;
 	bool ipa_wan_skb_page;
+	bool ipa_in_cpe_cfg;
 };
 
 /**

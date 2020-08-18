@@ -7501,6 +7501,13 @@ void ipa3_suspend_apps_pipes(bool suspend)
 			ipa3_gsi_poll_after_suspend(ep);
 	}
 
+	/* ODL_DPL_CONS in CPE cfg & MHI_DPL_CONS for PCIE uses same ep */
+	if (ipa3_ctx->ipa_config_is_mhi &&
+			!ipa3_ctx->ipa_in_cpe_cfg) {
+		IPADBG("ODL DPS cons not valid for PCIe ep use case\n");
+		return;
+	}
+
 	ipa_ep_idx = ipa_get_ep_mapping(IPA_CLIENT_ODL_DPL_CONS);
 	/* Considering the case for SSR. */
 	if (ipa_ep_idx == -1) {
