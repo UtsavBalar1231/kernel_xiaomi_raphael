@@ -260,6 +260,11 @@ static ssize_t panel_info_show(struct device *device,
 	return written;
 }
 
+int dsi_bridge_disp_set_doze_backlight(struct drm_connector *connector,
+			int doze_backlight);
+ssize_t dsi_bridge_disp_get_doze_backlight(struct drm_connector *connector,
+			char *buf);
+
 static ssize_t doze_brightness_show(struct device *device,
 			    struct device_attribute *attr,
 			   char *buf)
@@ -269,6 +274,30 @@ static ssize_t doze_brightness_show(struct device *device,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			dev->doze_brightness);
+}
+
+static ssize_t doze_backlight_store(struct device *device,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct drm_connector *connector = to_drm_connector(device);
+	int doze_backlight;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &doze_backlight);
+	if (ret)
+		return ret;
+
+	ret = dsi_bridge_disp_set_doze_backlight(connector, doze_backlight);
+
+	return ret ? ret : count;
+}
+
+static ssize_t doze_backlight_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct drm_connector *connector = to_drm_connector(dev);
+	return dsi_bridge_disp_get_doze_backlight(connector, buf);
 }
 
 void drm_bridge_disp_param_set(struct drm_bridge *bridge, int cmd);
@@ -458,6 +487,7 @@ static DEVICE_ATTR_RO(modes);
 static DEVICE_ATTR_RO(panel_info);
 static DEVICE_ATTR_WO(disp_param);
 static DEVICE_ATTR_RO(doze_brightness);
+static DEVICE_ATTR_RW(doze_backlight);
 static DEVICE_ATTR_RW(mipi_reg);
 static DEVICE_ATTR_RW(disp_count);
 static DEVICE_ATTR_RW(dim_layer_enable);
@@ -473,6 +503,7 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_panel_info.attr,
 	&dev_attr_disp_param.attr,
 	&dev_attr_doze_brightness.attr,
+	&dev_attr_doze_backlight.attr,
 	&dev_attr_mipi_reg.attr,
 	&dev_attr_disp_count.attr,
 	&dev_attr_dim_layer_enable.attr,
