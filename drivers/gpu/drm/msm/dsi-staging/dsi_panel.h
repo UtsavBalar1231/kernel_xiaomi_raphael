@@ -358,6 +358,8 @@ int dsi_panel_post_unprepare(struct dsi_panel *panel);
 
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl);
 
+int dsi_panel_enable_doze_backlight(struct dsi_panel *panel, u32 bl_lvl);
+
 int dsi_panel_update_pps(struct dsi_panel *panel);
 
 int dsi_panel_send_qsync_on_dcs(struct dsi_panel *panel,

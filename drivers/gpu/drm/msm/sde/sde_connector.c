@@ -713,8 +713,8 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 		if (dsi_display->panel->fod_dimlayer_hbm_enabled) {
 			mutex_lock(&dsi_display->panel->panel_lock);
 			sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
-			if ((dsi_display->drm_dev && dsi_display->drm_dev->state == MSM_DRM_BLANK_LP1) ||
-				(dsi_display->drm_dev && dsi_display->drm_dev->state == MSM_DRM_BLANK_LP2)) {
+			if ((dsi_display->drm_dev && dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP1) ||
+				(dsi_display->drm_dev && dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP2)) {
 				if (dsi_display->panel->last_bl_lvl > dsi_display->panel->doze_backlight_threshold) {
 					dsi_display->panel->hbm_enabled = false;
 					dsi_display->panel->fod_dimlayer_hbm_enabled = false;
@@ -765,8 +765,8 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 			mutex_lock(&dsi_display->panel->panel_lock);
 			sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 			pr_debug("wait one frame for hbm on\n");
-			if (dsi_display->panel->last_bl_lvl || dsi_display->drm_dev->state == MSM_DRM_BLANK_LP1
-							|| dsi_display->drm_dev->state == MSM_DRM_BLANK_LP2) {
+			if (dsi_display->panel->last_bl_lvl || dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP1
+							|| dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP2) {
 				dsi_display->panel->fod_dimlayer_hbm_enabled = true;
 				dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
 				dsi_display->panel->hbm_enabled = true;
@@ -1359,7 +1359,7 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 	switch (idx) {
 	case CONNECTOR_PROP_LP:
 		if(connector->dev)
-			connector->dev->state = val;
+			connector->dev->doze_state = val;
 		break;
 	case CONNECTOR_PROP_OUT_FB:
 		/* clear old fb, if present */
