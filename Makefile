@@ -527,6 +527,7 @@ ifeq ($(ld-name),lld)
 KBUILD_CFLAGS += -fuse-ld=lld
 endif
 CLANG_FLAGS	+= -fno-builtin-stpcpy
+CLANG_FLAGS	+= -fno-builtin-bcmp
 KBUILD_CPPFLAGS += -Qunused-arguments
 endif
 
