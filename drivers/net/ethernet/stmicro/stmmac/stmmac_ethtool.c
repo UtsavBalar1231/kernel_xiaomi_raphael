@@ -544,6 +544,9 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
 	int i, j = 0;
 
+	/* enable reset on read for mmc counter */
+	writel_relaxed(MMC_CONFIG, priv->mmcaddr);
+
 	/* Update the DMA HW counters for dwmac10/100 */
 	if (priv->hw->dma->dma_diagnostic_fr)
 		priv->hw->dma->dma_diagnostic_fr(&dev->stats,
@@ -647,6 +650,10 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	u32 emac_wol_support = 0;
 	int ret;
 
+	if (ethqos->phy_state == PHY_IS_OFF) {
+		ETHQOSINFO("Phy is in off state Wol set not possible\n");
+		return -EOPNOTSUPP;
+	}
 	/* By default almost all GMAC devices support the WoL via
 	 * magic frame but we can disable it if the HW capability
 	 * register shows no support for pmt_magic_frame. */
