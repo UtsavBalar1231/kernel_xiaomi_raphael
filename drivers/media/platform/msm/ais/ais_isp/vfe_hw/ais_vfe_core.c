@@ -438,6 +438,8 @@ int ais_vfe_reserve(void *hw_priv, void *reserve_args, uint32_t arg_size)
 		goto EXIT;
 	}
 
+	rdi_path->secure_mode = rdi_cfg->out_cfg.secure_mode;
+
 	cam_io_w(0xf, core_info->mem_base + client_regs->burst_limit);
 	/*disable pack as it is done in CSID*/
 	cam_io_w(0x0, core_info->mem_base + client_regs->packer_cfg);
@@ -766,8 +768,11 @@ static int ais_vfe_cmd_enq_buf(struct ais_vfe_hw_core_info *core_info,
 	vfe_buf->bufIdx = enq_buf->buffer.idx;
 	vfe_buf->mem_handle = enq_buf->buffer.mem_handle;
 
-	mmu_hdl = cam_mem_is_secure_buf(vfe_buf->mem_handle) ?
-			core_info->iommu_hdl_secure : core_info->iommu_hdl;
+	mmu_hdl = core_info->iommu_hdl;
+
+	if (cam_mem_is_secure_buf(vfe_buf->mem_handle) || rdi_path->secure_mode)
+		mmu_hdl = core_info->iommu_hdl_secure;
+
 	rc = cam_mem_get_io_buf(vfe_buf->mem_handle,
 		mmu_hdl, &vfe_buf->iova_addr, &src_buf_size);
 	if (rc < 0) {
@@ -985,7 +990,7 @@ static void ais_vfe_handle_sof_rdi(struct ais_vfe_hw_core_info *core_info,
 
 		//enq curr
 		sof.sof_ts = work_data->ts;
-		sof.cur_sof_hw_ts = prev_sof_hw_ts;
+		sof.cur_sof_hw_ts = cur_sof_hw_ts;
 		sof.frame_cnt = p_rdi->frame_cnt;
 
 		ais_vfe_q_sof(core_info, path, &sof);
@@ -1098,24 +1103,30 @@ static int ais_vfe_handle_error(
 			continue;
 
 		p_rdi = &core_info->rdi_out[path];
+
 		if (p_rdi->state != AIS_ISP_RESOURCE_STATE_STREAMING)
 			continue;
+
+		CAM_ERR(CAM_ISP, "IFE%d Turn off RDI %d",
+			core_info->vfe_idx, path);
 
 		p_rdi->state = AIS_ISP_RESOURCE_STATE_ERROR;
 
 		client_regs = &bus_hw_info->bus_client_reg[path];
 
-		/* Disable WM and reg-update */
-		cam_io_w_mb(0x0, core_info->mem_base + client_regs->cfg);
-		cam_io_w_mb(AIS_VFE_REGUP_RDI_ALL, core_info->mem_base +
-				top_hw_info->common_reg->reg_update_cmd);
-		cam_io_w_mb((1 << path), core_info->mem_base +
-					bus_hw_info->common_reg.sw_reset);
-
 		core_info->bus_wr_mask1 &= ~(1 << path);
 		cam_io_w_mb(core_info->bus_wr_mask1,
 			core_info->mem_base +
 			bus_hw_irq_regs[1].mask_reg_offset);
+
+		/* Disable WM and reg-update */
+		cam_io_w_mb(0x0, core_info->mem_base + client_regs->cfg);
+		cam_io_w_mb(AIS_VFE_REGUP_RDI_ALL, core_info->mem_base +
+				top_hw_info->common_reg->reg_update_cmd);
+
+		cam_io_w_mb((1 << path), core_info->mem_base +
+			bus_hw_info->common_reg.sw_reset);
+
 
 		core_info->event.type = AIS_IFE_MSG_OUTPUT_ERROR;
 		core_info->event.path = path;
@@ -1551,9 +1562,10 @@ irqreturn_t ais_vfe_irq(int irq_num, void *data)
 				AIS_VFE_STATUS1_RDI_OVERFLOW_IRQ_SHFT) &
 				AIS_VFE_STATUS1_RDI_OVERFLOW_IRQ_MSK;
 
-				CAM_ERR(CAM_ISP, "IFE%d Overflow 0x%x",
-						core_info->vfe_idx,
-						work_data.path);
+				CAM_ERR_RATE_LIMIT(CAM_ISP,
+					"IFE%d Overflow 0x%x",
+					core_info->vfe_idx,
+					work_data.path);
 				work_data.evt_type = AIS_VFE_HW_IRQ_EVENT_ERROR;
 				ais_vfe_dispatch_irq(vfe_hw, &work_data);
 			}

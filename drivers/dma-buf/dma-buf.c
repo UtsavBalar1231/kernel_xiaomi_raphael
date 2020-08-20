@@ -104,10 +104,10 @@ static char *dmabuffs_dname(struct dentry *dentry, char *buffer, int buflen)
 		goto out;
 	}
 	spin_unlock(&dentry->d_lock);
-	mutex_lock(&dmabuf->lock);
+	spin_lock(&dmabuf->name_lock);
 	if (dmabuf->name)
 		ret = strlcpy(name, dmabuf->name, DMA_BUF_NAME_LEN);
-	mutex_unlock(&dmabuf->lock);
+	spin_unlock(&dmabuf->name_lock);
 	dmabuf_dent_put(dmabuf);
 out:
 	return dynamic_dname(dentry, buffer, buflen, "/%s:%s",
