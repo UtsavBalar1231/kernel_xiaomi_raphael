@@ -619,11 +619,11 @@ static int goodix_wakeup_and_set_suspend_func(struct goodix_ts_core *core_data)
 		}
 	} while (r < 0 && ++retry < 3);
 
-	if (core_data->double_wakeup && core_data->fod_status) {
+	if (core_data->double_wakeup && (core_data->fod_status || core_data->aod_status)) {
 		atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK_FOD);
 	} else if (core_data->double_wakeup) {
 		atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK);
-	} else if (core_data->fod_status) {
+	} else if (core_data->fod_status || core_data->aod_status) {
 		atomic_set(&core_data->suspend_stat, TP_GESTURE_FOD);
 	}
 	ts_info("suspend_stat[%d]", atomic_read(&core_data->suspend_stat));
