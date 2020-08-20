@@ -479,16 +479,16 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 		if ((FP_Event_Gesture == 1) && (temp_data[2] == 0xff)) {
 			if (core_data->fod_pressed) {
 				ts_debug("Gesture report up");
-			input_mt_slot(core_data->input_dev, 0);
-			input_mt_report_slot_state(core_data->input_dev, MT_TOOL_FINGER, false);
-			input_report_abs(core_data->input_dev, ABS_MT_WIDTH_MINOR, 0);
-			input_report_key(core_data->input_dev, BTN_INFO, 0);
-			/*input_report_key(core_data->input_dev, KEY_INFO, 0);*/
-			input_report_key(core_data->input_dev, BTN_TOUCH, 0);
-			input_report_key(core_data->input_dev, BTN_TOOL_FINGER, 0);
-			input_sync(core_data->input_dev);
-			__clear_bit(0, &core_data->touch_id);
-			core_data->fod_pressed = false;
+				input_mt_slot(core_data->input_dev, 0);
+				input_mt_report_slot_state(core_data->input_dev, MT_TOOL_FINGER, false);
+				input_report_abs(core_data->input_dev, ABS_MT_WIDTH_MINOR, 0);
+				input_report_key(core_data->input_dev, BTN_INFO, 0);
+				/*input_report_key(core_data->input_dev, KEY_INFO, 0);*/
+				input_report_key(core_data->input_dev, BTN_TOUCH, 0);
+				input_report_key(core_data->input_dev, BTN_TOOL_FINGER, 0);
+				input_sync(core_data->input_dev);
+				__clear_bit(0, &core_data->touch_id);
+				core_data->fod_pressed = false;
 			}
 			core_data->sleep_finger = 0;
 		}
