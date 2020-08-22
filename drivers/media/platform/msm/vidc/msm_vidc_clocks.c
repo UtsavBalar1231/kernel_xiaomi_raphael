@@ -220,6 +220,7 @@ int msm_comm_vote_bus(struct msm_vidc_core *core)
 			dprintk(VIDC_ERR, "%s Invalid args\n",
 				__func__);
 			mutex_unlock(&core->lock);
+			kfree(vote_data);
 			return -EINVAL;
 		}
 
