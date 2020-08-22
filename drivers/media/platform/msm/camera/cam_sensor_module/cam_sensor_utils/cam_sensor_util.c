@@ -36,25 +36,13 @@ static struct i2c_settings_list*
 	else
 		return NULL;
 
-	if ((sizeof(struct cam_sensor_i2c_reg_array) * size) < PAGE_SIZE) {
-		tmp->i2c_settings.reg_setting =
-			(struct cam_sensor_i2c_reg_array *)
-			kcalloc(size, sizeof(struct cam_sensor_i2c_reg_array),
-			GFP_KERNEL);
-		if (tmp->i2c_settings.reg_setting == NULL) {
-			list_del(&(tmp->list));
-			kfree(tmp);
-			return NULL;
-		}
-	} else {
-		tmp->i2c_settings.reg_setting =
-			(struct cam_sensor_i2c_reg_array *)
-			vzalloc(array_size(size, sizeof(struct cam_sensor_i2c_reg_array)));
-		if (tmp->i2c_settings.reg_setting == NULL) {
-			list_del(&(tmp->list));
-			kfree(tmp);
-			return NULL;
-		}
+	tmp->i2c_settings.reg_setting =
+		(struct cam_sensor_i2c_reg_array *)
+		vzalloc(array_size(size, sizeof(struct cam_sensor_i2c_reg_array)));
+	if (tmp->i2c_settings.reg_setting == NULL) {
+		list_del(&(tmp->list));
+		kfree(tmp);
+		return NULL;
 	}
 	tmp->i2c_settings.size = size;
 
