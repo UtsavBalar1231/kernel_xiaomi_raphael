@@ -548,10 +548,9 @@ static struct ctl_table kern_table[] = {
 		.procname	= "sched_prefer_spread",
 		.data		= &sysctl_sched_prefer_spread,
 		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
+		.mode		= 0444,
 		.proc_handler   = proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &two,
+		.extra1		= &one,
 	},
 #endif
 	{
