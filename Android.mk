@@ -23,6 +23,7 @@ include $(MY_LOCAL_PATH)/asoc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/wcd934x/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/cs35l41/Android.mk
+include $(MY_LOCAL_PATH)/asoc/codecs/tas2557/Android.mk
 endif
 
 ifeq ($(call is-board-platform-in-list, atoll),true)
