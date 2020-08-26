@@ -68,6 +68,11 @@
 #define WCN_CDC_SLIM_RX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX 3
 
+#define CS35L41_CODEC_NAME "cs35l41.0-0040"
+#if 0
+static atomic_t cs35l41_mclk_rsc_ref;
+#endif
+
 #define ADSP_STATE_READY_TIMEOUT_MS 3000
 #define MSM_LL_QOS_VALUE 300 /* time in us to ensure LPM doesn't go in C3/C4 */
 #define MSM_HIFI_ON 1
@@ -5106,6 +5111,93 @@ static struct snd_soc_ops msm_mi2s_be_ops = {
 	.shutdown = msm_mi2s_snd_shutdown,
 };
 
+/* use qcom default be ops */
+#if 0
+static int msm_hw_params_cs35l41_fixup(struct snd_soc_pcm_runtime *rtd,
+                                struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+		SNDRV_PCM_HW_PARAM_RATE);
+
+	struct snd_interval *channels = hw_param_interval(params,
+		SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_FORMAT_S16_LE);
+
+	pr_debug("%s()\n", __func__);
+	rate->min = rate->max = 48000;
+	channels->min = channels->max = 2;
+
+	return 0;
+}
+
+static int msm_mi2s_cs35l41_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_codec *codec = codec_dai->codec;
+	int ret;
+
+	if (atomic_inc_return(&cs35l41_mclk_rsc_ref) == 1) {
+		ret = msm_mi2s_snd_startup(substream);
+		if (ret) {
+			dev_err(card->dev, "%s: Failed to startup mi2s: %d\n", __func__, ret);
+			return ret;
+		}
+
+		// Set cpu_dai as master
+		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
+		if (ret < 0) {
+			dev_err(card->dev, "%s: Failed to set fmt cpu dai: %d\n", __func__, ret);
+			return ret;
+		}
+
+		// Set codec_dai as slave
+		ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S);
+		if (ret < 0) {
+			dev_err(card->dev, "%s: Failed to set fmt codec dai: %d\n", __func__, ret);
+			return ret;
+		}
+
+		// Set mclk to 12.288MHz for codec
+		ret = snd_soc_codec_set_sysclk(codec, 0, 0,
+				Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
+				SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			dev_err(card->dev, "%s: Failed to set codec_sysclk: %d\n", __func__, ret);
+			return ret;
+		}
+	}
+	dev_info(card->dev, "------%s\n", __func__);
+	return 0;
+}
+
+void msm_mi2s_cs35l41_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_codec *codec = codec_dai->codec;
+	struct msm_asoc_mach_data *pdata = pdata = snd_soc_card_get_drvdata(codec->component.card);
+
+	dev_info(card->dev, "+++++%s, mclk refcount = %d \n", __func__, atomic_read(&cs35l41_mclk_rsc_ref));
+
+	if (atomic_dec_return(&cs35l41_mclk_rsc_ref) == 0) {
+		msm_mi2s_snd_shutdown(substream);
+	}
+
+	dev_info(card->dev, "-----%s\n", __func__);
+	return;
+}
+
+static struct snd_soc_ops msm_mi2s_cs35l41_be_ops = {
+	.startup = msm_mi2s_cs35l41_startup,
+	.shutdown = msm_mi2s_cs35l41_shutdown,
+};
+#endif
+
 static struct snd_soc_ops msm_be_ops = {
 	.hw_params = msm_snd_hw_params,
 };
@@ -6922,6 +7014,11 @@ static int msm_snd_card_tavil_late_probe(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *rtd;
 	int ret = 0;
 	void *mbhc_calibration;
+#ifdef CONFIG_SND_SOC_CS35L41_FOR_CEPH
+	struct snd_soc_dai_link *dai_link;
+	struct snd_soc_codec *cs35l41_codec;
+	struct snd_soc_dapm_context * cs35l41_dapm;
+#endif
 
 	rtd = snd_soc_get_pcm_runtime(card, be_dl_name);
 	if (!rtd) {
@@ -6944,6 +7041,31 @@ static int msm_snd_card_tavil_late_probe(struct snd_soc_card *card)
 			__func__, ret);
 		goto err_hs_detect;
 	}
+#ifdef CONFIG_SND_SOC_CS35L41_FOR_CEPH
+#if 0
+	atomic_set(&cs35l41_mclk_rsc_ref, 0);
+	dev_info(card->dev, "%s: set cs35l41_mclk_rsc_ref to 0 \n", __func__);
+#endif
+
+	dai_link = rtd->dai_link;
+	if (dai_link && dai_link->codec_name) {
+		if (!strcmp(dai_link->codec_name, CS35L41_CODEC_NAME)) {
+			dev_info(card->dev, "%s: found codec[%s]\n", __func__, CS35L41_CODEC_NAME);
+			cs35l41_codec = rtd->codec;
+			cs35l41_dapm = snd_soc_codec_get_dapm(cs35l41_codec);
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "AMP Playback");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "AMP Capture");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "DSP1");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "Main AMP");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPRX1");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPRX2");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPTX1");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPTX2");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "SPK");
+			snd_soc_dapm_sync(cs35l41_dapm);
+		}
+	}
+#endif
 	return 0;
 
 err_hs_detect:
