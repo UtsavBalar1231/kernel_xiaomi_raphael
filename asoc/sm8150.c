@@ -7091,6 +7091,24 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 
 };
 
+static struct snd_soc_dai_link quat_mi2s_rx_tas2557_dai_links[] = {
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "tas2557.1-004c",
+		.codec_dai_name = "tas2557 ASI1",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+	},
+};
+
 static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 	/* Primary AUX PCM Backend DAI Links */
 	{
@@ -7253,6 +7271,7 @@ static struct snd_soc_dai_link msm_tavil_dai_links[
 			 ARRAY_SIZE(msm_wcn_be_dai_links) +
 			 ARRAY_SIZE(ext_disp_be_dai_link) +
 			 ARRAY_SIZE(msm_mi2s_be_dai_links) +
+			 ARRAY_SIZE(quat_mi2s_rx_tas2557_dai_links) +
 			 ARRAY_SIZE(msm_auxpcm_be_dai_links)];
 
 static int msm_snd_card_tavil_late_probe(struct snd_soc_card *card)
@@ -7677,6 +7696,11 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			       msm_mi2s_be_dai_links,
 			       sizeof(msm_mi2s_be_dai_links));
 			total_links += ARRAY_SIZE(msm_mi2s_be_dai_links);
+
+			memcpy(msm_tavil_dai_links + total_links,
+				quat_mi2s_rx_tas2557_dai_links,
+				sizeof(quat_mi2s_rx_tas2557_dai_links));
+			total_links += ARRAY_SIZE(quat_mi2s_rx_tas2557_dai_links);
 		}
 
 		ret = of_property_read_u32(dev->of_node,
