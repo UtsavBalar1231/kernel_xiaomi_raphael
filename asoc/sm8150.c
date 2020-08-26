@@ -5272,6 +5272,10 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 					__func__, ret_pinctrl);
 		}
 	}
+
+	snd_soc_codec_set_sysclk(rtd->codec_dai->codec, 0, 0,
+			mi2s_clk[index].clk_freq_in_hz,
+			SND_SOC_CLOCK_IN);
 clk_off:
 	if (ret < 0)
 		msm_mi2s_set_sclk(substream, false);
