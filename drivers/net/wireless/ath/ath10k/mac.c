@@ -8022,7 +8022,10 @@ static const struct ieee80211_iface_limit ath10k_tlv_if_vap_limit[] = {
 	},
 	{
 		.max = 3,
-		.types = BIT(NL80211_IFTYPE_AP),
+		.types = BIT(NL80211_IFTYPE_AP)
+#ifdef CONFIG_MAC80211_MESH
+			| BIT(NL80211_IFTYPE_MESH_POINT)
+#endif
 	},
 };
 
@@ -8041,6 +8044,14 @@ static struct ieee80211_iface_combination ath10k_tlv_if_comb[] = {
 		.num_different_channels = 1,
 		.max_interfaces = 2,
 		.n_limits = ARRAY_SIZE(ath10k_tlv_if_limit_ibss),
+	},
+	{
+		.limits = ath10k_tlv_if_vap_limit,
+		.num_different_channels = 1,
+		.max_interfaces = 4,
+		.beacon_int_infra_match = true,
+		.beacon_int_min_gcd = 1,
+		.n_limits = ARRAY_SIZE(ath10k_tlv_if_vap_limit),
 	},
 };
 
