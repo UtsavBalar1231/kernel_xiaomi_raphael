@@ -39,6 +39,7 @@
 #include "codecs/wcd9360/wcd9360.h"
 #include "codecs/wsa881x.h"
 #include "codecs/wcd-mbhc-v2.h"
+#include <soc/qcom/socinfo.h>
 
 #define DRV_NAME "sm8150-asoc-snd"
 
@@ -7735,20 +7736,24 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			       sizeof(msm_mi2s_be_dai_links));
 			total_links += ARRAY_SIZE(msm_mi2s_be_dai_links);
 
-			memcpy(msm_tavil_dai_links + total_links,
-				quat_mi2s_rx_tas2557_dai_links,
-				sizeof(quat_mi2s_rx_tas2557_dai_links));
-			total_links += ARRAY_SIZE(quat_mi2s_rx_tas2557_dai_links);
-
-			memcpy(msm_tavil_dai_links + total_links,
-				quat_mi2s_rx_cs35l41_dai_links,
-				sizeof(quat_mi2s_rx_cs35l41_dai_links));
-			total_links += ARRAY_SIZE(quat_mi2s_rx_cs35l41_dai_links);
-
-			memcpy(msm_tavil_dai_links + total_links,
-				quat_mi2s_rx_tfa9874_dai_links,
-				sizeof(quat_mi2s_rx_tfa9874_dai_links));
-			total_links += ARRAY_SIZE(quat_mi2s_rx_tfa9874_dai_links);
+			if (get_hw_version_platform() == HARDWARE_PLATFORM_ANDROMEDA) {
+				memcpy(msm_tavil_dai_links + total_links,
+					quat_mi2s_rx_tas2557_dai_links,
+					sizeof(quat_mi2s_rx_tas2557_dai_links));
+				total_links += ARRAY_SIZE(quat_mi2s_rx_tas2557_dai_links);
+			} else if (get_hw_version_platform() == HARDWARE_PLATFORM_CEPHEUS ||
+					get_hw_version_platform() == HARDWARE_PLATFORM_HERCULES) {
+				memcpy(msm_tavil_dai_links + total_links,
+					quat_mi2s_rx_cs35l41_dai_links,
+					sizeof(quat_mi2s_rx_cs35l41_dai_links));
+				total_links += ARRAY_SIZE(quat_mi2s_rx_cs35l41_dai_links);
+			} else if (get_hw_version_platform() == HARDWARE_PLATFORM_DAVINCI ||
+					get_hw_version_platform() == HARDWARE_PLATFORM_RAPHAEL) {
+				memcpy(msm_tavil_dai_links + total_links,
+					quat_mi2s_rx_tfa9874_dai_links,
+					sizeof(quat_mi2s_rx_tfa9874_dai_links));
+				total_links += ARRAY_SIZE(quat_mi2s_rx_tfa9874_dai_links);
+			}
 		}
 
 		ret = of_property_read_u32(dev->of_node,
