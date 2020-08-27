@@ -526,7 +526,6 @@ export CLANG_FLAGS
 ifeq ($(ld-name),lld)
 KBUILD_CFLAGS += -fuse-ld=lld
 endif
-CLANG_FLAGS	+= -fno-builtin-stpcpy
 KBUILD_CPPFLAGS += -Qunused-arguments
 endif
 
