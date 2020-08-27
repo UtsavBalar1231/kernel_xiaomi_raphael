@@ -1,6 +1,5 @@
 /**
  * Copyright MI
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  */
 

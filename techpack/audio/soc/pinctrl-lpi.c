@@ -778,17 +778,7 @@ static struct platform_driver lpi_pinctrl_driver = {
 	.remove = lpi_pinctrl_remove,
 };
 
-static int __init lpi_init(void)
-{
-	return platform_driver_register(&lpi_pinctrl_driver);
-}
-late_initcall(lpi_init);
-
-static void __exit lpi_exit(void)
-{
-	platform_driver_unregister(&lpi_pinctrl_driver);
-}
-module_exit(lpi_exit);
+module_platform_driver(lpi_pinctrl_driver);
 
 MODULE_DESCRIPTION("QTI LPI GPIO pin control driver");
 MODULE_LICENSE("GPL v2");

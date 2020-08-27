@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1257,12 +1256,8 @@ static int wdsp_mgr_parse_dt_entries(struct wdsp_mgr_priv *wdsp)
 		return ret;
 	}
 
-#ifdef GOOGLE_HOTWORD
 	wdsp->img_fname  = "cpe_intl";
 	pr_info("%s: using global wdsp fw: %s.\n", __func__, wdsp->img_fname);
-#else
-	pr_info("%s: using non-global wdsp fw: %s.\n", __func__, wdsp->img_fname);
-#endif
 
 	ret = of_count_phandle_with_args(dev->of_node,
 					 "qcom,wdsp-components",

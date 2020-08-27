@@ -1,7 +1,6 @@
 /*
 ** =============================================================================
 ** Copyright (c) 2016  Texas Instruments Inc.
-** Copyright (C) 2019 XiaoMi, Inc.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +21,7 @@
 
 #ifdef CONFIG_TAS2557_CODEC
 
+#define DEBUG
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -330,7 +330,7 @@ static int vendor_id_get(struct snd_kcontrol *kcontrol,
 		ucontrol->value.integer.value[0] = VENDOR_ID_NONE;
 
 		if (pTAS2557->spk_id_gpio_p)
-			ucontrol->value.integer.value[0] = spk_id_get(pTAS2557->spk_id_gpio_p);
+			ucontrol->value.integer.value[0] = tas2557_spk_id_get(pTAS2557->spk_id_gpio_p);
 
 		return 0;
 }

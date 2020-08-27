@@ -92,11 +92,11 @@ enum tfa_state {
 	TFA_STATE_FAULT,        /**< An alarm or error occurred */
 	TFA_STATE_RESET,        /**< I2C reset and ACS set */
 	/* --sticky state modifiers-- */
-	TFA_STATE_MUTE = 0x10,         /**< Algo & Amp mute */
-	TFA_STATE_UNMUTE = 0x20,       /**< Algo & Amp unmute */
-	TFA_STATE_CLOCK_ALWAYS = 0x40, /**< PLL connect to internal oscillator */
-	TFA_STATE_CLOCK_AUDIO = 0x80,  /**< PLL connect to audio clock (BCK/FS) */
-	TFA_STATE_LOW_POWER = 0x100,   /**< lowest possible power state */
+        TFA_STATE_MUTE = 0x10,         /**< Algo & Amp mute */
+        TFA_STATE_UNMUTE = 0x20,       /**< Algo & Amp unmute */
+        TFA_STATE_CLOCK_ALWAYS = 0x40, /**< PLL connect to internal oscillator */
+        TFA_STATE_CLOCK_AUDIO = 0x80,  /**< PLL connect to audio clock (BCK/FS) */
+        TFA_STATE_LOW_POWER = 0x100,   /**< lowest possible power state */
 };
 
 /**

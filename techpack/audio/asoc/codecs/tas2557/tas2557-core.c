@@ -1,7 +1,6 @@
 /*
 ** =============================================================================
 ** Copyright (c) 2016  Texas Instruments Inc.
-** Copyright (C) 2019 XiaoMi, Inc.
 **
 ** This program is free software; you can redistribute it and/or modify it under
 ** the terms of the GNU General Public License as published by the Free Software
@@ -20,6 +19,7 @@
 ** =============================================================================
 */
 
+#define DEBUG
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -2051,7 +2051,7 @@ end:
 	return bFound;
 }
 
-int spk_id_get(struct device_node *np)
+int tas2557_spk_id_get(struct device_node *np)
 {
 	int id;
 	int state;
@@ -2092,7 +2092,7 @@ int tas2557_parse_dt(struct device *dev, struct tas2557_priv *pTAS2557)
 		"ti,spk-id-pin", np->full_name);
 		pTAS2557->mnSpkType = VENDOR_ID_NONE;
 	} else {
-		pTAS2557->mnSpkType = spk_id_get(pTAS2557->spk_id_gpio_p);
+		pTAS2557->mnSpkType = tas2557_spk_id_get(pTAS2557->spk_id_gpio_p);
 	}
 	dev_dbg(pTAS2557->dev, "spk is is %d", pTAS2557->mnSpkType);
 

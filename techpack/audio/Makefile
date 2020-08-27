@@ -17,7 +17,7 @@ export
 endif
 ifeq ($(CONFIG_ARCH_SM8150), y)
 include $(srctree)/techpack/audio/config/sm8150auto.conf
-export  $(shell sed 's/=.*//' $(srctree)/techpack/audio/config/sm8150auto.conf)
+export	$(shell sed 's/=.*//' $(srctree)/techpack/audio/config/sm8150auto.conf)
 endif
 ifeq ($(CONFIG_ARCH_SDMSHRIKE), y)
 include $(srctree)/techpack/audio/config/sm8150auto.conf
@@ -32,15 +32,17 @@ USERINCLUDE     += \
 # Needed to be compatible with the O= option
 LINUXINCLUDE    += \
                 -I$(srctree)/techpack/audio/include/uapi \
-                -I$(srctree)/techpack/audio/include/elliptic \
                 -I$(srctree)/techpack/audio/include
 
-#for mius start
+ifeq ($(CONFIG_ELLIPTIC_ULTRASOUND), y)
+LINUXINCLUDE    += \
+		-I$(srctree)/techpack/audio/include/elliptic
+endif
+
 ifeq ($(CONFIG_US_PROXIMITY), y)
 LINUXINCLUDE    += \
                 -I$(srctree)/techpack/audio/include/mius
 endif
-#for mius end
 
 ifeq ($(CONFIG_ARCH_SDM845), y)
 LINUXINCLUDE    += \
@@ -69,13 +71,5 @@ endif
 
 obj-y += soc/
 obj-y += dsp/
-ifeq ($(CONFIG_ELLIPTIC_ULTRASOUND), y)
-obj-y += dsp/elliptic
-endif
-#for mius start
-ifeq ($(CONFIG_US_PROXIMITY), y)
-obj-y += dsp/mius
-endif
-#for mius end
 obj-y += ipc/
 obj-y += asoc/

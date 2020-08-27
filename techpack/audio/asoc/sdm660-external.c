@@ -1933,8 +1933,8 @@ err:
 EXPORT_SYMBOL(msm_ext_cdc_init);
 
 /**
-* msm_ext_cdc_deinit - external codec machine specific deinit.
-*/
+ * msm_ext_cdc_deinit - external codec machine specific deinit.
+ */
 void msm_ext_cdc_deinit(struct msm_asoc_mach_data *pdata)
 {
 	if (pdata->msm_snd_intr_lpi.mpm_wakeup)

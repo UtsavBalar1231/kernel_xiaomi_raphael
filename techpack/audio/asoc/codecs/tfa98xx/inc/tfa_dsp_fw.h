@@ -152,9 +152,9 @@ enum tfa_fw_event { /* not all available on each device */
 #define TFA2_FW_XMEM_CMD_COUNT			520
 
 /* note that the following defs rely on the handle variable */
-#define TFA_FW_XMEM_CALIBRATION_DONE	TFA_FAM_FW(tfa, XMEM_CALIBRATION_DONE)
-#define TFA_FW_XMEM_COUNT_BOOT			TFA_FAM_FW(tfa, XMEM_COUNT_BOOT)
-#define TFA_FW_XMEM_CMD_COUNT			TFA_FAM_FW(tfa, XMEM_CMD_COUNT)
+#define TFA_FW_XMEM_CALIBRATION_DONE 	TFA_FAM_FW(tfa, XMEM_CALIBRATION_DONE)
+#define TFA_FW_XMEM_COUNT_BOOT 			TFA_FAM_FW(tfa, XMEM_COUNT_BOOT)
+#define TFA_FW_XMEM_CMD_COUNT 			TFA_FAM_FW(tfa, XMEM_CMD_COUNT)
 
 #define TFA2_FW_ReZ_SCALE	65536
 #define TFA1_FW_ReZ_SCALE	16384

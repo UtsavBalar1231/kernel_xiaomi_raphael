@@ -1,6 +1,5 @@
 /*
 Copyright (c) 2017, 2019 The Linux Foundation. All rights reserved.
-Copyright (C) 2019 XiaoMi, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 and
@@ -27,11 +26,9 @@ int rtac_init(void);
 int msm_audio_ion_init(void);
 int audio_slimslave_init(void);
 int avtimer_init(void);
-
 #ifdef CONFIG_MSM_CSPL
 int crus_sp_init(void);
 #endif
-
 #ifdef CONFIG_MSM_MDF
 int msm_mdf_init(void);
 void msm_mdf_exit(void);
@@ -39,11 +36,9 @@ void msm_mdf_exit(void);
 #ifdef CONFIG_ELLIPTIC_ULTRASOUND
 int elliptic_driver_init(void);
 #endif
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 int mius_driver_init(void);
 #endif
-/* for mius end */
 static inline int msm_mdf_init(void)
 {
 	return 0;
@@ -67,11 +62,10 @@ static inline void spk_params_exit(void)
 }
 #endif
 
+void avtimer_exit(void);
 #ifdef CONFIG_MSM_CSPL
 void crus_sp_exit(void);
 #endif
-
-void avtimer_exit(void);
 void audio_slimslave_exit(void);
 void msm_audio_ion_exit(void);
 void rtac_exit(void);
@@ -86,11 +80,9 @@ void adsp_err_exit(void);
 #ifdef CONFIG_ELLIPTIC_ULTRASOUND
 int elliptic_driver_exit(void);
 #endif
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 int mius_driver_exit(void);
 #endif
-/* for mius end */
 
 #ifdef CONFIG_VOICE_MHI
 int voice_mhi_init(void);

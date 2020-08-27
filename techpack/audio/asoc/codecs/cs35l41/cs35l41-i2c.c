@@ -2,7 +2,6 @@
  * cs35l41-i2c.c -- CS35l41 I2C driver
  *
  * Copyright 2017 Cirrus Logic, Inc.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * Author:	David Rhodes	<david.rhodes@cirrus.com>
  *

@@ -1,8 +1,8 @@
 /**
 * Copyright Elliptic Labs
-* Copyright (C) 2019 XiaoMi, Inc.
 *
 */
+/* #define DEBUG */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
@@ -726,7 +726,7 @@ int __init elliptic_driver_init(void)
 		goto fail;
 
 	elliptic_devices = (struct elliptic_device *)
-		kcalloc(ELLIPTIC_NUM_DEVICES, sizeof(struct elliptic_device),
+		kzalloc(sizeof(struct elliptic_device) * ELLIPTIC_NUM_DEVICES,
 			GFP_KERNEL);
 
 	if (elliptic_devices == NULL) {

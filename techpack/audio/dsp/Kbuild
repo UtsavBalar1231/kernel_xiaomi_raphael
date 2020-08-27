@@ -107,7 +107,6 @@ ifdef CONFIG_SND_SOC_MSM_QDSP6V2_INTF
 	Q6_OBJS += msm_audio_ion.o
 	Q6_OBJS += avtimer.o
 	Q6_OBJS += q6_init.o
-
 ifdef CONFIG_ELLIPTIC_ULTRASOUND
 	Q6_OBJS += apr_elliptic.o
 	Q6_OBJS += elliptic/elliptic.o
@@ -117,8 +116,6 @@ ifdef CONFIG_ELLIPTIC_ULTRASOUND
 	Q6_OBJS += elliptic/io_modules/userspace/elliptic_data_userspace_io.o
 	Q6_OBJS += elliptic/io_modules/userspace/elliptic_data_userspace_ctrl.o
 endif
-
-# for mius start
 ifdef CONFIG_US_PROXIMITY
 	Q6_OBJS += apr_mius.o
 	Q6_OBJS += mius/mius.o
@@ -128,7 +125,6 @@ ifdef CONFIG_US_PROXIMITY
 	Q6_OBJS += mius/io_modules/userspace/mius_data_userspace_io.o
 	Q6_OBJS += mius/io_modules/userspace/mius_data_userspace_ctrl.o
 endif
-# for mius end
 endif
 
 ifdef CONFIG_XT_LOGGING
@@ -186,8 +182,11 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-DANI_OS_TYPE_ANDROID=6 \
 		-DPTT_SOCK_SVC_ENABLE \
 		-Wall\
-		-D__linux__ \
-		-DCONFIG_SND_SOC_TFA9874_FOR_DAVI
+		-D__linux__
+
+ifdef CONFIG_SND_SOC_TFA9874_FOR_DAVI
+	CDEFINES += -DCONFIG_SND_SOC_TFA9874_FOR_DAVI
+endif
 
 KBUILD_CPPFLAGS += $(CDEFINES)
 

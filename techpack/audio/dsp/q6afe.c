@@ -29,11 +29,9 @@
 #ifdef CONFIG_ELLIPTIC_ULTRASOUND
 #include <dsp/apr_elliptic.h>
 #endif
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 #include <dsp/apr_mius.h>
 #endif
-/* for mius end */
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
 #include "q6afecal-hwdep.h"
@@ -333,11 +331,6 @@ static void av_dev_drift_afe_cb_handler(uint32_t opcode, uint32_t *payload,
 	switch (opcode) {
 	case AFE_PORT_CMDRSP_GET_PARAM_V2:
 		expected_size += sizeof(struct param_hdr_v1);
-		if (payload_size < expected_size) {
-			pr_err("%s: Error: received size %d, expected size %zu\n",
-			       __func__, payload_size, expected_size);
-			return;
-		}
 		/* Repack response to add IID */
 		this_afe.av_dev_drift_resp.status = payload[0];
 		this_afe.av_dev_drift_resp.pdata.module_id = payload[1];
@@ -349,11 +342,6 @@ static void av_dev_drift_afe_cb_handler(uint32_t opcode, uint32_t *payload,
 		break;
 	case AFE_PORT_CMDRSP_GET_PARAM_V3:
 		expected_size += sizeof(struct param_hdr_v3);
-		if (payload_size < expected_size) {
-			pr_err("%s: Error: received size %d, expected size %zu\n",
-			       __func__, payload_size, expected_size);
-			return;
-		}
 		memcpy(&this_afe.av_dev_drift_resp, payload,
 				sizeof(this_afe.av_dev_drift_resp));
 		break;
@@ -582,10 +570,11 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		uint32_t *payload = data->payload;
 		uint32_t param_id;
 
-#if CONFIG_MSM_CSPL
+#ifdef CONFIG_MSM_CSPL
 		if (crus_afe_callback(data->payload, data->payload_size) == 0)
 			return 0;
 #endif
+
 		if (!payload || (data->token >= AFE_MAX_PORTS)) {
 			pr_err("%s: Error: size %d payload %pK token %d\n",
 				__func__, data->payload_size,
@@ -650,7 +639,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		else
 			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
 #endif
-	/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 	} else if (data->opcode == MI_ULTRASOUND_OPCODE) {
 		if (NULL != data->payload)
@@ -661,7 +649,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		else
 			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
 #endif
-	/* for mius end */
 	} else if (data->payload_size) {
 		uint32_t *payload;
 		uint16_t port_id = 0;
@@ -1823,7 +1810,6 @@ afe_ultrasound_state_t elus_afe = {
 EXPORT_SYMBOL(elus_afe);
 #endif
 
-/* for mius start */
 #ifdef CONFIG_US_PROXIMITY
 afe_mi_ultrasound_state_t mius_afe = {
 	.ptr_apr= &this_afe.apr,
@@ -1834,7 +1820,6 @@ afe_mi_ultrasound_state_t mius_afe = {
 };
 EXPORT_SYMBOL(mius_afe);
 #endif
-/* for mius end */
 
 static void afe_send_cal_spkr_prot_tx(int port_id)
 {
@@ -3350,8 +3335,6 @@ int afe_tdm_port_start(u16 port_id, struct afe_tdm_port_config *tdm_port,
 	uint16_t port_index = 0;
 	enum afe_mad_type mad_type = MAD_HW_NONE;
 	int ret = 0;
-	struct cal_block_data *cal_block = NULL;
-	struct audio_cal_info_afe_top *afe_top;
 
 	if (!tdm_port) {
 		pr_err("%s: Error, no configuration data\n", __func__);
@@ -3400,18 +3383,6 @@ int afe_tdm_port_start(u16 port_id, struct afe_tdm_port_config *tdm_port,
 			}
 		}
 	}
-
-	/* Obtain the calibration block for debug log
-	 * Note that afe_find_cal_topo_id_by_port needs to be called before
-	 * afe_send_cal because afe_find_cal_topo_id_by_port only finds blocks
-	 * that have not been used and afe_send_cal marks the cal_block as used
-	 * after executed.
-	 *
-	 * References:
-	 *   afe_send_cal --> send_afe_cal_type --> cal_utils_mark_cal_used
-	 */
-	cal_block = afe_find_cal_topo_id_by_port(
-		this_afe.cal_data[AFE_TOPOLOGY_CAL], port_id);
 
 	/* Also send the topology id here: */
 	if (!(this_afe.afe_cal_mode[port_index] == AFE_CAL_MODE_NONE)) {
@@ -3480,14 +3451,6 @@ int afe_tdm_port_start(u16 port_id, struct afe_tdm_port_config *tdm_port,
 			pr_err("%s: afe send failed %d\n", __func__, ret);
 			goto fail_cmd;
 		}
-	}
-
-	if (cal_block != NULL) {
-		afe_top = (struct audio_cal_info_afe_top *)cal_block->cal_info;
-		pr_debug("%s: top_id:%x acdb_id:%d port_id:0x%x\n",
-			__func__, afe_top->topology, afe_top->acdb_id, port_id);
-	} else {
-		pr_debug("%s: port_id:0x%x\n", __func__, port_id);
 	}
 
 	ret = afe_send_cmd_port_start(port_id);
@@ -4014,7 +3977,7 @@ static int q6afe_send_enc_config(u16 port_id,
 	if (ret) {
 		pr_err("%s: AFE_ENCODER_PARAM_ID_ENABLE_SCRAMBLING for port 0x%x failed %d\n",
 			__func__, port_id, ret);
-		//goto exit;
+		goto exit;
 	}
 
 	if (format == ASM_MEDIA_FMT_APTX) {
@@ -4158,8 +4121,6 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 	int index = 0;
 	enum afe_mad_type mad_type;
 	uint16_t port_index;
-	struct cal_block_data *cal_block = NULL;
-	struct audio_cal_info_afe_top *afe_top;
 
 	memset(&param_hdr, 0, sizeof(param_hdr));
 	memset(&port_cfg, 0, sizeof(port_cfg));
@@ -4238,10 +4199,6 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 			}
 		}
 	}
-
-	/* Obtain the calibration block for debug log */
-	cal_block = afe_find_cal_topo_id_by_port(
-		this_afe.cal_data[AFE_TOPOLOGY_CAL], port_id);
 
 	/* Also send the topology id here: */
 	if (!(this_afe.afe_cal_mode[port_index] == AFE_CAL_MODE_NONE)) {
@@ -4505,21 +4462,11 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 		ret = -EINVAL;
 		goto fail_cmd;
 	}
-
-	if (cal_block != NULL) {
-		afe_top = (struct audio_cal_info_afe_top *)cal_block->cal_info;
-		pr_debug("%s: top_id:%x acdb_id:%d port_id:0x%x\n",
-			__func__, afe_top->topology, afe_top->acdb_id, port_id);
-	} else {
-		pr_debug("%s: port_id:0x%x\n", __func__, port_id);
-	}
-
 	ret = afe_send_cmd_port_start(port_id);
 #if CONFIG_MSM_CSPL
 	if (ret == 0)
 		crus_afe_port_start(port_id);
 #endif
-
 
 fail_cmd:
 	mutex_unlock(&this_afe.afe_cmd_lock);
@@ -7224,7 +7171,7 @@ int afe_close(int port_id)
 		pr_err("%s: AFE close failed %d\n", __func__, ret);
 
 #if CONFIG_MSM_CSPL
-    crus_afe_port_close(port_id);
+	crus_afe_port_close(port_id);
 #endif
 
 fail_cmd:
@@ -8655,7 +8602,7 @@ static void afe_release_uevent_data(struct kobject *kobj)
 
 int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 {
-	int32_t result = 0, port_id = AFE_PORT_ID_TFADSP_RX;
+	int32_t result, port_id = AFE_PORT_ID_TFADSP_RX;
 	uint32_t port_index = 0, payload_size = 0;
 	size_t len;
 	struct rtac_cal_block_data *tfa_cal = &(this_afe.tfa_cal);

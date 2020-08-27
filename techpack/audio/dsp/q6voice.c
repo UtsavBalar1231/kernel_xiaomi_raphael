@@ -29,9 +29,7 @@
 #include <dsp/q6voice.h>
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
-#if CONFIG_VOICE_MHI
 #include <dsp/voice_mhi.h>
-#endif
 
 #define TIMEOUT_MS 300
 
@@ -4292,7 +4290,7 @@ static int voice_send_cvp_mfc_config_cmd(struct voice_data *v)
 	return ret;
 }
 
-static __maybe_unused int voice_get_avcs_version_per_service(uint32_t service_id)
+static int voice_get_avcs_version_per_service(uint32_t service_id)
 {
 	int ret = 0;
 	size_t ver_size;
@@ -4321,44 +4319,21 @@ done:
 	return ret;
 }
 
-static void voice_send_uevent(char *uevent)
-{
-	int ret = 0;
-
-	if (uevent == NULL)
-		return;
-
-	pr_info("uevent = %s\n", uevent);
-	mutex_lock(&common.common_lock);
-	ret = q6core_send_uevent(common.uevent_data, uevent);
-	if (ret)
-		pr_err("%s: Send UEvent %s failed :%d\n", __func__,
-			uevent, ret);
-	mutex_unlock(&common.common_lock);
-}
-
 static void voice_mic_break_work_fn(struct work_struct *work)
 {
+	int ret = 0;
 	char event[25] = "";
 	struct voice_data *v = container_of(work, struct voice_data,
 						voice_mic_break_work);
-	uint8_t mic_break_stat =
-		v->mic_break_status & MIC_BREAK_STAT_MIC_BREAK_MASK;
-	uint8_t mic_degrade_stat =
-		(v->mic_break_status & MIC_BREAK_STAT_MIC_DEGRADE_MASK)
-		>> MIC_DEGRADE_SHIFT_BITS;
 
-	if (mic_break_stat) {
-		snprintf(event, sizeof(event), "MIC_BREAK_STATUS=%d",
-			 mic_break_stat);
-		voice_send_uevent(event);
-	}
+	snprintf(event, sizeof(event), "MIC_BREAK_STATUS=%s",
+			v->mic_break_status ? "TRUE" : "FALSE");
 
-	if (mic_degrade_stat) {
-		snprintf(event, sizeof(event), "MIC_DEGRADE_STATUS=%d",
-			 mic_degrade_stat);
-		voice_send_uevent(event);
-	}
+	mutex_lock(&common.common_lock);
+	ret = q6core_send_uevent(common.uevent_data, event);
+	if (ret)
+		pr_err("%s: Send UEvent %s failed :%d\n", __func__, event, ret);
+	mutex_unlock(&common.common_lock);
 }
 
 static int voice_setup_vocproc(struct voice_data *v)
@@ -4372,7 +4347,7 @@ static int voice_setup_vocproc(struct voice_data *v)
 		pr_err("%s: CVP create failed err:%d\n", __func__, ret);
 		goto fail;
 	}
-#if 0
+
 	if (common.is_avcs_version_queried == false)
 		common.cvp_version = voice_get_avcs_version_per_service(
 				     APRV2_IDS_SERVICE_ID_ADSP_CVP_V);
@@ -4383,7 +4358,6 @@ static int voice_setup_vocproc(struct voice_data *v)
 		ret = -EINVAL;
 		goto fail;
 	}
-#endif
 	pr_debug("%s: CVP Version %d\n", __func__, common.cvp_version);
 
 	ret = voice_send_cvp_media_fmt_info_cmd(v);
@@ -6894,12 +6868,11 @@ int voc_end_voice_call(uint32_t session_id)
 
 		voice_destroy_mvm_cvs_session(v);
 
-#if CONFIG_VOICE_MHI
 		ret = voice_mhi_end();
 		if (ret < 0)
 			pr_debug("%s: voice_mhi_end failed! %d\n",
 				 __func__, ret);
-#endif
+
 		v->voc_state = VOC_RELEASE;
 	} else {
 		pr_err("%s: Error: End voice called in state %d\n",
@@ -7235,14 +7208,12 @@ int voc_start_voice_call(uint32_t session_id)
 					 __func__, ret);
 		}
 
-#if CONFIG_VOICE_MHI
 		ret = voice_mhi_start();
 		if (ret < 0) {
 			pr_debug("%s: voice_mhi_start failed! %d\n",
 				 __func__, ret);
 			goto fail;
 		}
-#endif
 
 		ret = voice_create_mvm_cvs_session(v);
 		if (ret < 0) {
@@ -7648,17 +7619,9 @@ static int32_t qdsp_mvm_callback(struct apr_client_data *data, void *priv)
 			voice_act_update =
 				(struct vss_evt_voice_activity *)
 				data->payload;
-			pr_debug("activity = 0x%x\n", voice_act_update->activity);
 
-			if ((voice_act_update->activity >=
-				VSS_ICOMMON_VOICE_ACTIVITY_MIC_BREAK_STAT_BASE) &&
-			    (voice_act_update->activity <=
-				VSS_ICOMMON_VOICE_ACTIVITY_MIC_BREAK_STAT_BASE +
-				MIC_BREAK_STAT_MAX))
-			    v->mic_break_status = voice_act_update->activity -
-				    VSS_ICOMMON_VOICE_ACTIVITY_MIC_BREAK_STAT_BASE;
 			/* Drop notifications other than Mic Break */
-			else if ((voice_act_update->activity
+			if ((voice_act_update->activity
 				     != VSS_ICOMMON_VOICE_ACTIVITY_MIC_BREAK)
 				&& (voice_act_update->activity
 				     != VSS_ICOMMON_VOICE_ACITIVTY_MIC_UNBREAK))

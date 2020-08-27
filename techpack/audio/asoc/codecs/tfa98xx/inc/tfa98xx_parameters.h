@@ -267,11 +267,11 @@ typedef struct TfaEqualizer {
 #define HDR(c1, c2) (c2<<8|c1) // little endian
 typedef enum TfaHeaderType {
     paramsHdr		= HDR('P', 'M'), /* containter file */
-    volstepHdr		= HDR('V', 'P'),
-    patchHdr		= HDR('P', 'A'),
-    speakerHdr		= HDR('S', 'P'),
-    presetHdr		= HDR('P', 'R'),
-    configHdr		= HDR('C', 'O'),
+    volstepHdr	 	= HDR('V', 'P'),
+    patchHdr	 	= HDR('P', 'A'),
+    speakerHdr	 	= HDR('S', 'P'),
+    presetHdr	 	= HDR('P', 'R'),
+    configHdr	 	= HDR('C', 'O'),
     equalizerHdr	= HDR('E', 'Q'),
     drcHdr			= HDR('D', 'R'),
     msgHdr			= HDR('M', 'G'),	/* generic message */

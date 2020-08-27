@@ -1,5 +1,4 @@
 /* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -72,10 +71,6 @@
 #define WSA8810_NAME_2 "wsa881x.20170212"
 #define WCN_CDC_SLIM_RX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX 3
-
-//#undef CONFIG_SND_SOC_TAS2557
-//#undef CONFIG_SND_SOC_CS35L41
-//#undef CONFIG_SND_SOC_TFA9874
 
 #define CS35L41_CODEC_NAME "cs35l41.0-0040"
 #if 0
@@ -3444,8 +3439,6 @@ static SOC_ENUM_SINGLE_VIRT_DECL(external_AMIC2_enum, external_AMIC2_enum_text);
 static const struct snd_kcontrol_new ext_amc2_mux =
 	SOC_DAPM_ENUM_EXT("External AMIC2 sel", external_AMIC2_enum,
 			snd_soc_dapm_get_enum_double, external_amic2_sel_put);
-
-
 static const struct snd_soc_dapm_widget msm_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY("MCLK",  SND_SOC_NOPM, 0, 0,
@@ -5215,7 +5208,7 @@ static int msm_fe_qos_prepare(struct snd_pcm_substream *substream)
 	cpumask_clear(&mask);
 	cpumask_set_cpu(1, &mask); /* affine to core 1 */
 	cpumask_set_cpu(2, &mask); /* affine to core 2 */
-	atomic_set(&substream->latency_pm_qos_req.cpus_affine, *cpumask_bits(&mask));
+	cpumask_copy(&substream->latency_pm_qos_req.cpus_affine, &mask);
 
 	substream->latency_pm_qos_req.type = PM_QOS_REQ_AFFINE_CORES;
 
@@ -5291,7 +5284,6 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	snd_soc_codec_set_sysclk(rtd->codec_dai->codec, 0, 0,
 			mi2s_clk[index].clk_freq_in_hz,
 			SND_SOC_CLOCK_IN);
-
 clk_off:
 	if (ret < 0)
 		msm_mi2s_set_sclk(substream, false);
@@ -7064,21 +7056,23 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.ops = &msm_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
-//	{
-//		.name = LPASS_BE_QUAT_MI2S_RX,
-//		.stream_name = "Quaternary MI2S Playback",
-//		.cpu_dai_name = "msm-dai-q6-mi2s.3",
-//		.platform_name = "msm-pcm-routing",
-//		.codec_name = "msm-stub-codec.1",
-//		.codec_dai_name = "msm-stub-rx",
-//		.no_pcm = 1,
-//		.dpcm_playback = 1,
-//		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-//		.be_hw_params_fixup = msm_be_hw_params_fixup,
-//		.ops = &msm_mi2s_be_ops,
-//		.ignore_suspend = 1,
-//		.ignore_pmdown_time = 1,
-//	},
+/*
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "msm-stub-codec.1",
+		.codec_dai_name = "msm-stub-rx",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+	},
+*/
 	{
 		.name = LPASS_BE_QUAT_MI2S_TX,
 		.stream_name = "Quaternary MI2S Capture",
@@ -7143,24 +7137,6 @@ static struct snd_soc_dai_link quat_mi2s_rx_tas2557_dai_links[] = {
 	},
 };
 
-static struct snd_soc_dai_link quat_mi2s_rx_tfa9874_dai_links[] = {
-	{
-		.name = LPASS_BE_QUAT_MI2S_RX,
-		.stream_name = "Quaternary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.3",
-		.platform_name = "msm-pcm-routing",
-		.codec_name = "tfa98xx.1-0034",
-		.codec_dai_name = "tfa98xx-aif-1-34",
-		.no_pcm = 1,
-		.dpcm_playback = 1,
-		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ops = &msm_mi2s_be_ops,
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-	},
-};
-
 static struct snd_soc_dai_link quat_mi2s_rx_cs35l41_dai_links[] = {
 	{
 		.name = LPASS_BE_QUAT_MI2S_RX,
@@ -7179,6 +7155,23 @@ static struct snd_soc_dai_link quat_mi2s_rx_cs35l41_dai_links[] = {
 	},
 };
 
+static struct snd_soc_dai_link quat_mi2s_rx_tfa9874_dai_links[] = {
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "tfa98xx.1-0034",
+		.codec_dai_name = "tfa98xx-aif-1-34",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+	},
+};
 
 static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 	/* Primary AUX PCM Backend DAI Links */
@@ -7343,8 +7336,8 @@ static struct snd_soc_dai_link msm_tavil_dai_links[
 			 ARRAY_SIZE(ext_disp_be_dai_link) +
 			 ARRAY_SIZE(msm_mi2s_be_dai_links) +
 			 ARRAY_SIZE(quat_mi2s_rx_tas2557_dai_links) +
-			 ARRAY_SIZE(quat_mi2s_rx_tfa9874_dai_links) +
 			 ARRAY_SIZE(quat_mi2s_rx_cs35l41_dai_links) +
+			 ARRAY_SIZE(quat_mi2s_rx_tfa9874_dai_links) +
 			 ARRAY_SIZE(msm_auxpcm_be_dai_links)];
 
 static int msm_snd_card_tavil_late_probe(struct snd_soc_card *card)
@@ -7359,8 +7352,6 @@ static int msm_snd_card_tavil_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dapm_context * cs35l41_dapm;
 #endif
 
-
-	printk("<%s><%d>: E.\n", __func__, __LINE__);
 	rtd = snd_soc_get_pcm_runtime(card, be_dl_name);
 	if (!rtd) {
 		dev_err(card->dev,
@@ -7407,15 +7398,12 @@ static int msm_snd_card_tavil_late_probe(struct snd_soc_card *card)
 		}
 	}
 #endif
-
-	printk("<%s><%d>: X.\n", __func__, __LINE__);
 	return 0;
 
 err_hs_detect:
 	kfree(mbhc_calibration);
 err_mbhc_cal:
 err_pcm_runtime:
-	printk("<%s><%d>: X, failed.\n", __func__, __LINE__);
 	return ret;
 }
 
@@ -8110,8 +8098,6 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	const char *mbhc_audio_jack_type = NULL;
 	int ret;
 
-	printk("<%s><%d>: E.\n", __func__, __LINE__);
-
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "No platform supplied from device tree\n");
 		return -EINVAL;
@@ -8168,14 +8154,12 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 
 	ret = msm_populate_dai_link_component_of_node(card);
 	if (ret) {
-		printk("<%s><%d>: HERE.\n", __func__, __LINE__);
 		ret = -EPROBE_DEFER;
 		goto err;
 	}
 	ret = msm_init_wsa_dev(pdev, card);
-	if (ret) {
+	if (ret)
 		goto err;
-	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret == -EPROBE_DEFER) {
@@ -8284,13 +8268,10 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		pr_err("%s: Audio notifier register failed ret = %d\n",
 			__func__, ret);
 
-	printk("<%s><%d>: X.\n", __func__, __LINE__);
-
 	return 0;
 err:
 	msm_release_pinctrl(pdev);
 	devm_kfree(&pdev->dev, pdata);
-	printk("<%s><%d>: X, failed.\n", __func__, __LINE__);
 	return ret;
 }
 

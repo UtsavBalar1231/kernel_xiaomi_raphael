@@ -611,7 +611,16 @@ ifeq ($(CONFIG_ARCH_MSM8996), y)
 CONFIG_CHANNEL_HOPPING_ALL_BANDS := y
 endif
 
+ifneq ($(CONFIG_HIF_USB), y)
 CONFIG_WLAN_LOGGING_SOCK_SVC := n
+endif
+
+ifneq ($(TARGET_BUILD_VARIANT),user)
+CONFIG_DESC_DUP_DETECT_DEBUG := n
+endif
+
+CONFIG_DP_TRACE := n
+#Enable Beacon Reception Stats
 CONFIG_FEATURE_BECN_STATS := n
 
 #enable MPTA helper for QCS405
@@ -635,8 +644,6 @@ ifeq ($(CONFIG_ARCH_SDM660), y)
 CONFIG_WLAN_FEATURE_PKT_CAPTURE := y
 endif
 
-CONFIG_WLAN_HANG_EVENT := n
-
 #Flag to enable/disable kernel panic calls
 CONFIG_PANIC_ON_WLAN_QDF_BUG=y
 PANIC_ON_BUG := n
@@ -646,3 +653,11 @@ ifeq ($(CONFIG_SLUB_DEBUG), y)
 		PANIC_ON_BUG := y
 	endif
 endif
+
+#Enable RX RING buffers debug
+CONFIG_DEBUG_RX_RING_BUFFER := n
+
+#Enable Hash debug
+CONFIG_RX_HASH_DEBUG := n
+
+CONFIG_WLAN_HANG_EVENT := n

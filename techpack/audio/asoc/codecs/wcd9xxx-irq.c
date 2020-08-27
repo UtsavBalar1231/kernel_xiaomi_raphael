@@ -1,5 +1,4 @@
 /* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -636,14 +635,10 @@ int wcd9xxx_request_irq(struct wcd9xxx_core_resource *wcd9xxx_res,
 			const char *name, void *data)
 {
 	int virq;
-	int flags = IRQF_TRIGGER_RISING;
 
 	virq = phyirq_to_virq(wcd9xxx_res, irq);
 
-	if (!strncmp(name, "Button ", strlen("Button") + 1))
-		flags |= IRQF_NO_SUSPEND;
-
-	return request_threaded_irq(virq, NULL, handler, flags,
+	return request_threaded_irq(virq, NULL, handler, IRQF_TRIGGER_RISING,
 				    name, data);
 }
 EXPORT_SYMBOL(wcd9xxx_request_irq);

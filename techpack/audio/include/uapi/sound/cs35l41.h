@@ -2,7 +2,6 @@
  * linux/sound/cs35l41.h -- Platform data for CS35L41
  *
  * Copyright (c) 2018 Cirrus Logic Inc.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -80,5 +79,5 @@ struct cs35l41_private {
 
 int cs35l41_probe(struct cs35l41_private *cs35l41,
 				struct cs35l41_platform_data *pdata);
-int spk_id_get(struct device_node *np);
+int cs35l41_spk_id_get(struct device_node *np);
 #endif /* __CS35L41_H */

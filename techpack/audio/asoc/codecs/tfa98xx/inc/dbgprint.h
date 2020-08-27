@@ -31,7 +31,7 @@
 #   ifdef DEBUG
 #      define _DEBUG(level, fmt, va...) do {\
 		if (unlikely(debug >= (level))) \
-			printk(KERN_INFO PREFIX "%s:%d: "fmt, __func__, __LINE__, ##va); \
+                        printk(KERN_INFO PREFIX "%s:%d: "fmt, __func__, __LINE__, ##va); \
 	} while (0)
 
 #   else

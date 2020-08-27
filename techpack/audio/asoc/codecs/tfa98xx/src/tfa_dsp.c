@@ -3158,7 +3158,7 @@ enum tfa_error tfa_dev_start(struct tfa_device *tfa, int next_profile, int vstep
 			TFA_SET_BF(tfa, TDMNBCK, 0);
 			TFA_SET_BF(tfa, TDMSLLN, 15);
 			TFA_SET_BF(tfa, TDMSSIZE, 15);
-		} else if ((pcm_format == 24) || (pcm_format == 32)) {
+		} else if ((24 == pcm_format) || (pcm_format == 32)) {
 			TFA_SET_BF(tfa, TDMNBCK, 2);
 			TFA_SET_BF(tfa, TDMSLLN, 31);
 			TFA_SET_BF(tfa, TDMSSIZE, 31);

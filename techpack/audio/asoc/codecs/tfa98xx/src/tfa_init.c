@@ -8,6 +8,7 @@
  *
  */
 
+
 #include "dbgprint.h"
 #include "tfa_service.h"
 #include "tfa_internal.h"
@@ -156,7 +157,7 @@ static int tfa_get_swvstep(struct tfa_device *tfa)
 	return value - 1; /* invalid if 0 */
 }
 
-static int tfa_get_mtpb(struct tfa_device *tfa)
+static int tfa_get_mtpb(struct tfa_device *tfa) 
 {
 
 	int value = 0;
@@ -723,7 +724,7 @@ static enum Tfa98xx_Error tfa9873_dsp_system_stable(struct tfa_device *tfa, int 
 	return error;
 }
 
-static int tfa9873_get_mtpb(struct tfa_device *tfa)
+static int tfa9873_get_mtpb(struct tfa_device *tfa) 
 {
 
 	int value;
@@ -780,14 +781,14 @@ static enum Tfa98xx_Error tfa9873_specific(struct tfa_device *tfa)
 		break;
 	case 0x0b73:
 		/* ----- generated code start ----- */
-		/* -----  version 13 ----- */
+		/* -----  version 16 ----- */
 		reg_write(tfa, 0x02, 0x0628); //POR=0x0008
 		reg_write(tfa, 0x61, 0x0183); //POR=0x0182
 		reg_write(tfa, 0x63, 0x005a); //POR=0x055a
-		reg_write(tfa, 0x6f, 0x0083); //POR=0x00a5
-		reg_write(tfa, 0x70, 0xa3fb); //POR=0x23fb
+		reg_write(tfa, 0x6f, 0x0082); //POR=0x00a5
+		reg_write(tfa, 0x70, 0xa3eb); //POR=0x23fb
 		reg_write(tfa, 0x73, 0x0187); //POR=0x0107
-		reg_write(tfa, 0x83, 0x009a); //POR=0x0799
+		reg_write(tfa, 0x83, 0x071c); //POR=0x0799
 		reg_write(tfa, 0x85, 0x0380); //POR=0x0382
 		reg_write(tfa, 0xd5, 0x004d); //POR=0x014d
 		/* ----- generated code end   ----- */
@@ -963,7 +964,7 @@ static enum Tfa98xx_Error tfa9874_dsp_system_stable(struct tfa_device *tfa, int 
 	return error;
 }
 
-static int tfa9874_get_mtpb(struct tfa_device *tfa)
+static int tfa9874_get_mtpb(struct tfa_device *tfa) 
 {
 
 	int value;
@@ -1107,7 +1108,7 @@ static enum Tfa98xx_Error tfa9878_dsp_system_stable(struct tfa_device *tfa, int 
 	return error;
 }
 
-static int tfa9878_get_mtpb(struct tfa_device *tfa)
+static int tfa9878_get_mtpb(struct tfa_device *tfa) 
 {
 
 	int value;

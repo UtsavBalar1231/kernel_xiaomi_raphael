@@ -2,7 +2,6 @@
  * wm_adsp.c  --  Wolfson ADSP support
  *
  * Copyright 2012 Wolfson Microelectronics plc
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -10,6 +9,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define DEBUG
 //#define WM_ADSP_DEBUG
 #include <linux/module.h>
 #include <linux/moduleparam.h>
