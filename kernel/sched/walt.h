@@ -156,7 +156,7 @@ extern void init_new_task_load(struct task_struct *p);
 extern void mark_task_starting(struct task_struct *p);
 extern void set_window_start(struct rq *rq);
 void account_irqtime(int cpu, struct task_struct *curr, u64 delta,
-                                  u64 wallclock);
+			 	    u64 wallclock);
 extern bool do_pl_notif(struct rq *rq);
 
 #define SCHED_HIGH_IRQ_TIMEOUT 3
