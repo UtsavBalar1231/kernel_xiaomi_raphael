@@ -3806,6 +3806,12 @@ static long tfa98xx_misc_device_control_ioctl(struct file *file,
 				/* clear buffer and read livedata from dsp.*/
 				memset((char *)(&livedata[0]), 0x00, sizeof(livedata));
 
+				/* read original memtrack data from device. */
+				if (Tfa98xx_Error_Ok == tfa98xx_read_memtrack_data(tfa98xx, &livedata[0]))
+					pr_info("Device 0x%x read memtrack data sucessed.\n", tfa98xx->i2c->addr);
+				else
+					pr_err("Device 0x%x read memtrack data failed.\n", tfa98xx->i2c->addr);
+
 				/* copy data to user spcace. if copied is successed,
 				will be returned actual size to user space. */
 				livedata_length_bytes = sizeof(int) * MEMTRACK_ITEM_MAX;
