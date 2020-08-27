@@ -803,7 +803,6 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	struct platform_device *wrapper_pdev;
 	struct device_node *wrapper_ph_node;
 	int ret;
-	char boot_marker[40];
 	u32 geni_i2c_clk_map_dt[5];
 
 	gi2c = devm_kzalloc(&pdev->dev, sizeof(*gi2c), GFP_KERNEL);

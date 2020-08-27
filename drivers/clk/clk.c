@@ -69,7 +69,7 @@ static struct hlist_head *all_lists[] = {
 	NULL,
 };
 
-static struct hlist_head *orphan_list[] = {
+static struct hlist_head __maybe_unused *orphan_list[] = {
 	&clk_orphan_list,
 	NULL,
 };

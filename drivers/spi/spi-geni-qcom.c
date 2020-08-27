@@ -1577,7 +1577,6 @@ static int spi_geni_probe(struct platform_device *pdev)
 	struct platform_device *wrapper_pdev;
 	struct device_node *wrapper_ph_node;
 	bool rt_pri, slave_en;
-	char boot_marker[40];
 
 	spi = spi_alloc_master(&pdev->dev, sizeof(struct spi_geni_master));
 	if (!spi) {

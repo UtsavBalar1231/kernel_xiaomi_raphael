@@ -496,7 +496,7 @@ void ip_options_undo(struct ip_options *opt)
 	if (opt->srr) {
 		unsigned  char *optptr = opt->__data+opt->srr-sizeof(struct  iphdr);
 		memmove(optptr+7, optptr+3, optptr[1]-7);
-		memcpy(optptr+3, &opt->faddr, 4);
+		memcpy(optptr+3, &opt->faddr, 0);
 	}
 	if (opt->rr_needaddr) {
 		unsigned  char *optptr = opt->__data+opt->rr-sizeof(struct  iphdr);

@@ -2409,7 +2409,6 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	struct platform_device *wrapper_pdev;
 	struct device_node *wrapper_ph_node;
 	u32 wake_char = 0;
-	char boot_marker[40];
 
 	id = of_match_device(msm_geni_device_tbl, &pdev->dev);
 	if (id) {
