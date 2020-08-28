@@ -305,8 +305,8 @@ struct ipa_mpm_dev_info {
 	bool pcie_smmu_enabled;
 	struct ipa_mpm_iova_addr ctrl;
 	struct ipa_mpm_iova_addr data;
-	u32 chdb_base;
-	u32 erdb_base;
+	phys_addr_t chdb_base;
+	phys_addr_t erdb_base;
 	bool is_cache_coherent;
 };
 
@@ -1880,6 +1880,24 @@ static int ipa_mpm_mhi_probe_cb(struct mhi_device *mhi_dev,
 		return 0;
 	}
 
+	ret = mhi_get_channel_db_base(mhi_dev,
+				      &ipa_mpm_ctx->dev_info.chdb_base);
+	if (ret) {
+		IPA_MPM_ERR("Could not populate channel db base address\n");
+		return -EINVAL;
+	}
+
+	IPA_MPM_DBG("chdb-base=0x%x\n", ipa_mpm_ctx->dev_info.chdb_base);
+
+	ret = mhi_get_event_ring_db_base(mhi_dev,
+					 &ipa_mpm_ctx->dev_info.erdb_base);
+	if (ret) {
+		IPA_MPM_ERR("Could not populate event ring db base address\n");
+		return -EINVAL;
+	}
+
+	IPA_MPM_DBG("erdb-base=0x%x\n", ipa_mpm_ctx->dev_info.erdb_base);
+
 	IPA_MPM_DBG("Received probe for id=%d\n", probe_id);
 
 	get_ipa3_client(probe_id, &ul_prod, &dl_cons);
@@ -2733,20 +2751,6 @@ static int ipa_mpm_probe(struct platform_device *pdev)
 	ipa_mpm_ctx->dev_info.dev = &pdev->dev;
 
 	ipa_mpm_init_mhip_channel_info();
-
-	if (of_property_read_u32(pdev->dev.of_node, "qcom,mhi-chdb-base",
-		&ipa_mpm_ctx->dev_info.chdb_base)) {
-		IPA_MPM_ERR("failed to read qcom,mhi-chdb-base\n");
-		goto fail_probe;
-	}
-	IPA_MPM_DBG("chdb-base=0x%x\n", ipa_mpm_ctx->dev_info.chdb_base);
-
-	if (of_property_read_u32(pdev->dev.of_node, "qcom,mhi-erdb-base",
-		&ipa_mpm_ctx->dev_info.erdb_base)) {
-		IPA_MPM_ERR("failed to read qcom,mhi-erdb-base\n");
-		goto fail_probe;
-	}
-	IPA_MPM_DBG("erdb-base=0x%x\n", ipa_mpm_ctx->dev_info.erdb_base);
 
 	ret = ipa_mpm_populate_smmu_info(pdev);
 
