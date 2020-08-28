@@ -14,3 +14,11 @@
 	compatible = "qcom,ext-lemur";
 	qcom,mdm-link-info = "0308_01.01.00";
 };
+
+&pil_modem {
+	status = "disabled";
+};
+
+&glink_modem {
+	status = "disabled";
+};
