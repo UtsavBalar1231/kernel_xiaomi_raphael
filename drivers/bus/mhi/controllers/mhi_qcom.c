@@ -394,11 +394,6 @@ static int mhi_force_suspend(struct mhi_controller *mhi_cntrl)
 
 	MHI_CNTRL_LOG("Entered\n");
 
-	if (debug_mode == MHI_DEBUG_NO_D3 || debug_mode == MHI_FWIMAGE_NO_D3) {
-		MHI_CNTRL_LOG("Exited due to debug mode:%d\n", debug_mode);
-		return ret;
-	}
-
 	mutex_lock(&mhi_cntrl->pm_mutex);
 
 	for (; itr; itr--) {
@@ -567,6 +562,13 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl,
 		pm_request_autosuspend(dev);
 		break;
 	case MHI_CB_EE_MISSION_MODE:
+		if (debug_mode == MHI_DEBUG_NO_D3 ||
+		    debug_mode == MHI_FWIMAGE_NO_D3) {
+			mhi_arch_mission_mode_enter(mhi_cntrl);
+			MHI_CNTRL_LOG("Exited due to debug mode:%d\n",
+				      debug_mode);
+			break;
+		}
 		/*
 		 * we need to force a suspend so device can switch to
 		 * mission mode pcie phy settings.
@@ -579,6 +581,7 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl,
 		}
 		pm_runtime_put(dev);
 		mhi_arch_mission_mode_enter(mhi_cntrl);
+		pm_runtime_allow(&mhi_dev->pci_dev->dev);
 		break;
 	case MHI_CB_FATAL_ERROR:
 		MHI_CNTRL_ERR("Perform power cycle due to SYS ERROR in PBL\n");
