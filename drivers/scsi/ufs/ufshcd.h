@@ -197,9 +197,6 @@ struct ufs_pm_lvl_states {
  * @intr_cmd: Interrupt command (doesn't participate in interrupt aggregation)
  * @issue_time_stamp: time stamp for debug purposes
  * @complete_time_stamp: time stamp for statistics
- * @crypto_enable: whether or not the request needs inline crypto operations
- * @crypto_key_slot: the key slot to use for inline crypto
- * @data_unit_num: the data unit number for the first block for inline crypto
  * @req_abort_skip: skip request abort task flag
  */
 struct ufshcd_lrb {
@@ -224,11 +221,6 @@ struct ufshcd_lrb {
 	bool intr_cmd;
 	ktime_t issue_time_stamp;
 	ktime_t complete_time_stamp;
-#if IS_ENABLED(CONFIG_SCSI_UFS_CRYPTO)
-	bool crypto_enable;
-	u8 crypto_key_slot;
-	u64 data_unit_num;
-#endif /* CONFIG_SCSI_UFS_CRYPTO */
 
 	bool req_abort_skip;
 };
@@ -310,8 +302,6 @@ struct ufs_pwr_mode_info {
 	struct ufs_pa_layer_attr info;
 };
 
-union ufs_crypto_cfg_entry;
-
 /**
  * struct ufs_hba_variant_ops - variant specific callbacks
  * @init: called when the driver is initialized
@@ -342,7 +332,6 @@ union ufs_crypto_cfg_entry;
  *			 scale down
  * @set_bus_vote: called to vote for the required bus bandwidth
  * @phy_initialization: used to initialize phys
- * @program_key: program an inline encryption key into a keyslot
  */
 struct ufs_hba_variant_ops {
 	int	(*init)(struct ufs_hba *);
@@ -378,8 +367,6 @@ struct ufs_hba_variant_ops {
 	void	(*add_debugfs)(struct ufs_hba *hba, struct dentry *root);
 	void	(*remove_debugfs)(struct ufs_hba *hba);
 #endif
-	int     (*program_key)(struct ufs_hba *hba,
-			       const union ufs_crypto_cfg_entry *cfg, int slot);
 };
 
 /**
@@ -399,28 +386,6 @@ struct ufs_hba_variant {
 	const char				*name;
 	struct ufs_hba_variant_ops		*vops;
 	struct ufs_hba_pm_qos_variant_ops	*pm_qos_vops;
-};
-
-struct keyslot_mgmt_ll_ops;
-struct ufs_hba_crypto_variant_ops {
-	void (*setup_rq_keyslot_manager)(struct ufs_hba *hba,
-					 struct request_queue *q);
-	void (*destroy_rq_keyslot_manager)(struct ufs_hba *hba,
-					   struct request_queue *q);
-	int (*hba_init_crypto)(struct ufs_hba *hba,
-			       const struct keyslot_mgmt_ll_ops *ksm_ops);
-	void (*enable)(struct ufs_hba *hba);
-	void (*disable)(struct ufs_hba *hba);
-	int (*suspend)(struct ufs_hba *hba, enum ufs_pm_op pm_op);
-	int (*resume)(struct ufs_hba *hba, enum ufs_pm_op pm_op);
-	int (*debug)(struct ufs_hba *hba);
-	int (*prepare_lrbp_crypto)(struct ufs_hba *hba,
-				   struct scsi_cmnd *cmd,
-				   struct ufshcd_lrb *lrbp);
-	int (*complete_lrbp_crypto)(struct ufs_hba *hba,
-				    struct scsi_cmnd *cmd,
-				    struct ufshcd_lrb *lrbp);
-	void *priv;
 };
 
 /* clock gating state  */
@@ -784,10 +749,6 @@ enum ufshcd_card_state {
  * @is_urgent_bkops_lvl_checked: keeps track if the urgent bkops level for
  *  device is known or not.
  * @scsi_block_reqs_cnt: reference counting for scsi block requests
- * @crypto_capabilities: Content of crypto capabilities register (0x100)
- * @crypto_cap_array: Array of crypto capabilities
- * @crypto_cfg_register: Start of the crypto cfg array
- * @ksm: the keyslot manager tied to this hba
  */
 struct ufs_hba {
 	void __iomem *mmio_base;
@@ -833,7 +794,6 @@ struct ufs_hba {
 	struct ufs_hba_variant *var;
 	void *priv;
 	size_t sg_entry_size;
-	const struct ufs_hba_crypto_variant_ops *crypto_vops;
 	unsigned int irq;
 	bool is_irq_enabled;
 	bool crash_on_err;
@@ -922,12 +882,6 @@ struct ufs_hba {
 
 	/* Auto hibern8 support is broken */
 	#define UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8		UFS_BIT(15)
-
-	/*
-	 * This quirk needs to be enabled if the host controller advertises
-	 * inline encryption support but it doesn't work correctly.
-	 */
-	#define UFSHCD_QUIRK_BROKEN_CRYPTO                      UFS_BIT(16)
 
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
@@ -1041,11 +995,6 @@ struct ufs_hba {
 	 * in hibern8 then enable this cap.
 	 */
 #define UFSHCD_CAP_POWER_COLLAPSE_DURING_HIBERN8 (1 << 7)
-	/*
-	 * This capability allows the host controller driver to use the
-	 * inline crypto engine, if it is present
-	 */
-#define UFSHCD_CAP_CRYPTO (1 << 8)
 
 	struct devfreq *devfreq;
 	struct ufs_clk_scaling clk_scaling;
@@ -1078,14 +1027,6 @@ struct ufs_hba {
 	bool force_g4;
 	/* distinguish between resume and restore */
 	bool restore;
-
-#ifdef CONFIG_SCSI_UFS_CRYPTO
-	/* crypto */
-	union ufs_crypto_capabilities crypto_capabilities;
-	union ufs_crypto_cap_entry *crypto_cap_array;
-	u32 crypto_cfg_register;
-	struct keyslot_manager *ksm;
-#endif /* CONFIG_SCSI_UFS_CRYPTO */
 };
 
 static inline void ufshcd_mark_shutdown_ongoing(struct ufs_hba *hba)
