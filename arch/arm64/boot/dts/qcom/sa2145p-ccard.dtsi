@@ -235,6 +235,13 @@
 		"dev-emac-rgmii_rxc_state", "dev-emac-rgmii_rx_ctl_state",
 		"dev-emac-phy_intr", "dev-emac-phy_reset_state";
 	pinctrl-15 = <&emac_phy_reset_state>;
+
+	io-macro-info {
+		prg-rclk-dly = <1500>;
+		rx-prog-swap;
+		clear-cdr-ext-en;
+		sdcc-usr-ctl = <0x00>;
+	};
 };
 
 &emac_hw {
