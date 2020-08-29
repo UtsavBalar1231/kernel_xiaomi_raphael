@@ -687,6 +687,7 @@ void __init prepare_namespace(void)
 	if ((!is_early_userspace) || (is_early_userspace && first_time)) {
 		md_run_setup();
 		dm_run_setup();
+		dm_verity_setup();
 
 		if (saved_root_name[0]) {
 			root_device_name = saved_root_name;
