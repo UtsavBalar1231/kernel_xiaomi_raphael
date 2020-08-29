@@ -137,11 +137,9 @@ static int default_key_ctr_optional(struct dm_target *ti,
 	return 0;
 }
 
-static void default_key_adjust_sector_size_and_iv(char **argv,
-						  struct dm_target *ti,
-						  struct default_key_c **dkc,
-						  u8 *raw, u32 size,
-						  bool is_legacy)
+void default_key_adjust_sector_size_and_iv(char **argv, struct dm_target *ti,
+					   struct default_key_c **dkc, u8 *raw,
+					   u32 size)
 {
 	struct dm_dev *dev;
 	int i;
@@ -152,7 +150,7 @@ static void default_key_adjust_sector_size_and_iv(char **argv,
 
 	dev = (*dkc)->dev;
 
-	if (is_legacy) {
+	if (!strcmp(argv[0], "AES-256-XTS")) {
 		memcpy(key_new.bytes, raw, size);
 
 		for (i = 0; i < ARRAY_SIZE(key_new.words); i++)
@@ -186,24 +184,6 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned long long tmpll;
 	char dummy;
 	int err;
-	char *_argv[10];
-	bool is_legacy = false;
-
-	if (argc >= 4 && !strcmp(argv[0], "AES-256-XTS")) {
-		argc = 0;
-		_argv[argc++] = "aes-xts-plain64";
-		_argv[argc++] = argv[1];
-		_argv[argc++] = "0";
-		_argv[argc++] = argv[2];
-		_argv[argc++] = argv[3];
-		_argv[argc++] = "3";
-		_argv[argc++] = "allow_discards";
-		_argv[argc++] = "sector_size:4096";
-		_argv[argc++] = "iv_large_sectors";
-		_argv[argc] = NULL;
-		argv = _argv;
-		is_legacy = true;
-	}
 
 	if (argc < 5) {
 		ti->error = "Not enough arguments";
@@ -279,7 +259,7 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	default_key_adjust_sector_size_and_iv(argv, ti, &dkc, raw_key,
-					      raw_key_size, is_legacy);
+					      raw_key_size);
 
 	dkc->sector_bits = ilog2(dkc->sector_size);
 	if (ti->len & ((dkc->sector_size >> SECTOR_SHIFT) - 1)) {
