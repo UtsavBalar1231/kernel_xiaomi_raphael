@@ -23,7 +23,7 @@ steps:
     - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip python flex
     - git clone --depth=1 https://github.com/UtsavBalar1231/scripts.git -b master script && cd script
     - ./dronesetup.sh --proton
-    - ./kernel.sh --proton --beta
+    - ./kernel.sh --proton
   when:
     branch:
       - auto-kernel-ci
