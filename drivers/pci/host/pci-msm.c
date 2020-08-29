@@ -3699,7 +3699,7 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 		of_property_read_u32_array(pdev->dev.of_node, "qcom,bw-scale",
 				(u32 *)dev->bw_scale, size / sizeof(u32));
 
-		dev->bw_gen_max = size / sizeof(u32);
+		dev->bw_gen_max = size / sizeof(*dev->bw_scale);
 	} else {
 		PCIE_DBG(dev, "RC%d: bandwidth scaling is not supported\n",
 			dev->rc_idx);
@@ -6426,6 +6426,15 @@ int msm_pcie_set_link_bandwidth(struct pci_dev *pci_dev, u16 target_link_speed,
 
 	pcie_dev = PCIE_BUS_PRIV_DATA(root_pci_dev->bus);
 
+	if (target_link_speed > pcie_dev->bw_gen_max ||
+		(pcie_dev->target_link_speed &&
+		target_link_speed > pcie_dev->target_link_speed)) {
+		PCIE_DBG(pcie_dev,
+			"PCIe: RC%d: invalid target link speed: %d\n",
+			pcie_dev->rc_idx, target_link_speed);
+		return -EINVAL;
+	}
+
 	pcie_capability_read_word(root_pci_dev, PCI_EXP_LNKSTA, &link_status);
 
 	current_link_speed = link_status & PCI_EXP_LNKSTA_CLS;
@@ -6713,7 +6722,7 @@ static int __init pcie_init(void)
 		msm_pcie_dev[i].ipc_log =
 			ipc_log_context_create(PCIE_LOG_PAGES, rc_name, 0);
 		if (msm_pcie_dev[i].ipc_log == NULL)
-			pr_dbg("%s: unable to create IPC log context for %s\n",
+			pr_debug("%s: unable to create IPC log context for %s\n",
 				__func__, rc_name);
 		else
 			PCIE_DBG(&msm_pcie_dev[i],
@@ -6723,7 +6732,7 @@ static int __init pcie_init(void)
 		msm_pcie_dev[i].ipc_log_long =
 			ipc_log_context_create(PCIE_LOG_PAGES, rc_name, 0);
 		if (msm_pcie_dev[i].ipc_log_long == NULL)
-			pr_dbg("%s: unable to create IPC log context for %s\n",
+			pr_debug("%s: unable to create IPC log context for %s\n",
 				__func__, rc_name);
 		else
 			PCIE_DBG(&msm_pcie_dev[i],
@@ -6733,7 +6742,7 @@ static int __init pcie_init(void)
 		msm_pcie_dev[i].ipc_log_dump =
 			ipc_log_context_create(PCIE_LOG_PAGES, rc_name, 0);
 		if (msm_pcie_dev[i].ipc_log_dump == NULL)
-			pr_dbg("%s: unable to create IPC log context for %s\n",
+			pr_debug("%s: unable to create IPC log context for %s\n",
 				__func__, rc_name);
 		else
 			PCIE_DBG(&msm_pcie_dev[i],

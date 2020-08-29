@@ -2471,8 +2471,7 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 			KGSL_PWR_ERR(device,
 				"Failed to register client with CX Ipeak %d\n",
 				result);
-			//goto error_cleanup_pwr_limit;
-			result = 0;
+			goto error_cleanup_pwr_limit;
 		}
 	}
 	return result;

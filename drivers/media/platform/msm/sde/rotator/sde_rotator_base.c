@@ -147,7 +147,7 @@ void vbif_lock(struct platform_device *parent_pdev)
 	if (!parent_pdev)
 		return;
 
-//	mdp_vbif_lock(parent_pdev, true);
+	mdp_vbif_lock(parent_pdev, true);
 }
 
 void vbif_unlock(struct platform_device *parent_pdev)
@@ -155,7 +155,7 @@ void vbif_unlock(struct platform_device *parent_pdev)
 	if (!parent_pdev)
 		return;
 
-//	mdp_vbif_lock(parent_pdev, false);
+	mdp_vbif_lock(parent_pdev, false);
 }
 
 void sde_mdp_halt_vbif_xin(struct sde_mdp_vbif_halt_params *params)

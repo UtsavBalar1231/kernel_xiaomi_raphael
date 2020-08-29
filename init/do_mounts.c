@@ -658,6 +658,7 @@ void __init prepare_namespace(void)
 
 	md_run_setup();
 	dm_run_setup();
+	dm_verity_setup();
 
 	// Try to mount partition labeled "system" first
 	ROOT_DEV = name_to_dev_t("PARTLABEL=system");

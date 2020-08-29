@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,20 +10,11 @@
  * GNU General Public License for more details.
  */
 
-/dts-v1/;
-/plugin/;
+#ifndef DM_IOCTRL_INTERNAL_H
+#define DM_IOCTRL_INTERNAL_H
 
-#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <linux/dm-ioctl.h>
 
-#include "qcm6125-iot-idp.dtsi"
+int dm_ioctrl(uint cmd, struct dm_ioctl *param);
 
-/ {
-	model = "USB-C Ext Audio Codec IDP";
-	compatible = "qcom,qcm6125-idp", "qcom,qcm6125", "qcom,idp";
-	qcom,msm-id = <467 0x10000>;
-	qcom,board-id = <34 3>;
-};
-
-&dsi_td4330_truly_cmd_display {
-	qcom,dsi-display-active;
-};
+#endif
