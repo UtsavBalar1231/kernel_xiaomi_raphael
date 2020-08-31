@@ -427,13 +427,13 @@ struct ipa_api_controller {
 		ipa_wdi_meter_notifier_cb wdi_notify);
 
 	int (*ipa_disconn_wdi_pipes)(int ipa_ep_idx_tx,
-		int ipa_ep_idx_rx);
+		int ipa_ep_idx_rx, int ipa_ep_idx_tx1);
 
 	int (*ipa_enable_wdi_pipes)(int ipa_ep_idx_tx,
-		int ipa_ep_idx_rx);
+		int ipa_ep_idx_rx, int ipa_ep_idx_tx1);
 
 	int (*ipa_disable_wdi_pipes)(int ipa_ep_idx_tx,
-		int ipa_ep_idx_rx);
+		int ipa_ep_idx_rx, int ipa_ep_idx_tx1);
 
 	int (*ipa_tz_unlock_reg)(struct ipa_tz_unlock_reg_info *reg_info,
 		u16 num_regs);

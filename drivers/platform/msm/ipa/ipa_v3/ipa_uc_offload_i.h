@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,7 +33,7 @@
 #define MAX_AQC_CHANNELS 2
 #define MAX_11AD_CHANNELS 5
 #define MAX_WDI2_CHANNELS 2
-#define MAX_WDI3_CHANNELS 2
+#define MAX_WDI3_CHANNELS 3
 #define MAX_MHIP_CHANNELS 4
 #define MAX_USB_CHANNELS 2
 
