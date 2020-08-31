@@ -468,6 +468,18 @@ ENTRY(__cpu_setup)
 	tlbi	vmalle1				// Invalidate local TLB
 	dsb	nsh
 
+#ifdef CONFIG_ARM64_PAN
+	mrs	x0, sctlr_el1
+	bfi x0, XZR, 23, 1
+	msr	sctlr_el1, x0
+	.inst   0xd500419f
+#endif
+#ifdef CONFIG_ARM64_HW_AFDBM
+	mrs	x0, tcr_el1
+	orr	x0, x0, #TCR_HD
+	msr	tcr_el1, x0
+#endif
+
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
 	mov	x0, #1 << 12			// Reset mdscr_el1 and disable
