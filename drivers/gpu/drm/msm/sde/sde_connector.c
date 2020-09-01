@@ -25,7 +25,6 @@
 #include "dsi_panel.h"
 #include "sde_crtc.h"
 #include "sde_rm.h"
-#include "sde_trace.h"
 
 #define BL_NODE_NAME_SIZE 32
 
@@ -86,7 +85,7 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 
 	if ((bd->props.power != FB_BLANK_UNBLANK) ||
 			(bd->props.state & BL_CORE_FBBLANK) ||
-			(bd->props.state & BL_CORE_SUSPENDED))
+		(bd->props.state & BL_CORE_SUSPENDED))
 		brightness = 0;
 
 	c_conn = bl_get_data(bd);
@@ -94,12 +93,9 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	if (brightness > display->panel->bl_config.bl_max_level)
 		brightness = display->panel->bl_config.bl_max_level;
 
-	if (!display->panel->bl_config.bl_remap_flag) {
-		/* map UI brightness into driver backlight level with rounding */
-		bl_lvl = mult_frac(brightness, display->panel->bl_config.bl_max_level,
-				display->panel->bl_config.brightness_max_level);
-	} else
-		bl_lvl = brightness;
+	/* map UI brightness into driver backlight level with rounding */
+	bl_lvl = mult_frac(brightness, display->panel->bl_config.bl_max_level,
+			display->panel->bl_config.brightness_max_level);
 
 	if (!bl_lvl && brightness)
 		bl_lvl = 1;
@@ -647,7 +643,7 @@ static int dsi_display_write_panel(struct dsi_display *display,
 		if (cmds->last_command)
 			cmds->msg.flags |= MIPI_DSI_MSG_LASTCOMMAND;
 
-		len = ops->transfer(panel->host, &cmds->msg);//dsi_host_transfer,
+		len = ops->transfer(panel->host, &cmds->msg);
 		if (len < 0) {
 			rc = len;
 			pr_err("failed to set cmds, rc=%d\n", rc);
@@ -1356,7 +1352,7 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 	idx = msm_property_index(&c_conn->property_info, property);
 	switch (idx) {
 	case CONNECTOR_PROP_LP:
-		if(connector->dev)
+		if (connector->dev)
 			connector->dev->doze_state = val;
 		break;
 	case CONNECTOR_PROP_OUT_FB:

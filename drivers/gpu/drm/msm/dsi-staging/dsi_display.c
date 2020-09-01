@@ -978,15 +978,11 @@ int dsi_display_read_panel(struct dsi_panel *panel, struct dsi_read_config *read
 	} else
 		return -EINVAL;
 
-	if (!panel->panel_initialized) {
-		pr_info("Panel not initialized\n");
+	if (!panel->panel_initialized)
 		return -EINVAL;
-	}
 
-	if (!read_config->enabled) {
-		pr_info("read operation was not permitted\n");
+	if (!read_config->enabled)
 		return -EPERM;
-	}
 
 	dsi_display_clk_ctrl(display->dsi_clk_handle,
 		DSI_ALL_CLKS, DSI_CLK_ON);
@@ -1025,10 +1021,6 @@ int dsi_display_read_panel(struct dsi_panel *panel, struct dsi_read_config *read
 		pr_err("rx cmd transfer failed rc=%d\n", rc);
 		goto exit;
 	}
-
-	for (i = 0; i < read_config->cmds_rlen; i++) //debug
-		pr_info("0x%x ", read_config->rbuf[i]);
-	pr_info("\n");
 
 exit:
 	dsi_display_cmd_engine_disable(display);
@@ -1263,7 +1255,6 @@ int dsi_display_set_power(struct drm_connector *connector,
         }
 
 	g_notify_data.data = &event;
-	pr_debug("%s %d\n", __func__, event);
 	switch (power_mode) {
 	case SDE_MODE_DPMS_LP1:
 		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &g_notify_data);
@@ -7595,11 +7586,8 @@ int dsi_display_enable(struct dsi_display *display)
 				pr_err("Read elvss_dimming_cmds failed, rc=%d\n", rc);
 				return 0;
 			}
-			pr_info("elvss dimming read result %x\n", panel->elvss_dimming_cmds.rbuf[0]);
 			((u8 *)panel->hbm_fod_on.cmds[4].msg.tx_buf)[1] = (panel->elvss_dimming_cmds.rbuf[0]) & 0x7F;
-			pr_info("fod hbm on change to %x\n", ((u8 *)panel->hbm_fod_on.cmds[4].msg.tx_buf)[1]);
 			((u8 *)panel->hbm_fod_off.cmds[6].msg.tx_buf)[1] = panel->elvss_dimming_cmds.rbuf[0];
-			pr_info("fod hbm off change to %x\n", ((u8 *)panel->hbm_fod_off.cmds[6].msg.tx_buf)[1]);
 		}
 
 		dsi_panel_release_panel_lock(display->panel);
