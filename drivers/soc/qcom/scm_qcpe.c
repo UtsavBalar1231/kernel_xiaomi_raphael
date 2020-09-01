@@ -18,6 +18,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/async.h>
 
 #include <asm/cacheflush.h>
 #include <asm/compiler.h>
@@ -769,7 +770,17 @@ static int __init scm_qcpe_init(void)
 	return scm_qcpe_hab_open();
 }
 /* Subsys sync is for init after HAB (subsys) and before kernel clients. */
-subsys_initcall_sync(scm_qcpe_init);
+
+static void __init _scm_qcpe_init(void *data, async_cookie_t cookie)
+{
+	if (scm_qcpe_init())
+		async_schedule(_scm_qcpe_init, NULL);
+}
+
+void __init scm_qcpe_init_async(void)
+{
+	async_schedule(_scm_qcpe_init, NULL);
+}
 
 static void __exit scm_qcpe_exit(void)
 {
