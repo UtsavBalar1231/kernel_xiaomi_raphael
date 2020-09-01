@@ -403,8 +403,10 @@ static int qcom_ethqos_add_ipv6addr(struct ip_params *ip_info,
 	struct net *net = dev_net(dev);
 	/*For valid IPv6 address*/
 
-	if (!net || !net->genl_sock || !net->genl_sock->sk_socket)
+	if (!net || !net->genl_sock || !net->genl_sock->sk_socket) {
 		ETHQOSERR("Sock is null, unable to assign ipv6 address\n");
+		return -EFAULT;
+	}
 
 	if (!net->ipv6.devconf_dflt) {
 		ETHQOSERR("ipv6.devconf_dflt is null, schedule wq\n");
@@ -539,7 +541,7 @@ static int qcom_ethqos_qmp_mailbox_init(struct qcom_ethqos *ethqos)
 	ethqos->qmp_mbox_client = devm_kzalloc(
 	&ethqos->pdev->dev, sizeof(*ethqos->qmp_mbox_client), GFP_KERNEL);
 
-	if (IS_ERR(ethqos->qmp_mbox_client)) {
+	if (ethqos->qmp_mbox_client == NULL || IS_ERR(ethqos->qmp_mbox_client)) {
 		ETHQOSERR("qmp alloc client failed\n");
 		return -EINVAL;
 	}
@@ -1034,8 +1036,8 @@ static void ethqos_handle_phy_interrupt(struct qcom_ethqos *ethqos)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int micrel_intr_status = 0;
 
-	if ((dev->phydev->phy_id & dev->phydev->drv->phy_id_mask)
-		== MICREL_PHY_ID) {
+	if (dev->phydev && ((dev->phydev->phy_id & dev->phydev->drv->phy_id_mask)
+		== MICREL_PHY_ID)) {
 		phy_intr_status = ethqos_mdio_read(
 			priv, priv->plat->phy_addr, DWC_ETH_QOS_BASIC_STATUS);
 		ETHQOSDBG(
@@ -1156,6 +1158,11 @@ static ssize_t read_phy_reg_dump(struct file *file, char __user *user_buf,
 	int phydata = 0;
 	int i = 0;
 
+	if (!ethqos) {
+		ETHQOSERR("NULL Pointer\n");
+		return -EINVAL;
+	}
+
 	struct platform_device *pdev = ethqos->pdev;
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(dev);
@@ -1202,6 +1209,12 @@ static ssize_t read_rgmii_reg_dump(struct file *file,
 	char *buf;
 	ssize_t ret_cnt;
 	int rgmii_data = 0;
+
+	if (!ethqos) {
+		ETHQOSERR("NULL Pointer\n");
+		return -EINVAL;
+	}
+
 	struct platform_device *pdev = ethqos->pdev;
 
 	struct net_device *dev = platform_get_drvdata(pdev);
@@ -2292,7 +2305,8 @@ static int ethqos_set_early_eth_param(struct stmmac_priv *priv,
 		priv->plat->mdio_bus_data->phy_mask =
 		 priv->plat->mdio_bus_data->phy_mask | DUPLEX_FULL | SPEED_100;
 
-	priv->plat->max_speed = SPEED_100;
+	if (priv->plat)
+		priv->plat->max_speed = SPEED_100;
 
 	if (pparams.is_valid_ipv4_addr) {
 		INIT_DELAYED_WORK(&ethqos->ipv4_addr_assign_wq,
@@ -2358,8 +2372,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 
 	ethqos = devm_kzalloc(&pdev->dev, sizeof(*ethqos), GFP_KERNEL);
 	if (!ethqos) {
-		ret = -ENOMEM;
-		goto err_mem;
+		return -ENOMEM;
 	}
 
 	ethqos->pdev = pdev;
