@@ -224,7 +224,6 @@
 
 	aliases {
 		serial0 = &qupv3_se12_2uart;
-		serial1 = "/soc/qcom,qup_uart@0xa90000";
 	};
 
 	memory {
@@ -268,6 +267,7 @@
 		vdd_mm-supply = <&VDD_MMCX_LEVEL>;
 		#clock-cells = <0x1>;
 		#reset-cells = <0x1>;
+		status = "ok";
 	};
 
 	timer {
@@ -342,7 +342,7 @@
 	};
 
 	clock_rpmh: qcom,rpmhclk {
-		compatible = "qcom,rpmh-clk-sdmshrike";
+		compatible = "qcom,rpmh-clk-sm8150";
 		mboxes = <&apps_rsc 0>;
 		mbox-names = "apps";
 		#clock-cells = <1>;
@@ -387,6 +387,7 @@
 		qcom,bus-mas-id = <MSM_BUS_MASTER_QUP_1>;
 		qcom,bus-slv-id = <MSM_BUS_SLAVE_EBI_CH0>;
 		qcom,iommu-s1-bypass;
+		status = "ok";
 
 		iommu_qupv3_1_geni_se_cb: qcom,iommu_qupv3_1_geni_se_cb {
 			compatible = "qcom,qupv3-geni-se-cb";
@@ -570,8 +571,18 @@
 
 };
 
+&apps_smmu {
+	qcom,actlr =
+		/* HF0/1, SF TBU +3 PF */
+		<0x800 0x3ff 0x103>,
+		<0xc00 0x3ff 0x103>,
+		<0x2000 0x3ff 0x103>,
 
+		/* NPU SIDs: +15 deep PF */
+		<0x1480 0x7 0x303>,
+		<0x1080 0x7 0x303>;
+};
 
-#include "sdmshrike-regulators.dtsi"
+#include "sa8195p-regulator.dtsi"
 #include "sdmshrike-pinctrl.dtsi"
 #include "sdmshrike-bus.dtsi"
