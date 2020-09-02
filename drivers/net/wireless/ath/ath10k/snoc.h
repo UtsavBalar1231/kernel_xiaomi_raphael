@@ -19,11 +19,12 @@
 
 #include "hw.h"
 #include "ce.h"
-#include "pci.h"
+#include "qmi.h"
 
 struct ath10k_snoc_drv_priv {
 	enum ath10k_hw_rev hw_rev;
 	u64 dma_mask;
+	u32 msa_size;
 };
 
 struct snoc_state {
@@ -52,6 +53,23 @@ struct ath10k_snoc_ce_irq {
 	u32 irq_line;
 };
 
+struct ath10k_wcn3990_vreg_info {
+	struct regulator *reg;
+	const char *name;
+	u32 min_v;
+	u32 max_v;
+	u32 load_ua;
+	unsigned long settle_delay;
+	bool required;
+};
+
+struct ath10k_wcn3990_clk_info {
+	struct clk *handle;
+	const char *name;
+	u32 freq;
+	bool required;
+};
+
 struct ath10k_snoc {
 	struct platform_device *dev;
 	struct ath10k *ar;
@@ -63,6 +81,12 @@ struct ath10k_snoc {
 	struct ath10k_snoc_ce_irq ce_irqs[CE_COUNT_MAX];
 	struct ath10k_ce ce;
 	struct timer_list rx_post_retry;
+	struct ath10k_wcn3990_vreg_info *vreg;
+	struct ath10k_wcn3990_clk_info *clk;
+	struct ath10k_qmi *qmi;
+	struct dma_iommu_mapping *smmu_mapping;
+	dma_addr_t smmu_iova_start;
+	size_t smmu_iova_len;
 };
 
 static inline struct ath10k_snoc *ath10k_snoc_priv(struct ath10k *ar)
@@ -72,5 +96,6 @@ static inline struct ath10k_snoc *ath10k_snoc_priv(struct ath10k *ar)
 
 void ath10k_snoc_write32(struct ath10k *ar, u32 offset, u32 value);
 u32 ath10k_snoc_read32(struct ath10k *ar, u32 offset);
+int ath10k_snoc_fw_indication(struct ath10k *ar, u64 type);
 
 #endif /* _SNOC_H_ */
