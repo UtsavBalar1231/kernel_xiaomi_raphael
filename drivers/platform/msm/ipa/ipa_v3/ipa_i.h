@@ -245,7 +245,11 @@ enum {
 #define IPA_WDI_CE_RING_RES			5
 #define IPA_WDI_CE_DB_RES			6
 #define IPA_WDI_TX_DB_RES			7
-#define IPA_WDI_MAX_RES				8
+#define IPA_WDI_TX1_RING_RES		8
+#define IPA_WDI_CE1_RING_RES		9
+#define IPA_WDI_CE1_DB_RES			10
+#define IPA_WDI_TX1_DB_RES			11
+#define IPA_WDI_MAX_RES				12
 
 /* use QMAP header reserved bit to identify tethered traffic */
 #define IPA_QMAP_TETH_BIT (1 << 30)
@@ -1999,6 +2003,8 @@ struct ipa3_context {
 	bool ipa_wan_skb_page;
 	struct ipa3_app_clock_vote app_clock_vote;
 	bool ipa_in_cpe_cfg;
+	u32 ipa_wdi3_2g_holb_timeout;
+	u32 ipa_wdi3_5g_holb_timeout;
 };
 
 struct ipa3_plat_drv_res {
@@ -2048,6 +2054,8 @@ struct ipa3_plat_drv_res {
 	bool ipa_mhi_proxy;
 	bool ipa_wan_skb_page;
 	bool ipa_in_cpe_cfg;
+	u32 ipa_wdi3_2g_holb_timeout;
+	u32 ipa_wdi3_5g_holb_timeout;
 };
 
 /**
@@ -2605,9 +2613,12 @@ void ipa3_ntn_uc_dereg_rdyCB(void);
 int ipa3_conn_wdi3_pipes(struct ipa_wdi_conn_in_params *in,
 	struct ipa_wdi_conn_out_params *out,
 	ipa_wdi_meter_notifier_cb wdi_notify);
-int ipa3_disconn_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx);
-int ipa3_enable_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx);
-int ipa3_disable_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx);
+int ipa3_disconn_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1);
+int ipa3_enable_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1);
+int ipa3_disable_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1);
 
 int ipa3_conn_wigig_rx_pipe_i(void *in,
 	struct ipa_wigig_conn_out_params *out);

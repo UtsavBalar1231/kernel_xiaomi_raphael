@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -428,11 +428,14 @@ int ipa_conn_wdi_pipes(struct ipa_wdi_conn_in_params *in,
 	struct ipa_wdi_conn_out_params *out,
 	ipa_wdi_meter_notifier_cb wdi_notify);
 
-int ipa_disconn_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx);
+int ipa_disconn_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+		int ipa_ep_idx_tx1);
 
-int ipa_enable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx);
+int ipa_enable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+		int ipa_ep_idx_tx1);
 
-int ipa_disable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx);
+int ipa_disable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+		int ipa_ep_idx_tx1);
 
 const char *ipa_get_version_string(enum ipa_hw_type ver);
 int ipa_start_gsi_channel(u32 clnt_hdl);
