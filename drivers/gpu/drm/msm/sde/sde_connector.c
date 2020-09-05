@@ -707,7 +707,7 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 	dim_layer_status = sde_crtc_get_dim_layer_status(c_conn->encoder->crtc->state);
 	if (!dim_layer_status) {
 		if (dsi_display->panel->fod_dimlayer_hbm_enabled) {
-			mutex_lock(&dsi_display->panel->panel_lock);
+			/* FIXME: mutex_lock(&dsi_display->panel->panel_lock); */
 			sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 			if ((dsi_display->drm_dev && dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP1) ||
 				(dsi_display->drm_dev && dsi_display->drm_dev->doze_state == MSM_DRM_BLANK_LP2)) {
@@ -753,15 +753,10 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 							"brightness_clone");
 				}
 			}
-			mutex_unlock(&dsi_display->panel->panel_lock);
-			if (rc) {
-				pr_err("failed to send DSI_CMD_HBM_OFF cmds, rc=%d\n", rc);
-				return rc;
-			}
 		}
 	} else {
 		if (!dsi_display->panel->fod_dimlayer_hbm_enabled) {
-			mutex_lock(&dsi_display->panel->panel_lock);
+			/* FIXME: mutex_lock(&dsi_display->panel->panel_lock); */
 			sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 			pr_debug("wait one frame for hbm on\n");
 			if (dsi_display->panel->last_bl_lvl || dsi_display->drm_dev->state == MSM_DRM_BLANK_LP1
@@ -800,16 +795,10 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 			/* force disable CRC */
 			pr_debug("fod set CRC OFF\n");
 			dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_CRC_OFF]);
-
-			mutex_unlock(&dsi_display->panel->panel_lock);
-			if (rc) {
-				pr_err("failed to send DSI_CMD_HBM_ON cmds, rc=%d\n", rc);
-				return rc;
-			}
 		}
 	}
 	pr_debug("dim_layer_status:%d fod_dimlayer_hbm_enabled:%d\n", dim_layer_status, dsi_display->panel->fod_dimlayer_hbm_enabled);
-	return 0;
+	return rc;
 }
 
 int sde_connector_pre_kickoff(struct drm_connector *connector)
