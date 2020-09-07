@@ -42,4 +42,9 @@ config TOUCHSCREEN_GOODIX_GTX8_TOOLS
 
 	  To compile this driver as a module, choose M here.
 
+config TOUCHSCREEN_GOODIX_GTX8_GAMEMODE
+        bool "Goodix game mode support"
+        default y
+        help
+          Say Y here to enable game mode.
 endif

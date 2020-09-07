@@ -93,6 +93,30 @@
 #define GTP_GAME_CMD      0x0E
 #define GTP_EXIT_GAME_CMD 0x0F
 
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX8_GAMEMODE
+/*CUR, DEFAULT, MIN, MAX*/
+#define VALUE_TYPE_SIZE 6
+#define VALUE_GRIP_SIZE 9
+enum MODE_CMD {
+	SET_CUR_VALUE = 0,
+	GET_CUR_VALUE,
+	GET_DEF_VALUE,
+	GET_MIN_VALUE,
+	GET_MAX_VALUE,
+	GET_MODE_VALUE,
+	RESET_MODE,
+};
+
+enum  MODE_TYPE {
+	Touch_Game_Mode		= 0,
+	Touch_Tolerance		= 1,
+	Touch_UP_THRESHOLD	= 2,
+	Touch_Edge_Filter	= 3,
+	Touch_Panel_Orientation	= 4,
+	Touch_Mode_NUM		= 5,
+};
+#endif
+
 #define CONFIG_TOUCHSCREEN_GOODIX_DEBUG_FS
 
 /*
@@ -477,6 +501,9 @@ struct goodix_ts_core {
 	int fod_test;
 	int double_wakeup;
 	int result_type;
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX8_GAMEMODE
+	int touch_mode[Touch_Mode_NUM][VALUE_TYPE_SIZE];
+#endif
 	struct class *gtp_tp_class;
 	struct device *gtp_touch_dev;
 	char *current_clicknum_file;
