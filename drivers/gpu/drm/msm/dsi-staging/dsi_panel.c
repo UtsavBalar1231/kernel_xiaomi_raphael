@@ -831,8 +831,24 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	if (bl_lvl == 0)
 		dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_DIMMINGOFF);
 
+	/* Restore to last_bl_lvl to avoid flash high brightness
+	 * white exiting app lock with DC on (MIUI-1755728),
+	 * must make sure last_bl_lvl is correct. */
+	if (panel->fod_dimlayer_bl_block) {
+		panel->last_bl_lvl = bl_lvl;
+	}
+
 	if (dc_skip_set_backlight(panel, bl_lvl))
 		return rc;
+
+	if (panel->fod_flag &&
+		(panel->last_bl_lvl == 0) && (bl_lvl != 0) &&
+		(!panel->fod_dimlayer_hbm_enabled) && panel->fod_dimlayer_enabled) {
+		panel->fod_dimlayer_bl_block = true;
+		panel->last_bl_lvl = bl_lvl;
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_CRC_OFF);
+		return rc;
+	}
 
 	switch (bl->type) {
 	case DSI_BACKLIGHT_WLED:
@@ -4586,6 +4602,10 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 	mutex_lock(&panel->panel_lock);
 
 	if (!panel->fod_hbm_enabled && !panel->fod_dimlayer_hbm_enabled) {
+		if (panel->fod_flag && panel->fod_dimlayer_enabled) {
+			dsi_panel_update_backlight(panel, 0);
+			panel->fod_dimlayer_bl_block = true;
+		}
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_NOLP);
 		if (rc)
 			pr_err("[%s] failed to send DSI_CMD_SET_NOLP cmd, rc=%d\n",
@@ -5065,6 +5085,8 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_NOLP);
 		break;
 	case DISPPARAM_HBM_BACKLIGHT_RESEND:
+		if (panel->fod_dimlayer_bl_block)
+			break;
 		{
 			backlight_delta++;
 
