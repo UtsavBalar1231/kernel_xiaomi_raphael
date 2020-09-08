@@ -1,0 +1,26 @@
+## GENERAL INFORMATION
+```
+Kernel: IMMENSiTY AUTO
+Device: Redmi K20 Pro
+Compiler: ProtonClang 12.0.0
+Branch: auto-kernel
+HEAD: 9f8e5097e647ee57c9978d2c2cbd9b2cc5f9e946
+Version: 0.9.0
+```
+
+## CHANGELOG :
+```
+• Merged CAF tag LE.UM.4.1.1-05110-sa515m adding general fixes for platform drivers
+• Merged aosp/android-4.14-stable upstreamed to LTS v4.14.195 with some ANDROID side fixes
+• F2FS updated to latest jaeguek f2fs-stable
+• QCA_CLD/CMN drivers are updated to latest sm8150 tag LA.UM.8.1.r1-15800-sm8150.0 
+• Clean Rebased Xiaomi's Audio changes over CAF audio-kernel at tag LA.UM.8.1.r1-15800-sm8150.0
+• Updated Anykernel flasher to latest and switched to appended dtb
+• Fixed a camera sensor bug introduced in v0.8.0 which caused kernel panics while using gcam
+• Fixed an issue where Prime cluster gets stuck at maximum boost frequency
+• Fixed AOD support on MIUI
+• Fixed External SOC and generic sound driver support
+• Optimized code quality with the help of LLVM's integrated assembler for c files
+• Optimized scheduler performance with disabled frequency transition and by freely migrating tasks within little cpu cluster to reduce runnables
+• Optimized some frequent memory allocations
+```
