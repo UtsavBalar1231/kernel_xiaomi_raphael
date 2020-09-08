@@ -10,7 +10,7 @@ int goodix_start_cfg_bin(struct goodix_ts_core *ts_core)
 {
 	struct task_struct *cfg_bin_thrd;
 	/* create and run update thread */
-	ts_err("enter::%s\n",__func__);
+	ts_err("enter::%s\n", __func__);
 	cfg_bin_thrd = kthread_run(goodix_cfg_bin_proc, ts_core, "goodix-parse_cfg_bin");
 	if (IS_ERR_OR_NULL(cfg_bin_thrd)) {
 		ts_err("Failed to create update thread:%ld", PTR_ERR(cfg_bin_thrd));
@@ -24,6 +24,7 @@ int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 	u8 checksum;
 	int i, r;
 	u16 offset1, offset2;
+
 	if (!cfg_bin->bin_data || cfg_bin->bin_data_len == 0) {
 		ts_err("NO cfg_bin data, cfg_bin data length:%d", cfg_bin->bin_data_len);
 		r = -EINVAL;
@@ -50,9 +51,9 @@ int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 
 	/*check cfg_bin valid*/
 	checksum = 0;
-	for (i = TS_BIN_VERSION_START_INDEX; i < cfg_bin->bin_data_len; i++) {
+	for (i = TS_BIN_VERSION_START_INDEX; i < cfg_bin->bin_data_len; i++)
 		checksum += cfg_bin->bin_data[i];
-	}
+
 	if (checksum != cfg_bin->head.checksum) {
 		ts_err("cfg_bin checksum ERROR, checksum in cfg_bin:0x%02x, checksum caculate:0x%02x",
 				cfg_bin->head.checksum, checksum);
@@ -63,7 +64,6 @@ int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 	/*allocate memory for cfg packages*/
 	cfg_bin->cfg_pkgs = kzalloc(sizeof(struct goodix_cfg_package) * cfg_bin->head.pkg_num, GFP_KERNEL);
 	if (!cfg_bin->cfg_pkgs) {
-		ts_err("cfg_pkgs, allocate memory ERROR");
 		r = -ENOMEM;
 		goto exit;
 	}
@@ -147,8 +147,8 @@ int goodix_cfg_bin_proc(void *data)
 	int r;
 
 	struct goodix_cfg_bin *cfg_bin = kzalloc(sizeof(struct goodix_cfg_bin), GFP_KERNEL);
+
 	if (!cfg_bin) {
-		ts_err("Failed to alloc memory for cfg_bin");
 		r = -ENOMEM;
 		goto exit;
 	}
@@ -222,7 +222,8 @@ int goodix_cfg_bin_proc(void *data)
 	core_data->cfg_group_parsed = true;
 
 	/* inform the external module manager that
-	 * touch core layer is ready now */
+	 * touch core layer is ready now
+	 */
 	core_data->fod_status = 1;
 	goodix_modules.core_data = core_data;
 	goodix_modules.core_exit = false;
@@ -263,6 +264,7 @@ int goodix_get_reg_and_cfg(struct goodix_ts_device *ts_dev, struct goodix_cfg_bi
 	u8 temp_fw_mask[TS_CFG_BLOCK_FW_MASK_LEN] = {0x00};
 	u8 temp_pid[TS_CFG_BLOCK_PID_LEN] = {0x00};
 	int r = -EINVAL;
+
 	normal_pkg = NULL;
 	high_sense_pkg = NULL;
 
@@ -343,10 +345,10 @@ int goodix_get_reg_and_cfg(struct goodix_ts_device *ts_dev, struct goodix_cfg_bi
 			ts_err("read pid FAILED, I2C ERROR, pkg: %d, pid reg:0x%02x", i, addr);
 			goto exit;
 		} else if (strncmp(temp_pid, cfg_bin->cfg_pkgs[i].cnst_info.hw_pid, read_len)) {
-				ts_err("pkg:%d, pid contrast FAILED, reg:0x%02x", i, addr);
-				ts_err("pid from i2c:%s, pid of cfg bin:%s", temp_pid,
-				cfg_bin->cfg_pkgs[i].cnst_info.hw_pid);
-				continue;
+			ts_err("pkg:%d, pid contrast FAILED, reg:0x%02x", i, addr);
+			ts_err("pid from i2c:%s, pid of cfg bin:%s", temp_pid,
+			cfg_bin->cfg_pkgs[i].cnst_info.hw_pid);
+			continue;
 		}
 
 		/*contrast success, cfg_type*/
@@ -406,10 +408,9 @@ int goodix_get_reg_and_cfg(struct goodix_ts_device *ts_dev, struct goodix_cfg_bi
 		if (!ts_dev->normal_cfg) {
 			ts_dev->normal_cfg = devm_kzalloc(ts_dev->dev,
 					sizeof(*ts_dev->normal_cfg), GFP_KERNEL);
-			if (!ts_dev->normal_cfg) {
-				ts_err("Failed to alloc memory for normal cfg");
+			if (!ts_dev->normal_cfg)
 				return -ENOMEM;
-			}
+
 			mutex_init(&ts_dev->normal_cfg->lock);
 		}
 
@@ -424,10 +425,9 @@ int goodix_get_reg_and_cfg(struct goodix_ts_device *ts_dev, struct goodix_cfg_bi
 		if (!ts_dev->highsense_cfg) {
 			ts_dev->highsense_cfg = devm_kzalloc(ts_dev->dev,
 				sizeof(*ts_dev->highsense_cfg), GFP_KERNEL);
-			if (!ts_dev->highsense_cfg) {
-				ts_err("Failed to alloc memory for high sense cfg");
+			if (!ts_dev->highsense_cfg)
 				return -ENOMEM;
-			}
+
 			mutex_init(&ts_dev->highsense_cfg->lock);
 		}
 
@@ -492,10 +492,9 @@ int goodix_read_cfg_bin(struct device *dev, struct goodix_cfg_bin *cfg_bin)
 	cfg_bin->bin_data_len = firmware->size;
 	/*allocate memory for cfg_bin->bin_data*/
 	cfg_bin->bin_data = kzalloc(cfg_bin->bin_data_len, GFP_KERNEL);
-	if (!cfg_bin->bin_data) {
-		ts_err("Allocate memory for cfg_bin->bin_data FAILED");
+	if (!cfg_bin->bin_data)
 		r = -ENOMEM;
-	}
+
 	memcpy(cfg_bin->bin_data, firmware->data, cfg_bin->bin_data_len);
 	r = 0;
 exit:
@@ -520,10 +519,9 @@ int goodix_read_cfg_bin_from_dts(struct device_node *node, struct goodix_cfg_bin
 	cfg_bin->bin_data_len = len;
 	/*allocate memory for cfg_bin->bin_data*/
 	cfg_bin->bin_data = kzalloc(cfg_bin->bin_data_len, GFP_KERNEL);
-	if (!cfg_bin->bin_data) {
-		ts_err("Allocate memory for cfg_bin->bin_data FAILED");
+	if (!cfg_bin->bin_data)
 		return -ENOMEM;
-	}
+
 	memcpy(cfg_bin->bin_data, prop->value, cfg_bin->bin_data_len);
 	return 0;
 }

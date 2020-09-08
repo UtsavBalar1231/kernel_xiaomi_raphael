@@ -56,7 +56,7 @@ static int FP_Event_Gesture;
  * @gesture_type: store valied gesture type,each bit stand for a gesture
  * @gesture_data: gesture data
  * @gesture_ts_cmd: gesture command data
-*/
+ */
 struct gesture_module {
 	atomic_t registered;
 	unsigned int kobj_initialized;
@@ -147,9 +147,10 @@ static ssize_t gsx_gesture_enable_store(struct goodix_ext_module *module,
 		const char *buf, size_t count)
 {
 	unsigned int tmp;
-	int ret;
+	int ret, rc;
 
-	if (sscanf(buf, "%u", &tmp) != 1) {
+	rc = kstrtoint(buf, 0, &tmp);
+	if (rc != 0) {
 		ts_info("Parameter illegal");
 		return -EINVAL;
 	}
@@ -230,9 +231,8 @@ int goodix_sync_ic_stat(struct goodix_ts_core *core_data)
 	int tp_stat;
 	int ret = 0;
 
-	if (!core_data) {
+	if (!core_data)
 		ts_err("parameter illegal");
-	}
 
 	mutex_lock(&core_data->work_stat);
 	tp_stat = atomic_read(&core_data->suspend_stat);
@@ -257,9 +257,8 @@ int goodix_sync_ic_stat(struct goodix_ts_core *core_data)
 
 int goodix_check_gesture_stat(bool enable)
 {
-	if (enable) {
+	if (enable)
 		goodix_sync_ic_stat(goodix_core_data);
-	}
 	return 0;
 }
 /**
@@ -359,7 +358,7 @@ static int gsx_gesture_init(struct goodix_ts_core *core_data,
 		goto exit_gesture_init;
 	}
 
-	for (i = 0; i < sizeof(gesture_attrs)/sizeof(gesture_attrs[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(gesture_attrs); i++) {
 		if (sysfs_create_file(&module->kobj,
 				&gesture_attrs[i].attr)) {
 			ts_err("Create sysfs attr file error");
@@ -614,18 +613,16 @@ static int goodix_wakeup_and_set_suspend_func(struct goodix_ts_core *core_data)
 	/*start suspend*/
 	do {
 		r = goodix_set_suspend_func(core_data);
-		if (r < 0) {
+		if (r < 0)
 			ts_info("Send doze command failed, retry");
-		}
 	} while (r < 0 && ++retry < 3);
 
-	if (core_data->double_wakeup && (core_data->fod_status || core_data->aod_status)) {
+	if (core_data->double_wakeup && (core_data->fod_status || core_data->aod_status))
 		atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK_FOD);
-	} else if (core_data->double_wakeup) {
+	else if (core_data->double_wakeup)
 		atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK);
-	} else if (core_data->fod_status || core_data->aod_status) {
+	else if (core_data->fod_status || core_data->aod_status)
 		atomic_set(&core_data->suspend_stat, TP_GESTURE_FOD);
-	}
 	ts_info("suspend_stat[%d]", atomic_read(&core_data->suspend_stat));
 
 	/*finish suspend*/
@@ -655,10 +652,10 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 	}
 
 	if (!core_data->gesture_enabled) {
-			ts_err("enter %s\n", __func__);
-			atomic_set(&core_data->suspended, 1);
-			return EVT_CONTINUE;
-		}
+		ts_err("enter %s\n", __func__);
+		atomic_set(&core_data->suspended, 1);
+		return EVT_CONTINUE;
+	}
 
 	ret = goodix_set_suspend_func(core_data);
 	if (ret != 0) {
@@ -700,6 +697,7 @@ static int __init goodix_gsx_gesture_init(void)
 {
 	/* initialize core_data->ts_dev->gesture_cmd*/
 	int result;
+
 	ts_info("gesture module init");
 	gsx_gesture = kzalloc(sizeof(struct gesture_module), GFP_KERNEL);
 	if (!gsx_gesture)

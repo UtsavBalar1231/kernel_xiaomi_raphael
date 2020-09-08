@@ -501,8 +501,7 @@ static bool drm_master_filter(char *task_name)
 {
 	unsigned int i = 0;
 	bool ret = false;
-	//pr_debug("%s task_name:%s \n", __func__, task_name);
-	for (i=0; i<MAX_LIST_NUM; i++) {
+	for (i = 0; i < MAX_LIST_NUM; i++) {
 		if (!strncmp(task_name, support_list[i], strlen(support_list[i]))) {
 			ret = true;
 			break;
@@ -537,11 +536,10 @@ int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 
 	/* MASTER is only for master or control clients */
 	if (unlikely((flags & DRM_MASTER) &&
-		     !drm_is_current_master(file_priv) &&
-		     !drm_is_control_client(file_priv))) {
-		if (!drm_master_filter(task->comm)) {
+		!drm_is_current_master(file_priv) &&
+		!drm_is_control_client(file_priv))) {
+		if (!drm_master_filter(task->comm))
 			return -EACCES;
-		}
 	}
 
 	/* Control clients must be explicitly allowed */

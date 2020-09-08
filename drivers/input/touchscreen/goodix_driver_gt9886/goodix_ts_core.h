@@ -93,6 +93,30 @@
 #define GTP_GAME_CMD      0x0E
 #define GTP_EXIT_GAME_CMD 0x0F
 
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX8_GAMEMODE
+/*CUR, DEFAULT, MIN, MAX*/
+#define VALUE_TYPE_SIZE 6
+#define VALUE_GRIP_SIZE 9
+enum MODE_CMD {
+	SET_CUR_VALUE = 0,
+	GET_CUR_VALUE,
+	GET_DEF_VALUE,
+	GET_MIN_VALUE,
+	GET_MAX_VALUE,
+	GET_MODE_VALUE,
+	RESET_MODE,
+};
+
+enum  MODE_TYPE {
+	Touch_Game_Mode		= 0,
+	Touch_Tolerance		= 1,
+	Touch_UP_THRESHOLD	= 2,
+	Touch_Edge_Filter	= 3,
+	Touch_Panel_Orientation	= 4,
+	Touch_Mode_NUM		= 5,
+};
+#endif
+
 #define CONFIG_TOUCHSCREEN_GOODIX_DEBUG_FS
 
 /*
@@ -477,6 +501,9 @@ struct goodix_ts_core {
 	int fod_test;
 	int double_wakeup;
 	int result_type;
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX8_GAMEMODE
+	int touch_mode[Touch_Mode_NUM][VALUE_TYPE_SIZE];
+#endif
 	struct class *gtp_tp_class;
 	struct device *gtp_touch_dev;
 	char *current_clicknum_file;
@@ -577,7 +604,7 @@ struct goodix_ext_attribute {
 /* external attrs helper macro, used to define external attrs */
 #define DEFINE_EXTMOD_ATTR(_name, _mode, _show, _store)	\
 static struct goodix_ext_attribute ext_attr_##_name = \
-	__EXTMOD_ATTR(_name, _mode, _show, _store);
+	__EXTMOD_ATTR(_name, _mode, _show, _store)
 
 /*
  * get board data pointer
@@ -617,6 +644,7 @@ static inline u8 checksum_u8(u8 *data, u32 size)
 {
 	u8 checksum = 0;
 	u32 i;
+
 	for (i = 0; i < size; i++)
 		checksum += data[i];
 	return checksum;
@@ -636,6 +664,7 @@ static inline u16 checksum_be16(u8 *data, u32 size)
 {
 	u16 checksum = 0;
 	u32 i;
+
 	for (i = 0; i < size; i += 2)
 		checksum += be16_to_cpup((__be16 *)(data + i));
 	return checksum;
@@ -645,6 +674,7 @@ static inline u32 checksum_le32(u8 *data, u32 size)
 {
 	u32 checksum = 0;
 	u32 i;
+
 	for (i = 0; i < size; i += 4)
 		checksum += le32_to_cpup((__le32 *)(data + i));
 	return checksum;
@@ -654,6 +684,7 @@ static inline u32 checksum_be32(u8 *data, u32 size)
 {
 	u32 checksum = 0;
 	u32 i;
+
 	for (i = 0; i < size; i += 4)
 		checksum += be32_to_cpup((__be32 *)(data + i));
 	return checksum;
@@ -675,7 +706,8 @@ static inline u32 checksum_be32(u8 *data, u32 size)
  * 2. you want the flow of this event continue, in
  * this condition, you should return EVT_HANDLED in
  * the callback function.
- * */
+ *
+ */
 #define EVT_HANDLED				0
 #define EVT_CONTINUE			0
 #define EVT_CANCEL				1
@@ -747,10 +779,10 @@ int goodix_ts_blocking_notify(enum ts_notify_event evt, void *v);
 
 
 /**
- * * goodix_ts_power_on - Turn on power to the touch device
- * * @core_data: pointer to touch core data
- * * return: 0 ok, <0 failed
- * */
+ * goodix_ts_power_on - Turn on power to the touch device
+ * @core_data: pointer to touch core data
+ * return: 0 ok, <0 failed
+ */
 int goodix_ts_power_on(struct goodix_ts_core *core_data);
 
 /**

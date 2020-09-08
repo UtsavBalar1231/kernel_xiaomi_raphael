@@ -117,7 +117,6 @@ struct dsi_backlight_config {
 	u32 bl_scale_ad;
 
 	int en_gpio;
-	bool bl_remap_flag;
 	bool dcs_type_ss;
 	/* PWM params */
 	struct pwm_device *pwm_bl;
@@ -269,6 +268,8 @@ struct dsi_panel {
 
 	u32 dc_threshold;
 	bool dc_enable;
+	bool fod_dimlayer_bl_block;
+	bool dim_layer_replace_dc;
 
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;

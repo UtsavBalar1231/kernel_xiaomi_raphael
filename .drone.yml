@@ -18,12 +18,14 @@ steps:
       from_secret: ci_channel_id
     BOT_API_KEY:
       from_secret: bot_api_key
-    RELEASE_VERSION: "test"
+    TYPE: "LOSFOD"
   commands:
     - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip python flex
-    - git clone --depth=1 https://github.com/UtsavBalar1231/scripts.git -b master script && cd script
-    - ./dronesetup.sh --proton
-    - ./kernel.sh --proton
+    - git clone https://github.com/UtsavBalar1231/Drone-scripts.git -b master script && cd script
+    - ./setup-drone --proton
+    - ./build-kernel --proton --lto
   when:
     branch:
-      - auto-kernel-ci
+      - auto-kernel
+    event:
+      - push

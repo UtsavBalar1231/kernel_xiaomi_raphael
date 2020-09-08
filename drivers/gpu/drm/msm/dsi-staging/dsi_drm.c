@@ -198,10 +198,8 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 	struct drm_device *dev = bridge->dev;
 	int event = 0;
 
-	if (dev->doze_state == MSM_DRM_BLANK_POWERDOWN) {
+	if (dev->doze_state == MSM_DRM_BLANK_POWERDOWN)
 		dev->doze_state = MSM_DRM_BLANK_UNBLANK;
-		pr_info("%s power on from power off\n", __func__);
-	}
 
 	event = dev->doze_state;
 
@@ -229,7 +227,6 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 			msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &g_notify_data);
 			dev->fp_quickon = false;
 		}
-		pr_info("%s panel already on\n", __func__);
 		return;
 	}
 
@@ -299,10 +296,8 @@ int dsi_bridge_interface_enable(int timeout)
 	ret = wait_event_timeout(resume_wait_q,
 		!atomic_read(&resume_pending),
 		msecs_to_jiffies(WAIT_RESUME_TIMEOUT));
-	if (!ret) {
-		pr_info("Primary fb resume timeout\n");
+	if (!ret)
 		return -ETIMEDOUT;
-	}
 
 	mutex_lock(&gbridge->base.lock);
 
@@ -468,10 +463,8 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 	struct drm_device *dev = bridge->dev;
 	int event = 0;
 
-	if (dev->doze_state == MSM_DRM_BLANK_UNBLANK) {
+	if (dev->doze_state == MSM_DRM_BLANK_UNBLANK)
 		dev->doze_state = MSM_DRM_BLANK_POWERDOWN;
-		pr_info("%s wrong doze state\n", __func__);
-	}
 
 	event = dev->doze_state;
 
