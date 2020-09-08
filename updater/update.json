@@ -1,0 +1,13 @@
+{
+  "kernel": {
+    "name": "IMMENSiTY AUTO",
+    "version": "0.9.0",
+    "link": "https://github.com/UtsavBalar1231/kernel_xiaomi_raphael/files/5143223/IMMENSiTY-AUTO-RAPHAEL-LOSFOD-28.08.2020.zip",
+    "changelog_url": "https://raw.githubusercontent.com/UtsavBalar1231/updater/master/changelog",
+    "date": "2020-08-28",
+    "sha1": "e28220a482714f9a87df8393f0f27c4b96acd4a3"
+  },
+  "support": {
+    "link": "https://t.me/CuntsSpace"
+  }
+}
