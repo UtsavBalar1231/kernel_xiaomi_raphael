@@ -90,7 +90,7 @@ int pre_event;
  * @node: devicetree node
  * @board_data: pointer to board data structure
  * return: 0 - no error, <0 error
-*/
+ */
 static int goodix_parse_dt_resolution(struct device_node *node,
 		struct goodix_ts_board_data *board_data)
 {
@@ -147,14 +147,14 @@ static int goodix_parse_dt_resolution(struct device_node *node,
  * @dev: pointer to device
  * @board_data: pointer to board data structure
  * return: 0 - no error, <0 error
-*/
+ */
 static int goodix_parse_dt(struct device_node *node,
 	struct goodix_ts_board_data *board_data)
 {
 	struct property *prop;
 	int r;
 
-	ts_err("enter::%s\n",__func__);
+	ts_err("enter::%s\n", __func__);
 	if (!board_data) {
 		ts_err("Invalid board data");
 		return -EINVAL;
@@ -223,7 +223,8 @@ static int goodix_parse_dt(struct device_node *node,
 				&board_data->power_on_delay_us);
 	if (!r) {
 		/* 1000ms is too large, maybe you have pass
-		 * a wrong value */
+		 * a wrong value
+		 */
 		if (board_data->power_on_delay_us > 1000 * 1000) {
 			ts_err("Power on delay time exceed 1s, please check");
 			board_data->power_on_delay_us = 0;
@@ -234,7 +235,8 @@ static int goodix_parse_dt(struct device_node *node,
 				&board_data->power_off_delay_us);
 	if (!r) {
 		/* 1000ms is too large, maybe you have pass
-		 * a wrong value */
+		 * a wrong value
+		 */
 		if (board_data->power_off_delay_us > 1000 * 1000) {
 			ts_err("Power off delay time exceed 1s, please check");
 			board_data->power_off_delay_us = 0;
@@ -308,7 +310,7 @@ static int goodix_parse_dt(struct device_node *node,
  * @board_data: board data
  * @sensor_id: sensor ID
  * return: 0 - read ok, < 0 - i2c transter error
-*/
+ */
 static int goodix_parse_customize_params(struct goodix_ts_device *dev,
 				struct goodix_ts_board_data *board_data,
 				unsigned int sensor_id)
@@ -374,7 +376,7 @@ static int goodix_parse_acpi_cfg(struct acpi_device *dev,
  * @data: read buffer
  * @len: bytes to read
  * return: 0 - read ok, < 0 - i2c transter error
-*/
+ */
 int goodix_i2c_read_trans(struct goodix_ts_device *dev, unsigned int reg,
 	unsigned char *data, unsigned int len)
 {
@@ -400,11 +402,9 @@ int goodix_i2c_read_trans(struct goodix_ts_device *dev, unsigned int reg,
 		msgs[1].buf = &get_buf[0];
 	} else {
 		msgs[1].buf = kzalloc(I2C_MAX_TRANSFER_SIZE < len
-						? I2C_MAX_TRANSFER_SIZE : len, GFP_KERNEL);
-		if (msgs[1].buf == NULL) {
-			ts_err("Malloc failed");
+					? I2C_MAX_TRANSFER_SIZE : len, GFP_KERNEL);
+		if (msgs[1].buf == NULL)
 			return -ENOMEM;
-		}
 	}
 
 	while (pos != len) {
@@ -448,7 +448,7 @@ read_exit:
  * @data: write buffer
  * @len: bytes to write
  * return: 0 - write ok; < 0 - i2c transter error.
-*/
+ */
 int goodix_i2c_write_trans(struct goodix_ts_device *dev, unsigned int reg,
 		unsigned char *data, unsigned int len)
 {
@@ -469,10 +469,8 @@ int goodix_i2c_write_trans(struct goodix_ts_device *dev, unsigned int reg,
 		msg.buf = kmalloc(I2C_MAX_TRANSFER_SIZE < len + TS_ADDR_LENGTH
 					? I2C_MAX_TRANSFER_SIZE : len + TS_ADDR_LENGTH,
 					GFP_KERNEL);
-		if (msg.buf == NULL) {
-			ts_err("Malloc failed");
+		if (msg.buf == NULL)
 			return -ENOMEM;
-		}
 	}
 
 	while (pos != len) {
@@ -519,7 +517,7 @@ write_exit:
  * mode, then you must enable it again.
  * Between set_doze_false and set_doze_true, do not reset
  * IC!
-*/
+ */
 static int goodix_set_i2c_doze_mode(struct goodix_ts_device *dev, int enable)
 {
 	static DEFINE_MUTEX(doze_mode_lock);
@@ -560,10 +558,10 @@ static int goodix_set_i2c_doze_mode(struct goodix_ts_device *dev, int enable)
 			usleep_range(1000, 1100);
 			for (i = 0; i < TS_DOZE_DISABLE_RETRY_TIMES; i++) {
 				goodix_i2c_read_trans(dev, TS_REG_DOZE_STAT, &r_data, 1);
-				if (TS_DOZE_CLOSE_OK_DATA == r_data) {
+				if (r_data == TS_DOZE_CLOSE_OK_DATA) {
 					result = 0;
 					goto exit;
-				} else if (0xAA != r_data) {
+				} else if (r_data != 0xAA) {
 					w_data = TS_DOZE_DISABLE_DATA;
 					goodix_i2c_write_trans(dev, TS_REG_DOZE_CTRL, &w_data, 1);
 				}
@@ -588,7 +586,7 @@ exit:
  * @data: write buffer
  * @len: bytes to write
  * return: 0 - write ok; < 0 - i2c transter error.
-*/
+ */
 int goodix_i2c_write(struct goodix_ts_device *dev, unsigned int reg,
 		unsigned char *data, unsigned int len)
 {
@@ -618,7 +616,7 @@ int goodix_i2c_write(struct goodix_ts_device *dev, unsigned int reg,
  * @data: read buffer
  * @len: bytes to read
  * return: 0 - read ok, < 0 - i2c transter error
-*/
+ */
 int goodix_i2c_read(struct goodix_ts_device *dev, unsigned int reg,
 	unsigned char *data, unsigned int len)
 {
@@ -646,7 +644,7 @@ int goodix_i2c_read(struct goodix_ts_device *dev, unsigned int reg,
  * @data: write buffer
  * @len: bytes to write
  * return: 0 - write ok; < 0 - i2c transter error.
-*/
+ */
 int goodix_i2c_write_trans_once(struct goodix_ts_device *dev, unsigned int reg,
 		unsigned char *data, unsigned int len)
 {
@@ -765,7 +763,8 @@ static int goodix_read_version(struct goodix_ts_device *dev,
 	}
 
 	/*disable doze mode, just valid for normandy
-	 * this func must be used in pairs*/
+	 * this func must be used in pairs
+	 */
 	goodix_set_i2c_doze_mode(dev, false);
 
 	/*check checksum*/
@@ -854,7 +853,8 @@ static int goodix_read_version(struct goodix_ts_device *dev,
 
 exit:
 	/*enable doze mode, just valid for normandy
-	 * this func must be used in pairs*/
+	 * this func must be used in pairs
+	 */
 	goodix_set_i2c_doze_mode(dev, true);
 
 	return r;
@@ -1017,6 +1017,7 @@ static int goodix_check_cfg_valid(struct goodix_ts_device *dev, u8 *cfg, u32 len
 	int i, j;
 	int bag_start = 0;
 	int bag_end = 0;
+
 	if (!cfg || length < TS_CFG_HEAD_LEN) {
 		ts_err("cfg is INVALID, len:%d", length);
 		ret = -EINVAL;
@@ -1099,11 +1100,6 @@ static int goodix_send_config(struct goodix_ts_device *dev,
 {
 	int r = 0;
 
-	/*check reg valid*/
-/*	if (!dev->reg.cfg_addr) {
-		ts_err("cfg register is NULL");
-		return -EINVAL;
-	}*/
 	if (!config || !*(config->data)) {
 		ts_err("Null config data");
 		return -EINVAL;
@@ -1145,51 +1141,12 @@ static int goodix_send_config(struct goodix_ts_device *dev,
 	return r;
 }
 
-
-
-#if 0
-/**
- * goodix_send_config - send config data to device.
- * @dev: pointer to device
- * @config: pointer to config data struct to be send
- * @return: 0 - succeed, < 0 - failed
- */
-static int goodix_send_config(struct goodix_ts_device *dev,
-		struct goodix_ts_config *config)
-{
-	int r = 0;
-
-	if (!config || !config->data) {
-		ts_err("Null config data");
-		return -EINVAL;
-	}
-
-	ts_info("Send %s,ver:%02xh,size:%d",
-		config->name, config->data[0],
-		config->length);
-
-	mutex_lock(&config->lock);
-	r = goodix_i2c_write(dev, config->reg_base,
-			config->data, config->length);
-	if (r)
-		goto exit;
-
-	/* make sure the firmware accept the config data*/
-	if (config->delay)
-		msleep(config->delay);
-exit:
-	mutex_unlock(&config->lock);
-	return r;
-}
-#endif
-
-
 /**
  * goodix_close_hidi2c_mode
  *   Called by touch core module when bootup
  * @ts_dev: pointer to touch device
  * return: 0 - no error, <0 error
-*/
+ */
 static int goodix_close_hidi2c_mode(struct goodix_ts_device *ts_dev)
 {
 	int r = 0;
@@ -1207,7 +1164,7 @@ static int goodix_close_hidi2c_mode(struct goodix_ts_device *ts_dev)
 		usleep_range(10000, 11000);
 	}
 	if (try_times >= 10) {
-		ts_info("goodix_close_hidi2c_mode FAILED, 0x8040 is not equal to 0xff");
+		ts_info("%s FAILED, 0x8040 is not equal to 0xff", __func__);
 		return -EINVAL;
 	}
 
@@ -1404,7 +1361,7 @@ exit:
  *   Called by touch core module when bootup
  * @ts_dev: pointer to touch device
  * return: 0 - no error, <0 error
-*/
+ */
 static int goodix_hw_init(struct goodix_ts_device *ts_dev)
 {
 	int r;
@@ -1415,19 +1372,15 @@ static int goodix_hw_init(struct goodix_ts_device *ts_dev)
 	if (!ts_dev->normal_cfg) {
 		ts_dev->normal_cfg = devm_kzalloc(ts_dev->dev,
 				sizeof(*ts_dev->normal_cfg), GFP_KERNEL);
-		if (!ts_dev->normal_cfg) {
-			ts_err("Failed to alloc memory for normal cfg");
+		if (!ts_dev->normal_cfg)
 			return -ENOMEM;
-		}
 		mutex_init(&ts_dev->normal_cfg->lock);
 	}
 	if (!ts_dev->highsense_cfg) {
 		ts_dev->highsense_cfg = devm_kzalloc(ts_dev->dev,
 				sizeof(*ts_dev->highsense_cfg), GFP_KERNEL);
-		if (!ts_dev->highsense_cfg) {
-			ts_err("Failed to alloc memory for high sense cfg");
+		if (!ts_dev->highsense_cfg)
 			return -ENOMEM;
-		}
 		mutex_init(&ts_dev->highsense_cfg->lock);
 	}
 
@@ -1446,13 +1399,14 @@ static int goodix_hw_init(struct goodix_ts_device *ts_dev)
 
 	/* devicetree property like resolution(panel_max_xxx)
 	 * may be different between sensors, here we try to parse
-	 * parameters form sensor child node */
+	 * parameters form sensor child node
+	 */
 	r = goodix_parse_customize_params(ts_dev,
 			ts_dev->board_data,
 			ts_dev->chip_version.sensor_id);
 	if (r < 0)
 		ts_info("Cann't find customized parameters");
-	
+
 	ts_dev->normal_cfg->delay = 500;
 	/* send normal-cfg to firmware */
 	r = goodix_send_config(ts_dev, ts_dev->normal_cfg);
@@ -1538,7 +1492,7 @@ static int goodix_request_handler(struct goodix_ts_device *dev,
 	unsigned char buffer[1];
 	int r;
 
-	if (dev->reg.fw_request != 0x6F6D){
+	if (dev->reg.fw_request != 0x6F6D) {
 		ts_info("firmware reg is wrong!\n");
 		dev->reg.fw_request = 0x6F6D;
 	}
@@ -1584,6 +1538,7 @@ static void goodix_swap_coords(struct goodix_ts_device *dev,
 {
 	int i, temp;
 	struct goodix_ts_board_data *bdata = dev->board_data;
+
 	for (i = 0; i < touch_num; i++) {
 		if (bdata->swap_axis) {
 			temp = coords->x;
@@ -1694,16 +1649,8 @@ static int goodix_remap_trace_id(struct goodix_ts_device *dev,
 			}
 			offset += BYTES_PER_COORD;
 		}
-	
-	}
 
-	/*for (i = 0; i < touch_num; i++) {
-		ts_info("remap data%d:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x",
-				i, coor_buf[i * 8], coor_buf[i * 8 + 1],
-				coor_buf[i * 8 + 2], coor_buf[i * 8 + 3],
-				coor_buf[i * 8 + 4], coor_buf[i * 8 + 5],
-				coor_buf[i * 8 + 6], coor_buf[i * 8 + 7]);
-	}*/
+	}
 
 	/*realign coor data by new trace ID*/
 	for (i = 0; i < touch_num - 1; i++) {
@@ -1726,15 +1673,6 @@ static int goodix_remap_trace_id(struct goodix_ts_device *dev,
 					BYTES_PER_COORD);
 		}
 	}
-
-	/*for (i = 0; i < touch_num; i++) {
-		ts_info("final data%d:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x",
-				i, coor_buf[i * 8], coor_buf[i * 8 + 1],
-				coor_buf[i * 8 + 2], coor_buf[i * 8 + 3],
-				coor_buf[i * 8 + 4], coor_buf[i * 8 + 5],
-				coor_buf[i * 8 + 6], coor_buf[i * 8 + 7]);
-	}*/
-
 	return 0;
 }
 
@@ -1784,7 +1722,8 @@ static int goodix_touch_handler(struct goodix_ts_device *dev,
 	}
 
 	/* touch_num * BYTES_PER_COORD + 1(touch event state)
-	 * + 1(checksum) + 1(key value) */
+	 * + 1(checksum) + 1(key value)
+	 */
 	if (dev->ic_type == IC_TYPE_NANJING) {
 		chksum = checksum_u8(&buffer[1],
 				touch_num * BYTES_PER_COORD + 3);
@@ -1807,18 +1746,6 @@ static int goodix_touch_handler(struct goodix_ts_device *dev,
 			touch_data->key_value = (touch_data->key_value & 0x0f) |
 				((touch_data->key_value & 0xf0) >> (4 - dev->board_data->tp_key_num));
 	}
-	/*ts_info("$$$$$$coord_sta:0x%02x, have_key:%d, key_value:0x%02x",
-			coord_sta, touch_data->have_key, touch_data->key_value);*/
-
-	/*for (i = 0; i < touch_num; i++) {
-		ts_info("raw coor data%d:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x",
-				i, buffer[i * 8 + 2], buffer[i * 8 + 3],
-				buffer[i * 8 + 4], buffer[i * 8 + 5],
-				buffer[i * 8 + 6], buffer[i * 8 + 7],
-				buffer[i * 8 + 8], buffer[i * 8 + 9]);
-	}*/
-
-	/*add end*/
 
 	/*remap trace id*/
 	if (dev->ic_type == IC_TYPE_NANJING)
@@ -1867,22 +1794,21 @@ static int goodix_touch_handler(struct goodix_ts_device *dev,
 					buffer[i * BYTES_PER_COORD + 7] |
 					(buffer[i * BYTES_PER_COORD + 8] << 8);
 				}
-			} else {/*it's a finger*/
-					coords->id = buffer[i * BYTES_PER_COORD + 2] & 0x0f;
-					coords->x = buffer[i * BYTES_PER_COORD + 3] |
-									(buffer[i * BYTES_PER_COORD + 4] << 8);
-					coords->y = buffer[i * BYTES_PER_COORD + 5] |
-									(buffer[i * BYTES_PER_COORD + 6] << 8);
-					coords->w = coords->p / 16;
-					coords->p = buffer[i * BYTES_PER_COORD + 7] |
-							(buffer[i * BYTES_PER_COORD + 8] << 8);
-					coords->overlapping_area = buffer[8];
-					coords->area = buffer[i * BYTES_PER_COORD + 9];
-					/*ts_debug("EF:[%d](%d, %d)", coords->id, coords->x, coords->y);*/
-					if (touch_data->pen_down == true) {
-						touch_data->pen_down = false;
-						/*ts_info("***pen leave");*/
-				}
+			/*it's a finger*/
+			} else {
+				coords->id = buffer[i * BYTES_PER_COORD + 2] & 0x0f;
+				coords->x = buffer[i * BYTES_PER_COORD + 3] |
+								(buffer[i * BYTES_PER_COORD + 4] << 8);
+				coords->y = buffer[i * BYTES_PER_COORD + 5] |
+								(buffer[i * BYTES_PER_COORD + 6] << 8);
+				coords->w = coords->p / 16;
+				coords->p = buffer[i * BYTES_PER_COORD + 7] |
+						(buffer[i * BYTES_PER_COORD + 8] << 8);
+				coords->overlapping_area = buffer[8];
+				coords->area = buffer[i * BYTES_PER_COORD + 9];
+				/*ts_debug("EF:[%d](%d, %d)", coords->id, coords->x, coords->y);*/
+				if (touch_data->pen_down == true)
+					touch_data->pen_down = false;
 			}
 	}
 
@@ -2099,9 +2025,9 @@ static int goodix_i2c_probe(struct i2c_client *client,
 	struct goodix_ts_board_data *ts_bdata = NULL;
 	int r = 0;
 
-	ts_err("enter::%s\n",__func__);
+	ts_err("enter::%s\n", __func__);
 
-	r = i2c_check_functionality(client->adapter,I2C_FUNC_I2C);
+	r = i2c_check_functionality(client->adapter, I2C_FUNC_I2C);
 	if (!r)
 		return -EIO;
 
@@ -2118,11 +2044,11 @@ static int goodix_i2c_probe(struct i2c_client *client,
 			return r;
 	}
 #ifdef CONFIG_ACPI
-	 else if (ACPI_COMPANION(&client->dev)) {
+	else if (ACPI_COMPANION(&client->dev)) {
 		r = goodix_parse_acpi(&client->dev, ts_bdata);
 		if (r < 0)
 			return r;
-	 }
+	}
 #endif
 	else {
 		/* use platform data */
@@ -2143,7 +2069,7 @@ static int goodix_i2c_probe(struct i2c_client *client,
 	ts_device->dev = &client->dev;
 	ts_device->board_data = ts_bdata;
 	ts_device->hw_ops = &hw_i2c_ops;
-	
+
 
 	/* ts core device */
 	goodix_pdev = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
@@ -2162,7 +2088,8 @@ static int goodix_i2c_probe(struct i2c_client *client,
 	goodix_pdev->dev.release = goodix_pdev_release;
 
 	/* register platform device, then the goodix_ts_core
-	 * module will probe the touch deivce. */
+	 * module will probe the touch deivce.
+	 */
 	r = platform_device_register(goodix_pdev);
 
 	ts_info("goodix9886_i2c_probe OUT");

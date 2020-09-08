@@ -604,7 +604,7 @@ struct goodix_ext_attribute {
 /* external attrs helper macro, used to define external attrs */
 #define DEFINE_EXTMOD_ATTR(_name, _mode, _show, _store)	\
 static struct goodix_ext_attribute ext_attr_##_name = \
-	__EXTMOD_ATTR(_name, _mode, _show, _store);
+	__EXTMOD_ATTR(_name, _mode, _show, _store)
 
 /*
  * get board data pointer
@@ -644,6 +644,7 @@ static inline u8 checksum_u8(u8 *data, u32 size)
 {
 	u8 checksum = 0;
 	u32 i;
+
 	for (i = 0; i < size; i++)
 		checksum += data[i];
 	return checksum;
@@ -663,6 +664,7 @@ static inline u16 checksum_be16(u8 *data, u32 size)
 {
 	u16 checksum = 0;
 	u32 i;
+
 	for (i = 0; i < size; i += 2)
 		checksum += be16_to_cpup((__be16 *)(data + i));
 	return checksum;
@@ -672,6 +674,7 @@ static inline u32 checksum_le32(u8 *data, u32 size)
 {
 	u32 checksum = 0;
 	u32 i;
+
 	for (i = 0; i < size; i += 4)
 		checksum += le32_to_cpup((__le32 *)(data + i));
 	return checksum;
@@ -681,6 +684,7 @@ static inline u32 checksum_be32(u8 *data, u32 size)
 {
 	u32 checksum = 0;
 	u32 i;
+
 	for (i = 0; i < size; i += 4)
 		checksum += be32_to_cpup((__be32 *)(data + i));
 	return checksum;
@@ -702,7 +706,8 @@ static inline u32 checksum_be32(u8 *data, u32 size)
  * 2. you want the flow of this event continue, in
  * this condition, you should return EVT_HANDLED in
  * the callback function.
- * */
+ *
+ */
 #define EVT_HANDLED				0
 #define EVT_CONTINUE			0
 #define EVT_CANCEL				1
@@ -774,10 +779,10 @@ int goodix_ts_blocking_notify(enum ts_notify_event evt, void *v);
 
 
 /**
- * * goodix_ts_power_on - Turn on power to the touch device
- * * @core_data: pointer to touch core data
- * * return: 0 ok, <0 failed
- * */
+ * goodix_ts_power_on - Turn on power to the touch device
+ * @core_data: pointer to touch core data
+ * return: 0 ok, <0 failed
+ */
 int goodix_ts_power_on(struct goodix_ts_core *core_data);
 
 /**
