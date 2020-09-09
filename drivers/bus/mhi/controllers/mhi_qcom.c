@@ -83,6 +83,36 @@ int mhi_debugfs_trigger_m3(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(debugfs_trigger_m3_fops, NULL,
 			mhi_debugfs_trigger_m3, "%llu\n");
 
+static int mhi_debugfs_disable_pci_lpm_get(void *data, u64 *val)
+{
+	struct mhi_controller *mhi_cntrl = data;
+	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
+
+	*val = mhi_dev->disable_pci_lpm;
+
+	MHI_CNTRL_LOG("PCIe low power modes (D3 hot/cold) are %s\n",
+		      mhi_dev->disable_pci_lpm ? "Disabled" : "Enabled");
+
+	return 0;
+}
+
+static int mhi_debugfs_disable_pci_lpm_set(void *data, u64 val)
+{
+	struct mhi_controller *mhi_cntrl = data;
+	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
+
+	mutex_lock(&mhi_cntrl->pm_mutex);
+	mhi_dev->disable_pci_lpm = val ? true : false;
+	mutex_unlock(&mhi_cntrl->pm_mutex);
+
+	MHI_CNTRL_LOG("%s PCIe low power modes (D3 hot/cold)\n",
+		      val ? "Disabled" : "Enabled");
+
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(debugfs_pci_lpm_fops, mhi_debugfs_disable_pci_lpm_get,
+			mhi_debugfs_disable_pci_lpm_set, "%llu\n");
+
 void mhi_deinit_pci_dev(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
@@ -510,6 +540,8 @@ static int mhi_qcom_power_up(struct mhi_controller *mhi_cntrl)
 				    &debugfs_trigger_m0_fops);
 		debugfs_create_file("m3", 0444, mhi_cntrl->dentry, mhi_cntrl,
 				    &debugfs_trigger_m3_fops);
+		debugfs_create_file("disable_pci_lpm", 0644, mhi_cntrl->dentry,
+				    mhi_cntrl, &debugfs_pci_lpm_fops);
 	}
 
 	return ret;
