@@ -235,6 +235,10 @@ QDF_STATUS wma_update_channel_list(WMA_HANDLE handle,
 			WMI_SET_CHANNEL_FLAG(tchan_info,
 				WMI_CHAN_FLAG_QUARTER_RATE);
 
+		if (chan_list->chanParam[i].nan_disabled)
+			WMI_SET_CHANNEL_FLAG(tchan_info,
+					     WMI_CHAN_FLAG_NAN_DISABLED);
+
 		WMI_SET_CHANNEL_MAX_TX_POWER(tchan_info,
 					     chan_list->chanParam[i].pwr);
 
@@ -1954,8 +1958,7 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 
 		if (roam_req->reason == REASON_ROAM_STOP_ALL ||
 		    roam_req->reason == REASON_DISCONNECTED ||
-		    roam_req->reason == REASON_ROAM_SYNCH_FAILED ||
-		    roam_req->reason == REASON_SUPPLICANT_DISABLED_ROAMING) {
+		    roam_req->reason == REASON_ROAM_SYNCH_FAILED) {
 			mode = WMI_ROAM_SCAN_MODE_NONE;
 		} else {
 			if (csr_roamIsRoamOffloadEnabled(pMac))
@@ -3407,11 +3410,12 @@ wma_get_trigger_detail_str(struct wmi_roam_trigger_info *roam_info, char *buf)
 		 * Use roam_info->current_rssi get the RSSI of current AP after
 		 * roam scan is triggered. This avoids discrepency with the
 		 * next rssi threshold value printed in roam scan details.
-		 * roam_info->rssi_trig_data.threshold gives the rssi of AP
-		 * before the roam scan was triggered.
+		 * roam_info->rssi_trig_data.threshold gives the rssi threshold
+		 * for the Low Rssi/Periodic scan trigger.
 		 */
 		buf_cons = qdf_snprint(temp, buf_left,
-				       " Current AP RSSI: %d",
+				       " Cur_Rssi threshold:%d Current AP RSSI: %d",
+				       roam_info->rssi_trig_data.threshold,
 				       roam_info->current_rssi);
 		temp += buf_cons;
 		buf_left -= buf_cons;

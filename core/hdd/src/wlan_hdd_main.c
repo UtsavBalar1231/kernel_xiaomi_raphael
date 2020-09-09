@@ -1424,8 +1424,12 @@ static void hdd_update_tgt_ht_cap(struct hdd_context *hdd_ctx,
 
 	enable_tx_stbc = pconfig->enableTxSTBC;
 
-	if (pconfig->enable2x2 && (cfg->num_rf_chains == 2))
+	if (pconfig->enable2x2 && (cfg->num_rf_chains == 2)) {
 		pconfig->enable2x2 = 1;
+	} else {
+		pconfig->enable2x2 = 0;
+		enable_tx_stbc = 0;
+	}
 
 	if (!(cfg->ht_tx_stbc && pconfig->enable2x2))
 		enable_tx_stbc = 0;
@@ -8223,7 +8227,7 @@ static int hdd_context_deinit(struct hdd_context *hdd_ctx)
  *
  * Return: None
  */
-static void hdd_context_destroy(struct hdd_context *hdd_ctx)
+void hdd_context_destroy(struct hdd_context *hdd_ctx)
 {
 	wlan_hdd_sar_timers_deinit(hdd_ctx);
 
@@ -14490,9 +14494,6 @@ static void hdd_driver_unload(void)
 		hdd_psoc_idle_timer_stop(hdd_ctx);
 
 	wlan_hdd_unregister_driver();
-
-	if (hdd_ctx)
-		hdd_context_destroy(hdd_ctx);
 
 	pld_deinit();
 	wlan_hdd_state_ctrl_param_destroy();
