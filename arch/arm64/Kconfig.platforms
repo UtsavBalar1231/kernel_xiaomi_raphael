@@ -374,4 +374,26 @@ config ARCH_ZYNQMP
 	help
 	  This enables support for Xilinx ZynqMP Family
 
+config MACH_XIAOMI
+	bool "XiaoMi Family"
+	help
+	  This enables support for XiaoMi Family devices.
+
+if MACH_XIAOMI
+
+config MACH_XIAOMI_SM8150
+	bool
+	select ARCH_QCOM
+	select ARCH_SM8150
+
+menu "XiaoMi board seletion"
+
+config MACH_XIAOMI_RAPHAEL
+	bool "Raphael Platform"
+	select MACH_XIAOMI_SM8150
+	help
+	  This enables support for XiaoMi Redmi K20 Pro.
+
+endmenu
+endif
 endmenu
