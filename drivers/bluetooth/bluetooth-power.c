@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 #include <linux/clk.h>
+#include <linux/uaccess.h>
 
 #if defined(CONFIG_CNSS_PCI)
 #include <net/cnss.h>
@@ -42,6 +43,41 @@
 #define BT_PWR_INFO(fmt, arg...) pr_info("%s: " fmt "\n", __func__, ## arg)
 #define BT_PWR_ERR(fmt, arg...)  pr_err("%s: " fmt "\n", __func__, ## arg)
 
+#define PWR_SRC_NOT_AVAILABLE -2
+#define DEFAULT_INVALID_VALUE -1
+#define PWR_SRC_INIT_STATE_IDX 0
+
+enum power_src_pos {
+	BT_RESET_GPIO = PWR_SRC_INIT_STATE_IDX,
+	BT_SW_CTRL_GPIO,
+	BT_VDD_AON_LDO,
+	BT_VDD_DIG_LDO,
+	BT_VDD_RFA1_LDO,
+	BT_VDD_RFA2_LDO,
+	BT_VDD_ASD_LDO,
+	BT_VDD_XTAL_LDO,
+	BT_VDD_PA_LDO,
+	BT_VDD_CORE_LDO,
+	BT_VDD_IO_LDO,
+	BT_VDD_LDO,
+	BT_VDD_RFA_0p8,
+	BT_VDD_RFACMN,
+	// these indexes GPIOs/regs value are fetched during crash.
+	BT_RESET_GPIO_CURRENT,
+	BT_SW_CTRL_GPIO_CURRENT,
+	BT_VDD_AON_LDO_CURRENT,
+	BT_VDD_DIG_LDO_CURRENT,
+	BT_VDD_RFA1_LDO_CURRENT,
+	BT_VDD_RFA2_LDO_CURRENT,
+	BT_VDD_ASD_LDO_CURRENT,
+	BT_VDD_XTAL_LDO_CURRENT,
+	BT_VDD_PA_LDO_CURRENT,
+	BT_VDD_CORE_LDO_CURRENT,
+	BT_VDD_IO_LDO_CURRENT,
+	BT_VDD_LDO_CURRENT,
+	BT_VDD_RFA_0p8_CURRENT,
+	BT_VDD_RFACMN_CURRENT
+};
 
 static const struct of_device_id bt_power_match_table[] = {
 	{	.compatible = "qca,ar3002" },
@@ -52,17 +88,33 @@ static const struct of_device_id bt_power_match_table[] = {
 };
 
 static struct bt_power_vreg_data bt_power_vreg_info[] = {
-	{NULL, "qca,bt-vdd-vl", 1055000, 1055000, 0, false, false},
-	{NULL, "qca,bt-vdd-vm", 1350000, 1350000, 0, false, false},
-	{NULL, "qca,bt-vdd-5c", 2040000, 2040000, 0, false, false},
-	{NULL, "qca,bt-vdd-5a", 2040000, 2040000, 0, false, false},
-	{NULL, "qca,bt-vdd-vh", 1900000, 1900000, 0, false, false},
-	{NULL, "qca,bt-vdd-io", 1700000, 1900000, 0, false, false},
-	{NULL, "qca,bt-vdd-xtal", 1700000, 1900000, 0, false, false},
-	{NULL, "qca,bt-vdd-core", 1245000, 1350000, 0, false, false},
-	{NULL, "qca,bt-vdd-pa", 0, 0, 0, false, false},
-	{NULL, "qca,bt-vdd-ldo", 3312000, 3312000, 0, false, false},
-	{NULL, "qca,bt-chip-pwd", 0, 0, 0, false, false},
+	{NULL, "qca,bt-vdd-vl", 1055000, 1055000, 0, false, false,
+	/* PWR_SRC_NOT_AVAILABLE is provided, as logging of this
+	 * regulator is not supported by BT LA targets on
+	 * this kernel version.
+	 * (same applies to other places in this struct declaration)
+	 */
+		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
+	{NULL, "qca,bt-vdd-vm", 1350000, 1350000, 0, false, false,
+		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
+	{NULL, "qca,bt-vdd-5c", 2040000, 2040000, 0, false, false,
+		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
+	{NULL, "qca,bt-vdd-5a", 2040000, 2040000, 0, false, false,
+		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
+	{NULL, "qca,bt-vdd-vh", 1900000, 1900000, 0, false, false,
+		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
+	{NULL, "qca,bt-vdd-io", 1700000, 1900000, 0, false, false,
+		{BT_VDD_IO_LDO, BT_VDD_IO_LDO_CURRENT} },
+	{NULL, "qca,bt-vdd-xtal", 1700000, 1900000, 0, false, false,
+		{BT_VDD_XTAL_LDO, BT_VDD_XTAL_LDO_CURRENT} },
+	{NULL, "qca,bt-vdd-core", 1245000, 1350000, 0, false, false,
+		{BT_VDD_CORE_LDO, BT_VDD_CORE_LDO_CURRENT} },
+	{NULL, "qca,bt-vdd-pa", 0, 0, 0, false, false,
+		{BT_VDD_PA_LDO, BT_VDD_PA_LDO_CURRENT} },
+	{NULL, "qca,bt-vdd-ldo", 3312000, 3312000, 0, false, false,
+		{BT_VDD_LDO, BT_VDD_LDO_CURRENT} },
+	{NULL, "qca,bt-chip-pwd", 0, 0, 0, false, false,
+		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
 };
 
 #define BT_VREG_INFO_SIZE ARRAY_SIZE(bt_power_vreg_info)
@@ -71,6 +123,7 @@ static int bt_power_vreg_get(struct platform_device *pdev);
 static int bt_power_vreg_set(bool on);
 static void bt_power_vreg_put(void);
 
+static int bt_power_src_status[BT_POWER_SRC_SIZE];
 static struct bluetooth_power_platform_data *bt_power_pdata;
 static struct platform_device *btpdev;
 static bool previous;
@@ -115,6 +168,9 @@ static int bt_vreg_enable(struct bt_power_vreg_data *vreg)
 			rc = regulator_set_voltage(vreg->reg,
 						vreg->low_vol_level,
 						vreg->high_vol_level);
+			if (vreg->indx.init != PWR_SRC_NOT_AVAILABLE)
+				bt_power_src_status[vreg->indx.init] =
+					DEFAULT_INVALID_VALUE;
 			if (rc < 0) {
 				BT_PWR_ERR("vreg_set_vol(%s) failed rc=%d\n",
 						vreg->name, rc);
@@ -138,6 +194,9 @@ static int bt_vreg_enable(struct bt_power_vreg_data *vreg)
 					vreg->name, rc);
 			goto out;
 		}
+		if (vreg->indx.init != PWR_SRC_NOT_AVAILABLE)
+			bt_power_src_status[vreg->indx.init] =
+				regulator_get_voltage(vreg->reg);
 		vreg->is_enabled = true;
 	}
 out:
@@ -320,12 +379,16 @@ static int bt_configure_gpios(int on)
 			BT_PWR_ERR("Unable to set direction\n");
 			return rc;
 		}
+		bt_power_src_status[BT_RESET_GPIO] =
+			gpio_get_value(bt_reset_gpio);
 		msleep(50);
 		rc = gpio_direction_output(bt_reset_gpio, 1);
 		if (rc) {
 			BT_PWR_ERR("Unable to set direction\n");
 			return rc;
 		}
+		bt_power_src_status[BT_RESET_GPIO] =
+			gpio_get_value(bt_reset_gpio);
 		msleep(50);
 	} else {
 		gpio_set_value(bt_reset_gpio, 0);
@@ -357,6 +420,8 @@ static int bluetooth_power(int on)
 			}
 		}
 		if (bt_power_pdata->bt_gpio_sys_rst > 0) {
+			bt_power_src_status[BT_RESET_GPIO] =
+				DEFAULT_INVALID_VALUE;
 			rc = bt_configure_gpios(on);
 			if (rc < 0) {
 				BT_PWR_ERR("bt_power gpio config failed");
@@ -380,6 +445,8 @@ static int bluetooth_power(int on)
 gpio_fail:
 		if (bt_power_pdata->bt_gpio_sys_rst > 0)
 			gpio_free(bt_power_pdata->bt_gpio_sys_rst);
+		if  (bt_power_pdata->bt_gpio_sw_ctrl  >  0)
+			gpio_free(bt_power_pdata->bt_gpio_sw_ctrl);
 		if (bt_power_pdata->bt_gpio_3p3_en > 0)
 			gpio_free(bt_power_pdata->bt_gpio_3p3_en);
 		if (bt_power_pdata->bt_gpio_1p3_en > 0)
@@ -526,8 +593,11 @@ static int bt_dt_parse_vreg_info(struct device *dev,
 			vreg->name, vreg->low_vol_level,
 			vreg->high_vol_level,
 			vreg->load_uA);
-	} else
+	} else {
 		BT_PWR_INFO("%s: is not provided in device tree", vreg_name);
+		vreg->indx.init = PWR_SRC_NOT_AVAILABLE;
+		vreg->indx.crash = PWR_SRC_NOT_AVAILABLE;
+	}
 
 	return ret;
 }
@@ -654,8 +724,16 @@ static int bt_power_populate_dt_pinfo(struct platform_device *pdev)
 		bt_power_pdata->bt_gpio_sys_rst =
 			of_get_named_gpio(pdev->dev.of_node,
 						"qca,bt-reset-gpio", 0);
+
 		if (bt_power_pdata->bt_gpio_sys_rst < 0)
-			BT_PWR_ERR("bt-reset-gpio not provided in device tree");
+			BT_PWR_INFO("bt-reset-gpio not provided in devicetree");
+
+		bt_power_pdata->bt_gpio_sw_ctrl  =
+			of_get_named_gpio(pdev->dev.of_node,
+						"qca,bt-sw-ctrl-gpio",  0);
+
+		if (bt_power_pdata->bt_gpio_sw_ctrl < 0)
+			BT_PWR_INFO("bt-swctrl-gpio not entered in devicetree");
 
 		bt_power_pdata->bt_gpio_3p3_en =
 			of_get_named_gpio(pdev->dev.of_node,
@@ -672,7 +750,7 @@ static int bt_power_populate_dt_pinfo(struct platform_device *pdev)
 		rc = bt_dt_parse_clk_info(&pdev->dev,
 					&bt_power_pdata->bt_chip_clk);
 		if (rc < 0)
-			BT_PWR_ERR("clock not provided in device tree");
+			BT_PWR_INFO("clock not provided in device tree");
 	}
 
 	bt_power_pdata->bt_power_setup = bluetooth_power;
@@ -683,8 +761,16 @@ static int bt_power_populate_dt_pinfo(struct platform_device *pdev)
 static int bt_power_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+	int itr;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
+
+	/* Fill whole array with -2 i.e NOT_AVAILABLE state by default
+	 * for any GPIO or Reg handle.
+	 */
+	for (itr = PWR_SRC_INIT_STATE_IDX;
+		itr < BT_POWER_SRC_SIZE; ++itr)
+		bt_power_src_status[itr] = PWR_SRC_NOT_AVAILABLE;
 
 	bt_power_pdata =
 		kzalloc(sizeof(struct bluetooth_power_platform_data),
@@ -759,10 +845,54 @@ int get_chipset_version(void)
 	return soc_id;
 }
 
+static void  set_pwr_srcs_status(struct bt_power_vreg_data *handle)
+{
+	int ldo_index;
+
+	if (handle) {
+		ldo_index = handle->indx.crash;
+		if (ldo_index != PWR_SRC_NOT_AVAILABLE) {
+			bt_power_src_status[ldo_index] =
+				DEFAULT_INVALID_VALUE;
+			if (handle->is_enabled &&
+				(regulator_is_enabled(handle->reg))) {
+				bt_power_src_status[ldo_index] =
+					(int)regulator_get_voltage(handle->reg);
+				BT_PWR_ERR("%s(%d) value(%d)", handle->name,
+					handle, bt_power_src_status[ldo_index]);
+			} else {
+				BT_PWR_ERR("%s:%s is_enabled: %d",
+					__func__, handle->name,
+					handle->is_enabled);
+			}
+		}
+	}
+}
+
+static void  set_gpios_srcs_status(char *gpio_name,
+		int gpio_index, int handle)
+{
+	BT_PWR_ERR("%s: gpio name: %s : %d", __func__, gpio_name, handle);
+
+	if (handle >= 0) {
+		bt_power_src_status[gpio_index] =
+			DEFAULT_INVALID_VALUE;
+		bt_power_src_status[gpio_index] =
+			gpio_get_value(handle);
+		BT_PWR_ERR("%s(%d) value(%d)\n", gpio_name,
+			handle, bt_power_src_status[gpio_index]);
+	} else {
+		BT_PWR_ERR("%s: %s not configured\n",
+			__func__, gpio_name);
+	}
+}
+
 static long bt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0, pwr_cntrl = 0;
 	int chipset_version = 0;
+	int itr;
+	struct bt_power_vreg_data *vreg_info = NULL;
 
 	switch (cmd) {
 #ifdef CONFIG_BTFM_SLIM
@@ -797,6 +927,50 @@ static long bt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		} else {
 			BT_PWR_ERR("got invalid soc version");
 			soc_id = 0;
+		}
+		break;
+	case BT_CMD_CHECK_SW_CTRL:
+		/*  Check  if  SW_CTRL  is  asserted  */
+		BT_PWR_INFO("BT_CMD_CHECK_SW_CTRL");
+		if (bt_power_pdata->bt_gpio_sw_ctrl > 0) {
+			bt_power_src_status[BT_SW_CTRL_GPIO] =
+				DEFAULT_INVALID_VALUE;
+			ret  =  gpio_direction_input(
+				bt_power_pdata->bt_gpio_sw_ctrl);
+			if (ret) {
+				BT_PWR_ERR("%s:gpio_direction_input api",
+					 __func__);
+				BT_PWR_ERR("%s:failed for SW_CTRL:%d",
+					__func__, ret);
+			} else {
+				bt_power_src_status[BT_SW_CTRL_GPIO] =
+					gpio_get_value(
+					bt_power_pdata->bt_gpio_sw_ctrl);
+				BT_PWR_INFO("bt-sw-ctrl-gpio(%d) value(%d)",
+					bt_power_pdata->bt_gpio_sw_ctrl,
+					bt_power_src_status[BT_SW_CTRL_GPIO]);
+			}
+		} else {
+			BT_PWR_ERR("bt_gpio_sw_ctrl not configured");
+			return -EINVAL;
+		}
+		break;
+	case BT_CMD_GETVAL_POWER_SRCS:
+		BT_PWR_ERR("BT_CMD_GETVAL_POWER_SRCS");
+
+		set_gpios_srcs_status("BT_RESET_GPIO", BT_RESET_GPIO_CURRENT,
+			bt_power_pdata->bt_gpio_sys_rst);
+		set_gpios_srcs_status("SW_CTRL_GPIO", BT_SW_CTRL_GPIO_CURRENT,
+			bt_power_pdata->bt_gpio_sw_ctrl);
+
+		for (itr = 0; itr < BT_VREG_INFO_SIZE; itr++) {
+			vreg_info = &bt_power_pdata->vreg_info[itr];
+			set_pwr_srcs_status(vreg_info);
+		}
+		if (copy_to_user((void __user *)arg,
+			bt_power_src_status, sizeof(bt_power_src_status))) {
+			BT_PWR_ERR("%s: copy to user failed", __func__);
+			ret = -EFAULT;
 		}
 		break;
 	default:
