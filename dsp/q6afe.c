@@ -29,7 +29,7 @@
 #if CONFIG_ELLIPTIC_ULTRASOUND
 #include <dsp/apr_elliptic.h>
 #endif
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 #include <dsp/apr_mius.h>
 #endif
 #include <ipc/apr_tal.h>
@@ -639,7 +639,7 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		else
 			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
 #endif
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 	} else if (data->opcode == MI_ULTRASOUND_OPCODE) {
 		if (NULL != data->payload)
 		{
@@ -1810,7 +1810,7 @@ afe_ultrasound_state_t elus_afe = {
 EXPORT_SYMBOL(elus_afe);
 #endif
 
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 afe_mi_ultrasound_state_t mius_afe = {
 	.ptr_apr= &this_afe.apr,
 	.ptr_status= &this_afe.status,
