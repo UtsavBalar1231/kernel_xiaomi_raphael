@@ -26,7 +26,7 @@ int rtac_init(void);
 int msm_audio_ion_init(void);
 int audio_slimslave_init(void);
 int avtimer_init(void);
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 int crus_sp_init(void);
 #endif
 #ifdef CONFIG_MSM_MDF
@@ -63,7 +63,7 @@ static inline void spk_params_exit(void)
 #endif
 
 void avtimer_exit(void);
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 void crus_sp_exit(void);
 #endif
 void audio_slimslave_exit(void);

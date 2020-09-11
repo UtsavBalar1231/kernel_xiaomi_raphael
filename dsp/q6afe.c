@@ -39,7 +39,7 @@
 #include "../asoc/codecs/tfa98xx/inc/tfa_platform_interface_definition.h"
 #endif
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 #include <dsp/msm-cirrus-playback.h>
 #endif
 
@@ -201,7 +201,7 @@ static int afe_get_cal_hw_delay(int32_t path,
 				struct audio_cal_hw_delay_entry *entry);
 static int remap_cal_data(struct cal_block_data *cal_block, int cal_index);
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 struct afe_cspl_state cspl_afe = {
 	.apr= &this_afe.apr,
 	.status= &this_afe.status,
@@ -570,7 +570,7 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		uint32_t *payload = data->payload;
 		uint32_t param_id;
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 		if (crus_afe_callback(data->payload, data->payload_size) == 0)
 			return 0;
 #endif
@@ -1047,7 +1047,7 @@ static int afe_apr_send_pkt(void *data, wait_queue_head_t *wait)
 	return ret;
 }
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 int afe_apr_send_pkt_crus(void *data, int index, int set)
 {
 	pr_info("[CSPL] %s: index = %d, set=%d, data = %p\n",

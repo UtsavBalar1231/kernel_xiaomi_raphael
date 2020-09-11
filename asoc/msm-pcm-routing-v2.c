@@ -57,7 +57,7 @@
 #include "codecs/tfa98xx/inc/tfa_platform_interface_definition.h"
 #endif
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 #include <dsp/msm-cirrus-playback.h>
 #endif
 
