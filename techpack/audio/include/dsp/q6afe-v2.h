@@ -461,7 +461,7 @@ int afe_get_sp_rx_tmax_xmax_logging_data(
 		u16 port_id);
 int afe_cal_init_hwdep(void *card);
 int afe_send_port_island_mode(u16 port_id);
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 int afe_apr_send_pkt_crus(void *data, int index, int set);
 int crus_afe_port_close(u16 port_id);
 int crus_afe_port_start(u16 port_id);

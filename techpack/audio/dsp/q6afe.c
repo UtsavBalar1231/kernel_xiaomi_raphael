@@ -26,10 +26,10 @@
 #include <dsp/q6common.h>
 #include <dsp/q6core.h>
 #include <dsp/msm-audio-event-notify.h>
-#ifdef CONFIG_ELLIPTIC_ULTRASOUND
+#if CONFIG_ELLIPTIC_ULTRASOUND
 #include <dsp/apr_elliptic.h>
 #endif
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 #include <dsp/apr_mius.h>
 #endif
 #include <ipc/apr_tal.h>
@@ -39,7 +39,7 @@
 #include "../asoc/codecs/tfa98xx/inc/tfa_platform_interface_definition.h"
 #endif
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 #include <dsp/msm-cirrus-playback.h>
 #endif
 
@@ -201,7 +201,7 @@ static int afe_get_cal_hw_delay(int32_t path,
 				struct audio_cal_hw_delay_entry *entry);
 static int remap_cal_data(struct cal_block_data *cal_block, int cal_index);
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 struct afe_cspl_state cspl_afe = {
 	.apr= &this_afe.apr,
 	.status= &this_afe.status,
@@ -331,6 +331,11 @@ static void av_dev_drift_afe_cb_handler(uint32_t opcode, uint32_t *payload,
 	switch (opcode) {
 	case AFE_PORT_CMDRSP_GET_PARAM_V2:
 		expected_size += sizeof(struct param_hdr_v1);
+		if (payload_size < expected_size) {
+			pr_err("%s: Error: received size %d, expected size %zu\n",
+			       __func__, payload_size, expected_size);
+			return;
+		}
 		/* Repack response to add IID */
 		this_afe.av_dev_drift_resp.status = payload[0];
 		this_afe.av_dev_drift_resp.pdata.module_id = payload[1];
@@ -342,6 +347,11 @@ static void av_dev_drift_afe_cb_handler(uint32_t opcode, uint32_t *payload,
 		break;
 	case AFE_PORT_CMDRSP_GET_PARAM_V3:
 		expected_size += sizeof(struct param_hdr_v3);
+		if (payload_size < expected_size) {
+			pr_err("%s: Error: received size %d, expected size %zu\n",
+			       __func__, payload_size, expected_size);
+			return;
+		}
 		memcpy(&this_afe.av_dev_drift_resp, payload,
 				sizeof(this_afe.av_dev_drift_resp));
 		break;
@@ -570,7 +580,7 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		uint32_t *payload = data->payload;
 		uint32_t param_id;
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 		if (crus_afe_callback(data->payload, data->payload_size) == 0)
 			return 0;
 #endif
@@ -632,14 +642,14 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		atomic_set(&this_afe.state, 0);
 		atomic_set(&this_afe.status, 0);
 		wake_up(&this_afe.lpass_core_hw_wait);
-#ifdef CONFIG_ELLIPTIC_ULTRASOUND
+#if CONFIG_ELLIPTIC_ULTRASOUND
 	} else if (data->opcode == ULTRASOUND_OPCODE) {
 		if (NULL != data->payload)
 			elliptic_process_apr_payload(data->payload);
 		else
 			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
 #endif
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 	} else if (data->opcode == MI_ULTRASOUND_OPCODE) {
 		if (NULL != data->payload)
 		{
@@ -1047,7 +1057,7 @@ static int afe_apr_send_pkt(void *data, wait_queue_head_t *wait)
 	return ret;
 }
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 int afe_apr_send_pkt_crus(void *data, int index, int set)
 {
 	pr_info("[CSPL] %s: index = %d, set=%d, data = %p\n",
@@ -1799,7 +1809,7 @@ fail_idx:
 	return ret;
 }
 
-#ifdef CONFIG_ELLIPTIC_ULTRASOUND
+#if CONFIG_ELLIPTIC_ULTRASOUND
 afe_ultrasound_state_t elus_afe = {
 	.ptr_apr= &this_afe.apr,
 	.ptr_status= &this_afe.status,
@@ -1810,7 +1820,7 @@ afe_ultrasound_state_t elus_afe = {
 EXPORT_SYMBOL(elus_afe);
 #endif
 
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 afe_mi_ultrasound_state_t mius_afe = {
 	.ptr_apr= &this_afe.apr,
 	.ptr_status= &this_afe.status,

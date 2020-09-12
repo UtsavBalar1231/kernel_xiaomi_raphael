@@ -31,15 +31,15 @@ static int __init audio_q6_init(void)
 	msm_audio_ion_init();
 	audio_slimslave_init();
 	avtimer_init();
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 	crus_sp_init();
 #endif
 	msm_mdf_init();
 	voice_mhi_init();
-#ifdef CONFIG_ELLIPTIC_ULTRASOUND
+#if CONFIG_ELLIPTIC_ULTRASOUND
 	elliptic_driver_init();
 #endif
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 	mius_driver_init();
 #endif
 	return 0;
@@ -49,7 +49,7 @@ static void __exit audio_q6_exit(void)
 {
 	msm_mdf_exit();
 	avtimer_exit();
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 	crus_sp_exit();
 #endif
 	audio_slimslave_exit();
@@ -65,10 +65,10 @@ static void __exit audio_q6_exit(void)
 	audio_cal_exit();
 	adsp_err_exit();
 	voice_mhi_exit();
-#ifdef CONFIG_ELLIPTIC_ULTRASOUND
+#if CONFIG_ELLIPTIC_ULTRASOUND
 	elliptic_driver_exit();
 #endif
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 	mius_driver_exit();
 #endif
 }
