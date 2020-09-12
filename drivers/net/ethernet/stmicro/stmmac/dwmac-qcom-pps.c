@@ -38,22 +38,6 @@ static bool avb_class_b_msg_wq_flag;
 static DECLARE_WAIT_QUEUE_HEAD(avb_class_a_msg_wq);
 static DECLARE_WAIT_QUEUE_HEAD(avb_class_b_msg_wq);
 
-static int strlcmp(const char *s, const char *t, size_t n)
-{
-	int ret;
-
-	while (n-- && *t != '\0') {
-		if (*s != *t) {
-			ret = ((unsigned char)*s - (unsigned char)*t);
-			n = 0;
-		} else {
-			++s, ++t;
-			ret = (unsigned char)*s;
-		}
-	}
-	return ret;
-}
-
 static void align_target_time_reg(u32 ch, void __iomem *ioaddr,
 				  struct pps_cfg *eth_pps_cfg,
 				  unsigned int align_ns)
@@ -373,13 +357,13 @@ static int pps_open(struct inode *inode, struct file *file)
 	if (!info)
 		return -ENOMEM;
 
-	if (!strlcmp(file->f_path.dentry->d_iname,
+	if (!strncmp(file->f_path.dentry->d_iname,
 		     AVB_CLASS_A_POLL_DEV_NODE,
 		     strlen(AVB_CLASS_A_POLL_DEV_NODE))) {
 		ETHQOSERR("pps open file name =%s\n",
 			  file->f_path.dentry->d_iname);
 		info->channel_no = AVB_CLASS_A_CHANNEL_NUM;
-	} else if (!strlcmp(file->f_path.dentry->d_iname,
+	} else if (!strncmp(file->f_path.dentry->d_iname,
 			    AVB_CLASS_B_POLL_DEV_NODE,
 			    strlen(AVB_CLASS_B_POLL_DEV_NODE))) {
 		ETHQOSERR("pps open file name =%s\n",

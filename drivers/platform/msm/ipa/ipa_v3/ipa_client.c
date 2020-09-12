@@ -439,7 +439,7 @@ int ipa3_smmu_map_peer_buff(u64 iova, u32 size, bool map, struct sg_table *sgt,
 			for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 				len = PAGE_ALIGN(sg->offset + sg->length);
 				res = iommu_unmap(smmu_domain, va,
-						roundup(len, PAGE_SIZE));
+					roundup(len,  PAGE_SIZE));
 				if (res !=
 					roundup(len, PAGE_SIZE)) {
 					IPAERR("Fail to unmap iova=%llx\n",
