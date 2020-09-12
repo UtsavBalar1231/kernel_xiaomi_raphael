@@ -1,5 +1,4 @@
-/*
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,10 +12,11 @@
 
 /dts-v1/;
 
-#include "qcm6125.dtsi"
+#include "trinketp-iot.dtsi"
+#include "trinketp-iot-idp.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. QCM6125 IOT IDP SoC";
-	compatible = "qcom,qcm6125";
-	qcom,board-id = <0 0>;
+	model = "Qualcomm Technologies,Inc. TRINKETIOT USBC Ext AudioCodec IDP";
+	compatible = "qcom,trinketp-iot-idp", "qcom,trinketp-iot", "qcom,idp";
+	qcom,board-id = <34 3>;
 };

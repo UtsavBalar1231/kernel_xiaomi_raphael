@@ -11,11 +11,16 @@
  * GNU General Public License for more details.
  */
 
-#include "trinket.dtsi"
+/dts-v1/;
+/plugin/;
+
+#include "trinket-iot-idp.dtsi"
+#include "trinket-audio-overlay.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. QCS6125";
-	compatible = "qcom,qcs6125";
-	qcom,msm-id = <468 0x0>;
-	qcom,msm-name = "QCS6125";
+	model = "Qualcomm Technologies, Inc. TRINKET IOT IDP Overlay";
+	compatible = "qcom,trinket-iot";
+	qcom,msm-id = <467 0x10000>;
+	qcom,board-id = <34 0>;
 };
+

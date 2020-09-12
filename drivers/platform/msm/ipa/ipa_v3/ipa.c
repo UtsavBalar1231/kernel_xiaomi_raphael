@@ -6466,6 +6466,12 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 	ipa3_ctx->secure_debug_check_action =
 	    resource_p->secure_debug_check_action;
 	ipa3_ctx->ipa_mhi_proxy = resource_p->ipa_mhi_proxy;
+	ipa3_ctx->ipa_in_cpe_cfg = resource_p->ipa_in_cpe_cfg;
+	ipa3_ctx->ipa_wdi3_2g_holb_timeout =
+		resource_p->ipa_wdi3_2g_holb_timeout;
+	ipa3_ctx->ipa_wdi3_5g_holb_timeout =
+		resource_p->ipa_wdi3_5g_holb_timeout;
+
 
 	if (ipa3_ctx->secure_debug_check_action == USE_SCM) {
 		if (ipa_is_mem_dump_allowed())
@@ -7104,6 +7110,8 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	u32 mhi_evid_limits[2];
 
 	/* initialize ipa3_res */
+	ipa_drv_res->ipa_wdi3_2g_holb_timeout = 0;
+	ipa_drv_res->ipa_wdi3_5g_holb_timeout = 0;
 	ipa_drv_res->ipa_pipe_mem_start_ofst = IPA_PIPE_MEM_START_OFST;
 	ipa_drv_res->ipa_pipe_mem_size = IPA_PIPE_MEM_SIZE;
 	ipa_drv_res->ipa_hw_type = 0;
@@ -7128,6 +7136,7 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	ipa_drv_res->mhi_evid_limits[1] = IPA_MHI_GSI_EVENT_RING_ID_END;
 	ipa_drv_res->ipa_fltrt_not_hashable = false;
 	ipa_drv_res->ipa_endp_delay_wa = false;
+	ipa_drv_res->ipa_in_cpe_cfg = false;
 
 	/* Get IPA HW Version */
 	result = of_property_read_u32(pdev->dev.of_node, "qcom,ipa-hw-ver",
@@ -7440,6 +7449,28 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 		kfree(ipa_tz_unlock_reg);
 	}
 
+	/* get HOLB_TO numbers for wdi3 tx pipe */
+	result = of_property_read_u32(pdev->dev.of_node,
+			"qcom,ipa-wdi3-holb-2g",
+			&ipa_drv_res->ipa_wdi3_2g_holb_timeout);
+	if (result)
+		IPADBG("Not able to get the holb for 2g pipe = %u\n",
+			ipa_drv_res->ipa_wdi3_2g_holb_timeout);
+	else
+		IPADBG(": found ipa_drv_res->ipa_wdi3_2g_holb_timeout = %u",
+			ipa_drv_res->ipa_wdi3_2g_holb_timeout);
+
+	/* get HOLB_TO numbers for wdi3 tx1 pipe */
+	result = of_property_read_u32(pdev->dev.of_node,
+			"qcom,ipa-wdi3-holb-5g",
+			&ipa_drv_res->ipa_wdi3_5g_holb_timeout);
+	if (result)
+		IPADBG("Not able to get the holb for 5g pipe = %u\n",
+			ipa_drv_res->ipa_wdi3_5g_holb_timeout);
+	else
+		IPADBG(": found ipa_drv_res->ipa_wdi3_5g_holb_timeout = %u",
+			ipa_drv_res->ipa_wdi3_5g_holb_timeout);
+
 	/* get IPA PM related information */
 	result = get_ipa_dts_pm_info(pdev, ipa_drv_res);
 	if (result) {
@@ -7529,6 +7560,12 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 
 	IPADBG(": secure-debug-check-action = %d\n",
 		   ipa_drv_res->secure_debug_check_action);
+
+	ipa_drv_res->ipa_in_cpe_cfg =
+		of_property_read_bool(pdev->dev.of_node,
+				"qcom,use-ipa-in-cpe-config");
+	IPADBG(": qcom,use-ipa-in-cpe-config = %s\n",
+		ipa_drv_res->ipa_in_cpe_cfg ? "True":"False");
 
 	return 0;
 }

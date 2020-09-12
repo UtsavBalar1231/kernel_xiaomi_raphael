@@ -12,11 +12,12 @@
 
 /dts-v1/;
 
-#include "qcs6125.dtsi"
-#include "qcs6125-iot-idp.dtsi"
+#include "trinketp-iot.dtsi"
+#include "trinketp-iot-idp.dtsi"
+#include "trinketp-iot-usbc-idp.dtsi"
 
 / {
-	model = "Qualcomm Technologies,Inc. QCS6125IOT USBC Ext AudioCodec IDP";
-	compatible = "qcom,qcs6125-idp", "qcom,qcs6125", "qcom,idp";
-	qcom,board-id = <34 3>;
+	model = "Qualcomm Technologies, Inc. TRINKET IOT USBC Audio IDP";
+	compatible = "qcom,trinketp-iot-idp", "qcom,trinketp-iot", "qcom,idp";
+	qcom,board-id = <34 2>;
 };

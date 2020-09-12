@@ -14,38 +14,19 @@
 /plugin/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/clock/qcom,gcc-trinket.h>
-#include "qcm6125-iot-idp.dtsi"
-#include "trinket-audio-overlay.dtsi"
+#include <dt-bindings/clock/qcom,camcc-sm6150.h>
+
+#include "prairie-iot-idp.dtsi"
+#include "sm6150-ext-codec-audio-overlay.dtsi"
+#include "sm6150-external-codec.dtsi"
 
 / {
-	model = "Display Port Enable IDP";
-	compatible = "qcom,qcm6125-idp", "qcom,qcm6125", "qcom,idp";
-	qcom,msm-id = <467 0x10000>;
-	qcom,board-id = <34 4>;
+	model = "External Audio Codec IDP overlay";
+	compatible = "qcom,qcs610-idp", "qcom,qcs610", "qcom,idp";
+	qcom,msm-id = <401 0x0>;
+	qcom,board-id = <34 1>;
 };
 
-&dsi_td4330_truly_cmd_display {
+&dsi_hx83112a_truly_vid_display {
 	qcom,dsi-display-active;
-};
-
-&sde_dp {
-	status = "ok";
-	qcom,dp-hpd-gpio = <&tlmm 100 0>;
-	qcom,dp-low-power-hw-hpd;
-};
-
-&mdss_dp_pll {
-	status = "ok";
-};
-
-&usb0 {
-	dwc3@4e00000 {
-		usb-phy = <&qusb_phy0>, <&usb_nop_phy>;
-		maximum-speed = "high-speed";
-	};
-};
-
-&mdss_mdp {
-	connectors = <&sde_wb &sde_dsi &sde_dp>;
 };

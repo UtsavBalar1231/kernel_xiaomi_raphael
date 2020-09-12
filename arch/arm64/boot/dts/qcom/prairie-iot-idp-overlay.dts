@@ -14,16 +14,18 @@
 /plugin/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/qcom,camcc-sm6150.h>
 
-#include "qcm6125-iot-idp.dtsi"
+#include "prairie-iot-idp.dtsi"
+#include "sm6150-audio-overlay.dtsi"
 
 / {
-	model = "USB-C Ext Audio Codec IDP";
-	compatible = "qcom,qcm6125-idp", "qcom,qcm6125", "qcom,idp";
-	qcom,msm-id = <467 0x10000>;
-	qcom,board-id = <34 3>;
+	model = "Internal Audio Codec IDP overlay";
+	compatible = "qcom,qcs610-idp", "qcom,qcs610", "qcom,idp";
+	qcom,msm-id = <401 0x0>;
+	qcom,board-id = <34 0>;
 };
 
-&dsi_td4330_truly_cmd_display {
+&dsi_hx83112a_truly_vid_display {
 	qcom,dsi-display-active;
 };
