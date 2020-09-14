@@ -40,6 +40,7 @@ make ARCH=arm64 \
 	LD="ld.lld" \
 	AR="llvm-ar" \
 	NM="llvm-nm" \
+	LLVM_IAS=1 \
 	OBJCOPY="llvm-objcopy" \
 	OBJDUMP="llvm-objdump" \
 	STRIP="llvm-strip" \
