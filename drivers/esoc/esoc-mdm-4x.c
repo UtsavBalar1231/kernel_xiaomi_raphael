@@ -563,6 +563,7 @@ static irqreturn_t mdm_status_change(int irq, void *dev_id)
 		cancel_delayed_work(&mdm->mdm2ap_status_check_work);
 		dev_dbg(dev, "status = 1: mdm is now ready\n");
 		mdm->ready = true;
+		esoc_clink_evt_notify(ESOC_BOOT_STATE, esoc);
 		mdm_trigger_dbg(mdm);
 		queue_work(mdm->mdm_queue, &mdm->mdm_status_work);
 		if (mdm->get_restart_reason)
@@ -1119,7 +1120,7 @@ static struct mdm_ops sdxprairie_ops = {
 static struct mdm_ops marmot_ops = {
 	.clink_ops = &mdm_cops,
 	.config_hw = marmot_setup_hw,
-	.pon_ops = &sdx50m_pon_ops,
+	.pon_ops = &sdxmarmot_pon_ops,
 };
 
 static const struct of_device_id mdm_dt_match[] = {

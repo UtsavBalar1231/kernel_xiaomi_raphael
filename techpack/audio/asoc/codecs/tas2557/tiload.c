@@ -39,7 +39,6 @@
 #include "tiload.h"
 
 /* enable debug prints in the driver */
-#define DEBUG
 
 static struct cdev *tiload_cdev;
 static int tiload_major; /* Dynamic allocation of Mjr No. */

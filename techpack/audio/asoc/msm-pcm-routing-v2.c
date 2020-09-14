@@ -39,11 +39,11 @@
 #include <dsp/q6core.h>
 #include <dsp/q6common.h>
 #include <dsp/audio_cal_utils.h>
-#ifdef CONFIG_ELLIPTIC_ULTRASOUND
+#if CONFIG_ELLIPTIC_ULTRASOUND
 #include <dsp/apr_elliptic.h>
 #include <elliptic/elliptic_mixer_controls.h>
 #endif
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 #include <dsp/apr_mius.h>
 #include <mius/mius_mixer_controls.h>
 #endif
@@ -57,7 +57,7 @@
 #include "codecs/tfa98xx/inc/tfa_platform_interface_definition.h"
 #endif
 
-#ifdef CONFIG_MSM_CSPL
+#if CONFIG_MSM_CSPL
 #include <dsp/msm-cirrus-playback.h>
 #endif
 
@@ -23921,7 +23921,7 @@ static const struct snd_pcm_ops msm_routing_pcm_ops = {
 	.prepare        = msm_pcm_routing_prepare,
 };
 
-#ifdef CONFIG_MSM_CSPL
+#if 0
 	extern void msm_crus_pb_add_controls(struct snd_soc_platform *platform);
 #endif
 
@@ -23988,7 +23988,7 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 		msm_routing_be_dai_name_table_mixer_controls,
 		ARRAY_SIZE(msm_routing_be_dai_name_table_mixer_controls));
 
-#ifdef CONFIG_MSM_CSPL
+#if 0
 	msm_crus_pb_add_controls(platform);
 #endif
 
@@ -24007,10 +24007,10 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 	snd_soc_add_platform_controls(platform,
 			port_multi_channel_map_mixer_controls,
 			ARRAY_SIZE(port_multi_channel_map_mixer_controls));
-#ifdef CONFIG_ELLIPTIC_ULTRASOUND
+#if CONFIG_ELLIPTIC_ULTRASOUND
 	elliptic_add_platform_controls(platform);
 #endif
-#ifdef CONFIG_US_PROXIMITY
+#if CONFIG_US_PROXIMITY
 	mius_add_platform_controls(platform);
 #endif
 	return 0;
