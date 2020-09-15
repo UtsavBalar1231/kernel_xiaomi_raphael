@@ -152,9 +152,8 @@ static unsigned int __init parse_logical_bootcpu(u64 dt_phys)
 		 * If the cpu node reg value matches the currently active
 		 * processor(boot cpu), we bail out from the loop.
 		 */
-		if (hwid == mpidr) {
+		if (hwid == mpidr)
 			return logical_cpu_id;
-		}
 
 		logical_cpu_id++;
 
