@@ -30,7 +30,7 @@
 #include <linux/wait.h>
 #include <soc/qcom/subsystem_restart.h>
 #include <soc/qcom/subsystem_notif.h>
-
+#include "bgrsb_rpmsg.h"
 struct event {
 	uint8_t sub_id;
 	int16_t evnt_data;
@@ -51,8 +51,6 @@ struct event {
 #define	BGRSB_POWER_ENABLE	1
 #define	BGRSB_POWER_CALIBRATION	2
 #define	BGRSB_BTTN_CONFIGURE	5
-#define	BGRSB_GLINK_POWER_ENABLE	6
-#define	BGRSB_GLINK_POWER_DISABLE	7
 #define	BGRSB_IN_TWM	8
 #define	BGRSB_OUT_TWM	9
 
@@ -85,4 +83,5 @@ struct bgrsb_msg {
 
 void bgrsb_send_input(struct event *evnt);
 void bgrsb_notify_glink_channel_state(bool state);
+void bgrsb_rx_msg(void *data, int len);
 #endif /* BGCOM_H */

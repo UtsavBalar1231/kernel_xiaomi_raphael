@@ -2283,7 +2283,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 		flags = BLK_MQ_REQ_NOWAIT;
 	if (bio_flagged(bio, BIO_QUEUE_ENTERED))
 		blk_queue_enter_live(q);
-	else if (blk_queue_enter(q, flags) < 0) {
+	else if (blk_queue_enter(q, bio->bi_opf) < 0) {
 		if (!blk_queue_dying(q) && (bio->bi_opf & REQ_NOWAIT))
 			bio_wouldblock_error(bio);
 		else
@@ -2336,7 +2336,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 			flags = 0;
 			if (bio->bi_opf)
 				flags = BLK_MQ_REQ_NOWAIT;
-			if (blk_queue_enter(q, flags) < 0)
+			if (blk_queue_enter(q, bio->bi_opf) < 0)
 				enter_succeeded = false;
 		}
 
