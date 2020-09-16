@@ -23,6 +23,9 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/rtnetlink.h>
+#include <linux/if_vlan.h>
+#include <linux/msm_eth.h>
+
 #include "stmmac.h"
 #include "stmmac_platform.h"
 #include "dwmac-qcom-ethqos.h"
@@ -60,6 +63,7 @@ struct qcom_ethqos *pethqos;
 struct stmmac_emb_smmu_cb_ctx stmmac_emb_smmu_ctx = {0};
 static unsigned char dev_addr[ETH_ALEN] = {
 	0, 0x55, 0x7b, 0xb5, 0x7d, 0xf7};
+static unsigned char config_dev_addr[ETH_ALEN] = {0};
 
 void *ipc_stmmac_log_ctxt;
 void *ipc_stmmac_log_ctxt_low;
@@ -110,13 +114,28 @@ u16 dwmac_qcom_select_queue(
 	select_queue_fallback_t fallback)
 {
 	u16 txqueue_select = ALL_OTHER_TRAFFIC_TX_CHANNEL;
-	unsigned int eth_type, priority;
+	unsigned int eth_type, priority, vlan_id;
 	bool ipa_enabled = pethqos->ipa_enabled;
 
 	/* Retrieve ETH type */
 	eth_type = dwmac_qcom_get_eth_type(skb->data);
 
-	if (eth_type == ETH_P_TSN) {
+	if (pethqos->cv2x_mode == CV2X_MODE_AP) {
+		if (skb_vlan_tag_present(skb)) {
+			vlan_id = skb_vlan_tag_get_id(skb);
+			if (vlan_id == pethqos->cv2x_vlan.vlan_id)
+				txqueue_select = CV2X_TAG_TX_CHANNEL;
+			else if (vlan_id == pethqos->qoe_vlan.vlan_id)
+				txqueue_select = QMI_TAG_TX_CHANNEL;
+			else
+				txqueue_select =
+				ALL_OTHER_TX_TRAFFIC_IPA_DISABLED;
+		} else {
+			txqueue_select = ALL_OTHER_TX_TRAFFIC_IPA_DISABLED;
+		}
+	} else if (pethqos->cv2x_mode == CV2X_MODE_MDM) {
+		txqueue_select = ALL_OTHER_TRAFFIC_TX_CHANNEL;
+	} else if (eth_type == ETH_P_TSN) {
 		/* Read VLAN priority field from skb->data */
 		priority = dwmac_qcom_get_vlan_ucp(skb->data);
 
@@ -140,7 +159,9 @@ u16 dwmac_qcom_select_queue(
 			txqueue_select = ALL_OTHER_TX_TRAFFIC_IPA_DISABLED;
 	}
 
-	if (ipa_enabled && txqueue_select == IPA_DMA_TX_CH) {
+	/* use better macro, cannot afford function call here */
+	if (ipa_enabled && (txqueue_select == IPA_DMA_TX_CH_BE ||
+			    txqueue_select == IPA_DMA_TX_CH_CV2X)) {
 		ETHQOSERR("TX Channel [%d] is not a valid for SW path\n",
 			  txqueue_select);
 		WARN_ON(1);
@@ -398,8 +419,10 @@ static int qcom_ethqos_add_ipv6addr(struct ip_params *ip_info,
 	struct net *net = dev_net(dev);
 	/*For valid IPv6 address*/
 
-	if (!net || !net->genl_sock || !net->genl_sock->sk_socket)
+	if (!net || !net->genl_sock || !net->genl_sock->sk_socket) {
 		ETHQOSERR("Sock is null, unable to assign ipv6 address\n");
+		return -EFAULT;
+	}
 
 	if (!net->ipv6.devconf_dflt) {
 		ETHQOSERR("ipv6.devconf_dflt is null, schedule wq\n");
@@ -534,7 +557,7 @@ static int qcom_ethqos_qmp_mailbox_init(struct qcom_ethqos *ethqos)
 	ethqos->qmp_mbox_client = devm_kzalloc(
 	&ethqos->pdev->dev, sizeof(*ethqos->qmp_mbox_client), GFP_KERNEL);
 
-	if (IS_ERR(ethqos->qmp_mbox_client)) {
+	if (!ethqos->qmp_mbox_client || IS_ERR(ethqos->qmp_mbox_client)) {
 		ETHQOSERR("qmp alloc client failed\n");
 		return -EINVAL;
 	}
@@ -1018,8 +1041,8 @@ static void ethqos_handle_phy_interrupt(struct qcom_ethqos *ethqos)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int micrel_intr_status = 0;
 
-	if ((dev->phydev->phy_id & dev->phydev->drv->phy_id_mask)
-		== MICREL_PHY_ID) {
+	if (dev->phydev && ((dev->phydev->phy_id &
+	    dev->phydev->drv->phy_id_mask) == MICREL_PHY_ID)) {
 		phy_intr_status = ethqos_mdio_read(
 			priv, priv->plat->phy_addr, DWC_ETH_QOS_BASIC_STATUS);
 		ETHQOSDBG(
@@ -1134,15 +1157,23 @@ static ssize_t read_phy_reg_dump(struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos)
 {
 	struct qcom_ethqos *ethqos = file->private_data;
+	struct platform_device *pdev;
+	struct net_device *dev;
+	struct stmmac_priv *priv;
 	unsigned int len = 0, buf_len = 2000;
 	char *buf;
 	ssize_t ret_cnt;
 	int phydata = 0;
 	int i = 0;
 
-	struct platform_device *pdev = ethqos->pdev;
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(dev);
+	if (!ethqos) {
+		ETHQOSERR("NULL Pointer\n");
+		return -EINVAL;
+	}
+
+	pdev = ethqos->pdev;
+	dev = platform_get_drvdata(pdev);
+	priv = netdev_priv(dev);
 
 	if (!ethqos || !dev->phydev) {
 		ETHQOSERR("NULL Pointer\n");
@@ -1182,13 +1213,20 @@ static ssize_t read_rgmii_reg_dump(struct file *file,
 				   loff_t *ppos)
 {
 	struct qcom_ethqos *ethqos = file->private_data;
+	struct platform_device *pdev;
+	struct net_device *dev;
 	unsigned int len = 0, buf_len = 2000;
 	char *buf;
 	ssize_t ret_cnt;
 	int rgmii_data = 0;
-	struct platform_device *pdev = ethqos->pdev;
 
-	struct net_device *dev = platform_get_drvdata(pdev);
+	if (!ethqos) {
+		ETHQOSERR("NULL Pointer\n");
+		return -EINVAL;
+	}
+
+	pdev = ethqos->pdev;
+	dev = platform_get_drvdata(pdev);
 
 	if (!ethqos || !dev->phydev) {
 		ETHQOSERR("NULL Pointer\n");
@@ -1525,15 +1563,11 @@ static void setup_config_registers(struct qcom_ethqos *ethqos,
 	if (mode > DISABLE_LOOPBACK && !qcom_ethqos_is_phy_link_up(ethqos)) {
 		/*If Link is Down & need to enable Loopback*/
 		ETHQOSDBG("Link is down . manual ipa setting up\n");
-		if (priv->tx_queue[IPA_DMA_TX_CH].skip_sw)
-			ethqos_ipa_offload_event_handler(priv,
-							 EV_PHY_LINK_UP);
+		ethqos_ipa_offload_event_handler(priv, EV_PHY_LINK_UP);
 	} else if (mode == DISABLE_LOOPBACK &&
 			  !qcom_ethqos_is_phy_link_up(ethqos)) {
 		ETHQOSDBG("Disable request since link was down disable ipa\n");
-		if (priv->tx_queue[IPA_DMA_TX_CH].skip_sw)
-			ethqos_ipa_offload_event_handler(priv,
-							 EV_PHY_LINK_DOWN);
+		ethqos_ipa_offload_event_handler(priv, EV_PHY_LINK_DOWN);
 	}
 
 	if (priv->dev->phydev->speed != SPEED_UNKNOWN)
@@ -2311,7 +2345,8 @@ static void ethqos_set_early_eth_param(
 		priv->plat->mdio_bus_data->phy_mask =
 		 priv->plat->mdio_bus_data->phy_mask | DUPLEX_FULL | SPEED_100;
 
-	priv->plat->max_speed = SPEED_100;
+	if (priv->plat)
+		priv->plat->max_speed = SPEED_100;
 
 	if (pparams.is_valid_ipv4_addr) {
 		INIT_DELAYED_WORK(&ethqos->ipv4_addr_assign_wq,
@@ -2341,6 +2376,333 @@ bool qcom_ethqos_ipa_enabled(void)
 	return false;
 }
 
+static ssize_t ethqos_read_dev_emac(struct file *filp, char __user *buf,
+				    size_t count, loff_t *f_pos)
+{
+	struct eth_msg_meta msg;
+	u8 status = 0;
+
+	memset(&msg, 0,  sizeof(struct eth_msg_meta));
+
+	if (pethqos && pethqos->ipa_enabled)
+		ethqos_ipa_offload_event_handler(
+			&status, EV_QTI_GET_CONN_STATUS);
+
+	msg.msg_type = status;
+
+	ETHQOSDBG("status %02x\n", status);
+	ETHQOSDBG("msg.msg_type %02x\n", msg.msg_type);
+	ETHQOSDBG("msg.rsvd %02x\n", msg.rsvd);
+	ETHQOSDBG("msg.msg_len %d\n", msg.msg_len);
+
+	return copy_to_user(buf, &msg, sizeof(struct eth_msg_meta));
+}
+
+static ssize_t ethqos_write_dev_emac(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	unsigned char in_buf[300] = {0};
+	unsigned long ret;
+	struct qcom_ethqos *ethqos = pethqos;
+	struct stmmac_priv *priv = qcom_ethqos_get_priv(pethqos);
+	struct vlan_filter_info vlan_filter_info;
+	char mac_str[30] = {0};
+	char vlan_str[30] = {0};
+	char *prefix = NULL;
+	u32 err;
+	unsigned int number;
+
+	if (sizeof(in_buf) < count) {
+		ETHQOSERR("emac string is too long - count=%u\n", count);
+		return -EFAULT;
+	}
+
+	memset(in_buf, 0,  sizeof(in_buf));
+	ret = copy_from_user(in_buf, user_buf, count);
+
+	if (ret)
+		return -EFAULT;
+
+	strlcpy(vlan_str, in_buf, sizeof(vlan_str));
+
+	ETHQOSINFO("emac string is %s\n", vlan_str);
+
+	if (strnstr(vlan_str, "QOE", sizeof(vlan_str))) {
+		ethqos->qoe_vlan.available = true;
+		vlan_filter_info.vlan_id = ethqos->qoe_vlan.vlan_id;
+		vlan_filter_info.rx_queue = ethqos->qoe_vlan.rx_queue;
+		vlan_filter_info.vlan_offset = ethqos->qoe_vlan.vlan_offset;
+		priv->hw->mac->set_vlan(&vlan_filter_info, priv->ioaddr);
+	}
+
+	if (strnstr(vlan_str, "qvlanid=", sizeof(vlan_str))) {
+		prefix = strnchr(vlan_str,
+				 strlen(vlan_str), '=');
+		ETHQOSINFO("vlanid data written is %s\n", prefix + 1);
+		if (prefix) {
+			err = kstrtouint(prefix + 1, 0, &number);
+			if (!err)
+				ethqos->qoe_vlan.vlan_id = number;
+		}
+	}
+
+	if (strnstr(vlan_str, "Cv2X", strlen(vlan_str))) {
+		ETHQOSDBG("Cv2X supported mode is %u\n", ethqos->cv2x_mode);
+		ethqos->cv2x_vlan.available = true;
+		vlan_filter_info.vlan_id = ethqos->cv2x_vlan.vlan_id;
+		vlan_filter_info.rx_queue = ethqos->cv2x_vlan.rx_queue;
+		vlan_filter_info.vlan_offset = ethqos->cv2x_vlan.vlan_offset;
+		priv->hw->mac->set_vlan(&vlan_filter_info, priv->ioaddr);
+	}
+
+	if (strnstr(vlan_str, "cvlanid=", strlen(vlan_str))) {
+		prefix = strnchr(vlan_str, strlen(vlan_str), '=');
+		ETHQOSDBG("Cv2X vlanid data written is %s\n", prefix + 1);
+		if (prefix) {
+			err = kstrtouint(prefix + 1, 0, &number);
+			if (!err)
+				ethqos->cv2x_vlan.vlan_id = number;
+		}
+	}
+
+	if (strnstr(in_buf, "cmac_id=", strlen(in_buf))) {
+		prefix = strnchr(in_buf, strlen(in_buf), '=');
+		if (prefix) {
+			memcpy(mac_str, (char *)prefix + 1, 30);
+
+			if (!mac_pton(mac_str, config_dev_addr)) {
+				ETHQOSERR("Invalid mac addr in /dev/emac\n");
+				return count;
+			}
+
+			if (!is_valid_ether_addr(config_dev_addr)) {
+				ETHQOSERR("Invalid/Multcast mac addr found\n");
+				return count;
+			}
+
+			ether_addr_copy(dev_addr, config_dev_addr);
+			memcpy(ethqos->cv2x_dev_addr, dev_addr, ETH_ALEN);
+		}
+	}
+
+	return count;
+}
+
+static void ethqos_get_qoe_dt(struct qcom_ethqos *ethqos,
+			      struct device_node *np)
+{
+	int res;
+
+	res = of_property_read_u32(np, "qcom,qoe_mode", &ethqos->qoe_mode);
+	if (res) {
+		ETHQOSDBG("qoe_mode not in dtsi\n");
+		ethqos->qoe_mode = 0;
+	}
+
+	if (ethqos->qoe_mode) {
+		res = of_property_read_u32(np, "qcom,qoe-queue",
+					   &ethqos->qoe_vlan.rx_queue);
+		if (res) {
+			ETHQOSERR("qoe-queue not in dtsi for qoe_mode %u\n",
+				  ethqos->qoe_mode);
+			ethqos->qoe_vlan.rx_queue = QMI_TAG_TX_CHANNEL;
+		}
+
+		res = of_property_read_u32(np, "qcom,qoe-vlan-offset",
+					   &ethqos->qoe_vlan.vlan_offset);
+		if (res) {
+			ETHQOSERR("qoe-vlan-offset not in dtsi\n");
+			ethqos->qoe_vlan.vlan_offset = 0;
+		}
+	}
+}
+
+static DECLARE_WAIT_QUEUE_HEAD(dev_emac_wait);
+#ifdef CONFIG_ETH_IPA_OFFLOAD
+void ethqos_wakeup_dev_emac_queue(void)
+{
+	ETHQOSDBG("\n");
+	wake_up_interruptible(&dev_emac_wait);
+}
+#endif
+
+static unsigned int ethqos_poll_dev_emac(struct file *file, poll_table *wait)
+{
+	int mask = 0;
+	int update = 0;
+
+	ETHQOSDBG("\n");
+
+	poll_wait(file, &dev_emac_wait, wait);
+
+	if (pethqos && pethqos->ipa_enabled && pethqos->cv2x_mode)
+		ethqos_ipa_offload_event_handler(
+			&update, EV_QTI_CHECK_CONN_UPDATE);
+
+	if (update)
+		mask = POLLIN | POLLRDNORM;
+
+	ETHQOSDBG("mask %d\n", mask);
+
+	return mask;
+}
+
+static const struct file_operations emac_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = ethqos_read_dev_emac,
+	.write = ethqos_write_dev_emac,
+	.poll = ethqos_poll_dev_emac,
+};
+
+static int ethqos_create_emac_device_node(dev_t *emac_dev_t,
+					  struct cdev **emac_cdev,
+					  struct class **emac_class,
+					  char *emac_dev_node_name)
+{
+	int ret;
+
+	ret = alloc_chrdev_region(emac_dev_t, 0, 1,
+				  emac_dev_node_name);
+	if (ret) {
+		ETHQOSERR("alloc_chrdev_region error for node %s\n",
+			  emac_dev_node_name);
+		goto alloc_chrdev1_region_fail;
+	}
+
+	*emac_cdev = cdev_alloc();
+	if (!*emac_cdev) {
+		ret = -ENOMEM;
+		ETHQOSERR("failed to alloc cdev\n");
+		goto fail_alloc_cdev;
+	}
+	cdev_init(*emac_cdev, &emac_fops);
+
+	ret = cdev_add(*emac_cdev, *emac_dev_t, 1);
+	if (ret < 0) {
+		ETHQOSERR(":cdev_add err=%d\n", -ret);
+		goto cdev1_add_fail;
+	}
+
+	*emac_class = class_create(THIS_MODULE, emac_dev_node_name);
+	if (!*emac_class) {
+		ret = -ENODEV;
+		ETHQOSERR("failed to create class\n");
+		goto fail_create_class;
+	}
+
+	if (!device_create(*emac_class, NULL,
+			   *emac_dev_t, NULL, emac_dev_node_name)) {
+		ret = -EINVAL;
+		ETHQOSERR("failed to create device_create\n");
+		goto fail_create_device;
+	}
+
+	return 0;
+
+fail_create_device:
+	class_destroy(*emac_class);
+fail_create_class:
+	cdev_del(*emac_cdev);
+cdev1_add_fail:
+fail_alloc_cdev:
+	unregister_chrdev_region(*emac_dev_t, 1);
+alloc_chrdev1_region_fail:
+		return ret;
+}
+
+static void ethqos_get_cv2x_dt(struct qcom_ethqos *ethqos,
+			       struct device_node *np)
+{
+	int res;
+
+	res = of_property_read_u32(np, "qcom,cv2x_mode", &ethqos->cv2x_mode);
+	if (res) {
+		ETHQOSDBG("cv2x_mode not in dtsi\n");
+		ethqos->cv2x_mode = CV2X_MODE_DISABLE;
+	}
+
+	if (ethqos->cv2x_mode != CV2X_MODE_DISABLE) {
+		res = of_property_read_u32(np, "qcom,cv2x-queue",
+					   &ethqos->cv2x_vlan.rx_queue);
+		if (res) {
+			ETHQOSERR("cv2x-queue not in dtsi for cv2x_mode %u\n",
+				  ethqos->cv2x_mode);
+			ethqos->cv2x_vlan.rx_queue = CV2X_TAG_TX_CHANNEL;
+		}
+
+		res = of_property_read_u32(np, "qcom,cv2x-vlan-offset",
+					   &ethqos->cv2x_vlan.vlan_offset);
+		if (res) {
+			ETHQOSERR("cv2x-vlan-offset not in dtsi\n");
+			ethqos->cv2x_vlan.vlan_offset = 1;
+		}
+	}
+}
+
+inline u32 qcom_ethqos_rgmii_io_macro_num_of_regs(u32 emac_hw_version)
+{
+	switch (emac_hw_version) {
+	case EMAC_HW_v2_0_0:
+		return 27;
+	case EMAC_HW_v2_1_0:
+		return 27;
+	case EMAC_HW_v2_1_1:
+		return 27;
+	case EMAC_HW_v2_1_2:
+		return 27;
+	case EMAC_HW_v2_2_0:
+		return 27;
+	case EMAC_HW_v2_3_0:
+		return 28;
+	case EMAC_HW_v2_3_1:
+		return 27;
+	case EMAC_HW_v2_3_2:
+		return 29;
+	case EMAC_HW_NONE:
+	default:
+		return 0;
+	}
+}
+
+static int qcom_ethos_panic_notifier(struct notifier_block *this,
+				     unsigned long event, void *ptr)
+{
+	u32 size_iomacro_regs;
+
+	if (pethqos) {
+		size_iomacro_regs =
+		qcom_ethqos_rgmii_io_macro_num_of_regs(pethqos->emac_ver) * 4;
+		ETHQOSINFO("pethqos 0x%p", pethqos);
+
+		pethqos->iommu_domain = stmmac_emb_smmu_ctx.iommu_domain;
+		ETHQOSINFO("emac iommu domain 0x%p", pethqos->iommu_domain);
+
+		pethqos->emac_reg_base_address =
+		kzalloc(pethqos->emac_mem_size, GFP_KERNEL);
+		ETHQOSINFO("emac register mem 0x%p", pethqos->emac_mem_base);
+		if (pethqos->emac_mem_base)
+			memcpy_fromio(pethqos->emac_reg_base_address,
+				      pethqos->ioaddr,
+				      pethqos->emac_mem_size);
+
+		pethqos->rgmii_reg_base_address =
+		kzalloc(size_iomacro_regs, GFP_KERNEL);
+		ETHQOSINFO
+		("rgmii register mem 0x%p", pethqos->rgmii_reg_base_address);
+		if (pethqos->rgmii_reg_base_address)
+			memcpy_fromio(pethqos->rgmii_reg_base_address,
+				      pethqos->rgmii_base,
+				      size_iomacro_regs);
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block qcom_ethqos_panic_blk = {
+	.notifier_call  = qcom_ethos_panic_notifier,
+};
+
 static int qcom_ethqos_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -2351,7 +2713,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct net_device *ndev;
 	struct stmmac_priv *priv;
-	int ret;
+	int ret, i;
 
 	if (of_device_is_compatible(pdev->dev.of_node,
 				    "qcom,emac-smmu-embedded"))
@@ -2373,8 +2735,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 
 	ethqos = devm_kzalloc(&pdev->dev, sizeof(*ethqos), GFP_KERNEL);
 	if (!ethqos) {
-		ret = -ENOMEM;
-		goto err_mem;
+		return -ENOMEM;
 	}
 
 	ethqos->pdev = pdev;
@@ -2382,10 +2743,22 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	ethqos_init_reqgulators(ethqos);
 	ethqos_init_gpio(ethqos);
 
+	ethqos_get_qoe_dt(ethqos, np);
+	ethqos_get_cv2x_dt(ethqos, np);
+
 	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
 	if (IS_ERR(plat_dat)) {
 		dev_err(&pdev->dev, "dt configuration failed\n");
 		return PTR_ERR(plat_dat);
+	}
+
+	if (ethqos->cv2x_mode == CV2X_MODE_MDM ||
+	    ethqos->cv2x_mode == CV2X_MODE_AP) {
+		for (i = 0; i < plat_dat->rx_queues_to_use; i++) {
+			if (plat_dat->rx_queues_cfg[i].pkt_route ==
+			    PACKET_AVCPQ)
+				plat_dat->rx_queues_cfg[i].pkt_route = 0;
+		}
 	}
 
 	if (plat_dat->tx_sched_algorithm == MTL_TX_ALGORITHM_WFQ ||
@@ -2523,6 +2896,8 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &qcom_ethqos_panic_blk);
 	rgmii_dump(ethqos);
 
 	if (ethqos->emac_ver == EMAC_HW_v2_3_2) {
@@ -2566,12 +2941,20 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		/*Set early eth parameters*/
 		ethqos_set_early_eth_param(priv, ethqos);
 	}
+
+	if (ethqos->cv2x_mode)
+		for (i = 0; i < plat_dat->rx_queues_to_use; i++)
+			priv->rx_queue[i].en_fep = true;
+
+	if (ethqos->qoe_mode || ethqos->cv2x_mode) {
+		ethqos_create_emac_device_node(&ethqos->emac_dev_t,
+					       &ethqos->emac_cdev,
+					       &ethqos->emac_class,
+					       "emac");
+	}
+
 #ifdef CONFIG_ETH_IPA_OFFLOAD
-	ethqos->ipa_enabled = true;
-	priv->rx_queue[IPA_DMA_RX_CH].skip_sw = true;
-	priv->tx_queue[IPA_DMA_TX_CH].skip_sw = true;
 	ethqos_ipa_offload_event_handler(ethqos, EV_PROBE_INIT);
-	priv->hw->mac->map_mtl_to_dma(priv->hw, 0, 1); //change
 #endif
 
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER
@@ -2621,11 +3004,15 @@ static int qcom_ethqos_suspend(struct device *dev)
 	struct stmmac_priv *priv;
 	struct plat_stmmacenet_data *plat;
 
-	ETHQOSDBG("Suspend Enter\n");
 	if (of_device_is_compatible(dev->of_node, "qcom,emac-smmu-embedded")) {
 		ETHQOSDBG("smmu return\n");
 		return 0;
 	}
+
+	ETHQOSINFO("Ethernet Suspend Enter\n");
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+	update_marker("M - Ethernet Suspend start");
+#endif
 
 	ethqos = get_stmmac_bsp_priv(dev);
 	if (!ethqos)
@@ -2663,7 +3050,11 @@ static int qcom_ethqos_suspend(struct device *dev)
 		ethqos_phy_power_off(ethqos);
 	}
 
-	ETHQOSDBG(" ret = %d\n", ret);
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+	update_marker("M - Ethernet Suspend End");
+#endif
+	ETHQOSINFO("Ethernet Suspend End ret = %d\n", ret);
+
 	return ret;
 }
 
@@ -2674,9 +3065,13 @@ static int qcom_ethqos_resume(struct device *dev)
 	int ret;
 	struct stmmac_priv *priv;
 
-	ETHQOSDBG("Resume Enter\n");
 	if (of_device_is_compatible(dev->of_node, "qcom,emac-smmu-embedded"))
 		return 0;
+
+	ETHQOSINFO("Ethernet Resume Enter\n");
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+	update_marker("M - Ethernet Resume start");
+#endif
 
 	ethqos = get_stmmac_bsp_priv(dev);
 
@@ -2733,7 +3128,11 @@ static int qcom_ethqos_resume(struct device *dev)
 	}
 	ethqos_ipa_offload_event_handler(NULL, EV_DPM_RESUME);
 
-	ETHQOSDBG("<--Resume Exit\n");
+#ifdef CONFIG_MSM_BOOT_TIME_MARKER
+	update_marker("M - Ethernet Resume End");
+#endif
+	ETHQOSINFO("Ethernet Resume End ret = %d\n", ret);
+
 	return ret;
 }
 
