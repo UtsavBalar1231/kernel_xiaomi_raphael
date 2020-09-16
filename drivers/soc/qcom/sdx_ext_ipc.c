@@ -19,6 +19,9 @@
 #include <linux/interrupt.h>
 #include <soc/qcom/sb_notification.h>
 
+#define STATUS_UP 1
+#define STATUS_DOWN 0
+
 enum subsys_policies {
 	SUBSYS_PANIC = 0,
 	SUBSYS_NOP,
@@ -57,6 +60,25 @@ struct gpio_cntrl {
 	struct notifier_block panic_blk;
 	struct notifier_block sideband_nb;
 };
+
+static ssize_t set_remote_status_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int status;
+
+	if (kstrtoint(buf, 10, &status)) {
+		dev_err(dev, "%s: Failed to read status\n", __func__);
+		return -EINVAL;
+	}
+
+	if (status == STATUS_UP)
+		sb_notifier_call_chain(EVENT_REMOTE_STATUS_UP, NULL);
+	else if (status == STATUS_DOWN)
+		sb_notifier_call_chain(EVENT_REMOTE_STATUS_DOWN, NULL);
+
+	return count;
+}
+static DEVICE_ATTR_WO(set_remote_status);
 
 static ssize_t policy_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
@@ -325,6 +347,12 @@ static int sdx_ext_ipc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(mdm->dev, "cannot create sysfs attribute\n");
 		goto sys_fail1;
+	}
+
+	ret = device_create_file(mdm->dev, &dev_attr_set_remote_status);
+	if (ret) {
+		dev_err(mdm->dev, "cannot create sysfs attribute\n");
+		goto sys_fail;
 	}
 
 	platform_set_drvdata(pdev, mdm);
