@@ -235,6 +235,10 @@ do {\
 #define VOTE_IDX_100MBPS 2
 #define VOTE_IDX_1000MBPS 3
 
+//Mac config
+#define MAC_CONFIGURATION 0x0
+#define MAC_LM BIT(12)
+
 #define TLMM_BASE_ADDRESS (tlmm_central_base_addr)
 
 #define TLMM_RGMII_HDRV_PULL_CTL1_ADDRESS_OFFSET\
@@ -329,9 +333,29 @@ static inline u32 PPSX_MASK(u32 x)
 }
 
 enum IO_MACRO_PHY_MODE {
-		RGMII_MODE,
-		RMII_MODE,
-		MII_MODE
+	RGMII_MODE,
+	RMII_MODE,
+	MII_MODE
+};
+
+enum loopback_mode {
+	DISABLE_LOOPBACK = 0,
+	ENABLE_IO_MACRO_LOOPBACK,
+	ENABLE_MAC_LOOPBACK,
+	ENABLE_PHY_LOOPBACK
+};
+
+enum phy_power_mode {
+	DISABLE_PHY_IMMEDIATELY = 1,
+	ENABLE_PHY_IMMEDIATELY,
+	DISABLE_PHY_AT_SUSPEND_ONLY,
+	DISABLE_PHY_SUSPEND_ENABLE_RESUME,
+	DISABLE_PHY_ON_OFF,
+};
+
+enum current_phy_state {
+	PHY_IS_ON = 0,
+	PHY_IS_OFF,
 };
 
 #define RGMII_IO_BASE_ADDRESS ethqos->rgmii_base
@@ -374,6 +398,19 @@ enum IO_MACRO_PHY_MODE {
 	RGMII_IO_MACRO_CONFIG_RGWR(v);\
 } while (0)
 
+enum CV2X_MODE {
+	CV2X_MODE_DISABLE = 0x0,
+	CV2X_MODE_MDM,
+	CV2X_MODE_AP
+};
+
+struct ethqos_vlan_info {
+	u16 vlan_id;
+	u32 vlan_offset;
+	u32 rx_queue;
+	bool available;
+};
+
 struct ethqos_emac_por {
 	unsigned int offset;
 	unsigned int value;
@@ -382,6 +419,11 @@ struct ethqos_emac_por {
 struct ethqos_emac_driver_data {
 	struct ethqos_emac_por *por;
 	unsigned int num_por;
+};
+
+struct ethqos_io_macro {
+	bool rx_prog_swap;
+	bool rx_dll_bypass;
 };
 
 struct qcom_ethqos {
@@ -425,6 +467,10 @@ struct qcom_ethqos {
 	struct cdev *avb_class_b_cdev;
 	struct class *avb_class_b_class;
 
+	dev_t emac_dev_t;
+	struct cdev *emac_cdev;
+	struct class *emac_class;
+
 	unsigned long avb_class_a_intr_cnt;
 	unsigned long avb_class_b_intr_cnt;
 	struct dentry *debugfs_dir;
@@ -458,6 +504,29 @@ struct qcom_ethqos {
 	bool ipa_enabled;
 	/* Key Performance Indicators */
 	bool print_kpi;
+	unsigned int emac_phy_off_suspend;
+	int loopback_speed;
+	enum loopback_mode current_loopback;
+	enum phy_power_mode current_phy_mode;
+	enum current_phy_state phy_state;
+	/*Backup variable for phy loopback*/
+	int backup_duplex;
+	int backup_speed;
+	u32 bmcr_backup;
+	/*Backup variable for suspend resume*/
+	int backup_suspend_speed;
+	u32 backup_bmcr;
+	unsigned backup_autoneg:1;
+
+	/* IO Macro parameters */
+	struct ethqos_io_macro io_macro;
+
+	/* QMI over ethernet parameter */
+	u32 qoe_mode;
+	struct ethqos_vlan_info qoe_vlan;
+	u32 cv2x_mode;
+	struct ethqos_vlan_info cv2x_vlan;
+	unsigned char cv2x_dev_addr[ETH_ALEN];
 };
 
 struct pps_cfg {
@@ -513,6 +582,9 @@ bool qcom_ethqos_is_phy_link_up(struct qcom_ethqos *ethqos);
 void *qcom_ethqos_get_priv(struct qcom_ethqos *ethqos);
 
 int ppsout_config(struct stmmac_priv *priv, struct pps_cfg *eth_pps_cfg);
+int ethqos_phy_power_on(struct qcom_ethqos *ethqos);
+void  ethqos_phy_power_off(struct qcom_ethqos *ethqos);
+void ethqos_reset_phy_enable_interrupt(struct qcom_ethqos *ethqos);
 
 u16 dwmac_qcom_select_queue(
 	struct net_device *dev,
@@ -528,6 +600,9 @@ u16 dwmac_qcom_select_queue(
 
 #define IPA_DMA_TX_CH 0
 #define IPA_DMA_RX_CH 0
+
+#define CV2X_TAG_TX_CHANNEL 3
+#define QMI_TAG_TX_CHANNEL 2
 
 #define VLAN_TAG_UCP_SHIFT 13
 #define CLASS_A_TRAFFIC_UCP 3
@@ -574,4 +649,6 @@ int dwmac_qcom_program_avb_algorithm(
 	struct stmmac_priv *priv, struct ifr_data_struct *req);
 unsigned int dwmac_qcom_get_plat_tx_coal_frames(
 	struct sk_buff *skb);
+
+unsigned int dwmac_qcom_get_eth_type(unsigned char *buf);
 #endif

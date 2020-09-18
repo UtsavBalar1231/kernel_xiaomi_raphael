@@ -2209,6 +2209,7 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 	} else {
 		msm_geni_serial_power_on(uport);
 		wait_for_transfers_inflight(uport);
+		msm_geni_serial_stop_tx(uport);
 	}
 
 	if (!uart_console(uport)) {
@@ -3540,7 +3541,7 @@ static int msm_geni_serial_sys_suspend_noirq(struct device *dev)
 	struct msm_geni_serial_port *port = platform_get_drvdata(pdev);
 	struct uart_port *uport = &port->uport;
 
-	if (uart_console(uport) || !pm_runtime_enabled(uport->dev)) {
+	if (uart_console(uport) || port->pm_auto_suspend_disable) {
 		uart_suspend_port((struct uart_driver *)uport->private_data,
 					uport);
 	} else {
@@ -3571,7 +3572,7 @@ static int msm_geni_serial_sys_resume_noirq(struct device *dev)
 
 	if ((uart_console(uport) &&
 	    console_suspend_enabled && uport->suspended) ||
-		!pm_runtime_enabled(uport->dev)) {
+		port->pm_auto_suspend_disable) {
 		uart_resume_port((struct uart_driver *)uport->private_data,
 									uport);
 	}

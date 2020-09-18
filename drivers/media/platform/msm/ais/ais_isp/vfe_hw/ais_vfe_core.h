@@ -82,6 +82,7 @@ struct ais_vfe_buffer_t {
 	int32_t                    mem_handle;
 	uint64_t                   iova_addr;
 	uint32_t                   bufIdx;
+	struct ais_ife_rdi_timestamps    ts_hw;
 };
 
 struct ais_sof_info_t {
@@ -96,6 +97,7 @@ struct ais_vfe_rdi_output {
 	enum ais_isp_resource_state      state;
 
 	uint32_t                         en_cfg;
+	uint32_t                         secure_mode;
 
 	spinlock_t                       buffer_lock;
 	struct ais_vfe_buffer_t          buffers[AIS_VFE_MAX_BUF];
