@@ -186,12 +186,15 @@ static irqreturn_t ap_status_change(int irq, void *dev_id)
 
 	state = gpio_get_value(mdm->gpios[STATUS_IN]);
 	if ((!active_low && !state) || (active_low && state)) {
-		if (mdm->policy)
+		if (mdm->policy) {
 			dev_info(mdm->dev, "Host undergoing SSR, leaving SDX as it is\n");
-		else
+			sb_notifier_call_chain(EVENT_REMOTE_STATUS_DOWN, NULL);
+		} else
 			panic("Host undergoing SSR, panicking SDX\n");
-	} else
+	} else {
 		dev_info(mdm->dev, "HOST booted\n");
+		sb_notifier_call_chain(EVENT_REMOTE_STATUS_UP, NULL);
+	}
 
 	return IRQ_HANDLED;
 }
