@@ -90,6 +90,19 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
 		return 0;
 
 	/*
+	 * When a page contains multiple logically contiguous filesystem blocks,
+	 * some filesystem code only calls fscrypt_mergeable_bio() for the first
+	 * block in the page. This is fine for most of fscrypt's IV generation
+	 * strategies, where contiguous blocks imply contiguous IVs. But it
+	 * doesn't work with IV_INO_LBLK_32. For now, simply exclude
+	 * IV_INO_LBLK_32 with blocksize != PAGE_SIZE from inline encryption.
+	 */
+	if ((fscrypt_policy_flags(&ci->ci_policy) &
+	     FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) &&
+	    sb->s_blocksize != PAGE_SIZE)
+		return 0;
+
+	/*
 	 * The needed encryption settings must be supported either by
 	 * blk-crypto-fallback, or by hardware on all the filesystem's devices.
 	 */
@@ -502,6 +515,10 @@ int fscrypt_limit_dio_pages(const struct inode *inode, loff_t pos, int nr_pages)
 	      FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32))
 		return nr_pages;
 
+	/*
+	 * fscrypt_select_encryption_impl() ensures that block_size == PAGE_SIZE
+	 * when using FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32.
+	 */
 	if (WARN_ON_ONCE(i_blocksize(inode) != PAGE_SIZE))
 		return 1;
 
