@@ -1346,7 +1346,10 @@ static ssize_t phy_off_config(
 	unsigned long ret;
 	int config = 0;
 	struct qcom_ethqos *ethqos = file->private_data;
+	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
+	struct plat_stmmacenet_data *plat;
 
+	plat = priv->plat;
 	in_buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!in_buf)
 		return -ENOMEM;
@@ -1379,8 +1382,17 @@ static ssize_t phy_off_config(
 			 */
 			phy_digital_loopback_config(ethqos,
 						    ethqos->loopback_speed, 0);
-			ETHQOSDBG("Disable phy Loopback");
+			ETHQOSDBG("Disable phy Loopback\n");
 			ethqos->current_loopback = ENABLE_PHY_LOOPBACK;
+		}
+		/*Backup phy related data*/
+		if (priv->phydev->autoneg == AUTONEG_DISABLE) {
+			ethqos->backup_autoneg = priv->phydev->autoneg;
+			ethqos->backup_bmcr = ethqos_mdio_read(priv,
+							       plat->phy_addr,
+							       MII_BMCR);
+		} else {
+			ethqos->backup_autoneg = AUTONEG_ENABLE;
 		}
 		ethqos_phy_power_off(ethqos);
 	} else if (config == ENABLE_PHY_IMMEDIATELY) {
@@ -1388,6 +1400,10 @@ static ssize_t phy_off_config(
 		//make phy on
 		ethqos_phy_power_on(ethqos);
 		ethqos_reset_phy_enable_interrupt(ethqos);
+		if (ethqos->backup_autoneg == AUTONEG_DISABLE) {
+			priv->phydev->autoneg = ethqos->backup_autoneg;
+			phy_write(priv->phydev, MII_BMCR, ethqos->backup_bmcr);
+		}
 		if (ethqos->current_loopback == ENABLE_PHY_LOOPBACK) {
 			/*If Phy loopback is enabled , enabled It again*/
 			phy_digital_loopback_config(ethqos,
