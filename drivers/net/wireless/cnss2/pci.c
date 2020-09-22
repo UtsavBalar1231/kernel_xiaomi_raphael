@@ -1602,7 +1602,7 @@ static int cnss_pci_resume(struct device *dev)
 	if (!pci_priv)
 		goto out;
 
-	if (pci_priv->pci_link_down_ind)
+	if (cnss_pci_check_link_status(pci_priv))
 		goto out;
 
 	if (pci_priv->pci_link_state == PCI_LINK_UP && !pci_priv->disable_pc) {
