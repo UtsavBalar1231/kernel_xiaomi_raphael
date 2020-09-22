@@ -605,13 +605,15 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl,
 		 * we need to force a suspend so device can switch to
 		 * mission mode pcie phy settings.
 		 */
-		pm_runtime_get(dev);
-		ret = mhi_force_suspend(mhi_cntrl);
-		if (!ret) {
-			MHI_CNTRL_LOG("Attempt resume after forced suspend\n");
-			mhi_runtime_resume(dev);
+		if (!mhi_dev->skip_forced_suspend) {
+			pm_runtime_get(dev);
+			ret = mhi_force_suspend(mhi_cntrl);
+			if (!ret) {
+				MHI_CNTRL_LOG("Resume after forced suspend\n");
+				mhi_runtime_resume(dev);
+			}
+			pm_runtime_put(dev);
 		}
-		pm_runtime_put(dev);
 		mhi_arch_mission_mode_enter(mhi_cntrl);
 		pm_runtime_allow(&mhi_dev->pci_dev->dev);
 		break;
@@ -752,7 +754,21 @@ static struct mhi_controller *mhi_register_controller(struct pci_dev *pci_dev)
 		goto error_register;
 
 	use_bb = of_property_read_bool(of_node, "mhi,use-bb");
+
+	/*
+	 * Certain devices would send M1 events to MHI as they may not have
+	 * autonomous M2 support. MHI host can skip registering for link
+	 * inactivity timeouts in that case.
+	 */
 	mhi_dev->allow_m1 = of_property_read_bool(of_node, "mhi,allow-m1");
+
+	/*
+	 * Certain devices do not require a forced suspend/resume cycle at
+	 * mission mode entry after boot as they do not need to switch to
+	 * separate phy settings in order to enable low power modes
+	 */
+	mhi_dev->skip_forced_suspend = of_property_read_bool(of_node,
+						"mhi,skip-forced-suspend");
 
 	/*
 	 * if s1 translation enabled or using bounce buffer pull iova addr
