@@ -313,8 +313,6 @@
 
 	imp: qcom,ipa-mhi-proxy {
 		compatible = "qcom,ipa-mhi-proxy";
-		qcom,mhi-chdb-base = <0x40300300>;
-		qcom,mhi-erdb-base = <0x40300700>;
 	};
 
 	qmi-tmd-devices {
