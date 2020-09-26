@@ -151,9 +151,8 @@ enum ufs_desc_def_size {
 	QUERY_DESC_CONFIGURATION_DEF_SIZE	= 0x90,
 	QUERY_DESC_UNIT_DEF_SIZE		= 0x23,
 	QUERY_DESC_INTERCONNECT_DEF_SIZE	= 0x06,
-	QUERY_DESC_GEOMETRY_DEF_SIZE		= 0x48,
+	QUERY_DESC_GEOMETRY_DEF_SIZE		= 0x44,
 	QUERY_DESC_POWER_DEF_SIZE		= 0x62,
-	QUERY_DESC_HEALTH_DEF_SIZE		= 0x25,
 };
 
 /* Unit descriptor parameters offsets in bytes*/
@@ -244,15 +243,6 @@ enum geometry_desc_param {
 	GEOMETRY_DESC_TW_SUPPORT_BUF_TYPE		= 0x56,
 	GEOMETRY_DESC_TW_GROUP_NUM_CAP			= 0x57,
 #endif
-};
-
-/* Health descriptor parameters offsets in bytes*/
-enum health_desc_param {
-	HEALTH_DESC_PARAM_LEN			= 0x0,
-	HEALTH_DESC_PARAM_TYPE			= 0x1,
-	HEALTH_DESC_PARAM_EOL_INFO		= 0x2,
-	HEALTH_DESC_PARAM_LIFE_TIME_EST_A	= 0x3,
-	HEALTH_DESC_PARAM_LIFE_TIME_EST_B	= 0x4,
 };
 
 /*
