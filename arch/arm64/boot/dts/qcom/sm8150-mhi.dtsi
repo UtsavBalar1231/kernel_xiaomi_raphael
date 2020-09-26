@@ -324,7 +324,6 @@
 				mhi,data-type = <1>;
 				mhi,doorbell-mode = <3>;
 				mhi,ee = <0x4>;
-				mhi,db-mode-switch;
 			};
 
 			mhi_chan@101 {
@@ -345,8 +344,6 @@
 				mhi,chan-dir = <2>;
 				mhi,data-type = <3>;
 				mhi,ee = <0x4>;
-				mhi,offload-chan;
-				mhi,lpm-notify;
 			};
 
 			mhi_chan@103 {
@@ -376,8 +373,6 @@
 				mhi,chan-dir = <2>;
 				mhi,data-type = <3>;
 				mhi,ee = <0x4>;
-				mhi,offload-chan;
-				mhi,lpm-notify;
 			};
 
 			mhi_chan@107 {
@@ -387,7 +382,6 @@
 				mhi,chan-dir = <1>;
 				mhi,data-type = <3>;
 				mhi,ee = <0x4>;
-				mhi,offload-chan;
 			};
 
 			mhi_chan@108 {
@@ -397,8 +391,6 @@
 				mhi,chan-dir = <2>;
 				mhi,data-type = <3>;
 				mhi,ee = <0x4>;
-				mhi,offload-chan;
-				mhi,lpm-notify;
 			};
 
 			mhi_chan@109 {
