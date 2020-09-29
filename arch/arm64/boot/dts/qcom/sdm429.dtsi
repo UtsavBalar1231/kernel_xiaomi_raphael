@@ -1488,10 +1488,13 @@
 		qca,bt-1P3-en-gpio = <&tlmm 57 0>; /* WCN3980_1P3_EN */
 
 		qca,bt-vdd-io-supply = <&pm660_l13>;
+		qca,bt-vdd-s5-supply = <&pm660_s5>;
 
 		qca,bt-vdd-io-voltage-level = <1800000 1900000>;
+		qca,bt-vdd-s5-voltage-level = <1352000 1352000>;
 
 		qca,bt-vdd-io-current-level = <10000>;
+		qca,bt-vdd-s5-current-level = <10000>;
 	};
 
 	qcom,bam_dmux@4044000 {
