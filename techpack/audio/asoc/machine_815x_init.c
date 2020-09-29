@@ -19,14 +19,18 @@ GNU General Public License for more details.
 static int __init audio_machine_815x_init(void)
 {
 	sm8150_init();
+#ifdef CONFIG_SND_SOC_SA8155
 	sa8155_init();
+#endif
 	return 0;
 }
 
 static void audio_machine_815x_exit(void)
 {
 	sm8150_exit();
+#ifdef CONFIG_SND_SOC_SA8155
 	sa8155_exit();
+#endif
 }
 
 module_init(audio_machine_815x_init);

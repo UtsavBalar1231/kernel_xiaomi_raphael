@@ -17,7 +17,7 @@ export
 endif
 ifeq ($(CONFIG_ARCH_SM8150), y)
 include $(srctree)/techpack/audio/config/sm8150auto.conf
-export
+export	$(shell sed 's/=.*//' $(srctree)/techpack/audio/config/sm8150auto.conf)
 endif
 ifeq ($(CONFIG_ARCH_SDMSHRIKE), y)
 include $(srctree)/techpack/audio/config/sm8150auto.conf
@@ -33,6 +33,16 @@ USERINCLUDE     += \
 LINUXINCLUDE    += \
                 -I$(srctree)/techpack/audio/include/uapi \
                 -I$(srctree)/techpack/audio/include
+
+ifeq ($(CONFIG_ELLIPTIC_ULTRASOUND), y)
+LINUXINCLUDE    += \
+		-I$(srctree)/techpack/audio/include/elliptic
+endif
+
+ifeq ($(CONFIG_US_PROXIMITY), y)
+LINUXINCLUDE    += \
+                -I$(srctree)/techpack/audio/include/mius
+endif
 
 ifeq ($(CONFIG_ARCH_SDM845), y)
 LINUXINCLUDE    += \
