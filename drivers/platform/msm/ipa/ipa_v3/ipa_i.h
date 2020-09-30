@@ -2005,6 +2005,7 @@ struct ipa3_context {
 	bool ipa_in_cpe_cfg;
 	u32 ipa_wdi3_2g_holb_timeout;
 	u32 ipa_wdi3_5g_holb_timeout;
+	bool is_wdi3_tx1_needed;
 };
 
 struct ipa3_plat_drv_res {
