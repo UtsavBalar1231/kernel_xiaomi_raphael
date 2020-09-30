@@ -30,6 +30,7 @@ struct qrtr_ethernet_dl_buf {
 	size_t saved;
 	size_t needed;
 	size_t pkt_len;
+	size_t head_required;
 };
 
 struct qrtr_ethernet_dev {
@@ -42,7 +43,17 @@ struct qrtr_ethernet_dev {
 	bool rt;
 	struct qrtr_ethernet_cb_info *cb_info;
 
+	struct kthread_worker kworker;
+	struct task_struct *task;
+	struct kthread_work send_data;
+
 	struct qrtr_ethernet_dl_buf dlbuf;
+};
+
+struct qrtr_ethernet_pkt {
+	struct list_head node;
+	struct sk_buff *skb;
+	struct kref refcount;
 };
 
 /* Buffer to parse packets from ethernet adaption layer to qrtr */
@@ -67,6 +78,7 @@ static void qrtr_ethernet_link_up(void)
 	qdev->dlbuf.saved = 0;
 	qdev->dlbuf.needed = 0;
 	qdev->dlbuf.pkt_len = 0;
+	qdev->dlbuf.head_required = 0;
 	mutex_unlock(&qdev->dlbuf.buf_lock);
 
 	rc = qrtr_endpoint_register(&qdev->ep, qdev->net_id, qdev->rt);
@@ -81,6 +93,8 @@ static void qrtr_ethernet_link_down(void)
 	struct qrtr_ethernet_dev *qdev = qrtr_ethernet_device_endpoint;
 
 	atomic_inc(&qdev->in_reset);
+
+	kthread_flush_work(&qdev->send_data);
 
 	mutex_lock(&qdev->dlbuf.buf_lock);
 	memset(qdev->dlbuf.buf, 0, MAX_BUFSIZE);
@@ -131,7 +145,9 @@ void qcom_ethernet_qrtr_dl_cb(struct eth_adapt_result *eth_res)
 	struct qrtr_ethernet_dev *qdev = qrtr_ethernet_device_endpoint;
 	struct qrtr_ethernet_dl_buf *dlbuf;
 	size_t pkt_len, len;
+	size_t min_head_req;
 	void *src;
+	void *nw_buf = NULL;
 	int rc;
 
 	if (!eth_res)
@@ -191,6 +207,51 @@ void qcom_ethernet_qrtr_dl_cb(struct eth_adapt_result *eth_res)
 				break;
 			}
 		} else {
+			/**
+			 * If we haven't received partial header then check the
+			 * minimum header size required to find the packet size
+			 */
+			if (!dlbuf->head_required) {
+				min_head_req = qrtr_get_header_size(src);
+				if ((int)min_head_req < 0) {
+					dev_err(qdev->dev,
+						"Invalid header %zu\n",
+						min_head_req);
+					break;
+				}
+				/* handle partial header received case */
+				if (len < min_head_req) {
+					dlbuf->saved = len;
+					dlbuf->head_required =
+						min_head_req - len;
+					memcpy(dlbuf->buf, src, dlbuf->saved);
+					break;
+				}
+			} else {
+				if (len >= dlbuf->head_required) {
+					/* Received full header + some data */
+					nw_buf = kzalloc((len + dlbuf->saved),
+							 GFP_KERNEL);
+					if (!nw_buf)
+						goto exit;
+
+					memcpy(nw_buf, dlbuf->buf,
+					       dlbuf->saved);
+					memcpy((nw_buf + dlbuf->saved),
+					       src, len);
+					len += dlbuf->saved;
+					src = nw_buf;
+					dlbuf->head_required = 0;
+				} else {
+					/* still waiting for full header */
+					memcpy((dlbuf->buf + dlbuf->saved),
+					       src, len);
+					dlbuf->saved += len;
+					dlbuf->head_required -= len;
+					break;
+				}
+			}
+
 			pkt_len = qrtr_peek_pkt_size(src);
 			if ((int)pkt_len < 0) {
 				dev_err(qdev->dev,
@@ -234,9 +295,54 @@ void qcom_ethernet_qrtr_dl_cb(struct eth_adapt_result *eth_res)
 		}
 	}
 exit:
+	kfree(nw_buf);
 	mutex_unlock(&dlbuf->buf_lock);
 }
 EXPORT_SYMBOL(qcom_ethernet_qrtr_dl_cb);
+
+static void qrtr_ethernet_pkt_release(struct kref *ref)
+{
+	struct qrtr_ethernet_pkt *pkt = container_of(ref,
+						     struct qrtr_ethernet_pkt,
+						     refcount);
+	struct sock *sk = pkt->skb->sk;
+
+	consume_skb(pkt->skb);
+	if (sk)
+		sock_put(sk);
+	kfree(pkt);
+}
+
+static void eth_tx_data(struct kthread_work *work)
+{
+	struct qrtr_ethernet_dev *qdev = container_of(work,
+						      struct qrtr_ethernet_dev,
+						      send_data);
+	struct qrtr_ethernet_pkt *pkt, *temp;
+	unsigned long flags;
+	int rc;
+
+	if (atomic_read(&qdev->in_reset) > 0) {
+		dev_err(qdev->dev, "%s: link in reset\n", __func__);
+		return;
+	}
+
+	spin_lock_irqsave(&qdev->ul_lock, flags);
+	list_for_each_entry_safe(pkt, temp, &qdev->ul_pkts, node) {
+		/* unlock before calling eth_send as tcp_sendmsg could sleep */
+		list_del(&pkt->node);
+		spin_unlock_irqrestore(&qdev->ul_lock, flags);
+
+		rc = qdev->cb_info->eth_send(pkt->skb);
+		if (rc)
+			dev_err(qdev->dev, "%s: eth_send failed: %d\n",
+				__func__, rc);
+
+		spin_lock_irqsave(&qdev->ul_lock, flags);
+		kref_put(&pkt->refcount, qrtr_ethernet_pkt_release);
+	}
+	spin_unlock_irqrestore(&qdev->ul_lock, flags);
+}
 
 /* from qrtr to ethernet adaption layer */
 static int qcom_ethernet_qrtr_send(struct qrtr_endpoint *ep,
@@ -245,6 +351,8 @@ static int qcom_ethernet_qrtr_send(struct qrtr_endpoint *ep,
 	struct qrtr_ethernet_dev *qdev = container_of(ep,
 						      struct qrtr_ethernet_dev,
 						      ep);
+	struct qrtr_ethernet_pkt *pkt;
+	unsigned long flags;
 	int rc;
 
 	rc = skb_linearize(skb);
@@ -256,17 +364,28 @@ static int qcom_ethernet_qrtr_send(struct qrtr_endpoint *ep,
 	}
 
 	if (atomic_read(&qdev->in_reset) > 0) {
+		kfree_skb(skb);
 		dev_err(qdev->dev, "%s: link in reset\n", __func__);
 		return -ECONNRESET;
 	}
 
-	rc = qdev->cb_info->eth_send(skb);
-	if (rc) {
-		dev_err(qdev->dev, "%s: eth_send failed: %d\n",
-			__func__, rc);
+	pkt = kzalloc(sizeof(*pkt), GFP_ATOMIC);
+	if (!pkt) {
+		kfree_skb(skb);
+		dev_err(qdev->dev, "%s: kzalloc failed: %d\n", __func__, rc);
+		return -ENOMEM;
 	}
 
-	consume_skb(skb);
+	pkt->skb = skb;
+	kref_init(&pkt->refcount);
+	if (skb->sk)
+		sock_hold(skb->sk);
+
+	spin_lock_irqsave(&qdev->ul_lock, flags);
+	list_add_tail(&pkt->node, &qdev->ul_pkts);
+	spin_unlock_irqrestore(&qdev->ul_lock, flags);
+
+	kthread_queue_work(&qdev->kworker, &qdev->send_data);
 
 	return 0;
 }
@@ -299,6 +418,7 @@ EXPORT_SYMBOL(qcom_ethernet_init_cb);
 
 static int qcom_ethernet_qrtr_probe(struct platform_device *pdev)
 {
+	struct sched_param param = {.sched_priority = 1};
 	struct device_node *node = pdev->dev.of_node;
 	struct qrtr_ethernet_dev *qdev;
 	int rc;
@@ -331,6 +451,19 @@ static int qcom_ethernet_qrtr_probe(struct platform_device *pdev)
 
 	qdev->rt = of_property_read_bool(node, "qcom,low-latency");
 
+	kthread_init_work(&qdev->send_data, eth_tx_data);
+	kthread_init_worker(&qdev->kworker);
+	qdev->task = kthread_run(kthread_worker_fn, &qdev->kworker, "eth_tx");
+	if (IS_ERR(qdev->task)) {
+		dev_err(qdev->dev, "%s: Error starting eth_tx\n", __func__);
+		kfree(qdev->dlbuf.buf);
+		kfree(qdev);
+		return PTR_ERR(qdev->task);
+	}
+
+	if (qdev->rt)
+		sched_setscheduler(qdev->task, SCHED_FIFO, &param);
+
 	qrtr_ethernet_device_endpoint = qdev;
 
 	return 0;
@@ -338,7 +471,9 @@ static int qcom_ethernet_qrtr_probe(struct platform_device *pdev)
 
 static int qcom_ethernet_qrtr_remove(struct platform_device *pdev)
 {
+	struct qrtr_ethernet_dev *qdev = dev_get_drvdata(&pdev->dev);
 
+	kthread_cancel_work_sync(&qdev->send_data);
 	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
