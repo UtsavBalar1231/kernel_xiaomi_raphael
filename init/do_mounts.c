@@ -33,6 +33,7 @@
 #include <linux/nfs_fs_sb.h>
 #include <linux/nfs_mount.h>
 #include <soc/qcom/boot_stats.h>
+#include <linux/dirent.h>
 
 #include "do_mounts.h"
 
@@ -662,13 +663,576 @@ void launch_early_services(void)
 #else
 void launch_early_services(void) { }
 #endif
+
+#define PREFETCH_NUM 16
+#define PREFETCH_BUF_LEN 8096
+
+static char *systemd_files_1[] = {
+	"f/lib/systemd/system/systemd-update-utmp.service",
+	"f/lib/systemd/system/umount.target",
+	"f/lib/systemd/system/systemd-journal-catalog-update.service",
+	"f/lib/systemd/system/systemd-hwdb-update.service",
+	"f/lib/systemd/system/systemd-ask-password-console.path",
+	"f/lib/systemd/system/sys-kernel-config.mount",
+	"f/lib/systemd/system/sys-fs-fuse-connections.mount",
+	"f/lib/systemd/system/ip6tables.service",
+	"f/lib/systemd/system/init_post_boot.service",
+	"f/lib/systemd/system/adbd.service",
+	"f/lib/systemd/system/acdb_loader.service",
+	"f/lib/systemd/system/ab-updater.service",
+	"f/lib/systemd/system/persist-prop.service",
+	"f/etc/systemd/journald.conf",
+	"f/lib/systemd/journald.conf.d/00-systemd-conf.conf",
+	"d/etc/systemd/system/multi-user.target.wants",
+	"d/etc/systemd/system/getty.target.wants",
+	"d/etc/systemd/system/timers.target.wants",
+	"d/lib/systemd/system/timers.target.wants",
+	NULL
+};
+
+static char *systemd_files_2[] = {
+	"f/lib/systemd/systemd",
+	"f/etc/init.d/setup_avtp_routing_le",
+	"f/lib/systemd/system/multi-user.target",
+	"f/lib/systemd/system/local-fs-pre.target",
+	"d/etc/systemd/system/local-fs-pre.target.wants",
+	"f/lib/systemd/system/init_data.service",
+	"f/lib/systemd/system/init_audio.service",
+	"f/lib/systemd/system/rc-local.service",
+	"f/lib/systemd/system/getty@.service",
+	"f/lib/systemd/system/systemd-tmpfiles-clean.service",
+	"f/lib/systemd/system/logrotate.timer",
+	NULL
+};
+
+static char *systemd_files_3[] = {
+	"f/lib/systemd/system.conf.d/00-systemd-conf.conf",
+	"f/etc/fstab",
+	"d/etc/rc1.d",
+	"d/media/ram",
+	"f/lib/systemd/system/time-sync.target",
+	"f/lib/systemd/system/swap.target",
+	"f/lib/systemd/system/remote-fs.target",
+	"f/lib/systemd/system/systemd-tmpfiles-setup-dev.service",
+	"f/lib/systemd/system/systemd-timesyncd.service",
+	"f/lib/systemd/system/var-allplay.service",
+	"f/lib/systemd/system/logrotate.service",
+	"f/lib/systemd/system/kmod-static-nodes.service",
+	"f/lib/systemd/system/init_early_boot.service",
+	NULL
+};
+
+static char *systemd_files_4[] = {
+	"f/etc/hostname",
+	"f/lib/systemd/system-generators/systemd-sysv-generator",
+	"f/lib/libpthread-2.31.so",
+	"f/lib/libpthread.so.0",
+	"f/lib/systemd/system/initrd-fs.target",
+	"f/lib/systemd/system/initrd-root-fs.target",
+	"f/lib/systemd/system/rescue.target",
+	"f/lib/systemd/system/emergency.service",
+	"f/lib/systemd/system/dev-mqueue.mount",
+	"f/lib/systemd/system/dev-hugepages.mount",
+	NULL
+};
+
+static char *systemd_files_5[] = {
+	"f/lib/systemd/system/sysinit.target",
+	"f/lib/systemd/system/weston.service",
+	"f/lib/systemd/system/systemd-ask-password-console.service",
+	"f/lib/systemd/system/systemd-vconsole-setup.service",
+	"f/lib/systemd/system/initrd-switch-root.target",
+	"f/lib/systemd/system/qrtr-ns.service",
+	"f/lib/systemd/system/pdmapper.service",
+	"f/lib/systemd/system/systemd-update-utmp-runlevel.service",
+	"f/lib/systemd/system/graphical.target",
+	"f/lib/systemd/system/amfs.service",
+	"f/lib/systemd/system/ais_server.service",
+	"f/etc/systemd/system/sfsconfig.service",
+	"f/lib/systemd/system/timers.target",
+	"f/lib/systemd/system/systemd-tmpfiles-clean.timer",
+	"f/lib/systemd/system/systemd-journald.socket",
+	"f/etc/default/rng-tools",
+	NULL
+};
+
+static char *systemd_files_6[] = {
+	"f/etc/machine-id",
+	"f/var/lib/dbus/machine-id",
+	"f/lib/systemd/system/shutdown.target",
+	"f/lib/systemd/system/xinetd.service",
+	"f/lib/librt-2.31.so",
+	"f/lib/librt.so.1",
+	"f/lib/systemd/system/var-lib-shared.mount",
+	"f/lib/systemd/system/initrd-udevadm-cleanup-db.service",
+	"f/lib/systemd/system/systemd-udev-settle.service",
+	"f/lib/systemd/system/basic.target",
+	"f/lib/systemd/system/setup-network.service",
+	"f/lib/systemd/system/dbus.service",
+	"f/lib/systemd/system/var-adb_devid.service",
+	"f/lib/systemd/system/user.slice",
+	"f/lib/systemd/system/systemd-ask-password-wall.path",
+	"f/lib/systemd/system/strongswan-starter.service",
+	"f/lib/systemd/system/crond.service",
+	"f/lib/systemd/system/rescue.service",
+	"f/lib/systemd/system/network.target",
+	"f/lib/systemd/system/getty-pre.target",
+	"f/lib/systemd/system/emac_dwc_eqos.service",
+	"f/lib/systemd/system/dnsmasq.service",
+	NULL
+};
+
+static char *systemd_files_7[] = {
+	"f/lib/systemd/system-generators/systemd-fstab-generator",
+	"d/lib/systemd/system/runlevel3.target.wants",
+	"d/lib/systemd/system/runlevel4.target.wants",
+	"f/lib/systemd/system/leprop.service",
+	"f/lib/systemd/system/emergency.target",
+	"f/lib/systemd/system/sshd.socket",
+	"f/lib/systemd/system/qseecomd.service",
+	"f/etc/initscripts/qseecomd",
+	"f/lib/systemd/system/connman.service",
+	"f/etc/systemd/system/chgrp-diag.service",
+	"f/sbin/leprop-service",
+	NULL
+};
+
+static char *systemd_files_8[] = {
+	"f/lib/ld-2.31.so",
+	"f/lib/ld-linux-aarch64.so.1",
+	"f/etc/systemd/system.conf",
+	"f/lib/systemd/system-generators/systemd-gpt-auto-generator",
+	"f/usr/lib/liblzma.so.5.2.4",
+	"f/usr/lib/liblzma.so.5",
+	"f/lib/systemd/system/resize-userdata.service",
+	"f/lib/systemd/system/systemd-fsck@.service",
+	NULL
+};
+
+static char *systemd_files_9[] = {
+	"f/lib/libz.so.1.2.11",
+	"f/lib/libz.so.1",
+	"f/lib/systemd/system/systemd-quotacheck.service",
+	"f/lib/systemd/system/initrd-cleanup.service",
+	"f/lib/systemd/system/initrd.target",
+	"f/lib/systemd/system/local-fs.target",
+	"f/lib/systemd/system/var-bluetooth.service",
+	"f/lib/systemd/system/lxc-start.service",
+	"f/lib/systemd/system/iptables.service",
+	"f/lib/systemd/system/network-pre.target",
+	"f/lib/systemd/system/slices.target",
+	"d/lib/systemd/system/sysinit.target.wants",
+	"f/lib/libcap.so.2.32",
+	"f/lib/libcap.so.2",
+	NULL
+};
+
+static char *systemd_files_10[] = {
+	"f/lib/systemd/system/systemd-fsck-root.service",
+	"f/lib/systemd/system/systemd-remount-fs.service",
+	"f/lib/systemd/system/initrd-parse-etc.service",
+	"f/lib/systemd/system/initrd-root-device.target",
+	"f/lib/systemd/system/usb.service",
+	"f/etc/systemd/system/thermal-engine.service",
+	"f/lib/systemd/system/getty.target",
+	"f/lib/systemd/system/serial-getty@.service",
+	"f/lib/systemd/system/initrd-switch-root.service",
+	"f/lib/systemd/system/paths.target",
+	"d/lib/systemd/system/sockets.target.wants",
+	"d/etc/systemd/system/sockets.target.wants",
+	NULL
+};
+
+static char *systemd_files_11[] = {
+	"f/lib/modprobe.d/systemd.conf",
+	"f/lib/modules/4.14.180-perf/modules.dep.bin",
+	"f/lib/modules/4.14.180-perf/modules.builtin.bin",
+	"f/lib/systemd/system/systemd-tmpfiles-setup.service",
+	NULL
+};
+
+static char *systemd_files_12[] = {
+	"f/lib/systemd/libsystemd-shared-244.so",
+	"f/etc/modprobe.d/blacklist.conf",
+	"f/lib/modules/4.14.180-perf/modules.softdep",
+	"f/lib/modules/4.14.180-perf/modules.alias.bin",
+	"f/lib/modules/4.14.180-perf/modules.symbols.bin",
+	"f/lib/systemd/system/systemd-journald-audit.socket",
+	"f/lib/systemd/system/systemd-initctl.socket",
+	NULL
+};
+
+static char *systemd_files_13[] = {
+	"f/lib/libmount.so.1.1.0",
+	"f/lib/libmount.so.1",
+	"f/lib/systemd/system/sockets.target",
+	"f/lib/systemd/system/systemd-networkd.socket",
+	"f/lib/systemd/system/systemd-journald-dev-log.socket",
+	"f/lib/systemd/system/systemd-journald.service",
+	"f/lib/systemd/system/syslog.socket",
+	"f/lib/systemd/system/systemd-journal-flush.service",
+	"f/lib/systemd/system/var-data.service",
+	"f/lib/systemd/system/var-build.prop.service",
+	"f/lib/systemd/system/systemd-networkd.service",
+	"f/lib/systemd/system/systemd-logind.service",
+	"f/lib/systemd/system/systemd-ask-password-wall.service",
+	"f/lib/systemd/system/systemd-networkd-wait-online.service",
+	"f/lib/systemd/systemd-journald",
+	"f/etc/init.d/emac_dwc_eqos_start_stop_le",
+	"d/etc/systemd/system/local-fs.target.wants",
+	"d/lib/systemd/system/runlevel2.target.wants",
+	"d/lib/systemd/system/graphical.target.wants",
+	"f/build.prop",
+	NULL
+};
+
+static char *systemd_files_14[] = {
+	"f/lib/libc-2.31.so",
+	"f/lib/libc.so.6",
+	"f/lib/systemd/system/systemd-update-done.service",
+	"f/lib/systemd/system/systemd-udevd.service",
+	"f/lib/systemd/system/systemd-udevd-kernel.socket",
+	"f/lib/systemd/system/systemd-random-seed.service",
+	"f/lib/systemd/system/systemd-modules-load.service",
+	"f/lib/systemd/system/systemd-machine-id-commit.service",
+	"f/lib/systemd/system/remote-fs-pre.target",
+	"f/lib/systemd/system/var-usb.service",
+	"f/lib/systemd/system/systemd-resolved.service",
+	"f/lib/systemd/system/nss-lookup.target",
+	"f/lib/systemd/system/strongswan.service",
+	"f/lib/systemd/system/network-online.target",
+	"f/lib/systemd/system/rngd.service",
+	"f/lib/systemd/system/msm-bus.service",
+	"d/etc/systemd/system/basic.target.wants",
+	"d/lib/systemd/system/multi-user.target.wants",
+	"d/lib/systemd/system/runlevel1.target.wants",
+	"d/etc/systemd/system/network-online.target.wants",
+	NULL
+};
+
+static char *systemd_files_15[] = {
+	"f/lib/systemd/system/dbus.socket",
+	"f/lib/systemd/system/systemd-udevd-control.socket",
+	"f/lib/systemd/system/systemd-udev-trigger.service",
+	"f/lib/systemd/system/time-set.target",
+	"f/lib/systemd/system/systemd-sysusers.service",
+	"f/lib/systemd/system/systemd-sysctl.service",
+	"f/lib/systemd/system/var-smack-accesses.d.service",
+	"f/lib/systemd/system/var-misc-wifi.service",
+	"f/lib/systemd/system/systemd-user-sessions.service",
+	"f/lib/systemd/system/nss-user-lookup.target",
+	"f/lib/systemd/system/synergy.service",
+	"f/lib/systemd/system/subsystem-ramdump.service",
+	"f/lib/systemd/system/servicemanager.service",
+	"f/usr/bin/servicemanager",
+	"f/lib/systemd/system/lxc-init.service",
+	NULL
+};
+
+static char *systemd_files_16[] = {
+	"f/lib/systemd/system/systemd-initctl.service",
+	"f/lib/systemd/system/tmp.mount",
+	"f/lib/systemd/system/lxc.service",
+	"f/lib/systemd/system/lxc-net.service",
+	"d/lib/systemd/system/local-fs.target.wants",
+	"d/lib/systemd/system/runlevel5.target.wants",
+	"d/lib/systemd/system/rescue.target.wants",
+	"f/lib/systemd/systemd-sysctl",
+	NULL
+};
+
+static char **systemd_files[] = {
+	systemd_files_1,
+	systemd_files_2,
+	systemd_files_3,
+	systemd_files_4,
+	systemd_files_5,
+	systemd_files_6,
+	systemd_files_7,
+	systemd_files_8,
+	systemd_files_9,
+	systemd_files_10,
+	systemd_files_11,
+	systemd_files_12,
+	systemd_files_13,
+	systemd_files_14,
+	systemd_files_15,
+	systemd_files_16,
+};
+
+static char *weston_files_1[] = {
+	NULL
+};
+
+static char *weston_files_2[] = {
+	NULL
+};
+
+static char *weston_files_3[] = {
+	NULL
+};
+
+static char *weston_files_4[] = {
+	NULL
+};
+
+static char *weston_files_5[] = {
+	NULL
+};
+
+static char *weston_files_6[] = {
+	NULL
+};
+
+static char *weston_files_7[] = {
+	NULL
+};
+
+static char *weston_files_8[] = {
+	NULL
+};
+
+static char *weston_files_9[] = {
+	NULL
+};
+
+static char *weston_files_10[] = {
+	NULL
+};
+
+static char *weston_files_11[] = {
+	NULL
+};
+
+static char *weston_files_12[] = {
+	NULL
+};
+
+static char *weston_files_13[] = {
+	NULL
+};
+
+static char *weston_files_14[] = {
+	NULL
+};
+
+static char *weston_files_15[] = {
+	NULL
+};
+
+static char *weston_files_16[] = {
+	NULL
+};
+
+static char **weston_files[] = {
+	weston_files_1,
+	weston_files_2,
+	weston_files_3,
+	weston_files_4,
+	weston_files_5,
+	weston_files_6,
+	weston_files_7,
+	weston_files_8,
+	weston_files_9,
+	weston_files_10,
+	weston_files_11,
+	weston_files_12,
+	weston_files_13,
+	weston_files_14,
+	weston_files_15,
+	weston_files_16,
+};
+
+static char *lxc_files_1[] = {
+	NULL
+};
+
+static char *lxc_files_2[] = {
+	NULL
+};
+
+static char *lxc_files_3[] = {
+	NULL
+};
+
+static char *lxc_files_4[] = {
+	NULL
+};
+
+static char *lxc_files_5[] = {
+	NULL
+};
+
+static char *lxc_files_6[] = {
+	NULL
+};
+
+static char *lxc_files_7[] = {
+	NULL
+};
+
+static char *lxc_files_8[] = {
+	NULL
+};
+
+static char *lxc_files_9[] = {
+	NULL
+};
+
+static char *lxc_files_10[] = {
+	NULL
+};
+
+static char *lxc_files_11[] = {
+	NULL
+};
+
+static char *lxc_files_12[] = {
+	NULL
+};
+
+static char *lxc_files_13[] = {
+	NULL
+};
+
+static char *lxc_files_14[] = {
+	NULL
+};
+
+static char *lxc_files_15[] = {
+	NULL
+};
+
+static char *lxc_files_16[] = {
+	NULL
+};
+
+static char **lxc_files[] = {
+	lxc_files_1,
+	lxc_files_2,
+	lxc_files_3,
+	lxc_files_4,
+	lxc_files_5,
+	lxc_files_6,
+	lxc_files_7,
+	lxc_files_8,
+	lxc_files_9,
+	lxc_files_10,
+	lxc_files_11,
+	lxc_files_12,
+	lxc_files_13,
+	lxc_files_14,
+	lxc_files_15,
+	lxc_files_16,
+};
+
+static inline void prefetch_read_file(void *name, char *buf, int len)
+{
+	int fd;
+	int num;
+
+	fd = sys_open(name, O_RDONLY, 0);
+	if (fd >= 0) {
+		do {
+			num = sys_read(fd, buf, len);
+		} while (num);
+		sys_close(fd);
+	}
+}
+
+static inline void prefetch_read_dir(void *name, char *buf, int len)
+{
+	int fd;
+
+	fd = sys_open(name, O_RDONLY, 0);
+	if (fd >= 0) {
+		sys_getdents64(fd, (struct linux_dirent64 *)buf, len);
+		sys_close(fd);
+	}
+}
+
+static int prefetch_thread(void *unused)
+{
+	struct cpumask cpumask;
+	int thread_num = (int)unused;
+	char *buf;
+	int index;
+	char *name;
+	char **p_name;
+
+	cpumask_clear(&cpumask);
+	cpumask_set_cpu((thread_num%4)+1, &cpumask);
+	if (sched_setaffinity(0, &cpumask))
+		pr_err("setaffinity failed\n");
+
+	buf = kzalloc(PREFETCH_BUF_LEN, GFP_KERNEL);
+	printk("prefetchs%d %d\n", thread_num, smp_processor_id());
+
+	index = 0;
+	p_name = systemd_files[thread_num];
+	name = p_name[index++];
+	while (name) {
+		if (*name == 'f')
+			prefetch_read_file((void *)(name+1),
+					buf, PREFETCH_BUF_LEN);
+		else if (*name == 'd')
+			prefetch_read_dir((void *)(name+1),
+					buf, PREFETCH_BUF_LEN);
+		else
+			pr_err("invalid name %s\n", name);
+
+		name = p_name[index++];
+	}
+
+	printk("prefetchm%d %d\n", thread_num, smp_processor_id());
+	index = 0;
+	p_name = weston_files[thread_num];
+	name = p_name[index++];
+	while (name) {
+		if (*name == 'f')
+			prefetch_read_file((void *)(name+1),
+					buf, PREFETCH_BUF_LEN);
+		else if (*name == 'd')
+			prefetch_read_dir((void *)(name+1),
+					buf, PREFETCH_BUF_LEN);
+		else
+			pr_err("invalid name %s\n", name);
+
+		name = p_name[index++];
+	}
+	printk("prefetche%d %d\n", thread_num, smp_processor_id());
+	index = 0;
+	p_name = lxc_files[thread_num];
+	name = p_name[index++];
+	while (name) {
+		if (*name == 'f')
+			prefetch_read_file((void *)(name+1),
+					buf, PREFETCH_BUF_LEN);
+		else if (*name == 'd')
+			prefetch_read_dir((void *)(name+1),
+					buf, PREFETCH_BUF_LEN);
+		else
+			pr_err("invalid name %s\n", name);
+
+		name = p_name[index++];
+	}
+	printk("prefetchl%d %d\n", thread_num, smp_processor_id());
+
+	kfree(buf);
+	return 0;
+}
+
 /*
  * Prepare the namespace - decide what/where to mount, load ramdisks, etc.
  */
 void __init prepare_namespace(void)
 {
 	int is_floppy;
+	int index;
+	char name[16];
+	static int first_time = 1;
 
+	if (!first_time) {
 	if (root_delay) {
 		printk(KERN_INFO "Waiting %d sec before mounting root device...\n",
 		       root_delay);
@@ -683,7 +1247,9 @@ void __init prepare_namespace(void)
 	 * for the touchpad of a laptop to initialize.
 	 */
 	wait_for_device_probe();
+	}
 
+	if (first_time) {
 	md_run_setup();
 	dm_run_setup();
 
@@ -718,10 +1284,34 @@ void __init prepare_namespace(void)
 		ROOT_DEV = Root_RAM0;
 
 	mount_root();
+	}
 out:
+	if (first_time) {
 	devtmpfs_mount("dev");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
 	sys_chroot(".");
+
+	for (index = 0; index < PREFETCH_NUM; index++) {
+		snprintf(name, 16, "prefetch%d", index);
+		kthread_run(prefetch_thread, (void *)index, name);
+	}
+	}
+	first_time = 0;
+}
+
+void early_prepare_namespace(char *name)
+{
+	int err;
+
+	if (strstr(saved_root_name, name))
+		prepare_namespace();
+	else if (strstr(name, "vdc")) {
+		err = sys_mount((char __user *)"/dev/vdc",
+			(char __user *)"/var", (char __user *)"ext4", 0,
+			(void __user *)NULL);
+		if (err)
+			pr_err("Mount Partition [%s] failed[%d]\n", name, err);
+	}
 }
 
 static bool is_tmpfs;
