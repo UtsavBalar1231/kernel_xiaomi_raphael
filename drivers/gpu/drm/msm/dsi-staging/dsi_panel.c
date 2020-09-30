@@ -1871,14 +1871,52 @@ static int dsi_panel_alloc_cmd_packets(struct dsi_panel_cmd_set *cmd,
 }
 
 static int dsi_panel_parse_cmd_sets_sub(struct dsi_panel_cmd_set *cmd,
-					enum dsi_cmd_set_type type,
-					struct dsi_parser_utils *utils)
+					const char *data,
+					size_t length)
 {
 	int rc = 0;
-	u32 length = 0;
+	u32 packet_count = 0;
+
+	rc = dsi_panel_get_cmd_pkt_count(data, length, &packet_count);
+	if (rc) {
+		pr_err("commands failed, rc=%d\n", rc);
+		goto error;
+	}
+	pr_debug("packet-count=%d, %d\n", packet_count, length);
+
+	rc = dsi_panel_alloc_cmd_packets(cmd, packet_count);
+	if (rc) {
+		pr_err("failed to allocate cmd packets, rc=%d\n", rc);
+		goto error;
+	}
+
+	rc = dsi_panel_create_cmd_packets(data, length, packet_count,
+					  cmd->cmds);
+	if (rc) {
+		pr_err("failed to create cmd packets, rc=%d\n", rc);
+		goto error_free_mem;
+	}
+
+	return rc;
+error_free_mem:
+	kfree(cmd->cmds);
+	cmd->cmds = NULL;
+error:
+	return rc;
+}
+
+static int dsi_panel_parse_cmd_sets_dt(struct dsi_panel_cmd_set *cmd,
+				       enum dsi_cmd_set_type type,
+				       struct dsi_parser_utils *utils)
+{
 	const char *data;
 	const char *state;
-	u32 packet_count = 0;
+	enum dsi_cmd_set_state st;
+	u32 length = 0;
+	int rc;
+
+	pr_debug("type=%d, name=%s, length=%d\n", type,
+		cmd_set_prop_map[type], length);
 
 	data = utils->get_property(utils->data, cmd_set_prop_map[type],
 			&length);
@@ -1894,45 +1932,24 @@ static int dsi_panel_parse_cmd_sets_sub(struct dsi_panel_cmd_set *cmd,
 	print_hex_dump_debug("", DUMP_PREFIX_NONE,
 		       8, 1, data, length, false);
 
-	rc = dsi_panel_get_cmd_pkt_count(data, length, &packet_count);
-	if (rc) {
-		pr_err("commands failed, rc=%d\n", rc);
-		goto error;
-	}
-	pr_debug("[%s] packet-count=%d, %d\n", cmd_set_prop_map[type],
-		packet_count, length);
-
-	rc = dsi_panel_alloc_cmd_packets(cmd, packet_count);
-	if (rc) {
-		pr_err("failed to allocate cmd packets, rc=%d\n", rc);
-		goto error;
-	}
-
-	rc = dsi_panel_create_cmd_packets(data, length, packet_count,
-					  cmd->cmds);
-	if (rc) {
-		pr_err("failed to create cmd packets, rc=%d\n", rc);
-		goto error_free_mem;
-	}
-
 	state = utils->get_property(utils->data, cmd_set_state_map[type], NULL);
 	if (!state || !strcmp(state, "dsi_lp_mode")) {
-		cmd->state = DSI_CMD_SET_STATE_LP;
+		st = DSI_CMD_SET_STATE_LP;
 	} else if (!strcmp(state, "dsi_hs_mode")) {
-		cmd->state = DSI_CMD_SET_STATE_HS;
+		st = DSI_CMD_SET_STATE_HS;
 	} else {
 		pr_err("[%s] command state unrecognized-%s\n",
 		       cmd_set_state_map[type], state);
-		goto error_free_mem;
+		return -ENOTSUPP;
 	}
 
-	return rc;
-error_free_mem:
-	kfree(cmd->cmds);
-	cmd->cmds = NULL;
-error:
-	return rc;
+	rc = dsi_panel_parse_cmd_sets_sub(cmd, data, length);
+	if (rc)
+		return rc;
 
+	cmd->state = st;
+
+	return 0;
 }
 
 static int dsi_panel_parse_cmd_sets(
@@ -1960,7 +1977,7 @@ static int dsi_panel_parse_cmd_sets(
 					i, rc);
 			set->state = DSI_CMD_SET_STATE_LP;
 		} else {
-			rc = dsi_panel_parse_cmd_sets_sub(set, i, utils);
+			rc = dsi_panel_parse_cmd_sets_dt(set, i, utils);
 			if (rc)
 				pr_debug("failed to parse set %d\n", i);
 		}
@@ -3080,7 +3097,7 @@ int dsi_panel_parse_esd_reg_read_configs(struct dsi_panel *panel)
 	if (!esd_config)
 		return -EINVAL;
 
-	dsi_panel_parse_cmd_sets_sub(&esd_config->status_cmd,
+	dsi_panel_parse_cmd_sets_dt(&esd_config->status_cmd,
 				DSI_CMD_SET_PANEL_STATUS, utils);
 	if (!esd_config->status_cmd.count) {
 		pr_err("panel status command parsing failed\n");
