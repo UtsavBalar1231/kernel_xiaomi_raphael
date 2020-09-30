@@ -58,13 +58,6 @@ struct virtio_blk {
 	/* Process context for config space updates */
 	struct work_struct config_work;
 
-	/*
-	 * Tracks references from block_device_operations open/release and
-	 * virtio_driver probe/remove so this object can be freed once no
-	 * longer in use.
-	 */
-	refcount_t refs;
-
 #ifdef CONFIG_PFK_VIRTUALIZED
 	/* Process context for virtual ICE configuration */
 	spinlock_t ice_work_lock;
@@ -72,6 +65,13 @@ struct virtio_blk {
 	struct request *req_pending;
 	bool work_pending;
 #endif
+	/*
+	 * Tracks references from block_device_operations open/release and
+	 * virtio_driver probe/remove so this object can be freed once no
+	 * longer in use.
+	 */
+	refcount_t refs;
+
 	/* What host tells us, plus 2 for header & tailer. */
 	unsigned int sg_elems;
 

@@ -4103,8 +4103,6 @@ static inline bool f2fs_force_buffered_io(struct inode *inode,
 		return true;
 	if (fsverity_active(inode))
 		return true;
-	if (fsverity_active(inode))
-		return true;
 	if (f2fs_compressed_file(inode))
 		return true;
 	if (f2fs_is_multi_device(sbi))

@@ -695,6 +695,7 @@ int fscrypt_ioctl_add_key(struct file *filp, void __user *_uarg)
 		if (copy_from_user(secret.raw, uarg->raw, secret.size))
 			goto out_wipe_secret;
 	}
+
 	err = add_master_key(sb, &secret, &arg.key_spec);
 	if (err)
 		goto out_wipe_secret;
