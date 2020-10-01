@@ -574,6 +574,10 @@ struct qcom_ethqos {
 	unsigned char cv2x_dev_addr[ETH_ALEN];
 
 	struct ethqos_extra_dma_stats xstats;
+	struct notifier_block qti_nb;
+	/* SSR over ethernet parameters */
+	struct work_struct eth_ssr;
+	unsigned long action;
 };
 
 struct pps_cfg {
