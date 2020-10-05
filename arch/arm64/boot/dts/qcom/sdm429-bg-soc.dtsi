@@ -66,6 +66,11 @@
 			qcom,intents = <0x08 1>;
 		};
 
+		qcom,glink-bg-daemon-data  {
+			qcom,glink-channels = "bg-daemon-data";
+			qcom,intents = <0x10 1>;
+		};
+
 		qcom,glink-bg-display-ctrl {
 			qcom,glink-channels = "display-ctrl";
 			qcom,intents = <0x38 1>;
