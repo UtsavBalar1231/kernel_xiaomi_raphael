@@ -1385,7 +1385,6 @@ static int msm_ioctl_register_event(struct drm_device *dev, void *data,
 		spin_lock_irqsave(&dev->event_lock, flag);
 		list_add_tail(&client->base.link, &priv->client_event_list);
 		spin_unlock_irqrestore(&dev->event_lock, flag);
-
 		return 0;
 	}
 
@@ -1401,6 +1400,7 @@ static int msm_ioctl_register_event(struct drm_device *dev, void *data,
 		list_add_tail(&client->base.link, &priv->client_event_list);
 		spin_unlock_irqrestore(&dev->event_lock, flag);
 	}
+
 	return ret;
 }
 

@@ -1630,13 +1630,11 @@ static ssize_t loopback_handling_config(
 	}
 
 	/*Argument validation*/
-	if (config == DISABLE_LOOPBACK || config == ENABLE_IO_MACRO_LOOPBACK ||
+	if (config == ENABLE_IO_MACRO_LOOPBACK ||
 	    config == ENABLE_MAC_LOOPBACK || config == ENABLE_PHY_LOOPBACK) {
 		if (speed != SPEED_1000 && speed != SPEED_100 &&
 		    speed != SPEED_10)
 			return -EINVAL;
-	} else {
-		return -EINVAL;
 	}
 
 	if (config == ethqos->current_loopback) {
@@ -2703,6 +2701,38 @@ static struct notifier_block qcom_ethqos_panic_blk = {
 	.notifier_call  = qcom_ethos_panic_notifier,
 };
 
+static void read_mac_addr_from_fuse_reg(struct device_node *np)
+{
+	int ret, i;
+	u32 mac_efuse_prop, efuse_size = 8;
+	void __iomem *mac_efuse_addr;
+	unsigned long mac_addr;
+
+	ret = of_property_read_u32(np, "mac-efuse-addr", &mac_efuse_prop);
+	if (!ret) {
+		mac_efuse_addr = ioremap(mac_efuse_prop, efuse_size);
+		if (!mac_efuse_addr) {
+			ETHQOSERR("unable to do ioremap\n");
+			return;
+		}
+		mac_addr = readq(mac_efuse_addr);
+		ETHQOSINFO("Mac address read: %llx\n", mac_addr);
+
+		/* create byte array out of value read from efuse */
+		for (i = 0; i < ETH_ALEN ; i++) {
+			pparams.mac_addr[ETH_ALEN - 1 - i] = mac_addr & 0xff;
+			mac_addr = mac_addr >> 8;
+		}
+
+		pparams.is_valid_mac_addr =
+			is_valid_ether_addr(pparams.mac_addr);
+		if (!pparams.is_valid_mac_addr) {
+			ETHQOSERR("Invalid Mac address set: %llx\n", mac_addr);
+			return;
+		}
+	}
+}
+
 static int qcom_ethqos_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -2785,6 +2815,9 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(ethqos->rgmii_clk);
 	if (ret)
 		goto err_mem;
+
+	/* Read mac address from fuse register */
+	read_mac_addr_from_fuse_reg(np);
 
 	/*Initialize Early ethernet to false*/
 	ethqos->early_eth_enabled = false;
