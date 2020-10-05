@@ -46,6 +46,9 @@ struct qrtr_ethernet_dev {
 	struct kthread_worker kworker;
 	struct task_struct *task;
 	struct kthread_work send_data;
+	struct kthread_work link_event;
+	struct list_head event_q;
+	spinlock_t event_lock;			/* lock to protect events */
 
 	struct qrtr_ethernet_dl_buf dlbuf;
 };
@@ -54,6 +57,11 @@ struct qrtr_ethernet_pkt {
 	struct list_head node;
 	struct sk_buff *skb;
 	struct kref refcount;
+};
+
+struct qrtr_event_t {
+	struct list_head list;
+	int event;
 };
 
 /* Buffer to parse packets from ethernet adaption layer to qrtr */
@@ -65,11 +73,6 @@ static void qrtr_ethernet_link_up(void)
 {
 	struct qrtr_ethernet_dev *qdev = qrtr_ethernet_device_endpoint;
 	int rc;
-
-	if (!qdev) {
-		pr_err("%s: qrtr ep dev ptr not found\n", __func__);
-		return;
-	}
 
 	atomic_set(&qdev->in_reset, 0);
 
@@ -95,7 +98,6 @@ static void qrtr_ethernet_link_down(void)
 	atomic_inc(&qdev->in_reset);
 
 	kthread_flush_work(&qdev->send_data);
-
 	mutex_lock(&qdev->dlbuf.buf_lock);
 	memset(qdev->dlbuf.buf, 0, MAX_BUFSIZE);
 	qdev->dlbuf.saved = 0;
@@ -104,6 +106,68 @@ static void qrtr_ethernet_link_down(void)
 	mutex_unlock(&qdev->dlbuf.buf_lock);
 
 	qrtr_endpoint_unregister(&qdev->ep);
+}
+
+static void eth_event_handler(struct kthread_work *work)
+{
+	struct qrtr_ethernet_dev *qdev = container_of(work,
+						      struct qrtr_ethernet_dev,
+						      link_event);
+	struct qrtr_event_t *entry = NULL;
+	unsigned long flags;
+
+	if (!qdev) {
+		pr_err("%s: qrtr ep dev ptr not found\n", __func__);
+		return;
+	}
+
+	spin_lock_irqsave(&qdev->event_lock, flags);
+	entry = list_first_entry(&qdev->event_q, struct qrtr_event_t, list);
+	spin_unlock_irqrestore(&qdev->event_lock, flags);
+	if (!entry)
+		return;
+
+	switch (entry->event) {
+	case NETDEV_UP:
+		pr_info("qrtr:%s link up event\n", __func__);
+		qrtr_ethernet_link_up();
+		break;
+	case NETDEV_DOWN:
+		pr_info("qrtr:%s link down event\n", __func__);
+		qrtr_ethernet_link_down();
+		break;
+	default:
+		pr_err("qrtr:%s Unknown event: %d\n", __func__, entry->event);
+		break;
+	}
+	spin_lock_irqsave(&qdev->event_lock, flags);
+	list_del(&entry->list);
+	kfree(entry);
+	spin_unlock_irqrestore(&qdev->event_lock, flags);
+}
+
+static void qrtr_queue_eth_event(unsigned int event)
+{
+	struct qrtr_ethernet_dev *qdev = qrtr_ethernet_device_endpoint;
+	struct qrtr_event_t *entry = NULL;
+	unsigned long flags;
+
+	if (!qdev) {
+		pr_err("qrtr:%s: ep dev ptr not found\n", __func__);
+		return;
+	}
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (!entry)
+		return;
+
+	entry->event = event;
+	INIT_LIST_HEAD(&entry->list);
+	spin_lock_irqsave(&qdev->event_lock, flags);
+	list_add_tail(&entry->list, &qdev->event_q);
+	spin_unlock_irqrestore(&qdev->event_lock, flags);
+
+	kthread_queue_work(&qdev->kworker, &qdev->link_event);
 }
 
 /**
@@ -117,12 +181,7 @@ static void qrtr_ethernet_link_down(void)
  */
 void qcom_ethernet_qrtr_status_cb(unsigned int event)
 {
-	if (event == NETDEV_UP)
-		qrtr_ethernet_link_up();
-	else if (event == NETDEV_DOWN)
-		qrtr_ethernet_link_down();
-	else
-		pr_err("%s: Unknown state: %d\n", __func__, event);
+	qrtr_queue_eth_event(event);
 }
 EXPORT_SYMBOL(qcom_ethernet_qrtr_status_cb);
 
@@ -411,8 +470,7 @@ void qcom_ethernet_init_cb(struct qrtr_ethernet_cb_info *cbinfo)
 	}
 
 	qdev->cb_info = cbinfo;
-
-	qrtr_ethernet_link_up();
+	qrtr_queue_eth_event(NETDEV_UP);
 }
 EXPORT_SYMBOL(qcom_ethernet_init_cb);
 
@@ -443,7 +501,9 @@ static int qcom_ethernet_qrtr_probe(struct platform_device *pdev)
 	atomic_set(&qdev->in_reset, 0);
 
 	INIT_LIST_HEAD(&qdev->ul_pkts);
+	INIT_LIST_HEAD(&qdev->event_q);
 	spin_lock_init(&qdev->ul_lock);
+	spin_lock_init(&qdev->event_lock);
 
 	rc = of_property_read_u32(node, "qcom,net-id", &qdev->net_id);
 	if (rc < 0)
@@ -452,6 +512,7 @@ static int qcom_ethernet_qrtr_probe(struct platform_device *pdev)
 	qdev->rt = of_property_read_bool(node, "qcom,low-latency");
 
 	kthread_init_work(&qdev->send_data, eth_tx_data);
+	kthread_init_work(&qdev->link_event, eth_event_handler);
 	kthread_init_worker(&qdev->kworker);
 	qdev->task = kthread_run(kthread_worker_fn, &qdev->kworker, "eth_tx");
 	if (IS_ERR(qdev->task)) {
@@ -474,6 +535,7 @@ static int qcom_ethernet_qrtr_remove(struct platform_device *pdev)
 	struct qrtr_ethernet_dev *qdev = dev_get_drvdata(&pdev->dev);
 
 	kthread_cancel_work_sync(&qdev->send_data);
+	kthread_cancel_work_sync(&qdev->link_event);
 	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
