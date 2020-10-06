@@ -157,6 +157,9 @@ do {\
 #define IPA_GSI_CHANNEL_STOP_SLEEP_MIN_USEC (1000)
 #define IPA_GSI_CHANNEL_STOP_SLEEP_MAX_USEC (2000)
 
+/* Aggregation timeout values for Tethered pipes. */
+#define IPA_RNDIS_DEFAULT_AGGR_TIME_LIMIT 1000 /* 1ms */
+
 enum ipa_active_client_log_type {
 	EP,
 	SIMPLE,
