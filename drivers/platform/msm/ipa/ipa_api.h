@@ -488,6 +488,10 @@ struct ipa_api_controller {
 
 	int (*ipa_get_prot_id)(enum ipa_client_type client);
 
+	int (*ipa_add_socksv5_conn)(struct ipa_socksv5_info *info);
+
+	int (*ipa_del_socksv5_conn)(uint32_t handle);
+
 	int (*ipa_conn_qdss_pipes)(struct ipa_qdss_conn_in_params *in,
 		struct ipa_qdss_conn_out_params *out);
 
