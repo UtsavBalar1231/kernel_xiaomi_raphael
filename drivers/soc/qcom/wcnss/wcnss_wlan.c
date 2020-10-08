@@ -43,6 +43,7 @@
 #include <soc/qcom/socinfo.h>
 #include <linux/adc-tm-clients.h>
 #include <linux/iio/consumer.h>
+#include <linux/soc/qcom/smem_state.h>
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 
 #include <soc/qcom/subsystem_restart.h>
@@ -71,6 +72,8 @@
 
 #define SUBSYS_NOTIF_MIN_INDEX	0
 #define SUBSYS_NOTIF_MAX_INDEX	9
+#define PROC_AWAKE_ID 12 /* 12th bit */
+#define AWAKE_BIT BIT(PROC_AWAKE_ID)
 char *wcnss_subsys_notif_type[] = {
 	"SUBSYS_BEFORE_SHUTDOWN",
 	"SUBSYS_AFTER_SHUTDOWN",
@@ -478,6 +481,8 @@ static struct {
 	struct cdev ctrl_dev, node_dev;
 	unsigned long state;
 	struct wcnss_driver_ops *ops;
+	struct qcom_smem_state *wake_state;
+	unsigned int wake_state_bit;
 } *penv = NULL;
 
 static void *wcnss_ipc_log;
@@ -2724,10 +2729,16 @@ static int wcnss_pm_notify(struct notifier_block *b,
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
 		down_write(&wcnss_pm_sem);
+		if (penv->wake_state)
+			qcom_smem_state_update_bits(penv->wake_state,
+						    AWAKE_BIT, 0);
 		break;
 
 	case PM_POST_SUSPEND:
 		up_write(&wcnss_pm_sem);
+		if (penv->wake_state)
+			qcom_smem_state_update_bits(penv->wake_state, AWAKE_BIT,
+						    AWAKE_BIT);
 		break;
 	}
 
@@ -3677,6 +3688,17 @@ wcnss_wlan_probe(struct platform_device *pdev)
 	 */
 	wcnss_log(INFO, DEVICE " probed in built-in mode\n");
 
+	penv->wake_state = qcom_smem_state_get(&pdev->dev,
+					      "wake-state",
+					      &penv->wake_state_bit);
+	if (IS_ERR(penv->wake_state))
+		wcnss_log(WARN, "%s: qcom_smem_wake_state_get failed",
+			  __func__);
+
+	if (penv->wake_state)
+		qcom_smem_state_update_bits(penv->wake_state,
+					    AWAKE_BIT, AWAKE_BIT);
+
 	return wcnss_cdev_register(pdev);
 }
 
@@ -3686,6 +3708,7 @@ wcnss_wlan_remove(struct platform_device *pdev)
 	if (penv->wcnss_notif_hdle)
 		subsys_notif_unregister_notifier(penv->wcnss_notif_hdle, &wnb);
 	wcnss_cdev_unregister(pdev);
+	qcom_smem_state_put(penv->wake_state);
 	wcnss_remove_sysfs(&pdev->dev);
 	penv = NULL;
 	return 0;
