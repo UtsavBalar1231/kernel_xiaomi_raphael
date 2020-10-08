@@ -3894,7 +3894,8 @@ static u8 ipa3_get_hw_type_index(void)
 			hw_type_index = IPA_4_5_MHI;
 		if (ipa3_ctx->platform_type == IPA_PLAT_TYPE_APQ)
 			hw_type_index = IPA_4_5_APQ;
-		if (ipa3_ctx->ipa_config_is_auto)
+		if (ipa3_ctx->ipa_config_is_auto ||
+			ipa3_ctx->ipa_config_is_sa)
 			hw_type_index = IPA_4_5_AUTO;
 		if (ipa3_ctx->ipa_config_is_auto &&
 			ipa3_ctx->ipa_config_is_mhi)

@@ -1814,6 +1814,7 @@ struct ipa3_app_clock_vote {
  * @logbuf_low: ipc log buffer for low priority messages
  * @ipa_wdi2: using wdi-2.0
  * @ipa_config_is_auto: is this AUTO use case
+ * @ipa_config_is_sa: is standalone use case in auto
  * @ipa_fltrt_not_hashable: filter/route rules not hashable
  * @use_xbl_boot: use xbl loading for IPA FW
  * @use_64_bit_dma_mask: using 64bits dma mask
@@ -1926,6 +1927,7 @@ struct ipa3_context {
 	bool modem_cfg_emb_pipe_flt;
 	bool ipa_wdi2;
 	bool ipa_config_is_auto;
+	bool ipa_config_is_sa;
 	bool ipa_wdi2_over_gsi;
 	bool ipa_wdi3_over_gsi;
 	bool ipa_endp_delay_wa;
@@ -2052,6 +2054,7 @@ struct ipa3_plat_drv_res {
 	bool modem_cfg_emb_pipe_flt;
 	bool ipa_wdi2;
 	bool ipa_config_is_auto;
+	bool ipa_config_is_sa;
 	bool ipa_wdi2_over_gsi;
 	bool ipa_wdi3_over_gsi;
 	bool ipa_fltrt_not_hashable;
