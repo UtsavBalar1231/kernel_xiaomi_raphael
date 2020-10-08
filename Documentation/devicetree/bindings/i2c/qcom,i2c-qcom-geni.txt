@@ -28,6 +28,7 @@ Optional property:
    5th parameter: t_cycle, desired clock cycle.
 
    Note: Both qcom,clk-freq-out and qcom,clk-cfg should not be specified at the same time.
+-  qcom,bus-recovery: To enable i2c bus clear when SDA line stuck low.
 
 Child nodes should conform to i2c bus binding.
 
