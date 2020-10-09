@@ -93,12 +93,6 @@
 			size = <0 0x0800000>;
 		};
 
-		secure_mem: secure_region@0 {
-			alignment = <0 0x400000>;
-			size = <0 0x800000>;
-			status = "okay";
-		};
-
 		qseecom_mem: qseecom_region@0 {
 			compatible = "shared-dma-pool";
 			reusable;
