@@ -624,6 +624,7 @@
 		ipa_smmu_wlan: ipa_smmu_wlan {
 			compatible = "qcom,ipa-smmu-wlan-cb";
 			iommus = <&apps_smmu 0x5E1 0x0>;
+			qcom,iova-mapping = <0x60000000 0x10000000>;
 		};
 
 		ipa_smmu_uc: ipa_smmu_uc {
