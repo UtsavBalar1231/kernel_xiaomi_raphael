@@ -1631,7 +1631,6 @@ static int mhi_uci_ctrl_set_tiocm(struct uci_client *client,
 
 	client->tiocm &= ~(TIOCM_CD | TIOCM_DSR | TIOCM_RI);
 	client->tiocm |= ser_state;
-	kfree(ctrl_msg);
 	return 0;
 
 tiocm_error:
