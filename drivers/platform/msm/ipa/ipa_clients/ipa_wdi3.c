@@ -704,7 +704,7 @@ int ipa_wdi_disconn_pipes(void)
 
 	if (ipa_wdi_ctx->wdi_version == IPA_WDI_3) {
 		if (ipa_disconn_wdi_pipes(
-				ipa_ep_idx_rx, ipa_ep_idx_tx, ipa_ep_idx_tx1)) {
+				ipa_ep_idx_tx, ipa_ep_idx_rx, ipa_ep_idx_tx1)) {
 			IPA_WDI_ERR("fail to tear down wdi pipes\n");
 			return -EFAULT;
 		}
@@ -769,7 +769,7 @@ int ipa_wdi_enable_pipes(void)
 	}
 
 	if (ipa_wdi_ctx->wdi_version == IPA_WDI_3) {
-		if (ipa_enable_wdi_pipes(ipa_ep_idx_rx, ipa_ep_idx_tx,
+		if (ipa_enable_wdi_pipes(ipa_ep_idx_tx, ipa_ep_idx_rx,
 			ipa_ep_idx_tx1)) {
 			IPA_WDI_ERR("fail to enable wdi pipes\n");
 			return -EFAULT;
@@ -840,7 +840,7 @@ int ipa_wdi_disable_pipes(void)
 	}
 
 	if (ipa_wdi_ctx->wdi_version == IPA_WDI_3) {
-		if (ipa_disable_wdi_pipes(ipa_ep_idx_rx, ipa_ep_idx_tx,
+		if (ipa_disable_wdi_pipes(ipa_ep_idx_tx, ipa_ep_idx_rx,
 			ipa_ep_idx_tx1)) {
 			IPA_WDI_ERR("fail to disable wdi pipes\n");
 			return -EFAULT;
