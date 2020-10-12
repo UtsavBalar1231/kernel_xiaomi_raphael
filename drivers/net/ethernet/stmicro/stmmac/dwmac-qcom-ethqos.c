@@ -161,7 +161,8 @@ u16 dwmac_qcom_select_queue(
 
 	/* use better macro, cannot afford function call here */
 	if (ipa_enabled && (txqueue_select == IPA_DMA_TX_CH_BE ||
-			    txqueue_select == IPA_DMA_TX_CH_CV2X)) {
+			    (pethqos->cv2x_mode != CV2X_MODE_DISABLE &&
+			     txqueue_select == IPA_DMA_TX_CH_CV2X))) {
 		ETHQOSERR("TX Channel [%d] is not a valid for SW path\n",
 			  txqueue_select);
 		WARN_ON(1);
