@@ -9,6 +9,7 @@
  * CYTT21XXX
  * CYTT31XXX
  *
+ * Copyright (c) 2019 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Parade Technologies
  * Copyright (C) 2012-2015 Cypress Semiconductor
  *
@@ -31,14 +32,14 @@
 #include <linux/spi/spi.h>
 #include <linux/version.h>
 
-#define CY_SPI_WR_OP		0x00 /* r/~w */
-#define CY_SPI_RD_OP		0x01
-#define CY_SPI_BITS_PER_WORD	8
+#define CY_SPI_WR_OP            0x00 /* r/~w */
+#define CY_SPI_RD_OP            0x01
+#define CY_SPI_BITS_PER_WORD    8
 #define CY_SPI_SYNC_ACK         0x62
 
-#define CY_SPI_CMD_BYTES	0
-#define CY_SPI_DATA_SIZE	(2 * 256)
-#define CY_SPI_DATA_BUF_SIZE	(CY_SPI_CMD_BYTES + CY_SPI_DATA_SIZE)
+#define CY_SPI_CMD_BYTES        0
+#define CY_SPI_DATA_SIZE        (2 * 256)
+#define CY_SPI_DATA_BUF_SIZE    (CY_SPI_CMD_BYTES + CY_SPI_DATA_SIZE)
 
 static void cyttsp5_spi_add_rw_msg(struct spi_message *msg,
 		struct spi_transfer *xfer, u8 *w_header, u8 *r_header, u8 op)
