@@ -3077,7 +3077,7 @@ int ipa3_write_qmapid_wdi_pipe(u32 clnt_hdl, u8 qmap_id)
 		IPAERR_RL("bad parm, %d\n", clnt_hdl);
 		return -EINVAL;
 	}
-	if (ipa3_ctx->ipa_wdi2_over_gsi)
+	if (IPA_WDI2_OVER_GSI())
 		return ipa3_write_qmapid_gsi_wdi_pipe(clnt_hdl, qmap_id);
 
 	result = ipa3_uc_state_check();
