@@ -892,6 +892,11 @@ static int ipa_mhi_test_initialize_driver(bool skip_start_and_conn)
 
 	prod_params = kzalloc(sizeof(*prod_params), GFP_KERNEL);
 	cons_params = kzalloc(sizeof(*cons_params), GFP_KERNEL);
+	if (prod_params == NULL || cons_params == NULL) {
+		IPA_UT_DBG("prod or cons params allocation failed");
+		return -ENOMEM;
+	}
+
 	p_mmio = test_mhi_ctx->mmio_buf.base;
 
 	/* start IPA MHI */
