@@ -99,7 +99,8 @@
 				<&dai_sec_tdm_rx_0>, <&dai_sec_tdm_tx_0>,
 				<&dai_tert_tdm_rx_0>, <&dai_tert_tdm_tx_0>,
 				<&dai_quat_tdm_rx_0>, <&dai_quat_tdm_tx_0>,
-				<&dai_quin_tdm_rx_0>, <&dai_quin_tdm_tx_0>;
+				<&dai_quin_tdm_rx_0>, <&dai_quin_tdm_tx_0>,
+				<&proxy_rx>, <&proxy_tx>;
 		asoc-cpu-names = "msm-dai-q6-dp.24608",
 				"msm-dai-q6-mi2s.0", "msm-dai-q6-mi2s.1",
 				"msm-dai-q6-mi2s.2", "msm-dai-q6-mi2s.3",
@@ -121,7 +122,8 @@
 				"msm-dai-q6-tdm.36881", "msm-dai-q6-tdm.36896",
 				"msm-dai-q6-tdm.36897", "msm-dai-q6-tdm.36912",
 				"msm-dai-q6-tdm.36913", "msm-dai-q6-tdm.36928",
-				"msm-dai-q6-tdm.36929";
+				"msm-dai-q6-tdm.36929",
+				"msm-dai-q6-dev.8194", "msm-dai-q6-dev.8195";
 		asoc-codec = <&stub_codec>, <&msm_digital_codec>,
 			<&pmic_analog_codec>, <&msm_sdw_codec>,
 			<&ext_disp_audio_codec>;
@@ -208,7 +210,8 @@
 				<&dai_sec_tdm_rx_0>, <&dai_sec_tdm_tx_0>,
 				<&dai_tert_tdm_rx_0>, <&dai_tert_tdm_tx_0>,
 				<&dai_quat_tdm_rx_0>, <&dai_quat_tdm_tx_0>,
-				<&dai_quin_tdm_rx_0>, <&dai_quin_tdm_tx_0>;
+				<&dai_quin_tdm_rx_0>, <&dai_quin_tdm_tx_0>,
+				<&proxy_rx>, <&proxy_tx>;
 		asoc-cpu-names = "msm-dai-q6-dp.24608", "msm-dai-q6-mi2s.0",
 				"msm-dai-q6-mi2s.1", "msm-dai-q6-mi2s.2",
 				"msm-dai-q6-mi2s.3", "msm-dai-q6-mi2s.4",
@@ -233,7 +236,8 @@
 				"msm-dai-q6-tdm.36881", "msm-dai-q6-tdm.36896",
 				"msm-dai-q6-tdm.36897", "msm-dai-q6-tdm.36912",
 				"msm-dai-q6-tdm.36913", "msm-dai-q6-tdm.36928",
-				"msm-dai-q6-tdm.36929";
+				"msm-dai-q6-tdm.36929",
+				"msm-dai-q6-dev.8194", "msm-dai-q6-dev.8195";
 		asoc-codec = <&stub_codec>, <&ext_disp_audio_codec>;
 		asoc-codec-names = "msm-stub-codec.1",
 				"msm-ext-disp-audio-codec-rx";
@@ -254,6 +258,7 @@
 	};
 
 	wcd9335: tasha_codec {
+		status = "disabled";
 		compatible = "qcom,tasha-slim-pgd";
 		elemental-addr = [00 01 a0 01 17 02];
 
@@ -265,8 +270,8 @@
 		qcom,wcd-rst-gpio-node = <&wcd_rst_gpio>;
 
 		clock-names = "wcd_clk", "wcd_native_clk";
-		clocks = <&clock_audio AUDIO_PMI_CLK>,
-			<&clock_audio AUDIO_LPASS_MCLK_2>;
+		clocks = <&clock_audio 0>,
+			<&clock_audio_native 0>;
 
 		cdc-vdd-mic-bias-supply = <&pm660l_bob>;
 		qcom,cdc-vdd-mic-bias-voltage = <3300000 3300000>;
@@ -496,17 +501,5 @@
 				qcom,spkr-sd-n-node = <&wsa_spkr_en2>;
 			};
 		};
-	};
-};
-
-&pm660_gpios {
-	gpio@c200 {
-		status = "ok";
-		qcom,mode = <1>;
-		qcom,pull = <4>;
-		qcom,vin-sel = <0>;
-		qcom,src-sel = <2>;
-		qcom,master-en = <1>;
-		qcom,out-strength = <2>;
 	};
 };
