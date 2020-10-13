@@ -7028,6 +7028,7 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 	ipa3_ctx->uc_act_tbl_total = 0;
 	ipa3_ctx->uc_act_tbl_next_index = 0;
 	ipa3_ctx->ipa_config_is_auto = resource_p->ipa_config_is_auto;
+	ipa3_ctx->ipa_config_is_sa = resource_p->ipa_config_is_sa;
 	ipa3_ctx->manual_fw_load = resource_p->manual_fw_load;
 
 	if (ipa3_ctx->secure_debug_check_action == USE_SCM) {
@@ -7698,6 +7699,7 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	ipa_drv_res->ipa_fltrt_not_hashable = false;
 	ipa_drv_res->ipa_endp_delay_wa = false;
 	ipa_drv_res->ipa_config_is_auto = false;
+	ipa_drv_res->ipa_config_is_sa = false;
 	ipa_drv_res->manual_fw_load = false;
 
 	/* Get IPA HW Version */
@@ -7810,6 +7812,13 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 		"qcom,ipa-config-is-auto");
 	IPADBG(": ipa-config-is-auto = %s\n",
 		ipa_drv_res->ipa_config_is_auto
+		? "True" : "False");
+
+	ipa_drv_res->ipa_config_is_sa =
+		of_property_read_bool(pdev->dev.of_node,
+		"qcom,ipa-config-is-sa");
+	IPADBG(": ipa-config-is-sa = %s\n",
+		ipa_drv_res->ipa_config_is_sa
 		? "True" : "False");
 
 	ipa_drv_res->ipa_wan_skb_page =
