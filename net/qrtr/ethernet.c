@@ -469,8 +469,9 @@ void qcom_ethernet_init_cb(struct qrtr_ethernet_cb_info *cbinfo)
 		return;
 	}
 
+	pr_info("qrtr:%s link up event\n", __func__);
 	qdev->cb_info = cbinfo;
-	qrtr_queue_eth_event(NETDEV_UP);
+	qrtr_ethernet_link_up();
 }
 EXPORT_SYMBOL(qcom_ethernet_init_cb);
 
