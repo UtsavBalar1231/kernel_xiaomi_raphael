@@ -2461,7 +2461,7 @@ static int ethqos_ipa_offload_suspend(struct qcom_ethqos *ethqos)
 
 	for (type = 0; type < IPA_QUEUE_MAX; type++) {
 		if (eth_ipa_queue_type_enabled(type)) {
-			priv->hw->dma->stop_rx(
+			priv->hw->dma->stop_rx_chan(
 				priv->ioaddr,
 				eth_ipa_queue_type_to_rx_queue(type));
 
@@ -2492,7 +2492,7 @@ static int ethqos_ipa_offload_suspend(struct qcom_ethqos *ethqos)
 
 	for (type = 0; type < IPA_QUEUE_MAX; type++) {
 		if (eth_ipa_queue_type_enabled(type)) {
-			priv->hw->dma->stop_tx(
+			priv->hw->dma->stop_tx_chan(
 				priv->ioaddr,
 				eth_ipa_queue_type_to_tx_queue(type));
 
