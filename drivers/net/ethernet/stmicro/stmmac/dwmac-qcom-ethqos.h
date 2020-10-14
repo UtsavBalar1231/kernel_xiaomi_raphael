@@ -241,6 +241,10 @@ do {\
 #define MAC_CONFIGURATION 0x0
 #define MAC_LM BIT(12)
 
+#define EMAC_QUEUE_0 0
+#define EMAC_CHANNEL_0 0
+#define EMAC_CHANNEL_1 1
+
 #define TLMM_BASE_ADDRESS (tlmm_central_base_addr)
 
 #define TLMM_RGMII_HDRV_PULL_CTL1_ADDRESS_OFFSET\
@@ -550,7 +554,6 @@ struct qcom_ethqos {
 
 	unsigned int emac_phy_off_suspend;
 	int loopback_speed;
-	enum loopback_mode current_loopback;
 	enum phy_power_mode current_phy_mode;
 	enum current_phy_state phy_state;
 	/*Backup variable for phy loopback*/

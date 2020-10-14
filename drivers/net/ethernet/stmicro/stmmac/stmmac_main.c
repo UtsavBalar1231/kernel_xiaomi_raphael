@@ -3621,9 +3621,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 	int coe = priv->hw->rx_csum;
 	unsigned int next_entry = rx_q->cur_rx;
 	unsigned int count = 0;
-#ifndef CONFIG_ETH_IPA_OFFLOAD
 	unsigned int eth_type;
-#endif
 
 	if (netif_msg_rx_status(priv)) {
 		void *rx_head;
@@ -3798,13 +3796,13 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			stmmac_get_rx_hwtstamp(priv, p, np, skb);
 
 			stmmac_rx_vlan(priv->dev, skb);
-#ifndef CONFIG_ETH_IPA_OFFLOAD
-			eth_type = dwmac_qcom_get_eth_type(skb->data);
 
-			if (priv->current_loopback > 0 &&
-			    eth_type == ETH_P_IP)
-				swap_ip_port(skb, eth_type);
-#endif
+			if (priv->current_loopback > 0) {
+				eth_type = dwmac_qcom_get_eth_type(skb->data);
+				if (eth_type == ETH_P_IP)
+					swap_ip_port(skb, eth_type);
+			}
+
 			skb->protocol = eth_type_trans(skb, priv->dev);
 
 			if (unlikely(!coe))
