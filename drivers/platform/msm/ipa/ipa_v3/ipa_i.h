@@ -1928,6 +1928,7 @@ struct ipa3_context {
 	bool ipa_wdi2;
 	bool ipa_config_is_auto;
 	bool ipa_config_is_sa;
+	bool ipa_wlan_cb_iova_map;
 	bool ipa_wdi2_over_gsi;
 	bool ipa_wdi3_over_gsi;
 	bool ipa_endp_delay_wa;
