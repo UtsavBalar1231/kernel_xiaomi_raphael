@@ -107,6 +107,12 @@
 			qcom,glinkpkt-dev-name = "glink_pkt_bg_daemon_ctrl";
 		};
 
+		qcom,glinkpkt-bg-daemon-data {
+			qcom,glinkpkt-edge = "bg";
+			qcom,glinkpkt-ch-name = "bg-daemon-data";
+			qcom,glinkpkt-dev-name = "glink_pkt_bg_daemon_data";
+		};
+
 		qcom,glinkpkt-bg-display-ctrl {
 			qcom,glinkpkt-edge = "bg";
 			qcom,glinkpkt-ch-name = "display-ctrl";
