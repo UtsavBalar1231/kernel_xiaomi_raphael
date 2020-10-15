@@ -640,9 +640,15 @@ static int ethqos_dll_configure(struct qcom_ethqos *ethqos)
 		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CDR_EN,
 			      SDCC_DLL_CONFIG_CDR_EN, SDCC_HC_REG_DLL_CONFIG);
 
-	/* Set CDR_EXT_EN */
-	rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CDR_EXT_EN,
-		      SDCC_DLL_CONFIG_CDR_EXT_EN, SDCC_HC_REG_DLL_CONFIG);
+	if (ethqos->io_macro.clear_cdt_ext_en)
+		/* Clear CDR_EXT_EN */
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CDR_EXT_EN,
+			      0, SDCC_HC_REG_DLL_CONFIG);
+	else
+		/* Set CDR_EXT_EN */
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CDR_EXT_EN,
+			      SDCC_DLL_CONFIG_CDR_EXT_EN,
+			      SDCC_HC_REG_DLL_CONFIG);
 
 	/* Clear CK_OUT_EN */
 	rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CK_OUT_EN,
@@ -747,23 +753,24 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos)
 			      RGMII_CONFIG2_RX_PROG_SWAP,
 			      RGMII_IO_MACRO_CONFIG2);
 
-		/* Set PRG_RCLK_DLY to 57 for 1.8 ns delay */
-		if (ethqos->emac_ver == EMAC_HW_v2_3_2) {
+		if (!ethqos->io_macro.rx_dll_bypass) {
+			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY,
+				      BIT(21), SDCC_HC_REG_DDR_CONFIG);
+			rgmii_updatel(ethqos,
+				      SDCC_DDR_CONFIG_TCXO_CYCLES_DLY_LINE,
+				      BIT(18), SDCC_HC_REG_DDR_CONFIG);
+			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_TCXO_CYCLES_CNT,
+				      BIT(11), SDCC_HC_REG_DDR_CONFIG);
+
 			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_RCLK_DLY,
-				      69, SDCC_HC_REG_DDR_CONFIG);
-		} else if (ethqos->emac_ver == EMAC_HW_v2_1_2) {
-			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_RCLK_DLY,
-				      52, SDCC_HC_REG_DDR_CONFIG);
-		} else {
-			if (!ethqos->io_macro.rx_dll_bypass)
-				rgmii_updatel(ethqos,
-					      SDCC_DDR_CONFIG_PRG_RCLK_DLY,
-					      57, SDCC_HC_REG_DDR_CONFIG);
+				      ethqos->io_macro.prg_rclk_dly,
+				      SDCC_HC_REG_DDR_CONFIG);
+
+			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_DLY_EN,
+				      SDCC_DDR_CONFIG_PRG_DLY_EN,
+				      SDCC_HC_REG_DDR_CONFIG);
 		}
 
-		rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_DLY_EN,
-			      SDCC_DDR_CONFIG_PRG_DLY_EN,
-			      SDCC_HC_REG_DDR_CONFIG);
 		if (ethqos->emac_ver == EMAC_HW_v2_3_2 ||
 		    ethqos->emac_ver == EMAC_HW_v2_1_2)
 			rgmii_updatel(ethqos, RGMII_CONFIG_LOOPBACK_EN,
@@ -833,16 +840,10 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos)
 		if (ethqos->emac_ver != EMAC_HW_v2_1_2)
 			rgmii_updatel(ethqos, RGMII_CONFIG2_DATA_DIVIDE_CLK_SEL,
 				      0, RGMII_IO_MACRO_CONFIG2);
-		if (ethqos->emac_ver == EMAC_HW_v2_3_2 ||
-		    ethqos->emac_ver == EMAC_HW_v2_1_2)
-			rgmii_updatel(ethqos,
-				      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
-				      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
-				      RGMII_IO_MACRO_CONFIG2);
-		else
-			rgmii_updatel(ethqos,
-				      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
-				      0, RGMII_IO_MACRO_CONFIG2);
+		rgmii_updatel(ethqos,
+			      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+			      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+			      RGMII_IO_MACRO_CONFIG2);
 		rgmii_updatel(ethqos, RGMII_CONFIG_MAX_SPD_PRG_9,
 			      BIT(12) | GENMASK(9, 8),
 			      RGMII_IO_MACRO_CONFIG);
@@ -929,7 +930,11 @@ static int ethqos_configure(struct qcom_ethqos *ethqos)
 				      SDCC_DLL_CONFIG_PDN,
 				      SDCC_HC_REG_DLL_CONFIG);
 
-			/* Set USR_CTL bit 30 */
+			if (ethqos->io_macro.usr_ctl_set)
+				rgmii_updatel(ethqos, GENMASK(31, 0),
+					      ethqos->io_macro.usr_ctl,
+					      SDCC_USR_CTL);
+			/* Set PDN bit 30 in USR_CTL */
 			rgmii_updatel(ethqos, BIT(30), BIT(30), SDCC_USR_CTL);
 		} else {
 			/* Set DLL_EN */
@@ -943,9 +948,15 @@ static int ethqos_configure(struct qcom_ethqos *ethqos)
 				      SDCC_DLL_CONFIG_CK_OUT_EN,
 				      SDCC_HC_REG_DLL_CONFIG);
 
-			/* Set USR_CTL bit 26 with mask of 3 bits */
-			rgmii_updatel(ethqos, GENMASK(26, 24), BIT(26),
-				      SDCC_USR_CTL);
+			if (ethqos->io_macro.usr_ctl_set)
+				/* Set USR_CTL value from dts */
+				rgmii_updatel(ethqos, GENMASK(31, 0),
+					      ethqos->io_macro.usr_ctl,
+					      SDCC_USR_CTL);
+			else
+				/* Set USR_CTL bit 26 with mask of 3 bits */
+				rgmii_updatel(ethqos, GENMASK(26, 24),
+					      BIT(26), SDCC_USR_CTL);
 
 			/* wait for DLL LOCK */
 			do {
@@ -2759,6 +2770,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct net_device *ndev;
 	struct stmmac_priv *priv;
+	unsigned int rclk_dly_read_ps;
 	int ret, i;
 
 	if (of_device_is_compatible(pdev->dev.of_node,
@@ -2920,22 +2932,46 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	ETHQOSINFO("emac-phy-off-suspend = %d\n",
 		   ethqos->current_phy_mode);
 
-	io_macro_node = of_find_node_by_name(pdev->dev.of_node,
-					     "io-macro-info");
-
+	/* Initialize io-macro settings to default */
 	if (ethqos->emac_ver == EMAC_HW_v2_3_2 ||
 	    ethqos->emac_ver == EMAC_HW_v2_1_2) {
 		ethqos->io_macro.rx_prog_swap = 1;
-	} else if (!io_macro_node) {
-		ethqos->io_macro.rx_prog_swap = 0;
-	} else {
-		if (of_property_read_bool(io_macro_node, "rx-prog-swap"))
-			ethqos->io_macro.rx_prog_swap = 1;
+
+		/* Set PRG_RCLK_DLY to 57 for 1.8 ns delay */
+		if (ethqos->emac_ver == EMAC_HW_v2_3_2)
+			ethqos->io_macro.prg_rclk_dly = 69;
+		else if (ethqos->emac_ver == EMAC_HW_v2_1_2)
+			ethqos->io_macro.prg_rclk_dly = 52;
+		else
+			ethqos->io_macro.prg_rclk_dly = 57;
+
 	}
 
+	/* Update io-macro settings from device tree */
+	io_macro_node = of_find_node_by_name(pdev->dev.of_node,
+					     "io-macro-info");
+
 	if (io_macro_node) {
+		if (of_property_read_bool(io_macro_node, "rx-prog-swap"))
+			ethqos->io_macro.rx_prog_swap = true;
 		if (of_property_read_bool(io_macro_node, "rx-dll-bypass"))
-			ethqos->io_macro.rx_dll_bypass = 1;
+			ethqos->io_macro.rx_dll_bypass = true;
+		if (of_property_read_bool(io_macro_node, "clear-cdr-ext-en"))
+			ethqos->io_macro.clear_cdt_ext_en = true;
+		ret = of_property_read_u32(io_macro_node, "prg-rclk-dly",
+					   &rclk_dly_read_ps);
+		if (!ret && rclk_dly_read_ps) {
+			ethqos->io_macro.prg_rclk_dly =
+			(RGMII_PRG_RCLK_CONST * 1000) / rclk_dly_read_ps;
+		}
+		if (of_property_read_bool(io_macro_node,
+					  "sdcc-usr-ctl")) {
+			ret = of_property_read_u32(io_macro_node,
+						   "sdcc-usr-ctl",
+						   &ethqos->io_macro.usr_ctl);
+			if (!ret)
+				ethqos->io_macro.usr_ctl_set = true;
+		}
 	}
 
 	ethqos->ioaddr = (&stmmac_res)->addr;

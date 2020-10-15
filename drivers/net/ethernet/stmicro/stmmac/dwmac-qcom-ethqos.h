@@ -166,6 +166,8 @@ do {\
 #define SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_CODE	GENMASK(29, 27)
 #define SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_EN	BIT(30)
 #define SDCC_DDR_CONFIG_PRG_RCLK_DLY		GENMASK(8, 0)
+#define SDCC_DDR_CONFIG_TCXO_CYCLES_DLY_LINE	GENMASK(20, 12)
+#define SDCC_DDR_CONFIG_TCXO_CYCLES_CNT	GENMASK(11, 9)
 
 /* SDCC_HC_REG_DLL_CONFIG2 fields */
 #define SDCC_DLL_CONFIG2_DLL_CLOCK_DIS		BIT(21)
@@ -398,6 +400,13 @@ enum current_phy_state {
 	RGMII_IO_MACRO_CONFIG_RGWR(v);\
 } while (0)
 
+#define RGMII_TCXO_CYCLES_DLY_LINE 64
+#define RGMII_TCXO_PERIOD_NS 52
+#define RGMII_TCXO_CYCLES_CNT 4
+
+#define RGMII_PRG_RCLK_CONST \
+	(RGMII_TCXO_PERIOD_NS * RGMII_TCXO_CYCLES_CNT / 2)
+
 enum CV2X_MODE {
 	CV2X_MODE_DISABLE = 0x0,
 	CV2X_MODE_MDM,
@@ -422,8 +431,12 @@ struct ethqos_emac_driver_data {
 };
 
 struct ethqos_io_macro {
+	unsigned int prg_rclk_dly;
+	u32 usr_ctl;
+	bool usr_ctl_set;
 	bool rx_prog_swap;
 	bool rx_dll_bypass;
+	bool clear_cdt_ext_en;
 };
 
 struct ethqos_extra_dma_stats {
