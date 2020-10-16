@@ -565,6 +565,7 @@ ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
         dtbo-$(CONFIG_ARCH_SDM429W) += sdm429-wtp-overlay.dtbo\
 		sdm429-wdp-overlay.dtbo\
 		sdm429-bg-dvt2-wtp-overlay.dtbo\
+		sdm429-spyro-qrd-newport-overlay.dtbo\
 		sda429-wdp-overlay.dtbo\
 		sda429-wtp-overlay.dtbo\
 		sda429-bg-dvt2-wtp-overlay.dtbo
@@ -572,6 +573,7 @@ ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 sdm429-wtp-overlay.dtbo-base := sdm429.dtb
 sdm429-wdp-overlay.dtbo-base := sdm429.dtb
 sdm429-bg-dvt2-wtp-overlay.dtbo-base := sdm429.dtb
+sdm429-spyro-qrd-newport-overlay.dtbo-base := sdm429-spyro.dtb
 sda429-wtp-overlay.dtbo-base := sda429.dtb
 sda429-wdp-overlay.dtbo-base := sda429.dtb
 sda429-bg-dvt2-wtp-overlay.dtbo-base := sda429.dtb
