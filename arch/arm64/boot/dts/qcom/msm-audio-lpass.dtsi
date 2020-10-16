@@ -91,6 +91,7 @@
 
 	loopback: qcom,msm-pcm-loopback {
 		compatible = "qcom,msm-pcm-loopback";
+		qcom,msm-pcm-loopback;
 	};
 
 	loopback1: qcom,msm-pcm-loopback-low-latency {
