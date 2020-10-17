@@ -130,13 +130,7 @@ const struct raid6_recov_calls *const raid6_recov_algos[] = {
 
 static inline const struct raid6_recov_calls *raid6_choose_recov(void)
 {
-	const struct raid6_recov_calls *const *algo;
-	const struct raid6_recov_calls *best;
-
-	for (best = NULL, algo = raid6_recov_algos; *algo; algo++)
-		if (!best || (*algo)->priority > best->priority)
-			if (!(*algo)->valid || (*algo)->valid())
-				best = *algo;
+	const struct raid6_recov_calls *best = &raid6_recov_neon;
 
 	if (best) {
 		raid6_2data_recov = best->data2;
@@ -152,68 +146,13 @@ static inline const struct raid6_recov_calls *raid6_choose_recov(void)
 static inline const struct raid6_calls *raid6_choose_gen(
 	void *(*const dptrs)[(65536/PAGE_SIZE)+2], const int disks)
 {
-	unsigned long perf, bestgenperf, bestxorperf, j0, j1;
-	int start = (disks>>1)-1, stop = disks-3;	/* work on the second half of the disks */
-	const struct raid6_calls *const *algo;
-	const struct raid6_calls *best;
-
-	for (bestgenperf = 0, bestxorperf = 0, best = NULL, algo = raid6_algos; *algo; algo++) {
-		if (!best || (*algo)->prefer >= best->prefer) {
-			if ((*algo)->valid && !(*algo)->valid())
-				continue;
-
-			perf = 0;
-
-			preempt_disable();
-			j0 = jiffies;
-			while ((j1 = jiffies) == j0)
-				cpu_relax();
-			while (time_before(jiffies,
-					    j1 + (1<<RAID6_TIME_JIFFIES_LG2))) {
-				(*algo)->gen_syndrome(disks, PAGE_SIZE, *dptrs);
-				perf++;
-			}
-			preempt_enable();
-
-			if (perf > bestgenperf) {
-				bestgenperf = perf;
-				best = *algo;
-			}
-			pr_info("raid6: %-8s gen() %5ld MB/s\n", (*algo)->name,
-			       (perf*HZ) >> (20-16+RAID6_TIME_JIFFIES_LG2));
-
-			if (!(*algo)->xor_syndrome)
-				continue;
-
-			perf = 0;
-
-			preempt_disable();
-			j0 = jiffies;
-			while ((j1 = jiffies) == j0)
-				cpu_relax();
-			while (time_before(jiffies,
-					    j1 + (1<<RAID6_TIME_JIFFIES_LG2))) {
-				(*algo)->xor_syndrome(disks, start, stop,
-						      PAGE_SIZE, *dptrs);
-				perf++;
-			}
-			preempt_enable();
-
-			if (best == *algo)
-				bestxorperf = perf;
-
-			pr_info("raid6: %-8s xor() %5ld MB/s\n", (*algo)->name,
-				(perf*HZ) >> (20-16+RAID6_TIME_JIFFIES_LG2+1));
-		}
-	}
+	const struct raid6_calls *best = &raid6_neonx8;
 
 	if (best) {
-		pr_info("raid6: using algorithm %s gen() %ld MB/s\n",
-		       best->name,
-		       (bestgenperf*HZ) >> (20-16+RAID6_TIME_JIFFIES_LG2));
+		pr_info("raid6: using algorithm %s gen()\n",
+		       best->name);
 		if (best->xor_syndrome)
-			pr_info("raid6: .... xor() %ld MB/s, rmw enabled\n",
-			       (bestxorperf*HZ) >> (20-16+RAID6_TIME_JIFFIES_LG2+1));
+			pr_info("raid6: .... xor(), rmw enabled\n");
 		raid6_call = *best;
 	} else
 		pr_err("raid6: Yikes!  No algorithm found!\n");
