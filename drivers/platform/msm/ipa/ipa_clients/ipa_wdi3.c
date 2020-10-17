@@ -217,6 +217,12 @@ int ipa_wdi_reg_intf(struct ipa_wdi_reg_intf_in_params *in)
 			return 0;
 		}
 
+	if (ipa3_ctx->ipa_wdi3_over_gsi &&
+		in->is_tx1_used && !ipa3_ctx->is_wdi3_tx1_needed) {
+		IPA_WDI_DBG(
+			"tx1 reg intr not sprtd, adng it to default pipe\n");
+	}
+
 	IPA_WDI_DBG("intf was not added before, proceed.\n");
 	new_intf = kzalloc(sizeof(*new_intf), GFP_KERNEL);
 	if (new_intf == NULL) {
@@ -257,7 +263,7 @@ int ipa_wdi_reg_intf(struct ipa_wdi_reg_intf_in_params *in)
 	memset(tx_prop, 0, sizeof(tx_prop));
 	tx_prop[0].ip = IPA_IP_v4;
 	if (ipa3_ctx->ipa_wdi3_over_gsi) {
-		if (in->is_tx1_used)
+		if (in->is_tx1_used && ipa3_ctx->is_wdi3_tx1_needed)
 			tx_prop[0].dst_pipe = IPA_CLIENT_WLAN2_CONS1;
 		else
 			tx_prop[0].dst_pipe = IPA_CLIENT_WLAN2_CONS;
@@ -271,7 +277,7 @@ int ipa_wdi_reg_intf(struct ipa_wdi_reg_intf_in_params *in)
 
 	tx_prop[1].ip = IPA_IP_v6;
 	if (ipa3_ctx->ipa_wdi3_over_gsi) {
-		if (in->is_tx1_used)
+		if (in->is_tx1_used && ipa3_ctx->is_wdi3_tx1_needed)
 			tx_prop[1].dst_pipe = IPA_CLIENT_WLAN2_CONS1;
 		else
 			tx_prop[1].dst_pipe = IPA_CLIENT_WLAN2_CONS;
@@ -469,12 +475,14 @@ int ipa_wdi_conn_pipes(struct ipa_wdi_conn_in_params *in,
 	ipa_wdi_ctx->num_sys_pipe_needed = in->num_sys_pipe_needed;
 	ipa_ep_idx_tx1 = ipa_get_ep_mapping(IPA_CLIENT_WLAN2_CONS1);
 	if ((ipa_ep_idx_tx1 != IPA_EP_NOT_ALLOCATED) &&
-		(ipa_ep_idx_tx1 < IPA3_MAX_NUM_PIPES)) {
+		(ipa_ep_idx_tx1 < IPA3_MAX_NUM_PIPES) &&
+		(ipa3_ctx->is_wdi3_tx1_needed)) {
 		ipa_wdi_ctx->is_tx1_used = in->is_tx1_used;
 	} else
 		ipa_wdi_ctx->is_tx1_used = false;
-	IPA_WDI_DBG("number of sys pipe %d,IPA Tx1 pipe needed =%d\n",
-		in->num_sys_pipe_needed, in->is_tx1_used);
+	IPA_WDI_DBG("number of sys pipe %d,Tx1 asked=%d,Tx1 supported=%d\n",
+		in->num_sys_pipe_needed, in->is_tx1_used,
+		ipa3_ctx->is_wdi3_tx1_needed);
 
 	/* setup sys pipe when needed */
 	for (i = 0; i < ipa_wdi_ctx->num_sys_pipe_needed; i++) {
