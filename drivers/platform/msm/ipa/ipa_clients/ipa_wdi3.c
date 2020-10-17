@@ -88,6 +88,14 @@ int ipa_wdi_init(struct ipa_wdi_init_in_params *in,
 		return -EFAULT;
 	}
 
+	if (in->wdi_version == IPA_WDI_1 && (ipa3_ctx->ipa_config_is_sa
+		|| ipa3_ctx->ipa_config_is_auto)
+		&& ipa3_ctx->ipa_hw_type == IPA_HW_v4_5
+		&& !ipa3_ctx->ipa_wlan_cb_iova_map) {
+		IPA_WDI_ERR("iova range is not defined");
+		return -EFAULT;
+	}
+
 	ipa_wdi_ctx = kzalloc(sizeof(*ipa_wdi_ctx), GFP_KERNEL);
 	if (ipa_wdi_ctx == NULL) {
 		IPA_WDI_ERR("fail to alloc wdi ctx\n");
