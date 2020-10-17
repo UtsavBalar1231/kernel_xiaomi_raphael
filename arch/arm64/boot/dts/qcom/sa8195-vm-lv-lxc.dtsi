@@ -38,6 +38,10 @@
 	status = "ok";
 };
 
+&qupv3_se4_4uart {
+	status = "ok";
+};
+
 &usb0 {
 	status = "ok";
 };
@@ -57,4 +61,9 @@
 &sde_kms_hyp {
 	/delete-property/ qcom,client-id;
 	qcom,client-id = "7816";
+};
+
+&linux_cma {
+	/delete-property/ size;
+	size = <0x0 0x3c00000>;
 };
