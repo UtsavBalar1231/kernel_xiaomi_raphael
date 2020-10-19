@@ -2692,31 +2692,53 @@ inline u32 qcom_ethqos_rgmii_io_macro_num_of_regs(u32 emac_hw_version)
 	}
 }
 
+static int qcom_ethos_init_panic_notifier(struct qcom_ethqos *ethqos)
+{
+	u32 size_iomacro_regs;
+	int ret = 1;
+
+	if (pethqos) {
+		size_iomacro_regs =
+		qcom_ethqos_rgmii_io_macro_num_of_regs(pethqos->emac_ver) * 4;
+
+		pethqos->emac_reg_base_address =
+			kzalloc(pethqos->emac_mem_size, GFP_KERNEL);
+
+		if (!pethqos->emac_reg_base_address)
+			ret = 0;
+
+		pethqos->rgmii_reg_base_address =
+			kzalloc(size_iomacro_regs, GFP_KERNEL);
+
+		if (!pethqos->rgmii_reg_base_address)
+			ret = 0;
+	}
+
+	return ret;
+}
+
 static int qcom_ethos_panic_notifier(struct notifier_block *this,
 				     unsigned long event, void *ptr)
 {
 	u32 size_iomacro_regs;
 
 	if (pethqos) {
-		size_iomacro_regs =
-		qcom_ethqos_rgmii_io_macro_num_of_regs(pethqos->emac_ver) * 4;
-		ETHQOSINFO("pethqos 0x%p", pethqos);
+		pr_info("qcom-ethqos: ethqos 0x%p\n", pethqos);
+
 
 		pethqos->iommu_domain = stmmac_emb_smmu_ctx.iommu_domain;
-		ETHQOSINFO("emac iommu domain 0x%p", pethqos->iommu_domain);
+		pr_info("qcom-ethqos: emac iommu domain 0x%p\n",
+			pethqos->iommu_domain);
 
-		pethqos->emac_reg_base_address =
-		kzalloc(pethqos->emac_mem_size, GFP_KERNEL);
-		ETHQOSINFO("emac register mem 0x%p", pethqos->emac_mem_base);
-		if (pethqos->emac_mem_base)
+		pr_info("qcom-ethqos: emac register mem 0x%p\n",
+			pethqos->emac_reg_base_address);
+		if (pethqos->emac_reg_base_address)
 			memcpy_fromio(pethqos->emac_reg_base_address,
 				      pethqos->ioaddr,
 				      pethqos->emac_mem_size);
 
-		pethqos->rgmii_reg_base_address =
-		kzalloc(size_iomacro_regs, GFP_KERNEL);
-		ETHQOSINFO
-		("rgmii register mem 0x%p", pethqos->rgmii_reg_base_address);
+		pr_info("qcom-ethqos: rgmii register mem 0x%p\n",
+			pethqos->rgmii_reg_base_address);
 		if (pethqos->rgmii_reg_base_address)
 			memcpy_fromio(pethqos->rgmii_reg_base_address,
 				      pethqos->rgmii_base,
@@ -2982,8 +3004,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &qcom_ethqos_panic_blk);
 	rgmii_dump(ethqos);
 
 	if (ethqos->emac_ver == EMAC_HW_v2_3_2) {
@@ -3042,6 +3062,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 #ifdef CONFIG_ETH_IPA_OFFLOAD
 	ethqos_ipa_offload_event_handler(ethqos, EV_PROBE_INIT);
 #endif
+
+	if (qcom_ethos_init_panic_notifier(ethqos))
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &qcom_ethqos_panic_blk);
 
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER
 	place_marker("M - Ethernet probe end");
