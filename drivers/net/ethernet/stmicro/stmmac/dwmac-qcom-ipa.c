@@ -2512,6 +2512,7 @@ static int ethqos_ipa_offload_suspend(struct qcom_ethqos *ethqos)
 					eth_ipa_queue_type_to_tx_client(type);
 				profile.proto =
 					eth_ipa_queue_type_to_proto(type);
+			if (profile.proto < IPA_QUEUE_MAX)
 				ret = ipa_set_perf_profile(&profile);
 				if (ret)
 					ETHQOSERR("%s: Err set BW for TX %d\n",
@@ -2583,6 +2584,7 @@ static int ethqos_ipa_offload_resume(struct qcom_ethqos *ethqos)
 		if (eth_ipa_queue_type_enabled(type)) {
 			profile.client = eth_ipa_queue_type_to_tx_client(type);
 			profile.proto =  eth_ipa_queue_type_to_proto(type);
+		if (profile.proto < IPA_QUEUE_MAX)
 			ret = ipa_set_perf_profile(&profile);
 			if (ret)
 				ETHQOSERR("%s: Err set BW for TX: %d\n",
