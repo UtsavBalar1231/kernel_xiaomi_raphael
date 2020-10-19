@@ -19,10 +19,6 @@
 #include "sdm429-mdss-panels.dtsi"
 #include "sdm429-spyro-qrd-evt-audio.dtsi"
 
-&int_codec {
-	qcom,wcn-bt-slim = <1>;
-};
-
 / {
 	model = "Qualcomm Technologies, Inc. SDM429 QRD NewPort Overlay";
 	compatible = "qcom,sdm429w-qrd", "qcom,sdm429w", "qcom,qrd";
@@ -108,10 +104,6 @@
 		raydium,display-coords= <0  0 416 416>;
 		raydium,fw_id = <0x2202>;
 	};
-};
-
-&i2c_2 {
-	status = "disabled";
 };
 
 &blsp2_uart2_hs {
