@@ -19,6 +19,7 @@
 #include <linux/pfk.h>
 #endif
 #include <crypto/ice.h>
+#include <uapi/linux/sched/types.h>
 
 #define PART_BITS 4
 #define VQ_NAME_LEN 16
@@ -817,6 +818,7 @@ static const struct blk_mq_ops virtio_mq_ops = {
 
 static unsigned int virtblk_queue_depth;
 module_param_named(queue_depth, virtblk_queue_depth, uint, 0444);
+extern void early_prepare_namespace(char *name);
 
 static int virtblk_probe(struct virtio_device *vdev)
 {
@@ -1014,6 +1016,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 					 &dev_attr_cache_type_ro);
 	if (err)
 		goto out_del_disk;
+	early_prepare_namespace(vblk->disk->disk_name);
 	return 0;
 
 out_del_disk:
@@ -1144,7 +1147,9 @@ static struct virtio_driver virtio_blk = {
 static int __init init(void)
 {
 	int error;
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 
+	sched_setscheduler(current, SCHED_FIFO, &param);
 #ifdef CONFIG_PFK_VIRTUALIZED
 	ice_workqueue = alloc_workqueue("virtio-blk-ice",
 			WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_FREEZABLE, 0);
@@ -1189,7 +1194,7 @@ static void __exit fini(void)
 	destroy_workqueue(ice_workqueue);
 #endif
 }
-module_init(init);
+subsys_initcall(init);
 module_exit(fini);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
