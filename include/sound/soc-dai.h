@@ -115,6 +115,8 @@ struct snd_ac97_bus_ops;
 int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	unsigned int freq, int dir);
 
+int snd_soc_dai_set_tdm_clkmode(struct snd_soc_dai *dai, int clk_mode);
+
 int snd_soc_dai_set_clkdiv(struct snd_soc_dai *dai,
 	int div_id, int div);
 
@@ -156,6 +158,8 @@ struct snd_soc_dai_ops {
 		unsigned int freq_in, unsigned int freq_out);
 	int (*set_clkdiv)(struct snd_soc_dai *dai, int div_id, int div);
 	int (*set_bclk_ratio)(struct snd_soc_dai *dai, unsigned int ratio);
+
+	int (*set_clkmode)(struct snd_soc_dai *dai, int clk_mode);
 
 	/*
 	 * DAI format configuration
