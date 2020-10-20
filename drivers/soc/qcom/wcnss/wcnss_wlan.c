@@ -2308,7 +2308,7 @@ unlock_exit:
 static void wcnss_process_smd_msg(void *buf, int len)
 {
 	int rc = 0;
-	unsigned char build[WCNSS_MAX_BUILD_VER_LEN + 1];
+	unsigned char *build;
 	struct smd_msg_hdr *phdr;
 	struct smd_msg_hdr smd_msg;
 	struct wcnss_version *pversion;
@@ -2364,16 +2364,26 @@ static void wcnss_process_smd_msg(void *buf, int len)
 		break;
 
 	case WCNSS_BUILD_VER_RSP:
+		build = kmalloc(WCNSS_MAX_BUILD_VER_LEN + 1, GFP_ATOMIC);
+		if (!build) {
+			wcnss_log(ERR,
+				  "%s: mem alloc failed for build ver resp\n",
+				  __func__);
+			return;
+		}
+
 		if (len > sizeof(struct smd_msg_hdr) +
 		    WCNSS_MAX_BUILD_VER_LEN) {
 			wcnss_log(ERR,
 				  "invalid build version:%d\n", len);
+			kfree(build);
 			return;
 		}
 		memcpy(build, buf + sizeof(struct smd_msg_hdr),
 		       len - sizeof(struct smd_msg_hdr));
 		build[len] = 0;
 		wcnss_log(INFO, "build version %s\n", build);
+		kfree(build);
 		break;
 
 	case WCNSS_NVBIN_DNLD_RSP:
