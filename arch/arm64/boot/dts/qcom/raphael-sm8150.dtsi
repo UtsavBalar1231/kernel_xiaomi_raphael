@@ -49,9 +49,8 @@ And public attribution of xiaomi platforms(like F1 and so and)
 	qcom,auto-recharge-soc = <99>;
 	qcom,chg-term-src = <1>;
 	qcom,chg-term-current-ma = <(-220)>;
-	qcom,thermal-mitigation = <3000000 2800000 2600000 2400000 2200000 2100000 2000000
-				   1800000 1600000 1500000 1400000 1200000 1000000 900000
-				   800000 500000>;
+	qcom,thermal-mitigation = <4400000 3500000 3000000 2500000
+			2000000 500000>;
 	qcom,thermal-mitigation-icl
 				= <2800000 2700000 2600000 2400000 2400000 2400000 2400000
 				   2400000 2400000 2100000 1900000 1700000 1500000 1300000
