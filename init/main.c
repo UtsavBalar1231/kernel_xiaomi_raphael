@@ -915,8 +915,10 @@ static void __init do_initcall_level(int level)
 		   level, level,
 		   NULL, &repair_env_string);
 
-	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
+	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++) {
 		do_one_initcall(*fn);
+		prefetchi(*(fn+1));
+	}
 }
 
 static void __init do_initcalls(void)
