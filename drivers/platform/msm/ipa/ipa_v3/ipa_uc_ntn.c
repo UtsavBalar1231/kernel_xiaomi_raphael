@@ -537,14 +537,27 @@ int ipa3_setup_uc_ntn_pipes(struct ipa_ntn_conn_in_params *in,
 		result = -EFAULT;
 		goto fail_disable_dp_ul;
 	}
-	ipa3_install_dflt_flt_rules(ipa_ep_idx_ul);
+
 	/* Rx: IPA_UC_MAILBOX_m_n m = 1, n =3 mmio*/
 	outp->ul_uc_db_iomem = ipa3_ctx->mmio +
 		ipahal_get_reg_mn_ofst(IPA_UC_MAILBOX_m_n,
 		1, 3);
 	ep_ul->uc_offload_state |= IPA_UC_OFFLOAD_CONNECTED;
-	IPADBG("client %d (ep: %d) connected\n", in->ul.client,
+
+	/* special handling for v2x pipes */
+	if (in->ul.client == IPA_CLIENT_ETHERNET2_PROD) {
+		ep_ul->skip_ep_cfg = true;
+		ipa3_ctx->skip_ep_cfg_shadow[ipa_ep_idx_ul] =
+			ep_ul->skip_ep_cfg;
+		IPADBG("client %d (ep: %d) for v2x connected skip(%d)\n",
+			in->ul.client,
+			ipa_ep_idx_ul,
+			ep_ul->skip_ep_cfg);
+	} else {
+		ipa3_install_dflt_flt_rules(ipa_ep_idx_ul);
+		IPADBG("client %d (ep: %d) connected\n", in->ul.client,
 		ipa_ep_idx_ul);
+	}
 
 	/* setup dl ep cfg */
 	ep_dl->valid = 1;
@@ -720,8 +733,10 @@ int ipa3_tear_down_uc_offload_pipes(int ipa_ep_idx_ul,
 		IPAERR("failed to unmap SMMU for UL %d\n", result);
 		goto fail;
 	}
+	/* special handling for v2x pipes */
+	if (ipa_ep_idx_ul != ipa_get_ep_mapping(IPA_CLIENT_ETHERNET2_PROD))
+		ipa3_delete_dflt_flt_rules(ipa_ep_idx_ul);
 
-	ipa3_delete_dflt_flt_rules(ipa_ep_idx_ul);
 	memset(&ipa3_ctx->ep[ipa_ep_idx_ul], 0, sizeof(struct ipa3_ep_context));
 	IPADBG("ul client (ep: %d) disconnected\n", ipa_ep_idx_ul);
 
