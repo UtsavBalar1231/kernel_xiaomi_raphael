@@ -115,6 +115,8 @@ static struct bt_power_vreg_data bt_power_vreg_info[] = {
 		{BT_VDD_LDO, BT_VDD_LDO_CURRENT} },
 	{NULL, "qca,bt-chip-pwd", 0, 0, 0, false, false,
 		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
+	{NULL, "qca,bt-vdd-s5", 1352000, 1352000, 0, true, false,
+		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
 };
 
 #define BT_VREG_INFO_SIZE ARRAY_SIZE(bt_power_vreg_info)
