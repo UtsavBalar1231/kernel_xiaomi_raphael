@@ -2381,7 +2381,7 @@ static void wcnss_process_smd_msg(void *buf, int len)
 		}
 		memcpy(build, buf + sizeof(struct smd_msg_hdr),
 		       len - sizeof(struct smd_msg_hdr));
-		build[len] = 0;
+		build[len - sizeof(struct smd_msg_hdr)] = 0;
 		wcnss_log(INFO, "build version %s\n", build);
 		kfree(build);
 		break;
