@@ -2721,6 +2721,6 @@ static void __exit journal_exit(void)
 }
 
 MODULE_LICENSE("GPL");
-module_init(journal_init);
+subsys_initcall(journal_init);
 module_exit(journal_exit);
 

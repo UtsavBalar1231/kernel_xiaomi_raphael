@@ -888,38 +888,6 @@ static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 	return !meltdown_safe;
 }
 
-#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-static void __nocfi
-kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
-{
-	typedef void (kpti_remap_fn)(int, int, phys_addr_t);
-	extern kpti_remap_fn idmap_kpti_install_ng_mappings;
-	kpti_remap_fn *remap_fn;
-
-	static bool kpti_applied = false;
-	int cpu = smp_processor_id();
-
-	if (kpti_applied)
-		return;
-
-	remap_fn = (void *)__pa_function(idmap_kpti_install_ng_mappings);
-
-	cpu_install_idmap();
-	remap_fn(cpu, num_online_cpus(), __pa_symbol(swapper_pg_dir));
-	cpu_uninstall_idmap();
-
-	if (!cpu)
-		kpti_applied = true;
-
-	return;
-}
-#else
-static void
-kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
-{
-}
-#endif	/* CONFIG_UNMAP_KERNEL_AT_EL0 */
-
 static int __init parse_kpti(char *str)
 {
 	bool enabled;
@@ -1090,7 +1058,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.field_pos = ID_AA64MMFR1_PAN_SHIFT,
 		.sign = FTR_UNSIGNED,
 		.min_field_value = 1,
-		.cpu_enable = cpu_enable_pan,
 	},
 #endif /* CONFIG_ARM64_PAN */
 #if defined(CONFIG_AS_LSE) && defined(CONFIG_ARM64_LSE_ATOMICS)
@@ -1171,7 +1138,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.field_pos = ID_AA64PFR0_CSV3_SHIFT,
 		.min_field_value = 1,
 		.matches = unmap_kernel_at_el0,
-		.cpu_enable = kpti_install_ng_mappings,
 	},
 	{
 		/* FP/SIMD is not implemented */
@@ -1208,7 +1174,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.field_pos = ID_AA64MMFR1_HADBS_SHIFT,
 		.min_field_value = 2,
 		.matches = has_hw_dbm,
-		.cpu_enable = cpu_enable_hw_dbm,
 	},
 #endif
 #ifdef CONFIG_ARM64_SSBD

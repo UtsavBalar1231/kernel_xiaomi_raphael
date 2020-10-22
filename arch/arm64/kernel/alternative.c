@@ -110,7 +110,7 @@ static void patch_alternative(struct alt_instr *alt,
 	}
 }
 
-static void __nocfi __apply_alternatives(void *alt_region, bool use_linear_alias)
+static void __nocfi __apply_alternatives(void *alt_region, bool use_linear_alias, bool is_early)
 {
 	struct alt_instr *alt;
 	struct alt_region *region = alt_region;
@@ -122,7 +122,12 @@ static void __nocfi __apply_alternatives(void *alt_region, bool use_linear_alias
 
 		/* Use ARM64_CB_PATCH as an unconditional patch */
 		if (alt->cpufeature < ARM64_CB_PATCH &&
-		    !cpus_have_cap(alt->cpufeature))
+		    !is_early && !cpus_have_cap(alt->cpufeature))
+			continue;
+
+		if (is_early && alt->cpufeature != ARM64_HAS_PAN &&
+		    alt->cpufeature != ARM64_HAS_UAO &&
+		    alt->cpufeature != ARM64_UNMAP_KERNEL_AT_EL0)
 			continue;
 
 		if (alt->cpufeature == ARM64_CB_PATCH)
@@ -166,7 +171,7 @@ static int __apply_alternatives_multi_stop(void *unused)
 		isb();
 	} else {
 		BUG_ON(alternatives_applied);
-		__apply_alternatives(&region, true);
+		__apply_alternatives(&region, true, false);
 		/* Barriers provided by the cache flushing */
 		WRITE_ONCE(alternatives_applied, 1);
 	}
@@ -177,8 +182,19 @@ static int __apply_alternatives_multi_stop(void *unused)
 void __init apply_alternatives_all(void)
 {
 	/* better not try code patching on a live SMP system */
-	stop_machine(__apply_alternatives_multi_stop, NULL, cpu_online_mask);
 }
+
+static int __init early_apply_alternatives_all(void)
+{
+	struct alt_region region = {
+		.begin	= (struct alt_instr *)__alt_instructions,
+		.end	= (struct alt_instr *)__alt_instructions_end,
+	};
+
+	__apply_alternatives(&region, true, true);
+	return 0;
+}
+early_initcall(early_apply_alternatives_all);
 
 void apply_alternatives(void *start, size_t length)
 {
@@ -187,5 +203,5 @@ void apply_alternatives(void *start, size_t length)
 		.end	= start + length,
 	};
 
-	__apply_alternatives(&region, false);
+	__apply_alternatives(&region, false, false);
 }

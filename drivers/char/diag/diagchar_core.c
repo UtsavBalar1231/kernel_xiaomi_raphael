@@ -51,6 +51,7 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
+#include <linux/async.h>
 
 MODULE_DESCRIPTION("Diag Char Driver");
 MODULE_LICENSE("GPL v2");
@@ -4574,6 +4575,18 @@ fail:
 
 }
 
+static void _diagchar_init(void *data, async_cookie_t cookie)
+{
+	if (diagchar_init())
+		async_schedule(_diagchar_init, NULL);
+}
+
+static int __init diagchar_init_async(void)
+{
+	async_schedule(_diagchar_init, NULL);
+	return 0;
+}
+
 static void diagchar_exit(void)
 {
 	pr_info("diagchar exiting...\n");
@@ -4592,5 +4605,5 @@ static void diagchar_exit(void)
 	pr_info("done diagchar exit\n");
 }
 
-module_init(diagchar_init);
+module_init(diagchar_init_async);
 module_exit(diagchar_exit);

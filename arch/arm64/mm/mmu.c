@@ -470,6 +470,11 @@ static void __init map_mem(pgd_t *pgd)
 	phys_addr_t kernel_end = __pa_symbol(__init_begin);
 	struct memblock_region *reg;
 	int flags = 0;
+	pgprot_t page_kerenl_prot = PAGE_KERNEL;
+
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+	page_kerenl_prot = __pgprot(pgprot_val(page_kerenl_prot) | PTE_NG);
+#endif
 
 	if (debug_pagealloc_enabled())
 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
@@ -497,7 +502,7 @@ static void __init map_mem(pgd_t *pgd)
 		if (memblock_is_nomap(reg))
 			continue;
 
-		__map_memblock(pgd, start, end, PAGE_KERNEL, flags);
+		__map_memblock(pgd, start, end, page_kerenl_prot, flags);
 	}
 
 	/*
@@ -511,7 +516,7 @@ static void __init map_mem(pgd_t *pgd)
 	 * so we should avoid them here.
 	 */
 	__map_memblock(pgd, kernel_start, kernel_end,
-		       PAGE_KERNEL, NO_CONT_MAPPINGS);
+		       page_kerenl_prot, NO_CONT_MAPPINGS);
 	memblock_clear_nomap(kernel_start, kernel_end - kernel_start);
 
 #ifdef CONFIG_KEXEC_CORE
@@ -522,7 +527,7 @@ static void __init map_mem(pgd_t *pgd)
 	 */
 	if (crashk_res.end) {
 		__map_memblock(pgd, crashk_res.start, crashk_res.end + 1,
-			       PAGE_KERNEL,
+			       page_kerenl_prot,
 			       NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS);
 		memblock_clear_nomap(crashk_res.start,
 				     resource_size(&crashk_res));
@@ -621,6 +626,12 @@ static void __init map_kernel(pgd_t *pgd)
 	 * explicitly requested with rodata=off.
 	 */
 	pgprot_t text_prot = rodata_enabled ? PAGE_KERNEL_ROX : PAGE_KERNEL_EXEC;
+	pgprot_t page_kerenl_prot = PAGE_KERNEL;
+
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+	text_prot = __pgprot(pgprot_val(text_prot) | PTE_NG);
+	page_kerenl_prot = __pgprot(pgprot_val(page_kerenl_prot) | PTE_NG);
+#endif
 
 	/*
 	 * Only rodata will be remapped with different permissions later on,
@@ -628,13 +639,13 @@ static void __init map_kernel(pgd_t *pgd)
 	 */
 	map_kernel_segment(pgd, _text, _etext, text_prot, &vmlinux_text, 0,
 			   VM_NO_GUARD);
-	map_kernel_segment(pgd, __start_rodata, __inittext_begin, PAGE_KERNEL,
+	map_kernel_segment(pgd, __start_rodata, __inittext_begin, page_kerenl_prot,
 			   &vmlinux_rodata, NO_CONT_MAPPINGS, VM_NO_GUARD);
 	map_kernel_segment(pgd, __inittext_begin, __inittext_end, text_prot,
 			   &vmlinux_inittext, 0, VM_NO_GUARD);
-	map_kernel_segment(pgd, __initdata_begin, __initdata_end, PAGE_KERNEL,
+	map_kernel_segment(pgd, __initdata_begin, __initdata_end, page_kerenl_prot,
 			   &vmlinux_initdata, 0, VM_NO_GUARD);
-	map_kernel_segment(pgd, _data, _end, PAGE_KERNEL, &vmlinux_data, 0, 0);
+	map_kernel_segment(pgd, _data, _end, page_kerenl_prot, &vmlinux_data, 0, 0);
 
 	if (!pgd_val(*pgd_offset_raw(pgd, FIXADDR_START))) {
 		/*
@@ -1166,7 +1177,11 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 				break;
 			}
 
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+			pmd_set_huge(pmd, __pa(p), __pgprot(PROT_SECT_NORMAL | PTE_NG));
+#else
 			pmd_set_huge(pmd, __pa(p), __pgprot(PROT_SECT_NORMAL));
+#endif
 		} else
 			vmemmap_verify((pte_t *)pmd, node, addr, next);
 	} while (addr = next, addr != end);
@@ -1340,7 +1355,12 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 	void *dt_virt;
 	int size;
 
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+	dt_virt = __fixmap_remap_fdt(dt_phys, &size,
+		__pgprot(pgprot_val(PAGE_KERNEL_RO) | PTE_NG));
+#else
 	dt_virt = __fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL_RO);
+#endif
 	if (!dt_virt)
 		return NULL;
 

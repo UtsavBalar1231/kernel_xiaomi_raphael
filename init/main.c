@@ -88,6 +88,7 @@
 #include <linux/io.h>
 #include <linux/cache.h>
 #include <linux/rodata_test.h>
+#include <uapi/linux/sched/types.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -917,8 +918,10 @@ static void __init do_initcall_level(int level)
 		   level, level,
 		   NULL, &repair_env_string);
 
-	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
+	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++) {
 		do_one_initcall(*fn);
+		prefetchi(*(fn+1));
+	}
 }
 
 static void __init do_initcalls(void)
@@ -1009,7 +1012,7 @@ static void mark_readonly(void)
 		 * flushed so that we don't hit false positives looking for
 		 * insecure pages which are W+X.
 		 */
-		rcu_barrier_sched();
+		//rcu_barrier_sched();
 		mark_rodata_ro();
 		rodata_test();
 	} else
@@ -1025,6 +1028,7 @@ static inline void mark_readonly(void)
 static int __ref kernel_init(void *unused)
 {
 	int ret;
+	struct sched_param param = { .sched_priority = 0 };
 #ifdef CONFIG_EARLY_SERVICES
 	int status = 0;
 #endif
@@ -1039,6 +1043,7 @@ static int __ref kernel_init(void *unused)
 
 	rcu_end_inkernel_boot();
 	place_marker("M - DRIVER Kernel Boot Done");
+	sched_setscheduler(current, SCHED_NORMAL, &param);
 
 #ifdef CONFIG_EARLY_SERVICES
 	status = get_early_services_status();

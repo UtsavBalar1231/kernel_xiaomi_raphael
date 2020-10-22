@@ -110,47 +110,12 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 static int __init
 calibrate_xor_blocks(void)
 {
-	void *b1, *b2;
-	struct xor_block_template *f, *fastest;
-
-	fastest = XOR_SELECT_TEMPLATE(NULL);
-
-	if (fastest) {
-		printk(KERN_INFO "xor: automatically using best "
-				 "checksumming function   %-10s\n",
-		       fastest->name);
-		goto out;
-	}
-
-	b1 = (void *) __get_free_pages(GFP_KERNEL, 2);
-	if (!b1) {
-		printk(KERN_WARNING "xor: Yikes!  No memory available.\n");
-		return -ENOMEM;
-	}
-	b2 = b1 + 2*PAGE_SIZE + BENCH_SIZE;
-
-	/*
-	 * If this arch/cpu has a short-circuited selection, don't loop through
-	 * all the possible functions, just test the best one
-	 */
-
-#define xor_speed(templ)	do_xor_speed((templ), b1, b2)
-
-	printk(KERN_INFO "xor: measuring software checksum speed\n");
-	XOR_TRY_TEMPLATES;
-	fastest = template_list;
-	for (f = fastest; f; f = f->next)
-		if (f->speed > fastest->speed)
-			fastest = f;
-
-	printk(KERN_INFO "xor: using function: %s (%d.%03d MB/sec)\n",
-	       fastest->name, fastest->speed / 1000, fastest->speed % 1000);
-
-#undef xor_speed
-
-	free_pages((unsigned long)b1, 2);
-out:
-	active_template = fastest;
+	template_list = &xor_block_32regs_p;
+	xor_block_32regs_p.next = &xor_block_32regs;
+	xor_block_32regs.next = &xor_block_8regs_p;
+	xor_block_8regs_p.next = &xor_block_8regs;
+	xor_block_8regs.next = NULL;
+	active_template = &xor_block_8regs;
 	return 0;
 }
 

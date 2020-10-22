@@ -93,7 +93,7 @@ static const struct crypto_type crypto_akcipher_type = {
 #endif
 	.report = crypto_akcipher_report,
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
-	.maskset = CRYPTO_ALG_TYPE_MASK,
+	.maskset = CRYPTO_ALG_TYPE_MASK | CRYPTO_NOLOAD,
 	.type = CRYPTO_ALG_TYPE_AKCIPHER,
 	.tfmsize = offsetof(struct crypto_akcipher, base),
 };

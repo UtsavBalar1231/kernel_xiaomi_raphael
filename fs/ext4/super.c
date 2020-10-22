@@ -6247,5 +6247,5 @@ MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodo
 MODULE_DESCRIPTION("Fourth Extended Filesystem");
 MODULE_LICENSE("GPL");
 MODULE_SOFTDEP("pre: crc32c");
-module_init(ext4_init_fs)
+subsys_initcall(ext4_init_fs)
 module_exit(ext4_exit_fs)

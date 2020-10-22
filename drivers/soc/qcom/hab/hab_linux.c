@@ -11,6 +11,7 @@
  *
  */
 #include "hab.h"
+#include <linux/async.h>
 
 unsigned int get_refcnt(struct kref ref)
 {
@@ -356,6 +357,22 @@ err:
 	return result;
 }
 
+extern void __init scm_qcpe_init_async(void);
+
+static void _hab_init(void *data, async_cookie_t cookie)
+{
+	if (hab_init())
+		async_schedule(_hab_init, NULL);
+	else
+		scm_qcpe_init_async();
+}
+
+static int __init hab_init_async(void)
+{
+	async_schedule(_hab_init, NULL);
+	return 0;
+}
+
 static void __exit hab_exit(void)
 {
 	dev_t dev;
@@ -372,7 +389,7 @@ static void __exit hab_exit(void)
 	pr_debug("hab exit called\n");
 }
 
-subsys_initcall(hab_init);
+subsys_initcall(hab_init_async);
 module_exit(hab_exit);
 
 MODULE_DESCRIPTION("Hypervisor abstraction layer");

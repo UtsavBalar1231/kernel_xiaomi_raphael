@@ -62,6 +62,133 @@ static void delete_boot_marker(const char *name)
 	}
 }
 
+static bool swap_marker(char *old, char *new, char *code)
+{
+	if (strnstr(old, "M - DRIVER F/S Init",
+		sizeof("M - DRIVER F/S Init"))) {
+		snprintf(new, 64, "SYS_FS_INIT");
+		snprintf(code, 8, "101");
+		return true;
+	} else if (strnstr(old, "M - DRIVER F/S Ready",
+		sizeof("M - DRIVER F/S Ready"))) {
+		snprintf(new, 64, "SYS_FS_READY");
+		snprintf(code, 8, "101");
+		return true;
+	} else if (strnstr(old, "M - DRIVER Kernel Boot Done",
+		sizeof("M - DRIVER Kernel Boot Done"))) {
+		snprintf(new, 64, "SYS_KERNEL_END");
+		snprintf(code, 8, "101");
+		return true;
+	} else if (strnstr(old, "W - weston main begin",
+		sizeof("W - weston main begin"))) {
+		snprintf(new, 64, "HMI_Weston_Start");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "W - connector power on",
+		sizeof("W - connector power on"))) {
+		snprintf(new, 64, "HMI_Weston_Poweron");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "W - backend full ready",
+		sizeof("W - backend full ready"))) {
+		snprintf(new, 64, "HMI_Weston_Backend_Ready");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "W - first commit submitted",
+		sizeof("W - first commit submitted"))) {
+		snprintf(new, 64, "HMI_Weston_FirstFrame_Submitted");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "W - first frame have been displayed",
+		sizeof("W - first frame have been displayed"))) {
+		snprintf(new, 64, "HMI_IVI_Disclaimer");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "M - USB Device is enumerated",
+		sizeof("M - USB Device is enumerated"))) {
+		snprintf(new, 64, "SYS_USB_Gadget_Ready");
+		snprintf(code, 8, "101");
+		return true;
+	} else if (strnstr(old, "V - agl system session complete",
+		sizeof("V - agl system session complete"))) {
+		snprintf(new, 64, "HMI_Agl_Session_Complete");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "V - agl first user logged in",
+		sizeof("V - agl first user logged in"))) {
+		snprintf(new, 64, "HMI_Agl_User_Login");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "start_container",
+		sizeof("start_container"))) {
+		snprintf(new, 64, "HMI_Container_Start");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "lxc-app",
+		sizeof("lxc-app"))) {
+		snprintf(new, 64, "HMI_Container_Ready");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "W - libgbm begin",
+		sizeof("W - libgbm begin"))) {
+		snprintf(new, 64, "HMI_Gfx_Gbm_Begins");
+		snprintf(code, 8, "111");
+		return true;
+	} else if (strnstr(old, "M - USER Virutal Audio FE ready",
+		sizeof("M - USER Virutal Audio FE ready"))) {
+		snprintf(new, 64, "SYS_Virtual_Audio_FE_Ready");
+		snprintf(code, 8, "101");
+		return true;
+	} else if (strnstr(old, "M - USER Virtual Display FE ready",
+		sizeof("M - USER Virtual Display FE ready"))) {
+		snprintf(new, 64, "SYS_Virtual_Display_FE_Ready");
+		snprintf(code, 8, "101");
+		return true;
+	} else if (strnstr(old, "M - USER GFX FE Ready",
+		sizeof("M - USER GFX FE Ready"))) {
+		snprintf(new, 64, "SYS_Virtual_GFX_FE_Ready");
+		snprintf(code, 8, "101");
+		return true;
+	} else if (strnstr(old, "M - User Space Start",
+		sizeof("M - User Space Start"))) {
+		snprintf(new, 64, "SYS_Systemd_Start");
+		snprintf(code, 8, "101");
+		return true;
+	} else if (strnstr(old, "M - APPSBL Start",
+		sizeof("M - APPSBL Start"))
+		|| strnstr(old, "D - APPSBL Kernel Load Start",
+		sizeof("D - APPSBL Kernel Load Start"))
+		|| strnstr(old, "D - APPSBL Kernel Load End",
+		sizeof("D - APPSBL Kernel Load End"))
+		|| strnstr(old, "D - APPSBL Kernel Load Time",
+		sizeof("D - APPSBL Kernel Load Time"))
+		|| strnstr(old, "D - APPSBL Kernel Auth Time",
+		sizeof("D - APPSBL Kernel Auth Time"))
+		|| strnstr(old, "M - APPSBL End",
+		sizeof("M - APPSBL End"))
+		|| strnstr(old, "M - DRIVER GENI_HS_UART_0 Init",
+		sizeof("M - DRIVER GENI_HS_UART_0 Init"))
+		|| strnstr(old, "M - DRIVER GENI_HS_UART_0 Ready",
+		sizeof("M - DRIVER GENI_HS_UART_0 Ready"))) {
+		return false;
+	}
+	if ((old[0] >= '0') && (old[0] <= '9')) {
+		memcpy(code, old, 3);
+		code[4] = 0;
+		if (strnstr(old, "KPI_MARKER", sizeof("KPI_MARKER")))
+			snprintf(new, 64, "%s", old+15);
+		else
+			snprintf(new, 64, "%s", old+4);
+	} else {
+		snprintf(code, 8, "100");
+		if (strnstr(old, "KPI_MARKER", sizeof("KPI_MARKER")))
+			snprintf(new, 64, "%s", old+11);
+		else
+			snprintf(new, 64, "%s", old);
+	}
+	return true;
+}
+
 /*
  * Caller is expected to hold the list spinlock.
  */
@@ -69,11 +196,14 @@ static void _create_boot_marker(const char *name,
 		unsigned long long int timer_value)
 {
 	struct boot_marker *new_boot_marker;
+	char new_marker[64];
+	char new_code[8];
 
-	pr_debug("%-41s:%llu.%03llu seconds\n", name,
-			timer_value/TIMER_KHZ,
-			((timer_value % TIMER_KHZ)
-			 * 1000) / TIMER_KHZ);
+	if (swap_marker((char *)name, new_marker, new_code))
+		pr_info("%-3s KPI_MARKER %llus%09lluns %s\n",
+				new_code, timer_value/TIMER_KHZ,
+				(((timer_value % TIMER_KHZ)
+				* 1000000000) / TIMER_KHZ), new_marker);
 
 	new_boot_marker = kmalloc(sizeof(*new_boot_marker), GFP_ATOMIC);
 	if (!new_boot_marker)
@@ -214,6 +344,8 @@ static ssize_t bootkpi_reader(struct file *fp, char __user *user_buffer,
 	char *buf;
 	int temp = 0;
 	struct boot_marker *marker;
+	char new_marker[64];
+	char new_code[8];
 
 	buf = kmalloc(BOOTKPI_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -222,12 +354,12 @@ static ssize_t bootkpi_reader(struct file *fp, char __user *user_buffer,
 	spin_lock(&boot_marker_list.slock);
 	list_for_each_entry(marker, &boot_marker_list.list, list) {
 		WARN_ON((BOOTKPI_BUF_SIZE - temp) <= 0);
-		temp += scnprintf(buf + temp, BOOTKPI_BUF_SIZE - temp,
-				"%-41s:%llu.%03llu seconds\n",
-				marker->marker_name,
-				marker->timer_value/TIMER_KHZ,
-				(((marker->timer_value % TIMER_KHZ)
-				  * 1000) / TIMER_KHZ));
+		if (swap_marker(marker->marker_name, new_marker, new_code))
+			temp += scnprintf(buf + temp, BOOTKPI_BUF_SIZE - temp,
+					"%-3s KPI_MARKER %llus%09lluns %s\n",
+					new_code, marker->timer_value/TIMER_KHZ,
+					(((marker->timer_value % TIMER_KHZ)
+					* 1000000000) / TIMER_KHZ), new_marker);
 	}
 	spin_unlock(&boot_marker_list.slock);
 	rc = simple_read_from_buffer(user_buffer, count, position, buf, temp);
