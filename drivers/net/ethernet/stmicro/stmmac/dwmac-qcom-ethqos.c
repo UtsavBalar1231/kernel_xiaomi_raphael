@@ -3211,12 +3211,15 @@ static int qcom_ethqos_resume(struct device *dev)
 	if (ethqos->current_phy_mode == DISABLE_PHY_SUSPEND_ENABLE_RESUME) {
 		ETHQOSINFO("reset phy after clock\n");
 		ethqos_reset_phy_enable_interrupt(ethqos);
-	if (ethqos->backup_autoneg == AUTONEG_DISABLE) {
-		priv->phydev->autoneg = ethqos->backup_autoneg;
-		if (priv->phydev)
-			phy_write(priv->phydev, MII_BMCR, ethqos->backup_bmcr);
-		} else {
-			ETHQOSINFO("Phy dev is NULL\n");
+		if (ethqos->backup_autoneg == AUTONEG_DISABLE) {
+			if (priv->phydev) {
+				priv->phydev->autoneg = ethqos->backup_autoneg;
+				phy_write(priv->phydev,
+					  MII_BMCR,
+					  ethqos->backup_bmcr);
+			} else {
+				ETHQOSINFO("Phy dev is NULL\n");
+			}
 		}
 	}
 
