@@ -136,6 +136,7 @@
 		};
 
 		mhi_chan@106 {
+			reg = <106>;
 			label = "RMNET_DATA_LL";
 			mhi,num-elements = <512>;
 			mhi,event-ring = <10>;
@@ -382,6 +383,7 @@
 		};
 
 		mhi_chan@106 {
+			reg = <106>;
 			label = "RMNET_DATA_LL";
 			mhi,num-elements = <512>;
 			mhi,event-ring = <10>;
