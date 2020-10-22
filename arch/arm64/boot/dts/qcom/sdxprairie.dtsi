@@ -1547,6 +1547,9 @@
 			qcom,iova-mapping = <0x80000000 0x40000000>;
 			qcom,smmu-geometry;
 		};
+		io-macro-info {
+			prg-rclk-dly = <1500>;
+		};
 	};
 
 	emac_hw: qcom,emac@00020000 {
