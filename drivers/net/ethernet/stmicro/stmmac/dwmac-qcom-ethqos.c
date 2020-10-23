@@ -2432,11 +2432,10 @@ static ssize_t ethqos_write_dev_emac(struct file *file,
 	unsigned long ret;
 	struct qcom_ethqos *ethqos = pethqos;
 	struct stmmac_priv *priv = qcom_ethqos_get_priv(pethqos);
-	struct vlan_filter_info vlan_filter_info;
 	char mac_str[30] = {0};
 	char vlan_str[30] = {0};
 	char *prefix = NULL;
-	u32 err;
+	u32 err, prio, queue;
 	unsigned int number;
 
 	if (sizeof(in_buf) < count) {
@@ -2456,10 +2455,11 @@ static ssize_t ethqos_write_dev_emac(struct file *file,
 
 	if (strnstr(vlan_str, "QOE", sizeof(vlan_str))) {
 		ethqos->qoe_vlan.available = true;
-		vlan_filter_info.vlan_id = ethqos->qoe_vlan.vlan_id;
-		vlan_filter_info.rx_queue = ethqos->qoe_vlan.rx_queue;
-		vlan_filter_info.vlan_offset = ethqos->qoe_vlan.vlan_offset;
-		priv->hw->mac->set_vlan(&vlan_filter_info, priv->ioaddr);
+		queue = ethqos->qoe_vlan.rx_queue;
+		prio = priv->plat->rx_queues_cfg[queue].prio;
+		/* Convert prio to bit format */
+		prio = MAC_RXQCTRL_PSRQX_PRIO_SHIFT(prio);
+		priv->hw->mac->rx_queue_prio(priv->hw, prio, queue);
 	}
 
 	if (strnstr(vlan_str, "qvlanid=", sizeof(vlan_str))) {
@@ -2473,13 +2473,26 @@ static ssize_t ethqos_write_dev_emac(struct file *file,
 		}
 	}
 
+	if (strnstr(vlan_str, "qvlan_pcp=", strlen(vlan_str))) {
+		prefix = strnchr(vlan_str, strlen(vlan_str), '=');
+		ETHQOSDBG("QMI vlan_pcp data written is %s\n", prefix + 1);
+		if (prefix) {
+			err = kstrtouint(prefix + 1, 0, &number);
+			if (!err) {
+				queue = ethqos->qoe_vlan.rx_queue;
+				priv->plat->rx_queues_cfg[queue].prio = number;
+			}
+		}
+	}
+
 	if (strnstr(vlan_str, "Cv2X", strlen(vlan_str))) {
 		ETHQOSDBG("Cv2X supported mode is %u\n", ethqos->cv2x_mode);
 		ethqos->cv2x_vlan.available = true;
-		vlan_filter_info.vlan_id = ethqos->cv2x_vlan.vlan_id;
-		vlan_filter_info.rx_queue = ethqos->cv2x_vlan.rx_queue;
-		vlan_filter_info.vlan_offset = ethqos->cv2x_vlan.vlan_offset;
-		priv->hw->mac->set_vlan(&vlan_filter_info, priv->ioaddr);
+		queue = ethqos->cv2x_vlan.rx_queue;
+		prio = priv->plat->rx_queues_cfg[queue].prio;
+		/* Convert prio to bit format */
+		prio = MAC_RXQCTRL_PSRQX_PRIO_SHIFT(prio);
+		priv->hw->mac->rx_queue_prio(priv->hw, prio, queue);
 	}
 
 	if (strnstr(vlan_str, "cvlanid=", strlen(vlan_str))) {
@@ -2489,6 +2502,18 @@ static ssize_t ethqos_write_dev_emac(struct file *file,
 			err = kstrtouint(prefix + 1, 0, &number);
 			if (!err)
 				ethqos->cv2x_vlan.vlan_id = number;
+		}
+	}
+
+	if (strnstr(vlan_str, "cvlan_pcp=", strlen(vlan_str))) {
+		prefix = strnchr(vlan_str, strlen(vlan_str), '=');
+		ETHQOSDBG("Cv2X vlan_pcp data written is %s\n", prefix + 1);
+		if (prefix) {
+			err = kstrtouint(prefix + 1, 0, &number);
+			if (!err) {
+				queue = ethqos->cv2x_vlan.rx_queue;
+				priv->plat->rx_queues_cfg[queue].prio = number;
+			}
 		}
 	}
 
