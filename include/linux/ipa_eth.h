@@ -47,9 +47,10 @@
  *           6    - Added ipa_eth_ep_deinit()
  *           7    - ipa_eth_net_ops.receive_skb() now accepts in_napi parameter
  *           8    - Added IPA rx/tx intf properties to ipa_eth_device
+ *           9    - Support for skipping IPA API call from offload sub-system
  */
 
-#define IPA_ETH_API_VER 8
+#define IPA_ETH_API_VER 9
 
 /**
  * enum ipa_eth_dev_features - Features supported by an ethernet device or
@@ -63,6 +64,7 @@
  * @IPA_ETH_DEV_F_VLAN_BIT: VLAN Offload
  * @IPA_ETH_DEV_F_MODC_BIT: Counter based event moderation
  * @IPA_ETH_DEV_F_MODT_BIT: Timer based event moderation
+ * @IPA_ETH_DEV_F_IPA_API: Driver supports direct IPA API calls
  *
  * Ethernet hardware features represented as bit numbers below are used in
  * IPA_ETH_DEV_F_* feature flags that are to be used in offload APIs.
@@ -77,6 +79,7 @@ enum ipa_eth_dev_features {
 	IPA_ETH_DEV_F_VLAN_BIT,
 	IPA_ETH_DEV_F_MODC_BIT,
 	IPA_ETH_DEV_F_MODT_BIT,
+	IPA_ETH_DEV_F_IPA_API_BIT,
 };
 
 #define ipa_eth_dev_f(f) BIT(IPA_ETH_DEV_F_##f##_BIT)
@@ -90,6 +93,7 @@ enum ipa_eth_dev_features {
 #define IPA_ETH_DEV_F_VLAN     ipa_eth_dev_f(VLAN)
 #define IPA_ETH_DEV_F_MODC     ipa_eth_dev_f(MODC)
 #define IPA_ETH_DEV_F_MODT     ipa_eth_dev_f(MODT)
+#define IPA_ETH_DEV_F_IPA_API  ipa_eth_dev_f(IPA_API)
 
 /**
  * enum ipa_eth_dev_events - Events supported by an ethernet device that may be
@@ -458,6 +462,7 @@ struct ipa_eth_channel {
  * @bus_priv: Private field for use by offload subsystem bus layer
  * @ipa_priv: Private field for use by offload subsystem
  * @debugfs: Debugfs root for the device
+ * @skip_ipa: Skip IPA API calls from the sub-system
  * @refresh: Work struct used to perform device refresh
  */
 struct ipa_eth_device {
@@ -504,6 +509,8 @@ struct ipa_eth_device {
 	void *bus_priv;
 	void *ipa_priv;
 	struct dentry *debugfs;
+
+	bool skip_ipa;
 
 	struct work_struct refresh;
 };
