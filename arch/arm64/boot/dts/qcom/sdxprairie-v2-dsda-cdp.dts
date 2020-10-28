@@ -115,6 +115,7 @@
 
 &usb {
 	extcon = <&vbus_detect>;
+	qcom,num-gsi-evt-buffs = <0x5>;
 };
 
 &spmi_bus {
