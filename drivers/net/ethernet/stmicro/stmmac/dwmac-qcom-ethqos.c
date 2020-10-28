@@ -1362,6 +1362,8 @@ static ssize_t phy_off_config(
 	unsigned long ret;
 	int config = 0;
 	struct qcom_ethqos *ethqos = file->private_data;
+	struct platform_device *pdev = ethqos->pdev;
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
 	struct plat_stmmacenet_data *plat;
 
@@ -1409,6 +1411,13 @@ static ssize_t phy_off_config(
 							       MII_BMCR);
 		} else {
 			ethqos->backup_autoneg = AUTONEG_ENABLE;
+		}
+		if (priv->phydev) {
+			if (qcom_ethqos_is_phy_link_up(ethqos)) {
+				ETHQOSINFO("Post Link down before PHY off\n");
+				netif_carrier_off(dev);
+				phy_mac_interrupt(priv->phydev, LINK_DOWN);
+			}
 		}
 		ethqos_phy_power_off(ethqos);
 	} else if (config == ENABLE_PHY_IMMEDIATELY) {
@@ -1648,6 +1657,11 @@ static ssize_t loopback_handling_config(
 		ETHQOSERR("Invalid config =%d\n", config);
 		return -EINVAL;
 	}
+	if (priv->current_loopback == ENABLE_PHY_LOOPBACK &&
+	    priv->plat->mac2mac_en) {
+		ETHQOSINFO("Not supported with Mac2Mac enabled\n");
+		return -EOPNOTSUPP;
+	}
 	if ((config == ENABLE_PHY_LOOPBACK  || priv->current_loopback ==
 			ENABLE_PHY_LOOPBACK) &&
 			ethqos->current_phy_mode == DISABLE_PHY_IMMEDIATELY) {
@@ -1872,12 +1886,14 @@ static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 	static struct dentry *ipc_stmmac_log_low;
 	static struct dentry *phy_off;
 	static struct dentry *loopback_enable_mode;
+	struct stmmac_priv *priv;
 
 	if (!ethqos) {
 		ETHQOSERR("Null Param %s\n", __func__);
 		return -ENOMEM;
 	}
 
+	priv = qcom_ethqos_get_priv(ethqos);
 	ethqos->debugfs_dir = debugfs_create_dir("eth", NULL);
 
 	if (!ethqos->debugfs_dir || IS_ERR(ethqos->debugfs_dir)) {
@@ -1909,12 +1925,15 @@ static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 			  ipc_stmmac_log_low);
 		goto fail;
 	}
-	phy_off = debugfs_create_file("phy_off", 0400,
-				      ethqos->debugfs_dir, ethqos,
-				      &fops_phy_off);
-	if (!phy_off || IS_ERR(phy_off)) {
-		ETHQOSERR("Can't create phy_off %x\n", phy_off);
-		goto fail;
+
+	if (!priv->plat->mac2mac_en) {
+		phy_off = debugfs_create_file("phy_off", 0400,
+					      ethqos->debugfs_dir, ethqos,
+					      &fops_phy_off);
+		if (!phy_off || IS_ERR(phy_off)) {
+			ETHQOSERR("Can't create phy_off %x\n", phy_off);
+			goto fail;
+		}
 	}
 
 	loopback_enable_mode = debugfs_create_file("loopback_enable_mode", 0400,
