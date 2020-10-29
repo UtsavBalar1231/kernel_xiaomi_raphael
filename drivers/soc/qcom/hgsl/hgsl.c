@@ -984,7 +984,7 @@ static int hgsl_context_create(struct file *filep, unsigned long arg)
 		goto err_dma_put;
 	}
 
-	ctxt = kzalloc(sizeof(ctxt), GFP_KERNEL);
+	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (ctxt == NULL) {
 		ret = -ENOMEM;
 		goto err_dma_unmap;
@@ -1119,7 +1119,7 @@ static int hgsl_wait_timestamp(struct file *filep, unsigned long arg)
 
 	kref_get(&ctxt->kref);
 
-	wait = kzalloc(sizeof(wait), GFP_KERNEL);
+	wait = kzalloc(sizeof(*wait), GFP_KERNEL);
 	if (!wait)
 		return -ENOMEM;
 
