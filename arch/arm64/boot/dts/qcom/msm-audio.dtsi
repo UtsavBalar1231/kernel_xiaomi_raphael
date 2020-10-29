@@ -689,7 +689,7 @@
 		qcom,auxpcm-audio-intf;
 		qcom,ext-disp-audio-rx;
 		qcom,wcn-btfm;
-		qcom,msm-mi2s-master = <1>, <1>, <1>, <1>;
+		qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>;
 		qcom,audio-routing =
 			"AIF4 VI", "MCLK",
 			"RX_BIAS", "MCLK",
