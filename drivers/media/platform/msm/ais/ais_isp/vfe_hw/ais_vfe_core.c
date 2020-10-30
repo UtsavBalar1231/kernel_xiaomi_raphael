@@ -245,8 +245,10 @@ static int ais_vfe_reset(void *hw_priv,
 	core_info->irq_mask0 = 0x0;
 	cam_io_w_mb(0x0, core_info->mem_base + AIS_VFE_IRQ_MASK0);
 
-	for (i = 0; i < AIS_IFE_PATH_MAX; i++)
+	for (i = 0; i < AIS_IFE_PATH_MAX; i++) {
 		ais_clear_rdi_path(&core_info->rdi_out[i]);
+		core_info->rdi_out[i].state = AIS_ISP_RESOURCE_STATE_AVAILABLE;
+	}
 
 	CAM_DBG(CAM_ISP, "Exit");
 	return rc;

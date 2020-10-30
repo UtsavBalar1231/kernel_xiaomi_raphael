@@ -148,14 +148,6 @@
 	qcom,wakeup-gpio-out = <&tlmm 77 0x00>;
 };
 
-&ethqos_hw {
-	rxc-skew-ps = <720>;
-	io-macro-info {
-		rx-prog-swap;
-		rx-dll-bypass;
-	};
-};
-
 &tlmm {
 	/delete-node/ mdss_hdmi_ddc_active;
 	/delete-node/ mdss_hdmi_ddc_suspend;
@@ -184,6 +176,12 @@
 		"dev-emac-phy_intr", "dev-emac-phy_reset_state",
 		"dev-emac-rgmii_lvl_shift_state";
 	pinctrl-16 = <&rgmii_level_shifter>;
+
+	rxc-skew-ps = <660>;
+	io-macro-info {
+		/delete-property/ sdcc-usr-ctl;
+		rx-dll-bypass;
+	};
 };
 
 &gpu_bw_tbl {

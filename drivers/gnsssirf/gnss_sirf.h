@@ -2,7 +2,7 @@
  *
  * SiRF GNSS Driver
  *
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,5 +27,7 @@
 #define IO_CONTROL_SIRF_RESET_SET     _IOW(IO_CONTROL_SIRF_MAGIC_CODE, 1, int)
 #define IO_CONTROL_SIRF_ON_OFF_CLEAR  _IOW(IO_CONTROL_SIRF_MAGIC_CODE, 2, int)
 #define IO_CONTROL_SIRF_ON_OFF_SET    _IOW(IO_CONTROL_SIRF_MAGIC_CODE, 3, int)
+#define IO_CONTROL_SIRF_BOOT_CLEAR    _IOW(IO_CONTROL_SIRF_MAGIC_CODE, 4, int)
+#define IO_CONTROL_SIRF_BOOT_SET      _IOW(IO_CONTROL_SIRF_MAGIC_CODE, 5, int)
 
 #endif //_GNSS_SIRF_H_

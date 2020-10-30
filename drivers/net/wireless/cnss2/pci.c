@@ -1065,6 +1065,12 @@ static int cnss_qca6290_shutdown(struct cnss_pci_data *pci_priv)
 
 	cnss_power_off_device(plat_priv);
 
+	if (test_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state)) {
+		cnss_pr_dbg("recovery sleep start\n");
+		msleep(200);
+		cnss_pr_dbg("recovery sleep 200ms done\n");
+	}
+
 	pci_priv->remap_window = 0;
 
 	clear_bit(CNSS_FW_READY, &plat_priv->driver_state);
@@ -1711,7 +1717,7 @@ static int cnss_pci_resume(struct device *dev)
 	if (!plat_priv)
 		goto out;
 
-	if (pci_priv->pci_link_down_ind)
+	if (cnss_pci_check_link_status(pci_priv))
 		goto out;
 
 	if (pci_priv->pci_link_state == PCI_LINK_UP && !pci_priv->disable_pc) {
@@ -2076,6 +2082,7 @@ int cnss_pci_force_wake_request(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
+	struct cnss_plat_data *plat_priv;
 	struct mhi_controller *mhi_ctrl;
 
 	if (!pci_priv)
@@ -2088,9 +2095,14 @@ int cnss_pci_force_wake_request(struct device *dev)
 	if (!mhi_ctrl)
 		return -EINVAL;
 
-	read_lock_bh(&mhi_ctrl->pm_lock);
-	mhi_ctrl->wake_get(mhi_ctrl, true);
-	read_unlock_bh(&mhi_ctrl->pm_lock);
+	plat_priv = pci_priv->plat_priv;
+	if (!plat_priv)
+		return -ENODEV;
+
+	if (test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state))
+		return -EAGAIN;
+
+	mhi_device_get(mhi_ctrl->mhi_dev, MHI_VOTE_DEVICE);
 
 	return 0;
 }
@@ -2120,6 +2132,7 @@ int cnss_pci_force_wake_release(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
+	struct cnss_plat_data *plat_priv;
 	struct mhi_controller *mhi_ctrl;
 
 	if (!pci_priv)
@@ -2132,9 +2145,14 @@ int cnss_pci_force_wake_release(struct device *dev)
 	if (!mhi_ctrl)
 		return -EINVAL;
 
-	read_lock_bh(&mhi_ctrl->pm_lock);
-	mhi_ctrl->wake_put(mhi_ctrl, false);
-	read_unlock_bh(&mhi_ctrl->pm_lock);
+	plat_priv = pci_priv->plat_priv;
+	if (!plat_priv)
+		return -ENODEV;
+
+	if (test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state))
+		return -EAGAIN;
+
+	mhi_device_put(mhi_ctrl->mhi_dev, MHI_VOTE_DEVICE);
 
 	return 0;
 }
@@ -2309,6 +2327,34 @@ void cnss_pci_fw_boot_timeout_hdlr(struct cnss_pci_data *pci_priv)
 
 	cnss_schedule_recovery(&pci_priv->pci_dev->dev,
 			       CNSS_REASON_TIMEOUT);
+}
+
+int cnss_pci_get_iova(struct cnss_pci_data *pci_priv, u64 *addr, u64 *size)
+{
+	if (!pci_priv)
+		return -ENODEV;
+
+	if (!pci_priv->smmu_iova_len)
+		return -EINVAL;
+
+	*addr = pci_priv->smmu_iova_start;
+	*size = pci_priv->smmu_iova_len;
+
+	return 0;
+}
+
+int cnss_pci_get_iova_ipa(struct cnss_pci_data *pci_priv, u64 *addr, u64 *size)
+{
+	if (!pci_priv)
+		return -ENODEV;
+
+	if (!pci_priv->smmu_iova_ipa_len)
+		return -EINVAL;
+
+	*addr = pci_priv->smmu_iova_ipa_start;
+	*size = pci_priv->smmu_iova_ipa_len;
+
+	return 0;
 }
 
 struct dma_iommu_mapping *cnss_smmu_get_mapping(struct device *dev)

@@ -161,7 +161,8 @@ u16 dwmac_qcom_select_queue(
 
 	/* use better macro, cannot afford function call here */
 	if (ipa_enabled && (txqueue_select == IPA_DMA_TX_CH_BE ||
-			    txqueue_select == IPA_DMA_TX_CH_CV2X)) {
+			    (pethqos->cv2x_mode != CV2X_MODE_DISABLE &&
+			     txqueue_select == IPA_DMA_TX_CH_CV2X))) {
 		ETHQOSERR("TX Channel [%d] is not a valid for SW path\n",
 			  txqueue_select);
 		WARN_ON(1);
@@ -640,9 +641,15 @@ static int ethqos_dll_configure(struct qcom_ethqos *ethqos)
 		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CDR_EN,
 			      SDCC_DLL_CONFIG_CDR_EN, SDCC_HC_REG_DLL_CONFIG);
 
-	/* Set CDR_EXT_EN */
-	rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CDR_EXT_EN,
-		      SDCC_DLL_CONFIG_CDR_EXT_EN, SDCC_HC_REG_DLL_CONFIG);
+	if (ethqos->io_macro.clear_cdt_ext_en)
+		/* Clear CDR_EXT_EN */
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CDR_EXT_EN,
+			      0, SDCC_HC_REG_DLL_CONFIG);
+	else
+		/* Set CDR_EXT_EN */
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CDR_EXT_EN,
+			      SDCC_DLL_CONFIG_CDR_EXT_EN,
+			      SDCC_HC_REG_DLL_CONFIG);
 
 	/* Clear CK_OUT_EN */
 	rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CK_OUT_EN,
@@ -747,23 +754,24 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos)
 			      RGMII_CONFIG2_RX_PROG_SWAP,
 			      RGMII_IO_MACRO_CONFIG2);
 
-		/* Set PRG_RCLK_DLY to 57 for 1.8 ns delay */
-		if (ethqos->emac_ver == EMAC_HW_v2_3_2) {
+		if (!ethqos->io_macro.rx_dll_bypass) {
+			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY,
+				      BIT(21), SDCC_HC_REG_DDR_CONFIG);
+			rgmii_updatel(ethqos,
+				      SDCC_DDR_CONFIG_TCXO_CYCLES_DLY_LINE,
+				      BIT(18), SDCC_HC_REG_DDR_CONFIG);
+			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_TCXO_CYCLES_CNT,
+				      BIT(11), SDCC_HC_REG_DDR_CONFIG);
+
 			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_RCLK_DLY,
-				      69, SDCC_HC_REG_DDR_CONFIG);
-		} else if (ethqos->emac_ver == EMAC_HW_v2_1_2) {
-			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_RCLK_DLY,
-				      52, SDCC_HC_REG_DDR_CONFIG);
-		} else {
-			if (!ethqos->io_macro.rx_dll_bypass)
-				rgmii_updatel(ethqos,
-					      SDCC_DDR_CONFIG_PRG_RCLK_DLY,
-					      57, SDCC_HC_REG_DDR_CONFIG);
+				      ethqos->io_macro.prg_rclk_dly,
+				      SDCC_HC_REG_DDR_CONFIG);
+
+			rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_DLY_EN,
+				      SDCC_DDR_CONFIG_PRG_DLY_EN,
+				      SDCC_HC_REG_DDR_CONFIG);
 		}
 
-		rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_DLY_EN,
-			      SDCC_DDR_CONFIG_PRG_DLY_EN,
-			      SDCC_HC_REG_DDR_CONFIG);
 		if (ethqos->emac_ver == EMAC_HW_v2_3_2 ||
 		    ethqos->emac_ver == EMAC_HW_v2_1_2)
 			rgmii_updatel(ethqos, RGMII_CONFIG_LOOPBACK_EN,
@@ -833,16 +841,10 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos)
 		if (ethqos->emac_ver != EMAC_HW_v2_1_2)
 			rgmii_updatel(ethqos, RGMII_CONFIG2_DATA_DIVIDE_CLK_SEL,
 				      0, RGMII_IO_MACRO_CONFIG2);
-		if (ethqos->emac_ver == EMAC_HW_v2_3_2 ||
-		    ethqos->emac_ver == EMAC_HW_v2_1_2)
-			rgmii_updatel(ethqos,
-				      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
-				      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
-				      RGMII_IO_MACRO_CONFIG2);
-		else
-			rgmii_updatel(ethqos,
-				      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
-				      0, RGMII_IO_MACRO_CONFIG2);
+		rgmii_updatel(ethqos,
+			      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+			      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+			      RGMII_IO_MACRO_CONFIG2);
 		rgmii_updatel(ethqos, RGMII_CONFIG_MAX_SPD_PRG_9,
 			      BIT(12) | GENMASK(9, 8),
 			      RGMII_IO_MACRO_CONFIG);
@@ -929,7 +931,11 @@ static int ethqos_configure(struct qcom_ethqos *ethqos)
 				      SDCC_DLL_CONFIG_PDN,
 				      SDCC_HC_REG_DLL_CONFIG);
 
-			/* Set USR_CTL bit 30 */
+			if (ethqos->io_macro.usr_ctl_set)
+				rgmii_updatel(ethqos, GENMASK(31, 0),
+					      ethqos->io_macro.usr_ctl,
+					      SDCC_USR_CTL);
+			/* Set PDN bit 30 in USR_CTL */
 			rgmii_updatel(ethqos, BIT(30), BIT(30), SDCC_USR_CTL);
 		} else {
 			/* Set DLL_EN */
@@ -943,9 +949,15 @@ static int ethqos_configure(struct qcom_ethqos *ethqos)
 				      SDCC_DLL_CONFIG_CK_OUT_EN,
 				      SDCC_HC_REG_DLL_CONFIG);
 
-			/* Set USR_CTL bit 26 with mask of 3 bits */
-			rgmii_updatel(ethqos, GENMASK(26, 24), BIT(26),
-				      SDCC_USR_CTL);
+			if (ethqos->io_macro.usr_ctl_set)
+				/* Set USR_CTL value from dts */
+				rgmii_updatel(ethqos, GENMASK(31, 0),
+					      ethqos->io_macro.usr_ctl,
+					      SDCC_USR_CTL);
+			else
+				/* Set USR_CTL bit 26 with mask of 3 bits */
+				rgmii_updatel(ethqos, GENMASK(26, 24),
+					      BIT(26), SDCC_USR_CTL);
 
 			/* wait for DLL LOCK */
 			do {
@@ -1346,7 +1358,10 @@ static ssize_t phy_off_config(
 	unsigned long ret;
 	int config = 0;
 	struct qcom_ethqos *ethqos = file->private_data;
+	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
+	struct plat_stmmacenet_data *plat;
 
+	plat = priv->plat;
 	in_buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!in_buf)
 		return -ENOMEM;
@@ -1379,8 +1394,17 @@ static ssize_t phy_off_config(
 			 */
 			phy_digital_loopback_config(ethqos,
 						    ethqos->loopback_speed, 0);
-			ETHQOSDBG("Disable phy Loopback");
+			ETHQOSDBG("Disable phy Loopback\n");
 			ethqos->current_loopback = ENABLE_PHY_LOOPBACK;
+		}
+		/*Backup phy related data*/
+		if (priv->phydev->autoneg == AUTONEG_DISABLE) {
+			ethqos->backup_autoneg = priv->phydev->autoneg;
+			ethqos->backup_bmcr = ethqos_mdio_read(priv,
+							       plat->phy_addr,
+							       MII_BMCR);
+		} else {
+			ethqos->backup_autoneg = AUTONEG_ENABLE;
 		}
 		ethqos_phy_power_off(ethqos);
 	} else if (config == ENABLE_PHY_IMMEDIATELY) {
@@ -1388,6 +1412,10 @@ static ssize_t phy_off_config(
 		//make phy on
 		ethqos_phy_power_on(ethqos);
 		ethqos_reset_phy_enable_interrupt(ethqos);
+		if (ethqos->backup_autoneg == AUTONEG_DISABLE) {
+			priv->phydev->autoneg = ethqos->backup_autoneg;
+			phy_write(priv->phydev, MII_BMCR, ethqos->backup_bmcr);
+		}
 		if (ethqos->current_loopback == ENABLE_PHY_LOOPBACK) {
 			/*If Phy loopback is enabled , enabled It again*/
 			phy_digital_loopback_config(ethqos,
@@ -2664,31 +2692,53 @@ inline u32 qcom_ethqos_rgmii_io_macro_num_of_regs(u32 emac_hw_version)
 	}
 }
 
+static int qcom_ethos_init_panic_notifier(struct qcom_ethqos *ethqos)
+{
+	u32 size_iomacro_regs;
+	int ret = 1;
+
+	if (pethqos) {
+		size_iomacro_regs =
+		qcom_ethqos_rgmii_io_macro_num_of_regs(pethqos->emac_ver) * 4;
+
+		pethqos->emac_reg_base_address =
+			kzalloc(pethqos->emac_mem_size, GFP_KERNEL);
+
+		if (!pethqos->emac_reg_base_address)
+			ret = 0;
+
+		pethqos->rgmii_reg_base_address =
+			kzalloc(size_iomacro_regs, GFP_KERNEL);
+
+		if (!pethqos->rgmii_reg_base_address)
+			ret = 0;
+	}
+
+	return ret;
+}
+
 static int qcom_ethos_panic_notifier(struct notifier_block *this,
 				     unsigned long event, void *ptr)
 {
 	u32 size_iomacro_regs;
 
 	if (pethqos) {
-		size_iomacro_regs =
-		qcom_ethqos_rgmii_io_macro_num_of_regs(pethqos->emac_ver) * 4;
-		ETHQOSINFO("pethqos 0x%p", pethqos);
+		pr_info("qcom-ethqos: ethqos 0x%p\n", pethqos);
+
 
 		pethqos->iommu_domain = stmmac_emb_smmu_ctx.iommu_domain;
-		ETHQOSINFO("emac iommu domain 0x%p", pethqos->iommu_domain);
+		pr_info("qcom-ethqos: emac iommu domain 0x%p\n",
+			pethqos->iommu_domain);
 
-		pethqos->emac_reg_base_address =
-		kzalloc(pethqos->emac_mem_size, GFP_KERNEL);
-		ETHQOSINFO("emac register mem 0x%p", pethqos->emac_mem_base);
-		if (pethqos->emac_mem_base)
+		pr_info("qcom-ethqos: emac register mem 0x%p\n",
+			pethqos->emac_reg_base_address);
+		if (pethqos->emac_reg_base_address)
 			memcpy_fromio(pethqos->emac_reg_base_address,
 				      pethqos->ioaddr,
 				      pethqos->emac_mem_size);
 
-		pethqos->rgmii_reg_base_address =
-		kzalloc(size_iomacro_regs, GFP_KERNEL);
-		ETHQOSINFO
-		("rgmii register mem 0x%p", pethqos->rgmii_reg_base_address);
+		pr_info("qcom-ethqos: rgmii register mem 0x%p\n",
+			pethqos->rgmii_reg_base_address);
 		if (pethqos->rgmii_reg_base_address)
 			memcpy_fromio(pethqos->rgmii_reg_base_address,
 				      pethqos->rgmii_base,
@@ -2743,6 +2793,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct net_device *ndev;
 	struct stmmac_priv *priv;
+	unsigned int rclk_dly_read_ps;
 	int ret, i;
 
 	if (of_device_is_compatible(pdev->dev.of_node,
@@ -2904,22 +2955,46 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	ETHQOSINFO("emac-phy-off-suspend = %d\n",
 		   ethqos->current_phy_mode);
 
-	io_macro_node = of_find_node_by_name(pdev->dev.of_node,
-					     "io-macro-info");
-
+	/* Initialize io-macro settings to default */
 	if (ethqos->emac_ver == EMAC_HW_v2_3_2 ||
 	    ethqos->emac_ver == EMAC_HW_v2_1_2) {
 		ethqos->io_macro.rx_prog_swap = 1;
-	} else if (!io_macro_node) {
-		ethqos->io_macro.rx_prog_swap = 0;
-	} else {
-		if (of_property_read_bool(io_macro_node, "rx-prog-swap"))
-			ethqos->io_macro.rx_prog_swap = 1;
+
+		/* Set PRG_RCLK_DLY to 57 for 1.8 ns delay */
+		if (ethqos->emac_ver == EMAC_HW_v2_3_2)
+			ethqos->io_macro.prg_rclk_dly = 69;
+		else if (ethqos->emac_ver == EMAC_HW_v2_1_2)
+			ethqos->io_macro.prg_rclk_dly = 52;
+		else
+			ethqos->io_macro.prg_rclk_dly = 57;
+
 	}
 
+	/* Update io-macro settings from device tree */
+	io_macro_node = of_find_node_by_name(pdev->dev.of_node,
+					     "io-macro-info");
+
 	if (io_macro_node) {
+		if (of_property_read_bool(io_macro_node, "rx-prog-swap"))
+			ethqos->io_macro.rx_prog_swap = true;
 		if (of_property_read_bool(io_macro_node, "rx-dll-bypass"))
-			ethqos->io_macro.rx_dll_bypass = 1;
+			ethqos->io_macro.rx_dll_bypass = true;
+		if (of_property_read_bool(io_macro_node, "clear-cdr-ext-en"))
+			ethqos->io_macro.clear_cdt_ext_en = true;
+		ret = of_property_read_u32(io_macro_node, "prg-rclk-dly",
+					   &rclk_dly_read_ps);
+		if (!ret && rclk_dly_read_ps) {
+			ethqos->io_macro.prg_rclk_dly =
+			(RGMII_PRG_RCLK_CONST * 1000) / rclk_dly_read_ps;
+		}
+		if (of_property_read_bool(io_macro_node,
+					  "sdcc-usr-ctl")) {
+			ret = of_property_read_u32(io_macro_node,
+						   "sdcc-usr-ctl",
+						   &ethqos->io_macro.usr_ctl);
+			if (!ret)
+				ethqos->io_macro.usr_ctl_set = true;
+		}
 	}
 
 	ethqos->ioaddr = (&stmmac_res)->addr;
@@ -2929,8 +3004,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &qcom_ethqos_panic_blk);
 	rgmii_dump(ethqos);
 
 	if (ethqos->emac_ver == EMAC_HW_v2_3_2) {
@@ -2989,6 +3062,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 #ifdef CONFIG_ETH_IPA_OFFLOAD
 	ethqos_ipa_offload_event_handler(ethqos, EV_PROBE_INIT);
 #endif
+
+	if (qcom_ethos_init_panic_notifier(ethqos))
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &qcom_ethqos_panic_blk);
 
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER
 	place_marker("M - Ethernet probe end");
@@ -3134,12 +3211,15 @@ static int qcom_ethqos_resume(struct device *dev)
 	if (ethqos->current_phy_mode == DISABLE_PHY_SUSPEND_ENABLE_RESUME) {
 		ETHQOSINFO("reset phy after clock\n");
 		ethqos_reset_phy_enable_interrupt(ethqos);
-	if (ethqos->backup_autoneg == AUTONEG_DISABLE) {
-		priv->phydev->autoneg = ethqos->backup_autoneg;
-		if (priv->phydev)
-			phy_write(priv->phydev, MII_BMCR, ethqos->backup_bmcr);
-		} else {
-			ETHQOSINFO("Phy dev is NULL\n");
+		if (ethqos->backup_autoneg == AUTONEG_DISABLE) {
+			if (priv->phydev) {
+				priv->phydev->autoneg = ethqos->backup_autoneg;
+				phy_write(priv->phydev,
+					  MII_BMCR,
+					  ethqos->backup_bmcr);
+			} else {
+				ETHQOSINFO("Phy dev is NULL\n");
+			}
 		}
 	}
 

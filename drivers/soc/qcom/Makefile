@@ -67,6 +67,7 @@ obj-$(CONFIG_QTI_SYSTEM_PM) += system_pm.o
 obj-$(MSM_REMOTEQDSS) += remoteqdss.o
 obj-$(CONFIG_MSM_JTAGV8) += jtagv8.o jtagv8-etm.o
 obj-$(CONFIG_MSM_CDSP_LOADER) += qdsp6v2/
+obj-$(CONFIG_MSM_ADSP_LOADER) += qdsp6v2/
 obj-$(CONFIG_QCOM_SMCINVOKE) += smcinvoke.o
 obj-$(CONFIG_SDX_EXT_IPC) += sdx_ext_ipc.o
 obj-$(CONFIG_MSM_PIL_SSR_BG) += subsys-pil-bg.o

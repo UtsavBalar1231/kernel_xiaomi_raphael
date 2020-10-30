@@ -32,6 +32,10 @@
 	};
 };
 
+&blsp1_uart2b_hs {
+	status = "disabled";
+};
+
 &soc {
 	sound-tavil {
 		status = "disabled";

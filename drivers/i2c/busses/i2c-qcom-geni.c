@@ -147,6 +147,7 @@ struct geni_i2c_dev {
 	struct geni_i2c_ssr i2c_ssr;
 	u32 dbg_num;
 	struct dbg_buf_ctxt *dbg_buf_ptr;
+	bool bus_recovery_enable;
 };
 
 static void ssr_i2c_force_suspend(struct device *dev);
@@ -232,6 +233,13 @@ static inline void qcom_geni_i2c_calc_timeout(struct geni_i2c_dev *gi2c)
 
 static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
 {
+
+	if (gi2c->cur)
+		GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
+			"len:%d, slv-addr:0x%x, RD/WR:%d timeout:%u\n",
+			gi2c->cur->len, gi2c->cur->addr, gi2c->cur->flags,
+			gi2c->xfer_timeout);
+
 	if (err == I2C_NACK || err == GENI_ABORT_DONE) {
 		GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev, "%s\n",
 			     gi2c_log[err].msg);
@@ -243,6 +251,59 @@ static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
 	geni_se_dump_dbg_regs(&gi2c->i2c_rsc, gi2c->base, gi2c->ipcl);
 err_ret:
 	gi2c->err = gi2c_log[err].err;
+}
+
+static bool geni_i2c_is_bus_recovery_required(struct geni_i2c_dev *gi2c)
+{
+	u32 geni_ios = readl_relaxed(gi2c->base + SE_GENI_IOS);
+
+	/*
+	 * SE_GENI_IOS will show I2C CLK/SDA line status, BIT 0 is SDA and
+	 * BIT 1 is clk status. SE_GENI_IOS register set when CLK/SDA line
+	 * is pulled high.
+	 */
+	return (((geni_ios & 1) == 0) && (gi2c->err == I2C_BUS_PROTO ||
+		gi2c->err == I2C_ARB_LOST || gi2c->err == GENI_TIMEOUT));
+}
+
+static void geni_i2c_bus_recovery(struct geni_i2c_dev *gi2c)
+{
+	bool error = false;
+
+	reinit_completion(&gi2c->xfer);
+	geni_setup_m_cmd(gi2c->base, I2C_BUS_CLEAR, 0);
+
+	if (!wait_for_completion_timeout(&gi2c->xfer, HZ)) {
+		error = true;
+		GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
+				"Bus clear command failed\n");
+		geni_se_dump_dbg_regs(&gi2c->i2c_rsc, gi2c->base, gi2c->ipcl);
+		gi2c->cur = NULL;
+		reinit_completion(&gi2c->xfer);
+		geni_abort_m_cmd(gi2c->base);
+		if (!wait_for_completion_timeout(&gi2c->xfer, HZ))
+			GENI_SE_ERR(gi2c->ipcl, false, gi2c->dev,
+				"Abort failed\n", __func__);
+	}
+
+	reinit_completion(&gi2c->xfer);
+	geni_setup_m_cmd(gi2c->base, I2C_STOP_ON_BUS, 0);
+	if (!wait_for_completion_timeout(&gi2c->xfer, HZ)) {
+		error = true;
+		GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
+			"Stop on bus command failed\n");
+		gi2c->cur = NULL;
+		reinit_completion(&gi2c->xfer);
+		geni_abort_m_cmd(gi2c->base);
+		if (!wait_for_completion_timeout(&gi2c->xfer, HZ))
+			GENI_SE_ERR(gi2c->ipcl, false, gi2c->dev,
+				"%s Abort failed\n", __func__);
+	}
+	if (error)
+		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+					"Bus recovery failed\n");
+	else
+		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev, "Bus recovery done\n");
 }
 
 static irqreturn_t geni_i2c_irq(int irq, void *dev)
@@ -885,6 +946,12 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 		if (gi2c->err) {
 			GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
 				"i2c error :%d\n", gi2c->err);
+			if (gi2c->bus_recovery_enable &&
+				geni_i2c_is_bus_recovery_required(gi2c)) {
+				GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+					"SDA Line stuck\n", gi2c->err);
+				geni_i2c_bus_recovery(gi2c);
+			}
 			break;
 		}
 	}
@@ -1051,6 +1118,8 @@ static int geni_i2c_probe(struct platform_device *pdev)
 
 	gi2c->adap.algo = &geni_i2c_algo;
 	init_completion(&gi2c->xfer);
+	gi2c->bus_recovery_enable = of_property_read_bool(pdev->dev.of_node,
+			"qcom,bus-recovery");
 	platform_set_drvdata(pdev, gi2c);
 	ret = devm_request_irq(gi2c->dev, gi2c->irq, geni_i2c_irq,
 			       IRQF_TRIGGER_HIGH, "i2c_geni", gi2c);

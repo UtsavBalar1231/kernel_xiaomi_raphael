@@ -43,6 +43,7 @@
 #include <soc/qcom/socinfo.h>
 #include <linux/adc-tm-clients.h>
 #include <linux/iio/consumer.h>
+#include <linux/soc/qcom/smem_state.h>
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 
 #include <soc/qcom/subsystem_restart.h>
@@ -71,6 +72,8 @@
 
 #define SUBSYS_NOTIF_MIN_INDEX	0
 #define SUBSYS_NOTIF_MAX_INDEX	9
+#define PROC_AWAKE_ID 12 /* 12th bit */
+#define AWAKE_BIT BIT(PROC_AWAKE_ID)
 char *wcnss_subsys_notif_type[] = {
 	"SUBSYS_BEFORE_SHUTDOWN",
 	"SUBSYS_AFTER_SHUTDOWN",
@@ -213,6 +216,7 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define WCNSS_USR_CTRL_MSG_START  0x00000000
 #define WCNSS_USR_HAS_CAL_DATA    (WCNSS_USR_CTRL_MSG_START + 2)
 #define WCNSS_USR_WLAN_MAC_ADDR   (WCNSS_USR_CTRL_MSG_START + 3)
+#define WCNSS_MAX_USR_BT_PROFILE_IND_CMD_SIZE 32
 
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
 #define SHOW_MAC_ADDRESS_STR	"%02x:%02x:%02x:%02x:%02x:%02x\n"
@@ -478,6 +482,9 @@ static struct {
 	struct cdev ctrl_dev, node_dev;
 	unsigned long state;
 	struct wcnss_driver_ops *ops;
+	struct qcom_smem_state *wake_state;
+	unsigned int wake_state_bit;
+	struct bt_profile_state bt_state;
 } *penv = NULL;
 
 static void *wcnss_ipc_log;
@@ -618,6 +625,90 @@ static ssize_t wcnss_version_show(struct device *dev,
 }
 
 static DEVICE_ATTR(wcnss_version, 0400, wcnss_version_show, NULL);
+
+static int wcnss_bt_profile_validate_cmd(char *dest_buf, size_t dest_buf_size,
+					 char const *source_buf,
+					 size_t source_buf_size)
+{
+	char *found;
+	int profile_idx = 0;
+
+	if (source_buf_size > (dest_buf_size - 1)) {
+		wcnss_log(ERR, "%s:Command length is larger than %zu bytes\n",
+			  __func__, dest_buf_size);
+		return -EINVAL;
+	}
+
+	/* sysfs already provides kernel space buffer so copy from user
+	 * is not needed. Doing this extra copy operation just to ensure
+	 * the local buf is properly null-terminated.
+	 */
+	strlcpy(dest_buf, source_buf, dest_buf_size);
+
+	/* default 'echo' cmd takes new line character to here */
+	if (dest_buf[source_buf_size - 1] == '\n')
+		dest_buf[source_buf_size - 1] = '\0';
+
+	while (profile_idx++ <= 4 && (found = strsep(&dest_buf, " ")) != NULL) {
+		if (profile_idx == 1 && !strcmp(found, "BT_ENABLED")) {
+			found = strsep(&dest_buf, " ");
+			penv->bt_state.bt_enabled = strcmp(found, "0");
+		} else if (profile_idx == 2 && !strcmp(found, "BLE")) {
+			found = strsep(&dest_buf, " ");
+			penv->bt_state.bt_ble = strcmp(found, "0");
+		} else if (profile_idx == 3 && !strcmp(found, "A2DP")) {
+			found = strsep(&dest_buf, " ");
+			penv->bt_state.bt_a2dp = strcmp(found, "0");
+		} else if (profile_idx == 4 && !strcmp(found, "SCO")) {
+			found = strsep(&dest_buf, " ");
+			penv->bt_state.bt_sco = strcmp(found, "0");
+		} else {
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static ssize_t wcnss_bt_profile_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	char buf_local[WCNSS_MAX_USR_BT_PROFILE_IND_CMD_SIZE + 1];
+	int ret;
+
+	ret = wcnss_bt_profile_validate_cmd(buf_local, sizeof(buf_local),
+					    buf, count);
+	if (ret)
+		return -EINVAL;
+
+	if (penv->ops) {
+		ret = penv->ops->bt_profile_state(penv->ops->priv_data,
+						  &penv->bt_state);
+		if (ret)
+			return ret;
+	}
+
+	return count;
+}
+
+static ssize_t wcnss_bt_profile_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	if (!penv)
+		return -ENODEV;
+
+	return scnprintf(buf, PAGE_SIZE,
+			 "BT_ENABLED = %d\nBLE = %d\nA2Dp = %d\nSCO = %d\n",
+			 penv->bt_state.bt_enabled,
+			 penv->bt_state.bt_ble,
+			 penv->bt_state.bt_a2dp,
+			 penv->bt_state.bt_sco);
+}
+
+static DEVICE_ATTR(bt_profile, 0600, wcnss_bt_profile_show,
+		   wcnss_bt_profile_store);
 
 /* wcnss_reset_fiq() is invoked when host drivers fails to
  * communicate with WCNSS over SMD; so logging these registers
@@ -1258,8 +1349,14 @@ static int wcnss_create_sysfs(struct device *dev)
 	if (ret)
 		goto remove_version;
 
+	ret = device_create_file(dev, &dev_attr_bt_profile);
+	if (ret)
+		goto remove_mac_addr;
+
 	return 0;
 
+remove_mac_addr:
+	device_remove_file(dev, &dev_attr_wcnss_mac_addr);
 remove_version:
 	device_remove_file(dev, &dev_attr_wcnss_version);
 remove_thermal:
@@ -1274,6 +1371,7 @@ static void wcnss_remove_sysfs(struct device *dev)
 		device_remove_file(dev, &dev_attr_thermal_mitigation);
 		device_remove_file(dev, &dev_attr_wcnss_version);
 		device_remove_file(dev, &dev_attr_wcnss_mac_addr);
+		device_remove_file(dev, &dev_attr_bt_profile);
 	}
 }
 
@@ -1727,6 +1825,9 @@ int wcnss_register_driver(struct wcnss_driver_ops *ops, void *priv)
 
 	if (penv->state == WCNSS_SMD_OPEN)
 		ops->driver_state(ops->priv_data, WCNSS_SMD_OPEN);
+
+	if (penv->bt_state.bt_enabled)
+		ops->bt_profile_state(ops->priv_data, &penv->bt_state);
 
 out:
 	return ret;
@@ -2303,7 +2404,7 @@ unlock_exit:
 static void wcnss_process_smd_msg(void *buf, int len)
 {
 	int rc = 0;
-	unsigned char build[WCNSS_MAX_BUILD_VER_LEN + 1];
+	unsigned char *build;
 	struct smd_msg_hdr *phdr;
 	struct smd_msg_hdr smd_msg;
 	struct wcnss_version *pversion;
@@ -2359,16 +2460,26 @@ static void wcnss_process_smd_msg(void *buf, int len)
 		break;
 
 	case WCNSS_BUILD_VER_RSP:
+		build = kmalloc(WCNSS_MAX_BUILD_VER_LEN + 1, GFP_ATOMIC);
+		if (!build) {
+			wcnss_log(ERR,
+				  "%s: mem alloc failed for build ver resp\n",
+				  __func__);
+			return;
+		}
+
 		if (len > sizeof(struct smd_msg_hdr) +
 		    WCNSS_MAX_BUILD_VER_LEN) {
 			wcnss_log(ERR,
 				  "invalid build version:%d\n", len);
+			kfree(build);
 			return;
 		}
 		memcpy(build, buf + sizeof(struct smd_msg_hdr),
 		       len - sizeof(struct smd_msg_hdr));
-		build[len] = 0;
+		build[len - sizeof(struct smd_msg_hdr)] = 0;
 		wcnss_log(INFO, "build version %s\n", build);
+		kfree(build);
 		break;
 
 	case WCNSS_NVBIN_DNLD_RSP:
@@ -2724,10 +2835,16 @@ static int wcnss_pm_notify(struct notifier_block *b,
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
 		down_write(&wcnss_pm_sem);
+		if (penv->wake_state)
+			qcom_smem_state_update_bits(penv->wake_state,
+						    AWAKE_BIT, 0);
 		break;
 
 	case PM_POST_SUSPEND:
 		up_write(&wcnss_pm_sem);
+		if (penv->wake_state)
+			qcom_smem_state_update_bits(penv->wake_state, AWAKE_BIT,
+						    AWAKE_BIT);
 		break;
 	}
 
@@ -3677,6 +3794,17 @@ wcnss_wlan_probe(struct platform_device *pdev)
 	 */
 	wcnss_log(INFO, DEVICE " probed in built-in mode\n");
 
+	penv->wake_state = qcom_smem_state_get(&pdev->dev,
+					      "wake-state",
+					      &penv->wake_state_bit);
+	if (IS_ERR(penv->wake_state))
+		wcnss_log(WARN, "%s: qcom_smem_wake_state_get failed",
+			  __func__);
+
+	if (penv->wake_state)
+		qcom_smem_state_update_bits(penv->wake_state,
+					    AWAKE_BIT, AWAKE_BIT);
+
 	return wcnss_cdev_register(pdev);
 }
 
@@ -3686,6 +3814,7 @@ wcnss_wlan_remove(struct platform_device *pdev)
 	if (penv->wcnss_notif_hdle)
 		subsys_notif_unregister_notifier(penv->wcnss_notif_hdle, &wnb);
 	wcnss_cdev_unregister(pdev);
+	qcom_smem_state_put(penv->wake_state);
 	wcnss_remove_sysfs(&pdev->dev);
 	penv = NULL;
 	return 0;

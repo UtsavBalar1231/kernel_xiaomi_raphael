@@ -768,6 +768,14 @@ config QTI_RPM_STATS_LOG
 	  the low power modes that RPM enters. The drivers outputs the message
 	  via a debugfs node.
 
+config MSM_ADSP_LOADER
+	tristate "ADSP loader support"
+	help
+	  Enable ADSP image loader.
+	  The ADSP loader brings ADSP out of reset
+	  for platforms that have ADSP.
+	  Say M if you want to enable this module.
+
 config MSM_CDSP_LOADER
 	tristate "CDSP loader support"
 	help
