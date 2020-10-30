@@ -19,6 +19,10 @@
 #include "sdm429-mdss-panels.dtsi"
 #include "sdm429-spyro-qrd-evt-audio.dtsi"
 
+&int_codec {
+	qcom,wcn-bt-slim = <1>;
+};
+
 / {
 	model = "Qualcomm Technologies, Inc. SDM429 QRD NewPort Overlay";
 	compatible = "qcom,sdm429w-qrd", "qcom,sdm429w", "qcom,qrd";
@@ -33,50 +37,25 @@
 };
 
 &mdss_dsi {
-	/delete-property/ vdda-supply;
-	/delete-property/ vddio-supply;
-	vdda-supply = <&L6A>; /* 0.8v */
-	vddio-supply = <&L13A>; /* 1.8v */
 
-	qcom,ctrl-supply-entries {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		qcom,ctrl-supply-entry@0 {
-			reg = <0>;
-			qcom,supply-name = "vdda";
-			qcom,supply-min-voltage = <800000>;
-			qcom,supply-max-voltage = <800000>;
-			qcom,supply-enable-load = <100000>;
-			qcom,supply-disable-load = <100>;
-			qcom,supply-post-on-sleep = <20>;
-		};
-	};
+	vddio-supply = <&L11A>; /* 1.8v */
 };
 
 &mdss_dsi0 {
-	qcom,dsi-pref-prim-pan = <&dsi_auo_416p_amoled_cmd>;
+	qcom,dsi-pref-prim-pan = <&dsi_truly_rm69090_qvga_cmd_v2>;
 	/delete-property/ vdd-supply;
 	pinctrl-names = "mdss_default", "mdss_sleep";
-	pinctrl-0 = <&mdss_te_active>;
-	pinctrl-1 = <&mdss_te_suspend>;
+	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
+	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
 	vddio-supply = <&L11A>;
 	qcom,platform-te-gpio = <&tlmm 24 0>;
 	qcom,platform-reset-gpio = <&tlmm 60 0>;
-	qcom,platform-enable-gpio = <&pm660_gpios 12 0>;
+	qcom,platform-enable-gpio = <&tlmm 69 0>;
+	qcom,buf-enable-gpio = <&tlmm 69 0>;
 
-};
-
-&mdss_dsi0_pll {
-	/delete-property/ vddio-supply;
-	vddio-supply = <&L13A>;
 };
 
 &mdss_dsi1 {
-	status = "disabled";
-};
-
-&mdss_dsi1_pll {
 	status = "disabled";
 };
 
@@ -92,30 +71,20 @@
 	reg = <0x0 0x8d200000 0x0 0x700000>;
 };
 
-&i2c_4 {
+&mdss_dsi0_pll {
+	vddio-supply = <&L12A>; /* 1.8V */
+};
+
+&mdss_dsi1_pll {
+	vddio-supply = <&L12A>; /* 1.8V */
+};
+
+&dsi_pm660_panel_pwr_supply {
+	/delete-node/ qcom,panel-supply-entry@0;
+};
+
+&i2c_2 {
 	status = "disabled";
-	raydium_ts@39 {
-		compatible = "raydium,raydium-ts";
-		reg = <0x39>;
-		interrupt-parent = <&tlmm>;
-		interrupts = <13 0x2008>;
-		vdd_ana-supply = <&pm660_l11>;
-		vcc_i2c-supply = <&pm660_l13>;
-		pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
-					"pmx_ts_release";
-		pinctrl-0 = <&ts_int_active &ts_reset_active>;
-		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-		pinctrl-2 = <&ts_release>;
-		raydium,reset-gpio = <&tlmm 64 0x00>;
-		raydium,irq-gpio = <&tlmm 65 0x00>;
-		raydium,num-max-touches = <2>;
-		raydium,soft-reset-delay-ms = <50>;
-		raydium,hard-reset-delay-ms = <100>;
-		raydium,x_max = <416>;
-		raydium,y_max = <416>;
-		raydium,display-coords= <0  0 416 416>;
-		raydium,fw_id = <0x2202>;
-	};
 };
 
 &blsp2_uart2_hs {
