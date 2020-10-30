@@ -355,12 +355,171 @@ static void ipa_eth_device_refresh(struct ipa_eth_device *eth_dev)
 	}
 }
 
+static int ipa_eth_init_device_skip_ipa(struct ipa_eth_device *eth_dev)
+{
+	int rc;
+
+	if (eth_dev->of_state == IPA_ETH_OF_ST_INITED)
+		return 0;
+
+	if (eth_dev->of_state != IPA_ETH_OF_ST_DEINITED)
+		return -EFAULT;
+
+	rc = ipa_eth_offload_init(eth_dev);
+	if (rc) {
+		ipa_eth_dev_err(eth_dev, "Failed to init offload");
+		eth_dev->of_state = IPA_ETH_OF_ST_ERROR;
+		return rc;
+	}
+
+	ipa_eth_dev_log(eth_dev, "Initialized device");
+
+	eth_dev->of_state = IPA_ETH_OF_ST_INITED;
+
+	return 0;
+}
+
+static int ipa_eth_deinit_device_skip_ipa(struct ipa_eth_device *eth_dev)
+{
+	int rc;
+
+	if (eth_dev->of_state == IPA_ETH_OF_ST_DEINITED)
+		return 0;
+
+	if (eth_dev->of_state != IPA_ETH_OF_ST_INITED)
+		return -EFAULT;
+
+	rc = ipa_eth_offload_deinit(eth_dev);
+	if (rc) {
+		ipa_eth_dev_err(eth_dev, "Failed to deinit offload");
+		eth_dev->of_state = IPA_ETH_OF_ST_ERROR;
+		return rc;
+	}
+
+	ipa_eth_dev_log(eth_dev, "Deinitialized device");
+
+	eth_dev->of_state = IPA_ETH_OF_ST_DEINITED;
+
+	return 0;
+}
+
+static int ipa_eth_start_device_skip_ipa(struct ipa_eth_device *eth_dev)
+{
+	int rc;
+
+	if (eth_dev->of_state == IPA_ETH_OF_ST_STARTED)
+		return 0;
+
+	if (eth_dev->of_state != IPA_ETH_OF_ST_INITED)
+		return -EFAULT;
+
+	rc = ipa_eth_offload_start(eth_dev);
+	if (rc) {
+		ipa_eth_dev_err(eth_dev, "Failed to start offload");
+		eth_dev->of_state = IPA_ETH_OF_ST_ERROR;
+		return rc;
+	}
+
+	ipa_eth_dev_log(eth_dev, "Started device");
+
+	eth_dev->of_state = IPA_ETH_OF_ST_STARTED;
+
+	return 0;
+}
+
+static int ipa_eth_stop_device_skip_ipa(struct ipa_eth_device *eth_dev)
+{
+	int rc;
+
+	if (eth_dev->of_state == IPA_ETH_OF_ST_DEINITED)
+		return 0;
+
+	if (eth_dev->of_state != IPA_ETH_OF_ST_STARTED)
+		return -EFAULT;
+
+	rc = ipa_eth_offload_stop(eth_dev);
+	if (rc) {
+		ipa_eth_dev_err(eth_dev, "Failed to stop offload");
+		eth_dev->of_state = IPA_ETH_OF_ST_ERROR;
+		return rc;
+	}
+
+	ipa_eth_dev_log(eth_dev, "Stopped device");
+
+	eth_dev->of_state = IPA_ETH_OF_ST_INITED;
+
+	return 0;
+}
+
+static void ipa_eth_device_refresh_skip_ipa(struct ipa_eth_device *eth_dev)
+{
+	ipa_eth_dev_log(eth_dev, "Refreshing offload state for device");
+
+	if (!ipa_eth_offload_device_paired(eth_dev)) {
+		ipa_eth_dev_log(eth_dev, "Device is not paired. Skipping.");
+		return;
+	}
+
+	if (eth_dev->of_state == IPA_ETH_OF_ST_ERROR) {
+		ipa_eth_dev_err(eth_dev,
+				"Device in ERROR state, skipping refresh");
+		return;
+	}
+
+	if (initable(eth_dev)) {
+		if (eth_dev->of_state == IPA_ETH_OF_ST_DEINITED) {
+			(void) ipa_eth_init_device_skip_ipa(eth_dev);
+
+			if (eth_dev->of_state != IPA_ETH_OF_ST_INITED) {
+				ipa_eth_dev_err(eth_dev,
+						"Failed to init device");
+				return;
+			}
+		}
+	}
+
+	if (startable(eth_dev)) {
+		(void) ipa_eth_start_device_skip_ipa(eth_dev);
+
+		if (eth_dev->of_state != IPA_ETH_OF_ST_STARTED) {
+			ipa_eth_dev_err(eth_dev, "Failed to start device");
+			return;
+		}
+	} else {
+		ipa_eth_dev_log(eth_dev, "Start is disallowed for the device");
+
+		if (eth_dev->of_state == IPA_ETH_OF_ST_STARTED) {
+			ipa_eth_stop_device_skip_ipa(eth_dev);
+
+			if (eth_dev->of_state != IPA_ETH_OF_ST_INITED) {
+				ipa_eth_dev_err(eth_dev,
+						"Failed to stop device");
+				return;
+			}
+		}
+	}
+
+	if (!initable(eth_dev)) {
+		ipa_eth_dev_log(eth_dev, "Init is disallowed for the device");
+
+		ipa_eth_deinit_device_skip_ipa(eth_dev);
+
+		if (eth_dev->of_state != IPA_ETH_OF_ST_DEINITED) {
+			ipa_eth_dev_err(eth_dev, "Failed to deinit device");
+			return;
+		}
+	}
+}
+
 static void ipa_eth_device_refresh_work(struct work_struct *work)
 {
 	struct ipa_eth_device *eth_dev = container_of(work,
 				struct ipa_eth_device, refresh);
 
-	ipa_eth_device_refresh(eth_dev);
+	if (unlikely(eth_dev->skip_ipa))
+		ipa_eth_device_refresh_skip_ipa(eth_dev);
+	else
+		ipa_eth_device_refresh(eth_dev);
 }
 
 void ipa_eth_device_refresh_sched(struct ipa_eth_device *eth_dev)
@@ -637,6 +796,14 @@ struct ipa_eth_device *ipa_eth_alloc_device(
 
 	eth_dev->dev = dev;
 	eth_dev->nd = nd;
+
+	/* Network/offload driver supports direct call to IPA driver. Skip IPA
+	 * driver calls for the device.
+	 */
+	if (nd->features & IPA_ETH_DEV_F_IPA_API) {
+		ipa_eth_dev_log(eth_dev, "Device requests for skipping IPA");
+		eth_dev->skip_ipa = true;
+	}
 
 	eth_dev->of_state = IPA_ETH_OF_ST_DEINITED;
 	eth_dev->pm_handle = IPA_PM_MAX_CLIENTS;
