@@ -495,7 +495,7 @@ diag_bridge_probe(struct usb_interface *ifc, const struct usb_device_id *id)
 	dev->id = devid;
 	dev->udev = usb_get_dev(udev);
 	dev->ifc = usb_get_intf(ifc);
-	kref_get(&dev->kref);
+	kref_init(&dev->kref);
 	init_usb_anchor(&dev->submitted);
 
 	ifc_desc = ifc->cur_altsetting;
