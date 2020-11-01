@@ -1584,7 +1584,7 @@ static int ais_ife_csid_process_cmd(void *hw_priv,
 
 static int ais_csid_event_dispatch_process(void *priv, void *data)
 {
-	struct ais_ife_event_data evt_payload;
+	struct ais_ife_event_data evt_payload = {};
 	struct ais_ife_csid_hw *csid_hw;
 	struct ais_csid_hw_work_data *work_data;
 	int rc = 0;
@@ -1617,6 +1617,8 @@ static int ais_csid_event_dispatch_process(void *priv, void *data)
 	evt_payload.idx = csid_hw->hw_intf->hw_idx;
 	evt_payload.boot_ts = work_data->timestamp;
 	evt_payload.path = 0xF;
+	evt_payload.u.err_msg.reserved =
+		work_data->irq_status[CSID_IRQ_STATUS_RX];
 
 	switch (work_data->evt_type) {
 	case AIS_IFE_MSG_CSID_ERROR:
