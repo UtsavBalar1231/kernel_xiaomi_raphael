@@ -389,7 +389,7 @@ static ssize_t diag_read_stats(struct file *file, char __user *ubuf,
 				size_t count, loff_t *ppos)
 {
 	char			*buf;
-	int			i, ret = 0;
+	int			i, ret, temp = 0;
 
 	buf = kzalloc(sizeof(char) * DEBUG_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -398,8 +398,8 @@ static ssize_t diag_read_stats(struct file *file, char __user *ubuf,
 	for (i = 0; i < MAX_DIAG_BRIDGE_DEVS; i++) {
 		struct diag_bridge *dev = __dev[i];
 
-		ret += scnprintf(buf, DEBUG_BUF_SIZE,
-				"epin:%d, epout:%d\n"
+		temp += scnprintf(buf + temp, DEBUG_BUF_SIZE - temp,
+				"\nepin:%d, epout:%d\n"
 				"bytes to host: %lu\n"
 				"bytes to mdm: %lu\n"
 				"pending reads: %u\n"
@@ -413,7 +413,7 @@ static ssize_t diag_read_stats(struct file *file, char __user *ubuf,
 				dev->err);
 	}
 
-	ret = simple_read_from_buffer(ubuf, count, ppos, buf, ret);
+	ret = simple_read_from_buffer(ubuf, count, ppos, buf, temp);
 	kfree(buf);
 	return ret;
 }
@@ -450,8 +450,10 @@ static void diag_bridge_debugfs_init(void)
 		return;
 
 	dfile = debugfs_create_file("status", 0444, dent, 0, &diag_stats_ops);
-	if (!dfile || IS_ERR(dfile))
-		debugfs_remove(dent);
+	if (!dfile || IS_ERR(dfile)) {
+		debugfs_remove_recursive(dent);
+		dent = NULL;
+	}
 }
 
 static void diag_bridge_debugfs_cleanup(void)
