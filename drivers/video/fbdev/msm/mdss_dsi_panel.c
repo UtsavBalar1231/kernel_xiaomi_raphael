@@ -760,6 +760,12 @@ static int mdss_dsi_set_col_page_addr(struct mdss_panel_data *pdata,
 			return 0;
 		}
 
+		if (pinfo->partial_update_col_addr_offset)
+			roi.x += pinfo->partial_update_col_addr_offset;
+
+		if (pinfo->partial_update_row_addr_offset)
+			roi.y += pinfo->partial_update_row_addr_offset;
+
 		if (pinfo->dcs_cmd_by_left) {
 			if (left_or_both && ctrl->ndx == DSI_CTRL_RIGHT) {
 				/* 2A/2B sent by left already */
@@ -2205,6 +2211,7 @@ static void mdss_dsi_parse_partial_update_caps(struct device_node *np,
 {
 	struct mdss_panel_info *pinfo;
 	const char *data;
+	u32 value[2];
 
 	pinfo = &ctrl->panel_data.panel_info;
 
@@ -2228,6 +2235,14 @@ static void mdss_dsi_parse_partial_update_caps(struct device_node *np,
 					pinfo->partial_update_enabled);
 		ctrl->set_col_page_addr = mdss_dsi_set_col_page_addr;
 		if (pinfo->partial_update_enabled) {
+			int rc = of_property_read_u32_array(np,
+				"qcom,partial-update-addr-offset",
+				value, 2);
+			pinfo->partial_update_col_addr_offset =
+				(!rc ? value[0] : 0);
+			pinfo->partial_update_row_addr_offset =
+				(!rc ? value[1] : 0);
+
 			pinfo->partial_update_roi_merge =
 					of_property_read_bool(np,
 					"qcom,partial-update-roi-merge");
