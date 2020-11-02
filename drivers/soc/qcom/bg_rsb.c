@@ -343,6 +343,7 @@ void bgrsb_rx_msg(void *data, int len)
 		container_of(bgrsb_drv, struct bgrsb_priv, lhndl);
 
 	dev->bg_resp_cmplt = true;
+	wake_up(&dev->link_state_wait);
 	memcpy(dev->rx_buf, data, len);
 }
 EXPORT_SYMBOL(bgrsb_rx_msg);

@@ -2712,6 +2712,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_INVALID,
 			QMB_MASTER_SELECT_PCIE,
 			{ 22, 2, 5, 5, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
+	[IPA_4_5_MHI][IPA_CLIENT_ODL_DPL_CONS]		= {
+			true, IPA_v4_5_MHI_GROUP_DDR,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_INVALID,
+			QMB_MASTER_SELECT_DDR,
+			{ 22, 2, 5, 5, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
 	[IPA_4_5_MHI][IPA_CLIENT_MHI_LOW_LAT_CONS] = {
 			true, IPA_v4_5_MHI_GROUP_PCIE,
 			false,
@@ -2733,6 +2739,13 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			{ 31, 31, 8, 8, IPA_EE_AP } },
 
 	/* IPA_4_5_AUTO */
+
+	[IPA_4_5_AUTO][IPA_CLIENT_WLAN3_PROD]		= {
+			true, IPA_v4_5_GROUP_UL_DL,
+			true,
+			IPA_DPS_HPS_SEQ_TYPE_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
+			QMB_MASTER_SELECT_DDR,
+			{0, 2, 8, 16, IPA_EE_UC, GSI_SMART_PRE_FETCH, 3} },
 	[IPA_4_5_AUTO][IPA_CLIENT_WLAN2_PROD]          = {
 			true, IPA_v4_5_GROUP_UL_DL,
 			true,
@@ -2849,7 +2862,27 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
 			QMB_MASTER_SELECT_DDR,
 			{ 11, 14, 8, 16, IPA_EE_AP } },
-
+	/* wlan_4_cons will be used as second mcc pipe in
+	 * case of wdi.1.0.
+	 */
+	[IPA_4_5_AUTO][IPA_CLIENT_WLAN4_CONS]			= {
+			true, IPA_v4_5_GROUP_UL_DL,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_INVALID,
+			QMB_MASTER_SELECT_DDR,
+			{27, 8, 8, 14, IPA_EE_AP, GSI_SMART_PRE_FETCH, 3} },
+	/* wlan_3_cons will be used as HW pipe
+	 * in case of wdi.1.0.
+	 */
+	[IPA_4_5_AUTO][IPA_CLIENT_WLAN3_CONS]			= {
+			true, IPA_v4_5_GROUP_UL_DL,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_INVALID,
+			QMB_MASTER_SELECT_DDR,
+			{13, 3, 9, 9, IPA_EE_UC, GSI_SMART_PRE_FETCH, 4} },
+	/* wlan_2_cons pipe is used for first MCC pipe if wdi.1.0
+	 * else wdi.3.0 will use this as HW pipe.
+	 */
 	[IPA_4_5_AUTO][IPA_CLIENT_WLAN2_CONS]          = {
 			true, IPA_v4_5_GROUP_UL_DL,
 			false,
@@ -3079,7 +3112,6 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
 			QMB_MASTER_SELECT_DDR,
 			{ 1, 0, 8, 16, IPA_EE_AP } },
-
 	[IPA_4_5_AUTO_MHI][IPA_CLIENT_APPS_LAN_CONS]		= {
 			true, IPA_v4_5_MHI_GROUP_DDR,
 			false,
@@ -3868,7 +3900,8 @@ static u8 ipa3_get_hw_type_index(void)
 			hw_type_index = IPA_4_5_MHI;
 		if (ipa3_ctx->platform_type == IPA_PLAT_TYPE_APQ)
 			hw_type_index = IPA_4_5_APQ;
-		if (ipa3_ctx->ipa_config_is_auto)
+		if (ipa3_ctx->ipa_config_is_auto ||
+			ipa3_ctx->ipa_config_is_sa)
 			hw_type_index = IPA_4_5_AUTO;
 		if (ipa3_ctx->ipa_config_is_auto &&
 			ipa3_ctx->ipa_config_is_mhi)
@@ -5514,8 +5547,8 @@ int ipa3_cfg_ep_holb(u32 clnt_hdl, const struct ipa_ep_cfg_holb *ep_holb)
 	ipa3_ctx->ep[clnt_hdl].holb.en = IPA_HOLB_TMR_EN;
 	ipahal_write_reg_n_fields(IPA_ENDP_INIT_HOL_BLOCK_EN_n,
 		clnt_hdl, ep_holb);
-	/* IPA4.5 issue requires HOLB_EN to be written twice */
-	if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_5)
+	/* For targets > IPA_4.0 issue requires HOLB_EN to be written twice */
+	if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_0)
 		ipahal_write_reg_n_fields(IPA_ENDP_INIT_HOL_BLOCK_EN_n,
 			clnt_hdl, ep_holb);
 
@@ -5641,12 +5674,18 @@ int ipa3_cfg_ep_deaggr(u32 clnt_hdl,
 		clnt_hdl,
 		ep_deaggr->deaggr_hdr_len);
 
+	IPADBG("syspipe_err_detection=%d\n",
+		ep_deaggr->syspipe_err_detection);
+
 	IPADBG("packet_offset_valid=%d\n",
 		ep_deaggr->packet_offset_valid);
 
 	IPADBG("packet_offset_location=%d max_packet_len=%d\n",
 		ep_deaggr->packet_offset_location,
 		ep_deaggr->max_packet_len);
+
+	IPADBG("ignore_min_pkt_err=%d\n",
+		ep_deaggr->ignore_min_pkt_err);
 
 	ep = &ipa3_ctx->ep[clnt_hdl];
 
@@ -5749,7 +5788,8 @@ int ipa3_write_qmap_id(struct ipa_ioc_write_qmapid *param_in)
 		param_in->client == IPA_CLIENT_AQC_ETHERNET_PROD) {
 		result = ipa3_cfg_ep_metadata(ipa_ep_idx, &meta);
 	} else if (param_in->client == IPA_CLIENT_WLAN1_PROD ||
-			   param_in->client == IPA_CLIENT_WLAN2_PROD) {
+			   param_in->client == IPA_CLIENT_WLAN2_PROD ||
+			   param_in->client == IPA_CLIENT_WLAN3_PROD) {
 		ipa3_ctx->ep[ipa_ep_idx].cfg.meta = meta;
 		if (param_in->client == IPA_CLIENT_WLAN2_PROD)
 			result = ipa3_write_qmapid_wdi3_gsi_pipe(

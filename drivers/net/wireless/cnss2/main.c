@@ -567,7 +567,10 @@ static int cnss_fw_ready_hdlr(struct cnss_plat_data *plat_priv)
 		ret = cnss_bus_call_driver_probe(plat_priv);
 	}
 
-	if (ret && test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state))
+	if (ret && (test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state) ||
+		    (test_bit(CNSS_DRIVER_LOADING, &plat_priv->driver_state) &&
+		     test_bit(IGNORE_PROBE_FAIL_SHUTDOWN,
+			      &plat_priv->ctrl_params.quirks))))
 		goto out;
 	else if (ret)
 		goto shutdown;
@@ -1291,6 +1294,11 @@ static int cnss_wlfw_server_arrive_hdlr(struct cnss_plat_data *plat_priv,
 {
 	int ret;
 	unsigned int bdf_type;
+
+	if (test_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state)) {
+		cnss_pr_info("Unloading is in progress, ignore server arrive\n");
+		return 0;
+	}
 
 	ret = cnss_wlfw_server_arrive(plat_priv, data);
 	if (ret)

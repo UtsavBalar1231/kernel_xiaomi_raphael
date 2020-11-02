@@ -126,7 +126,7 @@ const char *ipa_clients_strings[IPA_CLIENT_MAX] = {
 	__stringify(IPA_CLIENT_WLAN1_CONS),
 	__stringify(IPA_CLIENT_WLAN2_PROD),
 	__stringify(IPA_CLIENT_WLAN2_CONS),
-	__stringify(RESERVED_PROD_14),
+	__stringify(IPA_CLIENT_WLAN3_PROD),
 	__stringify(IPA_CLIENT_WLAN3_CONS),
 	__stringify(RESERVED_PROD_16),
 	__stringify(IPA_CLIENT_WLAN4_CONS),

@@ -1814,6 +1814,7 @@ struct ipa3_app_clock_vote {
  * @logbuf_low: ipc log buffer for low priority messages
  * @ipa_wdi2: using wdi-2.0
  * @ipa_config_is_auto: is this AUTO use case
+ * @ipa_config_is_sa: is standalone use case in auto
  * @ipa_fltrt_not_hashable: filter/route rules not hashable
  * @use_xbl_boot: use xbl loading for IPA FW
  * @use_64_bit_dma_mask: using 64bits dma mask
@@ -1926,6 +1927,8 @@ struct ipa3_context {
 	bool modem_cfg_emb_pipe_flt;
 	bool ipa_wdi2;
 	bool ipa_config_is_auto;
+	bool ipa_config_is_sa;
+	bool ipa_wlan_cb_iova_map;
 	bool ipa_wdi2_over_gsi;
 	bool ipa_wdi3_over_gsi;
 	bool ipa_endp_delay_wa;
@@ -2052,6 +2055,7 @@ struct ipa3_plat_drv_res {
 	bool modem_cfg_emb_pipe_flt;
 	bool ipa_wdi2;
 	bool ipa_config_is_auto;
+	bool ipa_config_is_sa;
 	bool ipa_wdi2_over_gsi;
 	bool ipa_wdi3_over_gsi;
 	bool ipa_fltrt_not_hashable;
@@ -3068,6 +3072,7 @@ struct ipa_smmu_cb_ctx *ipa3_get_smmu_ctx(enum ipa_smmu_cb_type);
 struct iommu_domain *ipa3_get_smmu_domain(void);
 struct iommu_domain *ipa3_get_uc_smmu_domain(void);
 struct iommu_domain *ipa3_get_wlan_smmu_domain(void);
+struct device *ipa3_get_wlan_device(void);
 struct iommu_domain *ipa3_get_smmu_domain_by_type
 	(enum ipa_smmu_cb_type cb_type);
 int ipa3_iommu_map(struct iommu_domain *domain, unsigned long iova,
@@ -3113,6 +3118,8 @@ int ipa3_rx_poll(u32 clnt_hdl, int budget);
 int ipa3_smmu_map_peer_reg(phys_addr_t phys_addr, bool map,
 	enum ipa_smmu_cb_type cb_type);
 int ipa3_smmu_map_peer_buff(u64 iova, u32 size, bool map, struct sg_table *sgt,
+	enum ipa_smmu_cb_type cb_type);
+int ipa3_smmu_map_ctg(u64 iova, u32 size, bool map, phys_addr_t pa,
 	enum ipa_smmu_cb_type cb_type);
 void ipa3_reset_freeze_vote(void);
 int ipa3_ntn_init(void);

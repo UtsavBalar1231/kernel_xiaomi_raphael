@@ -441,6 +441,32 @@ static struct qmi_elem_info wlfw_fw_version_info_s_v01_ei[] = {
 	},
 };
 
+static struct qmi_elem_info wlfw_host_ddr_range_s_v01_ei[] = {
+	{
+		.data_type      = QMI_UNSIGNED_8_BYTE,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u64),
+		.is_array       = NO_ARRAY,
+		.tlv_type       = 0,
+		.offset         = offsetof(struct wlfw_host_ddr_range_s_v01,
+					   start),
+	},
+	{
+		.data_type      = QMI_UNSIGNED_8_BYTE,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u64),
+		.is_array       = NO_ARRAY,
+		.tlv_type       = 0,
+		.offset         = offsetof(struct wlfw_host_ddr_range_s_v01,
+					   size),
+	},
+	{
+		.data_type      = QMI_EOTI,
+		.is_array       = NO_ARRAY,
+		.tlv_type       = QMI_COMMON_TLV_TYPE,
+	},
+};
+
 struct qmi_elem_info wlfw_ind_register_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
@@ -2532,6 +2558,43 @@ struct qmi_elem_info wlfw_host_cap_req_msg_v01_ei[] = {
 		.tlv_type       = 0x1D,
 		.offset         = offsetof(struct wlfw_host_cap_req_msg_v01,
 					   cal_duration),
+	},
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.is_array	= NO_ARRAY,
+		.tlv_type	= 0x1E,
+		.offset		= offsetof(struct wlfw_host_cap_req_msg_v01,
+					   platform_name_valid),
+	},
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= QMI_WLFW_MAX_PLATFORM_NAME_LEN_V01 + 1,
+		.elem_size	= sizeof(u8),
+		.is_array	= NO_ARRAY,
+		.tlv_type	= 0x1E,
+		.offset		= offsetof(struct wlfw_host_cap_req_msg_v01,
+					   platform_name),
+	},
+	{
+		.data_type      = QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.is_array       = NO_ARRAY,
+		.tlv_type       = 0x1F,
+		.offset		= offsetof(struct wlfw_host_cap_req_msg_v01,
+					   ddr_range_valid),
+	},
+	{
+		.data_type      = QMI_STRUCT,
+		.elem_len       = QMI_WLFW_MAX_HOST_DDR_RANGE_SIZE_V01,
+		.elem_size      = sizeof(struct wlfw_host_ddr_range_s_v01),
+		.is_array       = STATIC_ARRAY,
+		.tlv_type       = 0x1F,
+		.offset         = offsetof(struct wlfw_host_cap_req_msg_v01,
+					   ddr_range),
+		.ei_array      = wlfw_host_ddr_range_s_v01_ei,
 	},
 	{
 		.data_type      = QMI_EOTI,

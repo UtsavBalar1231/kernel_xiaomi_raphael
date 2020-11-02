@@ -562,6 +562,8 @@
 		qcom,msm-bus,name = "ipa";
 		qcom,ipa-wdi2_over_gsi;
 		qcom,ipa-endp-delay-wa;
+		qcom,ipa-wdi3-holbto-2g = <8>;
+		qcom,ipa-wdi3-holbto-5g = <15>;
 		qcom,msm-bus,num-cases = <5>;
 		qcom,msm-bus,num-paths = <5>;
 		qcom,msm-bus,vectors-KBps =
@@ -624,6 +626,7 @@
 		ipa_smmu_wlan: ipa_smmu_wlan {
 			compatible = "qcom,ipa-smmu-wlan-cb";
 			iommus = <&apps_smmu 0x5E1 0x0>;
+			qcom,iova-mapping = <0x60000000 0x10000000>;
 		};
 
 		ipa_smmu_uc: ipa_smmu_uc {
@@ -1543,6 +1546,9 @@
 			iommus = <&apps_smmu 0x1c0 0xf>;
 			qcom,iova-mapping = <0x80000000 0x40000000>;
 			qcom,smmu-geometry;
+		};
+		io-macro-info {
+			prg-rclk-dly = <1500>;
 		};
 	};
 

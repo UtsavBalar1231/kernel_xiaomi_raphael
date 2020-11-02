@@ -15,6 +15,12 @@
 #ifndef __LINUX_BLUETOOTH_POWER_H
 #define __LINUX_BLUETOOTH_POWER_H
 
+/* log index information */
+struct log_index {
+	int init;
+	int crash;
+};
+
 /*
  * voltage regulator information required for configuring the
  * bluetooth chipset
@@ -42,6 +48,8 @@ struct bt_power_vreg_data {
 	bool set_voltage_sup;
 	/* is this regulator enabled? */
 	bool is_enabled;
+	/* Index for reg. w.r.t init & crash */
+	struct log_index indx;
 };
 
 struct bt_power_clk_data {
@@ -59,6 +67,8 @@ struct bt_power_clk_data {
 struct bluetooth_power_platform_data {
 	/* Bluetooth reset gpio */
 	int bt_gpio_sys_rst;
+	/* Bluetooth sw_ctrl gpio */
+	int bt_gpio_sw_ctrl;
 	/* Bluetooth 3p3 gpio */
 	int bt_gpio_3p3_en;
 	/* Bluetooth 1p3 gpio */
@@ -75,7 +85,13 @@ struct bluetooth_power_platform_data {
 int bt_register_slimdev(struct device *dev);
 int get_chipset_version(void);
 
-#define BT_CMD_SLIM_TEST		0xbfac
-#define BT_CMD_PWR_CTRL			0xbfad
-#define BT_CMD_CHIPSET_VERS		0xbfae
+#define BT_CMD_SLIM_TEST         0xbfac
+#define BT_CMD_PWR_CTRL          0xbfad
+#define BT_CMD_CHIPSET_VERS      0xbfae
+/* 0xbfaf --> reserved for kernel 5.4 */
+#define BT_CMD_CHECK_SW_CTRL     0xbfb0
+#define BT_CMD_GETVAL_POWER_SRCS 0xbfb1
+
+/* Total number of power src for logging */
+#define BT_POWER_SRC_SIZE        28
 #endif /* __LINUX_BLUETOOTH_POWER_H */

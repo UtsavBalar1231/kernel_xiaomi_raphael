@@ -997,6 +997,29 @@ static int a6xx_gmu_wait_for_idle(struct adreno_device *adreno_dev)
 	return 0;
 }
 
+static int a6xx_gmu_itcm_shadow(struct kgsl_device *device)
+{
+	struct gmu_device *gmu = KGSL_GMU_DEVICE(device);
+	u32 i, *dest;
+	const unsigned int *regs;
+
+	if (gmu->itcm_shadow)
+		return 0;
+
+	regs = a6xx_gmu_itcm_registers;
+	gmu->itcm_shadow = vzalloc(
+			(regs[1] - regs[0] + 1) << 2);
+	if (!gmu->itcm_shadow)
+		return -ENOMEM;
+
+	dest = (u32 *)gmu->itcm_shadow;
+
+	for (i = regs[0]; i <= regs[1]; i++)
+		kgsl_regread(device, i, dest++);
+
+	return 0;
+}
+
 /* A6xx GMU FENCE RANGE MASK */
 #define GMU_FENCE_RANGE_MASK	((0x1 << 31) | ((0xA << 2) << 18) | (0x8A0))
 
@@ -1014,6 +1037,7 @@ static int a6xx_gmu_fw_start(struct kgsl_device *device,
 	uint32_t gmu_log_info;
 	int ret;
 	unsigned int chipid = 0;
+	uint32_t first_boot = 0;
 
 	switch (boot_state) {
 	case GMU_COLD_BOOT:
@@ -1021,9 +1045,10 @@ static int a6xx_gmu_fw_start(struct kgsl_device *device,
 		gmu_core_regwrite(device, A6XX_GMU_GENERAL_7, 1);
 
 		if (!test_and_set_bit(GMU_BOOT_INIT_DONE,
-			&device->gmu_core.flags))
+			&device->gmu_core.flags)) {
 			ret = _load_gmu_rpmh_ucode(device);
-		else
+			first_boot = 1;
+		} else
 			ret = a6xx_rpmh_power_on_gpu(device);
 		if (ret)
 			return ret;
@@ -1046,6 +1071,12 @@ static int a6xx_gmu_fw_start(struct kgsl_device *device,
 		break;
 	default:
 		break;
+	}
+
+	if (first_boot) {
+		ret = a6xx_gmu_itcm_shadow(device);
+		if (ret)
+			return ret;
 	}
 
 	/* Clear init result to make sure we are getting fresh value */
@@ -1541,6 +1572,7 @@ static unsigned int a6xx_gmu_ifpc_show(struct adreno_device *adreno_dev)
 static size_t a6xx_snapshot_gmu_tcm(struct kgsl_device *device,
 		u8 *buf, size_t remain, void *priv)
 {
+	struct gmu_device *gmu = KGSL_GMU_DEVICE(device);
 	struct kgsl_snapshot_gmu_mem *mem_hdr =
 		(struct kgsl_snapshot_gmu_mem *)buf;
 	unsigned int *data = (unsigned int *)(buf + sizeof(*mem_hdr));
@@ -1548,9 +1580,13 @@ static size_t a6xx_snapshot_gmu_tcm(struct kgsl_device *device,
 	unsigned int *type = priv;
 	const unsigned int *regs;
 
-	if (*type == GMU_ITCM)
+	if (*type == GMU_ITCM) {
 		regs = a6xx_gmu_itcm_registers;
-	else
+		if (!gmu->itcm_shadow) {
+			dev_err(&gmu->pdev->dev, "ITCM not captured\n");
+			return 0;
+		}
+	} else
 		regs = a6xx_gmu_dtcm_registers;
 
 	bytes = (regs[1] - regs[0] + 1) << 2;
@@ -1565,12 +1601,14 @@ static size_t a6xx_snapshot_gmu_tcm(struct kgsl_device *device,
 	mem_hdr->gmuaddr = gmu_get_memtype_base(KGSL_GMU_DEVICE(device), *type);
 	mem_hdr->gpuaddr = 0;
 
-	for (i = regs[0]; i <= regs[1]; i++)
-		kgsl_regread(device, i, data++);
+	if (*type == GMU_ITCM)
+		memcpy((void *)data, gmu->itcm_shadow, bytes);
+	else
+		for (i = regs[0]; i <= regs[1]; i++)
+			kgsl_regread(device, i, data++);
 
 	return bytes + sizeof(*mem_hdr);
 }
-
 
 struct gmu_mem_type_desc {
 	struct gmu_memdesc *memdesc;

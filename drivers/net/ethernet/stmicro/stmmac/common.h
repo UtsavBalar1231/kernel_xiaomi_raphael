@@ -460,6 +460,10 @@ struct stmmac_dma_ops {
 	void (*stop_tx)(void __iomem *ioaddr, u32 chan);
 	void (*start_rx)(void __iomem *ioaddr, u32 chan);
 	void (*stop_rx)(void __iomem *ioaddr, u32 chan);
+	void (*start_tx_chan)(void __iomem *ioaddr, u32 chan);
+	void (*stop_tx_chan)(void __iomem *ioaddr, u32 chan);
+	void (*start_rx_chan)(void __iomem *ioaddr, u32 chan);
+	void (*stop_rx_chan)(void __iomem *ioaddr, u32 chan);
 	int (*dma_interrupt) (void __iomem *ioaddr,
 			      struct stmmac_extra_stats *x, u32 chan);
 	/* If supported then get the optional core features */

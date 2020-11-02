@@ -452,8 +452,10 @@ static struct ipa_ep_cfg usb_to_ipa_ep_cfg_deaggr_en = {
 	},
 	.deaggr = {
 		.deaggr_hdr_len = sizeof(struct rndis_pkt_hdr),
+		.syspipe_err_detection = true,
 		.packet_offset_valid = true,
 		.packet_offset_location = 8,
+		.ignore_min_pkt_err = true,
 		.max_packet_len = 8192, /* Will be overridden*/
 	},
 	.route = {
@@ -1179,6 +1181,12 @@ static void rndis_ipa_packet_receive_notify(
 		("packet Rx, len=%d\n",
 		skb->len);
 
+	if (unlikely(rndis_ipa_ctx == NULL)) {
+		RNDIS_IPA_DEBUG("Private context is NULL. Drop SKB.\n");
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
 	if (unlikely(rndis_ipa_ctx->rx_dump_enable))
 		rndis_ipa_dump_skb(skb);
 
@@ -1186,11 +1194,15 @@ static void rndis_ipa_packet_receive_notify(
 		RNDIS_IPA_DEBUG("use connect()/up() before receive()\n");
 		RNDIS_IPA_DEBUG("packet dropped (length=%d)\n",
 				skb->len);
+		rndis_ipa_ctx->rx_dropped++;
+		dev_kfree_skb_any(skb);
 		return;
 	}
 
 	if (evt != IPA_RECEIVE)	{
 		RNDIS_IPA_ERROR("a none IPA_RECEIVE event in driver RX\n");
+		rndis_ipa_ctx->rx_dropped++;
+		dev_kfree_skb_any(skb);
 		return;
 	}
 
