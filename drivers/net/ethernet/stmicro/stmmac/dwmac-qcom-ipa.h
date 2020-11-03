@@ -647,6 +647,7 @@ struct ethqos_ipa_stats {
 };
 
 struct ethqos_prv_ipa_data {
+	bool cv2x_queue_enabled;
 	bool queue_enabled[IPA_QUEUE_MAX];
 	struct ethqos_tx_queue *tx_queue[IPA_QUEUE_MAX];
 	struct ethqos_rx_queue *rx_queue[IPA_QUEUE_MAX];
@@ -713,8 +714,12 @@ struct ethqos_prv_ipa_data {
 	bool ipa_offload_init;
 	/* State of IPA pipes connection */
 	bool ipa_offload_conn;
+	/* State of IPA Offload intf registration with IPA driver */
+	bool ipa_offload_init_cv2x;
+	/* State of IPA pipes connection */
+	bool ipa_offload_conn_cv2x;
 	/* State of IPA pipes connection previously */
-	bool ipa_offload_conn_prev;
+	bool ipa_offload_conn_prev_cv2x;
 	/* State of debugfs creation */
 	bool ipa_debugfs_exists;
 	/* State of IPA offload suspended by user */
