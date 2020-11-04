@@ -103,7 +103,9 @@ dtb-$(CONFIG_ARCH_QCS403) += qcs403-iot-sku1.dtb \
 		qcs404-iot-sku5.dtb \
 		qcs404-iot-sku6.dtb \
 		sa2145p-ccard-nand-dc.dtb \
-		sa2150p-ccard-nand-dc.dtb
+		sa2150p-ccard-nand-dc.dtb \
+		sa2150p-ccard-nand-eth-sw.dtb \
+		sa2150p-ccard-nand-eth-phy.dtb
 
 dtb-$(CONFIG_ARCH_QCS405) += qcs405-iot-sku1.dtb \
 		qcs407-iot-sku1.dtb \
