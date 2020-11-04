@@ -2011,14 +2011,18 @@ static int stmmac_emb_smmu_cb_probe(struct platform_device *pdev)
 			goto err_smmu_probe;
 		}
 		ETHQOSDBG("SMMU atomic set\n");
-		if (iommu_domain_set_attr(stmmac_emb_smmu_ctx.mapping->domain,
-					  DOMAIN_ATTR_FAST,
-					  &fast)) {
-			ETHQOSERR("Couldn't set FAST SMMU\n");
-			result = -EIO;
-			goto err_smmu_probe;
+		if (of_property_read_bool(dev->of_node,
+					  "qcom,smmu-fastmap")) {
+			ETHQOSERR("SMMU-Fastmap device tree entry detected");
+			if (iommu_domain_set_attr
+			    (stmmac_emb_smmu_ctx.mapping->domain,
+			     DOMAIN_ATTR_FAST, &fast)) {
+				ETHQOSERR("Couldn't set FAST SMMU\n");
+				result = -EIO;
+				goto err_smmu_probe;
+			}
+			ETHQOSDBG("SMMU fast map set\n");
 		}
-		ETHQOSDBG("SMMU fast map set\n");
 		if (of_property_read_bool(dev->of_node,
 					  "qcom,smmu-geometry")) {
 			if (iommu_domain_set_attr
@@ -2885,6 +2889,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 			of_platform_depopulate(&pdev->dev);
 			ret = stmmac_emb_smmu_ctx.ret;
 			stmmac_emb_smmu_ctx.ret = 0;
+			goto err_clk;
 		}
 	}
 
