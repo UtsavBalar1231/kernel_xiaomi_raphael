@@ -44,7 +44,7 @@
  */
 
 #include "msm_drv_hyp.h"
-
+#include <linux/backlight.h>
 /*
  * DRM operations:
  */
@@ -393,6 +393,45 @@ static struct drm_driver msm_driver = {
 	.minor              = 0,
 };
 
+static int msm_hyp_backlight_device_update_status(struct backlight_device *bd)
+{
+	return 0;
+}
+
+static int msm_hyp_backlight_device_get_brightness(struct backlight_device *bd)
+{
+	return 0;
+}
+
+static const struct backlight_ops msm_hyp_backlight_device_ops = {
+	.update_status = msm_hyp_backlight_device_update_status,
+	.get_brightness = msm_hyp_backlight_device_get_brightness,
+};
+
+static int msm_display_create_backlight(struct msm_drm_private *priv)
+{
+	struct backlight_properties props;
+	char bl_node_name[32];
+	int i;
+
+	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_RAW;
+	props.power = FB_BLANK_UNBLANK;
+	props.max_brightness = 255;
+	props.brightness = 255;
+
+	for (i = 0; i < MAX_BACKLIGHT_DEVICES; i++) {
+		snprintf(bl_node_name, sizeof(bl_node_name),
+				"panel%u-backlight", i);
+
+		priv->bl_device[i] = backlight_device_register(bl_node_name,
+					priv->dev->dev,
+					priv, &msm_hyp_backlight_device_ops,
+					&props);
+	}
+
+	return 0;
+}
 /*
  * Platform driver:
  */
@@ -427,6 +466,7 @@ static int msm_pdev_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	msm_display_create_backlight(priv);
 	return 0;
 
 fail:
@@ -440,8 +480,12 @@ static int msm_pdev_remove(struct platform_device *pdev)
 {
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 	struct msm_drm_private *priv = ddev->dev_private;
+	int i;
 
 	drm_dev_unregister(ddev);
+
+	for (i = 0; i < MAX_BACKLIGHT_DEVICES; i++)
+		backlight_device_unregister(priv->bl_device[i]);
 
 	ddev->dev_private = NULL;
 	kfree(priv);
