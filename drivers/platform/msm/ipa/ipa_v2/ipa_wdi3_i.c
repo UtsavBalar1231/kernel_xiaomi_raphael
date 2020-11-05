@@ -404,7 +404,8 @@ fail:
 	return result;
 }
 
-int ipa2_disconn_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
+int ipa2_disconn_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1)
 {
 	struct ipa_ep_context *ep_tx, *ep_rx;
 	int result = 0;
@@ -448,7 +449,8 @@ fail:
 	return result;
 }
 
-int ipa2_enable_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
+int ipa2_enable_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1)
 {
 	struct ipa_ep_context *ep_tx, *ep_rx;
 	int result = 0;
@@ -516,7 +518,8 @@ fail:
 	return result;
 }
 
-int ipa2_disable_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
+int ipa2_disable_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1)
 {
 	struct ipa_ep_context *ep_tx, *ep_rx;
 	int result = 0;
