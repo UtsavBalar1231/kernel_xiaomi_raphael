@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2010, 2013-2018 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2010, 2013-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -115,7 +115,7 @@ static struct bt_power_vreg_data bt_power_vreg_info[] = {
 		{BT_VDD_LDO, BT_VDD_LDO_CURRENT} },
 	{NULL, "qca,bt-chip-pwd", 0, 0, 0, false, false,
 		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
-	{NULL, "qca,bt-vdd-s5", 1352000, 1352000, 0, true, false,
+	{NULL, "qca,bt-vdd-s5", 1352000, 1352000, 0, false, false,
 		{PWR_SRC_NOT_AVAILABLE, PWR_SRC_NOT_AVAILABLE} },
 };
 
