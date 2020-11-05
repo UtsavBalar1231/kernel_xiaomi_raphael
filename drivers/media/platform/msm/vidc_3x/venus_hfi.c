@@ -2044,14 +2044,15 @@ static int __interface_queues_init(struct venus_hfi_device *dev)
 					&dev->qdss.align_device_addr);
 		}
 	}
-
-	vsfr = (struct hfi_sfr_struct *) dev->sfr.align_virtual_addr;
-	vsfr->bufSize = ALIGNED_SFR_SIZE;
-	value = (u32)dev->sfr.align_device_addr;
-	if ((phys_addr_t)value !=
-		dev->sfr.align_device_addr) {
-		dprintk(VIDC_ERR, "Invalid sfr device address (%pa)",
-			&dev->sfr.align_device_addr);
+	if (dev->sfr.align_device_addr) {
+		vsfr = (struct hfi_sfr_struct *) dev->sfr.align_virtual_addr;
+		vsfr->bufSize = ALIGNED_SFR_SIZE;
+		value = (u32)dev->sfr.align_device_addr;
+		if ((phys_addr_t)value !=
+			dev->sfr.align_device_addr) {
+			dprintk(VIDC_ERR, "Invalid sfr device address (%pa)",
+				&dev->sfr.align_device_addr);
+		}
 	}
 
 	__setup_ucregion_memory_map(dev);

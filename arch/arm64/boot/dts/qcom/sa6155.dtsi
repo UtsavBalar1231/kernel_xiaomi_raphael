@@ -24,6 +24,11 @@
 	};
 };
 
+&linux_cma {
+	/delete-property/ size;
+	size = <0x0 0x2800000>;
+};
+
 &tpdm_west {
 	status = "disabled";
 };

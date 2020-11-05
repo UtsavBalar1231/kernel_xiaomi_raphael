@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -76,6 +76,7 @@ struct intf_params {
 struct cam_sensor_intr_t {
 	struct cam_sensor_ctrl_t *sctrl;
 	struct gpio gpio_array[1];
+	int gpio_idx;
 	int work_inited;
 	struct work_struct irq_work;
 };

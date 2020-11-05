@@ -2804,23 +2804,25 @@ int ipa3_suspend_gsi_wdi_pipe(u32 clnt_hdl)
 	}
 	if (ep->valid) {
 		IPADBG("suspended pipe %d\n", ipa_ep_idx);
-		source_pipe_bitmask = 1 <<
-			ipa3_get_ep_mapping(ep->client);
-		res = ipa3_enable_force_clear(clnt_hdl,
-				false, source_pipe_bitmask);
-		if (res) {
-			/*
-			 * assuming here modem SSR, AP can remove
-			 * the delay in this case
-			 */
-			IPAERR("failed to force clear %d\n", res);
-			IPAERR("remove delay from SCND reg\n");
-			ep_ctrl_scnd.endp_delay = false;
-			ipahal_write_reg_n_fields(
+		if (IPA_CLIENT_IS_PROD(ep->client)) {
+			source_pipe_bitmask = 1 <<
+				ipa3_get_ep_mapping(ep->client);
+			res = ipa3_enable_force_clear(clnt_hdl,
+					false, source_pipe_bitmask);
+			if (res) {
+				/*
+				 * assuming here modem SSR, AP can remove
+				 * the delay in this case
+				 */
+				IPAERR("failed to force clear %d\n", res);
+				IPAERR("remove delay from SCND reg\n");
+				ep_ctrl_scnd.endp_delay = false;
+				ipahal_write_reg_n_fields(
 					IPA_ENDP_INIT_CTRL_SCND_n, clnt_hdl,
-					&ep_ctrl_scnd);
-		} else {
-			disable_force_clear = true;
+						&ep_ctrl_scnd);
+			} else {
+				disable_force_clear = true;
+			}
 		}
 retry_gsi_stop:
 		res = ipa3_stop_gsi_channel(ipa_ep_idx);
@@ -3077,7 +3079,7 @@ int ipa3_write_qmapid_wdi_pipe(u32 clnt_hdl, u8 qmap_id)
 		IPAERR_RL("bad parm, %d\n", clnt_hdl);
 		return -EINVAL;
 	}
-	if (ipa3_ctx->ipa_wdi2_over_gsi)
+	if (IPA_WDI2_OVER_GSI())
 		return ipa3_write_qmapid_gsi_wdi_pipe(clnt_hdl, qmap_id);
 
 	result = ipa3_uc_state_check();
@@ -3214,17 +3216,19 @@ static void ipa3_uc_wdi_loaded_handler(void)
 
 int ipa3_create_wdi_mapping(u32 num_buffers, struct ipa_wdi_buffer_info *info)
 {
-	struct ipa_smmu_cb_ctx *cb = ipa3_get_smmu_ctx(IPA_SMMU_CB_WLAN);
 	int i;
 	int ret = 0;
 	int prot = IOMMU_READ | IOMMU_WRITE;
+	struct iommu_domain *wlan_domain;
+
+	wlan_domain = ipa3_get_wlan_smmu_domain();
 
 	if (!info) {
 		IPAERR("info = %pK\n", info);
 		return -EINVAL;
 	}
 
-	if (!cb->valid) {
+	if (!wlan_domain) {
 		IPAERR("No SMMU CB setup\n");
 		return -EINVAL;
 	}
@@ -3237,7 +3241,7 @@ int ipa3_create_wdi_mapping(u32 num_buffers, struct ipa_wdi_buffer_info *info)
 	for (i = 0; i < num_buffers; i++) {
 		IPADBG_LOW("i=%d pa=0x%pa iova=0x%lx sz=0x%zx\n", i,
 			&info[i].pa, info[i].iova, info[i].size);
-		info[i].result = ipa3_iommu_map(cb->iommu,
+		info[i].result = ipa3_iommu_map(wlan_domain,
 			rounddown(info[i].iova, PAGE_SIZE),
 			rounddown(info[i].pa, PAGE_SIZE),
 			roundup(info[i].size + info[i].pa -
@@ -3250,16 +3254,18 @@ int ipa3_create_wdi_mapping(u32 num_buffers, struct ipa_wdi_buffer_info *info)
 
 int ipa3_release_wdi_mapping(u32 num_buffers, struct ipa_wdi_buffer_info *info)
 {
-	struct ipa_smmu_cb_ctx *cb = ipa3_get_smmu_ctx(IPA_SMMU_CB_WLAN);
 	int i;
 	int ret = 0;
+	struct iommu_domain *wlan_domain;
+
+	wlan_domain = ipa3_get_wlan_smmu_domain();
 
 	if (!info) {
 		IPAERR("info = %pK\n", info);
 		return -EINVAL;
 	}
 
-	if (!cb->valid) {
+	if (!wlan_domain) {
 		IPAERR("No SMMU CB setup\n");
 		return -EINVAL;
 	}
@@ -3267,7 +3273,7 @@ int ipa3_release_wdi_mapping(u32 num_buffers, struct ipa_wdi_buffer_info *info)
 	for (i = 0; i < num_buffers; i++) {
 		IPADBG_LOW("i=%d pa=0x%pa iova=0x%lx sz=0x%zx\n", i,
 			&info[i].pa, info[i].iova, info[i].size);
-		info[i].result = iommu_unmap(cb->iommu,
+		info[i].result = iommu_unmap(wlan_domain,
 			rounddown(info[i].iova, PAGE_SIZE),
 			roundup(info[i].size + info[i].pa -
 				rounddown(info[i].pa, PAGE_SIZE), PAGE_SIZE));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014, 2018, 2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,6 +25,7 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/regulator/driver.h>
 
 #include <media/rc-core.h>
 #include <linux/uaccess.h>
@@ -360,7 +361,7 @@ struct msm_geni_ir {
 	void __iomem		*base;
 
 	unsigned int             gpio_rx;
-
+	struct regulator       *vdda33;
 	struct clk              *ahb_clk;
 	struct clk		*serial_clk;
 	struct reset_control    *reset_core;
@@ -791,6 +792,13 @@ static int msm_geni_ir_get_res(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 	pr_debug("ir->base: 0x%lx\n", (unsigned long int)ir->base);
+
+	ir->vdda33 = devm_regulator_get(&pdev->dev, "vdda33");
+	if (IS_ERR(ir->vdda33)) {
+		pr_err("unable to get vdda33 supply\n");
+		return rc;
+	}
+
 	ir->ahb_clk = clk_get(&pdev->dev, "iface_clk");
 	ir->serial_clk = clk_get(&pdev->dev, "serial_clk");
 	if (IS_ERR(ir->ahb_clk)) {
@@ -882,6 +890,11 @@ int msm_geni_ir_probe(struct platform_device *pdev)
 		goto rc_register_err;
 	}
 
+	rc = regulator_enable(ir->vdda33);
+	if (rc) {
+		pr_err("Unable to enable vdda33:%d\n", rc);
+		return rc;
+	}
 
 #ifdef CONFIG_IR_MSM_GENI_TX
 	ir->misc.minor = MISC_DYNAMIC_MINOR;
@@ -951,6 +964,8 @@ static int msm_geni_ir_resume(struct device *dev)
 	u32 status;
 
 	disable_irq_wake(ir->wakeup_irq);
+	if (ir->image_loaded == NULL)
+		return 0;
 
 	/* clear wakeup irq */
 	status = readl_relaxed(ir->base + GENI_IR_IRQ_STATUS);

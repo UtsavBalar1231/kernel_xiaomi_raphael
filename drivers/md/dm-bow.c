@@ -13,10 +13,6 @@
 
 #define DM_MSG_PREFIX "bow"
 
-#ifndef SECTOR_SIZE
-#define SECTOR_SIZE 512
-#endif
-
 struct log_entry {
 	u64 source;
 	u64 dest;

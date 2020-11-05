@@ -49,6 +49,13 @@ struct wcnss_wlan_config {
 	struct vregs_level iris_vlevel[IRIS_REGULATORS];
 };
 
+struct bt_profile_state {
+	bool bt_enabled;
+	bool bt_ble;
+	bool bt_a2dp;
+	bool bt_sco;
+};
+
 enum {
 	WCNSS_XO_48MHZ = 1,
 	WCNSS_XO_19MHZ,
@@ -109,6 +116,7 @@ struct wcnss_driver_ops {
 	char *name;
 	void *priv_data;
 	int (*driver_state)(void *priv, enum wcnss_driver_state state);
+	int (*bt_profile_state)(void *priv, struct bt_profile_state *state);
 };
 
 struct device *wcnss_wlan_get_device(void);

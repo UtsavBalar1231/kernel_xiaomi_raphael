@@ -272,7 +272,7 @@ enum ipa_client_type {
 	IPA_CLIENT_A5_WLAN_AMPDU_PROD		= 12,
 	IPA_CLIENT_WLAN2_CONS			= 13,
 
-	/* RESERVED PROD			= 14, */
+	IPA_CLIENT_WLAN3_PROD			= 14,
 	IPA_CLIENT_WLAN3_CONS			= 15,
 
 	/* RESERVED PROD			= 16, */
@@ -2894,6 +2894,7 @@ struct ipa_odl_modem_config {
  * @u.passthrough_cfg.client_mac_addr: client mac for which passthough
  *	is enabled.
  * @u.passthrough_cfg.skip_nat: skip NAT processing.
+ * @default_pdn: bool to indicate the config is for default pdn.
  */
 struct ipa_ioc_pdn_config {
 	char dev_name[IPA_RESOURCE_NAME_MAX];
@@ -2913,6 +2914,7 @@ struct ipa_ioc_pdn_config {
 			uint8_t skip_nat;
 		} passthrough_cfg;
 	} u;
+	uint8_t default_pdn;
 };
 
 /**

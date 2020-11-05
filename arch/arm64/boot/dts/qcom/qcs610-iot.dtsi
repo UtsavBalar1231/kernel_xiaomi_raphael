@@ -400,6 +400,10 @@
 	connectors = <&sde_rscc &sde_wb &sde_dsi>;
 };
 
+&disp_rdump_memory {
+	status = "disabled";
+};
+
 &qupv3_se1_i2c {
 	status = "ok";
 	lt9611: lt,lt9611@3b {
