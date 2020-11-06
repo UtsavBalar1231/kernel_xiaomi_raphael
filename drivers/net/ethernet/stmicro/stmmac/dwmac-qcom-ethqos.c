@@ -2752,10 +2752,11 @@ static int qcom_ethos_panic_notifier(struct notifier_block *this,
 				     unsigned long event, void *ptr)
 {
 	u32 size_iomacro_regs;
+	struct stmmac_priv *priv = qcom_ethqos_get_priv(pethqos);
 
 	if (pethqos) {
 		pr_info("qcom-ethqos: ethqos 0x%p\n", pethqos);
-
+		pr_info("qcom-ethqos: stmmac_priv 0x%p\n", priv);
 
 		pethqos->iommu_domain = stmmac_emb_smmu_ctx.iommu_domain;
 		pr_info("qcom-ethqos: emac iommu domain 0x%p\n",
@@ -2770,6 +2771,8 @@ static int qcom_ethos_panic_notifier(struct notifier_block *this,
 
 		pr_info("qcom-ethqos: rgmii register mem 0x%p\n",
 			pethqos->rgmii_reg_base_address);
+		size_iomacro_regs =
+		qcom_ethqos_rgmii_io_macro_num_of_regs(pethqos->emac_ver) * 4;
 		if (pethqos->rgmii_reg_base_address)
 			memcpy_fromio(pethqos->rgmii_reg_base_address,
 				      pethqos->rgmii_base,
