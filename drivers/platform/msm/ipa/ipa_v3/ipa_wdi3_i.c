@@ -513,6 +513,7 @@ int ipa3_conn_wdi3_pipes(struct ipa_wdi_conn_in_params *in,
 			ipa_ep_idx_tx1 >= IPA3_MAX_NUM_PIPES) {
 			IPAERR("fail to alloc ep2 tx clnt %d not supprtd %d",
 				tx1_client, ipa_ep_idx_tx1);
+			return -EINVAL;
 		} else {
 			ep_tx1 = &ipa3_ctx->ep[ipa_ep_idx_tx1];
 			if (ep_tx1->valid) {
