@@ -11,6 +11,7 @@
  */
 
 #include "dsi-panel-auo-416p-amoled-cmd.dtsi"
+#include "dsi-panel-truly-rm69090-qvga-cmd-v2.dtsi"
 
 &soc {
 	dsi_pm660_panel_pwr_supply: dsi_pm660_panel_pwr_supply {
@@ -48,4 +49,13 @@
 	qcom,mdss-skip-panel-reset;
 };
 
-
+&dsi_truly_rm69090_qvga_cmd_v2 {
+	/delete-property/ qcom,mdss-dsi-panel-timings;
+	qcom,mdss-dsi-panel-timings-phy-12nm = [04 04 01 08 00 03 01 0D];
+	qcom,panel-supply-entries = <&dsi_pm660_panel_pwr_supply>;
+	qcom,partial-update-enabled = "single_roi";
+	qcom,partial-update-addr-offset = <0x10 0>;
+	qcom,panel-roi-alignment = <2 2 4 2 20 2>;
+	qcom,esd-check-enabled;
+	qcom,mdss-dsi-panel-status-check-mode = "te_signal_check";
+};
