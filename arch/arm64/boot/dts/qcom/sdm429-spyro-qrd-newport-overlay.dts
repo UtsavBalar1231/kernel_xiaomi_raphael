@@ -19,10 +19,6 @@
 #include "sdm429-mdss-panels.dtsi"
 #include "sdm429-spyro-qrd-evt-audio.dtsi"
 
-&int_codec {
-	qcom,wcn-bt-slim = <1>;
-};
-
 / {
 	model = "Qualcomm Technologies, Inc. SDM429 QRD NewPort Overlay";
 	compatible = "qcom,sdm429w-qrd", "qcom,sdm429w", "qcom,qrd";
@@ -37,7 +33,6 @@
 };
 
 &mdss_dsi {
-
 	vddio-supply = <&L11A>; /* 1.8v */
 };
 
@@ -59,6 +54,14 @@
 	status = "disabled";
 };
 
+&mdss_dsi0_pll {
+	vddio-supply = <&L12A>; /* 1.8V */
+};
+
+&mdss_dsi1_pll {
+	vddio-supply = <&L12A>; /* 1.8V */
+};
+
 &modem_mem {
 	reg = <0x0 0x86800000 0x0 0x5500000>;
 };
@@ -71,20 +74,8 @@
 	reg = <0x0 0x8d200000 0x0 0x700000>;
 };
 
-&mdss_dsi0_pll {
-	vddio-supply = <&L12A>; /* 1.8V */
-};
-
-&mdss_dsi1_pll {
-	vddio-supply = <&L12A>; /* 1.8V */
-};
-
 &dsi_pm660_panel_pwr_supply {
 	/delete-node/ qcom,panel-supply-entry@0;
-};
-
-&i2c_2 {
-	status = "disabled";
 };
 
 &blsp2_uart2_hs {
