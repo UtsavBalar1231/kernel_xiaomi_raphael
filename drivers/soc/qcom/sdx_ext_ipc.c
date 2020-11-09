@@ -202,6 +202,8 @@ static irqreturn_t ap_status_change(int irq, void *dev_id)
 static irqreturn_t sdx_ext_ipc_wakeup_irq(int irq, void *dev_id)
 {
 	pr_info("%s: Received\n", __func__);
+
+	sb_notifier_call_chain(EVENT_REMOTE_WOKEN_UP, NULL);
 	return IRQ_HANDLED;
 }
 
