@@ -1154,7 +1154,7 @@ static inline void prefetch_read_dir(void *name, char *buf, int len)
 static int prefetch_thread(void *unused)
 {
 	struct cpumask cpumask;
-	int thread_num = (int)unused;
+	int thread_num = (long)unused;
 	char *buf;
 	int index;
 	char *name;
@@ -1293,7 +1293,7 @@ out:
 
 	for (index = 0; index < PREFETCH_NUM; index++) {
 		snprintf(name, 16, "prefetch%d", index);
-		kthread_run(prefetch_thread, (void *)index, name);
+		kthread_run(prefetch_thread, (void *)(long)index, name);
 	}
 	}
 	first_time = 0;
