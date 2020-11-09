@@ -78,6 +78,14 @@ static int32_t cam_pmic_ir_led_off(struct cam_ir_led_ctrl *ictrl)
 		CAM_ERR(CAM_IR_LED, "gpio operation failed(%d)", rc);
 		return rc;
 	}
+	msleep(120);
+	rc = gpio_direction_output(
+		ictrl->soc_info.gpio_data->cam_gpio_common_tbl[1].gpio,
+		0);
+	if (rc) {
+		CAM_ERR(CAM_IR_LED, "gpio operation failed(%d)", rc);
+		return rc;
+	}
 	return rc;
 }
 
@@ -112,8 +120,9 @@ static int32_t cam_pmic_ir_led_on(
 			CAM_ERR(CAM_IR_LED, "gpio operation failed(%d)", rc);
 			return rc;
 		}
+		msleep(120);
 		rc = gpio_direction_output(
-			ictrl->soc_info.gpio_data->cam_gpio_common_tbl[1].gpio,
+			ictrl->soc_info.gpio_data->cam_gpio_common_tbl[0].gpio,
 			0);
 		if (rc) {
 			CAM_ERR(CAM_IR_LED, "gpio operation failed(%d)", rc);
@@ -569,6 +578,7 @@ static int32_t cam_ir_led_platform_probe(struct platform_device *pdev)
 	v4l2_set_subdevdata(&ictrl->v4l2_dev_str.sd, ictrl);
 	mutex_init(&(ictrl->ir_led_mutex));
 	ictrl->ir_led_state = CAM_IR_LED_STATE_INIT;
+	cam_pmic_ir_led_off(ictrl);
 	return rc;
 }
 
