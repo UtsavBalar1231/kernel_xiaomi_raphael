@@ -1299,7 +1299,7 @@ out:
 	first_time = 0;
 }
 
-void early_prepare_namespace(char *name)
+void __init early_prepare_namespace(char *name)
 {
 	int err;
 
