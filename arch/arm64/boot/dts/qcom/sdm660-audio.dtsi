@@ -29,7 +29,7 @@
 		qcom,mi2s-audio-intf;
 		qcom,auxpcm-audio-intf;
 		qcom,ext-disp-audio-rx;
-		qcom,msm-mi2s-master = <1>, <1>, <1>, <1>;
+		qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>;
 		qcom,msm-mclk-freq = <9600000>;
 		qcom,msm-mbhc-hphl-swh = <1>;
 		qcom,msm-mbhc-gnd-swh = <1>;
@@ -144,7 +144,7 @@
 		qcom,mi2s-audio-intf;
 		qcom,auxpcm-audio-intf;
 		qcom,ext-disp-audio-rx;
-		qcom,msm-mi2s-master = <1>, <1>, <1>, <1>;
+		qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>;
 		qcom,audio-routing =
 			"AIF4 VI", "MCLK",
 			"RX_BIAS", "MCLK",

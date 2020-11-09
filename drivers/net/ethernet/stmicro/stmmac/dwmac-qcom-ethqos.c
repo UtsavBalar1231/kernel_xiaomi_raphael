@@ -25,6 +25,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
 #include <linux/msm_eth.h>
+#include <soc/qcom/sb_notification.h>
 
 #include "stmmac.h"
 #include "stmmac_platform.h"
@@ -35,6 +36,9 @@
 #define PHY_LOOPBACK_1000 0x4140
 #define PHY_LOOPBACK_100 0x6100
 #define PHY_LOOPBACK_10 0x4100
+
+#define SSR_SIG_DOWN 0x1
+#define SSR_SIG_UP   0x2
 
 static void __iomem *tlmm_central_base_addr;
 static void ethqos_rgmii_io_macro_loopback(struct qcom_ethqos *ethqos,
@@ -167,7 +171,7 @@ u16 dwmac_qcom_select_queue(
 			  txqueue_select);
 		WARN_ON(1);
 	}
-	ETHQOSDBG("tx_queue %d\n", txqueue_select);
+
 	return txqueue_select;
 }
 
@@ -1388,14 +1392,14 @@ static ssize_t phy_off_config(
 	if (config == DISABLE_PHY_IMMEDIATELY) {
 		ethqos->current_phy_mode = DISABLE_PHY_IMMEDIATELY;
 	//make phy off
-		if (ethqos->current_loopback == ENABLE_PHY_LOOPBACK) {
+		if (priv->current_loopback == ENABLE_PHY_LOOPBACK) {
 			/* If Phy loopback is enabled
 			 *  Disabled It before phy off
 			 */
 			phy_digital_loopback_config(ethqos,
 						    ethqos->loopback_speed, 0);
 			ETHQOSDBG("Disable phy Loopback\n");
-			ethqos->current_loopback = ENABLE_PHY_LOOPBACK;
+			priv->current_loopback = ENABLE_PHY_LOOPBACK;
 		}
 		/*Backup phy related data*/
 		if (priv->phydev->autoneg == AUTONEG_DISABLE) {
@@ -1416,7 +1420,7 @@ static ssize_t phy_off_config(
 			priv->phydev->autoneg = ethqos->backup_autoneg;
 			phy_write(priv->phydev, MII_BMCR, ethqos->backup_bmcr);
 		}
-		if (ethqos->current_loopback == ENABLE_PHY_LOOPBACK) {
+		if (priv->current_loopback == ENABLE_PHY_LOOPBACK) {
 			/*If Phy loopback is enabled , enabled It again*/
 			phy_digital_loopback_config(ethqos,
 						    ethqos->loopback_speed, 1);
@@ -1588,16 +1592,11 @@ static void setup_config_registers(struct qcom_ethqos *ethqos,
 	priv->dev->phydev->speed = speed;
 	priv->speed  = speed;
 
-	if (mode > DISABLE_LOOPBACK && !qcom_ethqos_is_phy_link_up(ethqos)) {
-		/*If Link is Down & need to enable Loopback*/
-		ETHQOSDBG("Link is down . manual ipa setting up\n");
-		ethqos_ipa_offload_event_handler(priv, EV_PHY_LINK_UP);
-	} else if (mode == DISABLE_LOOPBACK &&
-			  !qcom_ethqos_is_phy_link_up(ethqos)) {
-		ETHQOSDBG("Disable request since link was down disable ipa\n");
-		ethqos_ipa_offload_event_handler(priv, EV_PHY_LINK_DOWN);
-	}
-
+	if (mode > DISABLE_LOOPBACK && pethqos->ipa_enabled)
+		ethqos_ipa_offload_event_handler(ethqos, EV_LOOPBACK_DMA_MAP);
+	else
+		priv->hw->mac->map_mtl_to_dma(priv->hw, EMAC_QUEUE_0,
+					      EMAC_CHANNEL_0);
 	if (priv->dev->phydev->speed != SPEED_UNKNOWN)
 		ethqos_fix_mac_speed(ethqos, speed);
 
@@ -1649,7 +1648,7 @@ static ssize_t loopback_handling_config(
 		ETHQOSERR("Invalid config =%d\n", config);
 		return -EINVAL;
 	}
-	if ((config == ENABLE_PHY_LOOPBACK  || ethqos->current_loopback ==
+	if ((config == ENABLE_PHY_LOOPBACK  || priv->current_loopback ==
 			ENABLE_PHY_LOOPBACK) &&
 			ethqos->current_phy_mode == DISABLE_PHY_IMMEDIATELY) {
 		ETHQOSERR("Can't enabled/disable ");
@@ -1665,7 +1664,7 @@ static ssize_t loopback_handling_config(
 			return -EINVAL;
 	}
 
-	if (config == ethqos->current_loopback) {
+	if (config == priv->current_loopback) {
 		switch (config) {
 		case DISABLE_LOOPBACK:
 			ETHQOSINFO("Loopback is already disabled\n");
@@ -1687,23 +1686,23 @@ static ssize_t loopback_handling_config(
 	}
 	/*If request to enable loopback & some other loopback already enabled*/
 	if (config != DISABLE_LOOPBACK &&
-	    ethqos->current_loopback > DISABLE_LOOPBACK) {
+	    priv->current_loopback > DISABLE_LOOPBACK) {
 		ETHQOSINFO("Loopback is already enabled\n");
-		print_loopback_detail(ethqos->current_loopback);
+		print_loopback_detail(priv->current_loopback);
 		return -EINVAL;
 	}
 	ETHQOSINFO("enable loopback = %d with link speed = %d backup now\n",
 		   config, speed);
 
 	/*Backup speed & duplex before Enabling Loopback */
-	if (ethqos->current_loopback == DISABLE_LOOPBACK &&
+	if (priv->current_loopback == DISABLE_LOOPBACK &&
 	    config > DISABLE_LOOPBACK) {
 		/*Backup old speed & duplex*/
 		ethqos->backup_speed = priv->speed;
 		ethqos->backup_duplex = priv->dev->phydev->duplex;
 	}
 	/*Backup BMCR before Enabling Phy LoopbackLoopback */
-	if (ethqos->current_loopback == DISABLE_LOOPBACK &&
+	if (priv->current_loopback == DISABLE_LOOPBACK &&
 	    config == ENABLE_PHY_LOOPBACK)
 		ethqos->bmcr_backup = ethqos_mdio_read(priv,
 						       priv->plat->phy_addr,
@@ -1718,11 +1717,11 @@ static ssize_t loopback_handling_config(
 	switch (config) {
 	case DISABLE_LOOPBACK:
 		ETHQOSINFO("Request to Disable Loopback\n");
-		if (ethqos->current_loopback == ENABLE_IO_MACRO_LOOPBACK)
+		if (priv->current_loopback == ENABLE_IO_MACRO_LOOPBACK)
 			ethqos_rgmii_io_macro_loopback(ethqos, 0);
-		else if (ethqos->current_loopback == ENABLE_MAC_LOOPBACK)
+		else if (priv->current_loopback == ENABLE_MAC_LOOPBACK)
 			ethqos_mac_loopback(ethqos, 0);
-		else if (ethqos->current_loopback == ENABLE_PHY_LOOPBACK)
+		else if (priv->current_loopback == ENABLE_PHY_LOOPBACK)
 			phy_digital_loopback_config(ethqos,
 						    ethqos->backup_speed, 0);
 		break;
@@ -1744,7 +1743,7 @@ static ssize_t loopback_handling_config(
 		break;
 	}
 
-	ethqos->current_loopback = config;
+	priv->current_loopback = config;
 	kfree(in_buf);
 	return count;
 }
@@ -1757,6 +1756,9 @@ static ssize_t read_loopback_config(struct file *file,
 	struct qcom_ethqos *ethqos = file->private_data;
 	char *buf;
 	ssize_t ret_cnt;
+	struct platform_device *pdev = ethqos->pdev;
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(dev);
 
 	if (!ethqos) {
 		ETHQOSERR("NULL Pointer\n");
@@ -1766,16 +1768,16 @@ static ssize_t read_loopback_config(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	if (ethqos->current_loopback == DISABLE_LOOPBACK)
+	if (priv->current_loopback == DISABLE_LOOPBACK)
 		len += scnprintf(buf + len, buf_len - len,
 				 "Loopback is Disabled\n");
-	else if (ethqos->current_loopback == ENABLE_IO_MACRO_LOOPBACK)
+	else if (priv->current_loopback == ENABLE_IO_MACRO_LOOPBACK)
 		len += scnprintf(buf + len, buf_len - len,
 				 "Current Loopback is IO MACRO LOOPBACK\n");
-	else if (ethqos->current_loopback == ENABLE_MAC_LOOPBACK)
+	else if (priv->current_loopback == ENABLE_MAC_LOOPBACK)
 		len += scnprintf(buf + len, buf_len - len,
 				 "Current Loopback is MAC LOOPBACK\n");
-	else if (ethqos->current_loopback == ENABLE_PHY_LOOPBACK)
+	else if (priv->current_loopback == ENABLE_PHY_LOOPBACK)
 		len += scnprintf(buf + len, buf_len - len,
 				 "Current Loopback is PHY LOOPBACK\n");
 	else
@@ -2185,7 +2187,7 @@ inline bool qcom_ethqos_is_phy_link_up(struct qcom_ethqos *ethqos)
 	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
 
 	if (priv->plat->mac2mac_en) {
-		return true;
+		return priv->plat->mac2mac_link;
 	} else {
 		return ((priv->oldlink != -1) &&
 			(priv->dev->phydev &&
@@ -2432,11 +2434,10 @@ static ssize_t ethqos_write_dev_emac(struct file *file,
 	unsigned long ret;
 	struct qcom_ethqos *ethqos = pethqos;
 	struct stmmac_priv *priv = qcom_ethqos_get_priv(pethqos);
-	struct vlan_filter_info vlan_filter_info;
 	char mac_str[30] = {0};
 	char vlan_str[30] = {0};
 	char *prefix = NULL;
-	u32 err;
+	u32 err, prio, queue;
 	unsigned int number;
 
 	if (sizeof(in_buf) < count) {
@@ -2456,10 +2457,11 @@ static ssize_t ethqos_write_dev_emac(struct file *file,
 
 	if (strnstr(vlan_str, "QOE", sizeof(vlan_str))) {
 		ethqos->qoe_vlan.available = true;
-		vlan_filter_info.vlan_id = ethqos->qoe_vlan.vlan_id;
-		vlan_filter_info.rx_queue = ethqos->qoe_vlan.rx_queue;
-		vlan_filter_info.vlan_offset = ethqos->qoe_vlan.vlan_offset;
-		priv->hw->mac->set_vlan(&vlan_filter_info, priv->ioaddr);
+		queue = ethqos->qoe_vlan.rx_queue;
+		prio = priv->plat->rx_queues_cfg[queue].prio;
+		/* Convert prio to bit format */
+		prio = MAC_RXQCTRL_PSRQX_PRIO_SHIFT(prio);
+		priv->hw->mac->rx_queue_prio(priv->hw, prio, queue);
 	}
 
 	if (strnstr(vlan_str, "qvlanid=", sizeof(vlan_str))) {
@@ -2473,13 +2475,26 @@ static ssize_t ethqos_write_dev_emac(struct file *file,
 		}
 	}
 
+	if (strnstr(vlan_str, "qvlan_pcp=", strlen(vlan_str))) {
+		prefix = strnchr(vlan_str, strlen(vlan_str), '=');
+		ETHQOSDBG("QMI vlan_pcp data written is %s\n", prefix + 1);
+		if (prefix) {
+			err = kstrtouint(prefix + 1, 0, &number);
+			if (!err) {
+				queue = ethqos->qoe_vlan.rx_queue;
+				priv->plat->rx_queues_cfg[queue].prio = number;
+			}
+		}
+	}
+
 	if (strnstr(vlan_str, "Cv2X", strlen(vlan_str))) {
 		ETHQOSDBG("Cv2X supported mode is %u\n", ethqos->cv2x_mode);
 		ethqos->cv2x_vlan.available = true;
-		vlan_filter_info.vlan_id = ethqos->cv2x_vlan.vlan_id;
-		vlan_filter_info.rx_queue = ethqos->cv2x_vlan.rx_queue;
-		vlan_filter_info.vlan_offset = ethqos->cv2x_vlan.vlan_offset;
-		priv->hw->mac->set_vlan(&vlan_filter_info, priv->ioaddr);
+		queue = ethqos->cv2x_vlan.rx_queue;
+		prio = priv->plat->rx_queues_cfg[queue].prio;
+		/* Convert prio to bit format */
+		prio = MAC_RXQCTRL_PSRQX_PRIO_SHIFT(prio);
+		priv->hw->mac->rx_queue_prio(priv->hw, prio, queue);
 	}
 
 	if (strnstr(vlan_str, "cvlanid=", strlen(vlan_str))) {
@@ -2489,6 +2504,18 @@ static ssize_t ethqos_write_dev_emac(struct file *file,
 			err = kstrtouint(prefix + 1, 0, &number);
 			if (!err)
 				ethqos->cv2x_vlan.vlan_id = number;
+		}
+	}
+
+	if (strnstr(vlan_str, "cvlan_pcp=", strlen(vlan_str))) {
+		prefix = strnchr(vlan_str, strlen(vlan_str), '=');
+		ETHQOSDBG("Cv2X vlan_pcp data written is %s\n", prefix + 1);
+		if (prefix) {
+			err = kstrtouint(prefix + 1, 0, &number);
+			if (!err) {
+				queue = ethqos->cv2x_vlan.rx_queue;
+				priv->plat->rx_queues_cfg[queue].prio = number;
+			}
 		}
 	}
 
@@ -2783,6 +2810,111 @@ static void read_mac_addr_from_fuse_reg(struct device_node *np)
 	}
 }
 
+static void qcom_ethqos_handle_ssr(struct stmmac_priv *priv, int speed,
+				   struct plat_stmmacenet_data *plat,
+				   int evt_status, int status)
+{
+	struct platform_device *pd = NULL;
+	struct net_device *ndev = NULL;
+
+	pd = pethqos->pdev;
+	if (!pd) {
+		ETHQOSERR("Unable to alert QTI of SSR status: %s\n", __func__);
+		return;
+	}
+
+	ndev = platform_get_drvdata(pd);
+	if (!ndev) {
+		ETHQOSERR("Unable to alert QTI of SSR status: %s\n", __func__);
+		return;
+	}
+
+	if (plat->mac2mac_en) {
+		stmmac_mac2mac_adjust_link(speed, priv);
+		priv->plat->mac2mac_link = status;
+	}
+	if (priv->hw_offload_enabled)
+		ethqos_ipa_offload_event_handler(NULL, evt_status);
+	else
+		phy_mac_interrupt(ndev->phydev, status);
+}
+
+static void qcom_ethqos_handle_ssr_workqueue(struct work_struct *work)
+{
+	struct stmmac_priv *priv = NULL;
+	struct plat_stmmacenet_data *plat = NULL;
+
+	priv = qcom_ethqos_get_priv(pethqos);
+	plat = priv->plat;
+
+	ETHQOSINFO("%s is executing action: %d\n", __func__, pethqos->action);
+
+	if (pethqos->action & SSR_SIG_DOWN)
+		qcom_ethqos_handle_ssr(priv, SPEED_10, plat, EV_PHY_LINK_DOWN,
+				       LINK_DOWN);
+	else if (pethqos->action & SSR_SIG_UP)
+		qcom_ethqos_handle_ssr(priv, plat->mac2mac_rgmii_speed, plat,
+				       EV_PHY_LINK_UP, LINK_UP);
+}
+
+static int qcom_ethqos_qti_alert(struct notifier_block *nb,
+				 unsigned long action, void *dev)
+{
+	struct stmmac_priv *priv = NULL;
+	struct plat_stmmacenet_data *plat = NULL;
+
+	priv = qcom_ethqos_get_priv(pethqos);
+	if (!priv) {
+		ETHQOSERR("Unable to alert QTI of SSR status: %s\n", __func__);
+		return NOTIFY_DONE;
+	}
+
+	plat = priv->plat;
+	if (!plat) {
+		ETHQOSERR("Unable to alert QTI of SSR status: %s\n", __func__);
+		return NOTIFY_DONE;
+	}
+
+	switch (action) {
+	case EVENT_REMOTE_STATUS_UP:
+		ETHQOSINFO("Link up\n");
+		pethqos->action = SSR_SIG_UP;
+		break;
+	case EVENT_REMOTE_STATUS_DOWN:
+		ETHQOSINFO("Link down\n");
+		pethqos->action = SSR_SIG_DOWN;
+		break;
+	default:
+		ETHQOSERR("Invalid action passed: %s, %d\n", __func__,
+			  pethqos->action);
+	}
+
+	/*Avoids adding duplicate events to the work queue.*/
+	if (!plat->mac2mac_en || plat->mac2mac_link == -1) {
+		INIT_WORK(&pethqos->eth_ssr, qcom_ethqos_handle_ssr_workqueue);
+		queue_work(system_wq, &pethqos->eth_ssr);
+	} else if ((plat->mac2mac_link == LINK_UP &&
+		    pethqos->action == SSR_SIG_DOWN) ||
+		    (plat->mac2mac_link == LINK_DOWN &&
+		    pethqos->action == SSR_SIG_UP)) {
+		INIT_WORK(&pethqos->eth_ssr, qcom_ethqos_handle_ssr_workqueue);
+		queue_work(system_wq, &pethqos->eth_ssr);
+	}
+	return NOTIFY_DONE;
+}
+
+static void qcom_ethqos_register_listener(void)
+{
+	int ret;
+
+	ETHQOSINFO("Registering sb notification listener: %s\n", __func__);
+
+	pethqos->qti_nb.notifier_call = qcom_ethqos_qti_alert;
+	ret = sb_register_evt_listener(&pethqos->qti_nb);
+	if (ret)
+		ETHQOSERR("sb_register_evt_listener failed at: %s\n", __func__);
+}
+
 static int qcom_ethqos_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -3059,9 +3191,14 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 					       "emac");
 	}
 
+	if (priv->plat->mac2mac_en)
+		priv->plat->mac2mac_link = -1;
+
 #ifdef CONFIG_ETH_IPA_OFFLOAD
 	ethqos_ipa_offload_event_handler(ethqos, EV_PROBE_INIT);
 #endif
+	if (pethqos->cv2x_mode != CV2X_MODE_DISABLE)
+		qcom_ethqos_register_listener();
 
 	if (qcom_ethos_init_panic_notifier(ethqos))
 		atomic_notifier_chain_register(&panic_notifier_list,
@@ -3223,7 +3360,7 @@ static int qcom_ethqos_resume(struct device *dev)
 		}
 	}
 
-	if (ethqos->current_phy_mode == DISABLE_PHY_AT_SUSPEND_ONLY) {
+	if (ethqos->phy_state == PHY_IS_OFF) {
 		/* Temp Enable LOOPBACK_EN.
 		 * TX clock needed for reset As Phy is off
 		 */
@@ -3233,7 +3370,7 @@ static int qcom_ethqos_resume(struct device *dev)
 		ETHQOSINFO("Loopback EN Enabled\n");
 	}
 	ret = stmmac_resume(dev);
-	if (ethqos->current_phy_mode == DISABLE_PHY_AT_SUSPEND_ONLY) {
+	if (ethqos->phy_state == PHY_IS_OFF) {
 		//Disable  LOOPBACK_EN
 		rgmii_updatel(ethqos, RGMII_CONFIG_LOOPBACK_EN,
 			      0, RGMII_IO_MACRO_CONFIG);

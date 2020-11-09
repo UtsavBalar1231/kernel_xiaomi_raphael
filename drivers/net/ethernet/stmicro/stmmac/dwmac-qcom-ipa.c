@@ -1516,7 +1516,7 @@ static void ntn_ipa_notify_cb_be(
 			skb->protocol = htons(ETH_P_IP);
 			iph = (struct iphdr *)skb->data;
 		} else {
-			if (ethqos->current_loopback > DISABLE_LOOPBACK)
+			if (pdata->current_loopback > DISABLE_LOOPBACK)
 				swap_ip_port(skb, ETH_P_IP);
 			skb->protocol = eth_type_trans(skb, skb->dev);
 			iph = (struct iphdr *)(skb_mac_header(skb) + ETH_HLEN);
@@ -2461,7 +2461,7 @@ static int ethqos_ipa_offload_suspend(struct qcom_ethqos *ethqos)
 
 	for (type = 0; type < IPA_QUEUE_MAX; type++) {
 		if (eth_ipa_queue_type_enabled(type)) {
-			priv->hw->dma->stop_rx(
+			priv->hw->dma->stop_rx_chan(
 				priv->ioaddr,
 				eth_ipa_queue_type_to_rx_queue(type));
 
@@ -2492,7 +2492,7 @@ static int ethqos_ipa_offload_suspend(struct qcom_ethqos *ethqos)
 
 	for (type = 0; type < IPA_QUEUE_MAX; type++) {
 		if (eth_ipa_queue_type_enabled(type)) {
-			priv->hw->dma->stop_tx(
+			priv->hw->dma->stop_tx_chan(
 				priv->ioaddr,
 				eth_ipa_queue_type_to_tx_queue(type));
 
@@ -2544,6 +2544,9 @@ static int ethqos_ipa_offload_resume(struct qcom_ethqos *ethqos)
 	int ret = 1;
 	struct ipa_perf_profile profile;
 	int type;
+	struct platform_device *pdev = ethqos->pdev;
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(dev);
 
 	ETHQOSDBG("Enter\n");
 
@@ -2598,7 +2601,11 @@ static int ethqos_ipa_offload_resume(struct qcom_ethqos *ethqos)
 			}
 		}
 	}
-
+	if (priv->current_loopback > 0) {
+		priv->hw->mac->map_mtl_to_dma(priv->hw, EMAC_QUEUE_0,
+					      EMAC_CHANNEL_1);
+		ETHQOSINFO("Mapped queue 0 to channel 1 again\n");
+	}
 	ETHQOSDBG("Exit\n");
 
 fail:
@@ -2829,6 +2836,9 @@ void ethqos_ipa_offload_event_handler(void *data,
 				      int ev)
 {
 	int type;
+	struct platform_device *pdev;
+	struct net_device *dev;
+	struct stmmac_priv *priv;
 
 	ETHQOSDBG("Enter: event=%d\n", ev);
 
@@ -3015,6 +3025,18 @@ void ethqos_ipa_offload_event_handler(void *data,
 			*(int *)data = false;
 		}
 
+		break;
+	case EV_LOOPBACK_DMA_MAP:
+
+		pdev = (eth_ipa_ctx.ethqos)->pdev;
+		dev = platform_get_drvdata(pdev);
+		priv = netdev_priv(dev);
+		/* Map queue 0 to channel 1 to forward the loopback
+		 * traffic to channel 1 from queue 0
+		 */
+		priv->hw->mac->map_mtl_to_dma(priv->hw, EMAC_QUEUE_0,
+					      EMAC_CHANNEL_1);
+		ETHQOSINFO("Mapped queue 0 to channel 1\n");
 		break;
 	case EV_INVALID:
 	default:

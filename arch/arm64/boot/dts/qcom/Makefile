@@ -122,6 +122,8 @@ dtb-$(CONFIG_ARCH_QCS405) += qcs405-iot-sku1.dtb \
 		sa2150p-ccard-nand.dtb \
 		sa2150p-ccard-emmc-eth-sw.dtb \
 		sa2150p-ccard-emmc-eth-phy.dtb \
+		sa2150p-ccard-nand-eth-sw.dtb \
+		sa2150p-ccard-nand-eth-phy.dtb \
 		qcs405-iot-sku13.dtb \
 		qcs407-iot-sku13.dtb \
 		qcs405-iot-robot-reference-board.dtb \

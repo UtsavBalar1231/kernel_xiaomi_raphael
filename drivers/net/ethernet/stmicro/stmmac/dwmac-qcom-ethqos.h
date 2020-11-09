@@ -115,6 +115,7 @@ do {\
 #define TTSL0				GENMASK(30, 0)
 #define MAC_PPSX_INTERVAL(x)		(0x00000b88 + ((x) * 0x10))
 #define MAC_PPSX_WIDTH(x)		(0x00000b8c + ((x) * 0x10))
+#define MAC_RXQCTRL_PSRQX_PRIO_SHIFT(x)	(1 << x)
 
 #define PPS_START_DELAY 100000000
 #define ONE_NS 1000000000
@@ -240,6 +241,10 @@ do {\
 //Mac config
 #define MAC_CONFIGURATION 0x0
 #define MAC_LM BIT(12)
+
+#define EMAC_QUEUE_0 0
+#define EMAC_CHANNEL_0 0
+#define EMAC_CHANNEL_1 1
 
 #define TLMM_BASE_ADDRESS (tlmm_central_base_addr)
 
@@ -550,7 +555,6 @@ struct qcom_ethqos {
 
 	unsigned int emac_phy_off_suspend;
 	int loopback_speed;
-	enum loopback_mode current_loopback;
 	enum phy_power_mode current_phy_mode;
 	enum current_phy_state phy_state;
 	/*Backup variable for phy loopback*/
@@ -573,6 +577,10 @@ struct qcom_ethqos {
 	unsigned char cv2x_dev_addr[ETH_ALEN];
 
 	struct ethqos_extra_dma_stats xstats;
+	struct notifier_block qti_nb;
+	/* SSR over ethernet parameters */
+	struct work_struct eth_ssr;
+	unsigned long action;
 };
 
 struct pps_cfg {
