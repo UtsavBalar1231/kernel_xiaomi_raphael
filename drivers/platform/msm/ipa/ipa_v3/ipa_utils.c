@@ -2390,6 +2390,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
 			QMB_MASTER_SELECT_DDR,
 			{ 10, 13, 8, 16, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
+	[IPA_4_5][IPA_CLIENT_RTK_ETHERNET_PROD] = {
+			true, IPA_v4_5_GROUP_UL_DL,
+			true,
+			IPA_DPS_HPS_SEQ_TYPE_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
+			QMB_MASTER_SELECT_DDR,
+			{ 10, 13, 8, 16, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
 	/* Only for test purpose */
 	[IPA_4_5][IPA_CLIENT_TEST_PROD]           = {
 			true, IPA_v4_5_GROUP_UL_DL,
@@ -2989,6 +2995,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			{ 18, 4, 9, 9, IPA_EE_Q6, GSI_ESCAPE_BUF_ONLY, 0 } },
 	[IPA_4_5_AUTO][IPA_CLIENT_AQC_ETHERNET_CONS] = {
 			false, IPA_v4_5_GROUP_UL_DL,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_INVALID,
+			QMB_MASTER_SELECT_DDR,
+			{ 23, 17, 9, 9, IPA_EE_AP, GSI_SMART_PRE_FETCH, 4 } },
+	[IPA_4_5][IPA_CLIENT_RTK_ETHERNET_CONS] = {
+			true, IPA_v4_5_GROUP_UL_DL,
 			false,
 			IPA_DPS_HPS_SEQ_TYPE_INVALID,
 			QMB_MASTER_SELECT_DDR,
@@ -5823,7 +5835,8 @@ int ipa3_write_qmap_id(struct ipa_ioc_write_qmapid *param_in)
 	    param_in->client == IPA_CLIENT_ETHERNET_PROD ||
 	    param_in->client == IPA_CLIENT_ETHERNET2_PROD ||
 		param_in->client == IPA_CLIENT_WIGIG_PROD ||
-		param_in->client == IPA_CLIENT_AQC_ETHERNET_PROD) {
+		param_in->client == IPA_CLIENT_AQC_ETHERNET_PROD ||
+		param_in->client == IPA_CLIENT_RTK_ETHERNET_PROD) {
 		result = ipa3_cfg_ep_metadata(ipa_ep_idx, &meta);
 	} else if (param_in->client == IPA_CLIENT_WLAN1_PROD ||
 			   param_in->client == IPA_CLIENT_WLAN2_PROD ||
@@ -7479,6 +7492,14 @@ int ipa3_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 	api_ctrl->ipa_disconn_qdss_pipes = ipa3_disconn_qdss_pipes;
 	api_ctrl->ipa_get_default_aggr_time_limit =
 		ipa3_get_default_aggr_time_limit;
+	api_ctrl->ipa_eth_rtk_connect = ipa3_eth_rtk_connect;
+	api_ctrl->ipa_eth_aqc_connect = ipa3_eth_aqc_connect;
+	api_ctrl->ipa_eth_emac_connect = ipa3_eth_emac_connect;
+	api_ctrl->ipa_eth_rtk_disconnect = ipa3_eth_rtk_disconnect;
+	api_ctrl->ipa_eth_aqc_disconnect = ipa3_eth_aqc_disconnect;
+	api_ctrl->ipa_eth_emac_disconnect = ipa3_eth_emac_disconnect;
+	api_ctrl->ipa_eth_client_conn_evt = ipa3_eth_client_conn_evt;
+	api_ctrl->ipa_eth_client_disconn_evt = ipa3_eth_client_conn_evt;
 	return 0;
 }
 
@@ -9064,6 +9085,10 @@ void ipa3_get_gsi_stats(int prot_id,
 		stats->num_ch = MAX_AQC_CHANNELS;
 		ipa3_get_aqc_gsi_stats(stats);
 		break;
+	case IPA_HW_PROTOCOL_RTK:
+		stats->num_ch = MAX_RTK_CHANNELS;
+		ipa3_get_rtk_gsi_stats(stats);
+		break;
 	case IPA_HW_PROTOCOL_11ad:
 		break;
 	case IPA_HW_PROTOCOL_WDI:
@@ -9104,6 +9129,10 @@ int ipa3_get_prot_id(enum ipa_client_type client)
 	case IPA_CLIENT_AQC_ETHERNET_CONS:
 	case IPA_CLIENT_AQC_ETHERNET_PROD:
 		prot_id = IPA_HW_PROTOCOL_AQC;
+		break;
+	case IPA_CLIENT_RTK_ETHERNET_CONS:
+	case IPA_CLIENT_RTK_ETHERNET_PROD:
+		prot_id = IPA_HW_PROTOCOL_RTK;
 		break;
 	case IPA_CLIENT_MHI_PRIME_TETH_PROD:
 	case IPA_CLIENT_MHI_PRIME_TETH_CONS:
@@ -9872,4 +9901,22 @@ int ipa3_get_max_pdn(void)
 		return IPA_MAX_PDN_NUM;
 	else
 		return IPA_MAX_PDN_NUM_v4;
+}
+
+
+void ipa3_eth_get_status(u32 client, int scratch_id,
+	struct ipa3_eth_error_stats *stats)
+{
+	int ch_id;
+	int ipa_ep_idx;
+
+	IPA_ACTIVE_CLIENTS_INC_SIMPLE();
+	ipa_ep_idx = ipa3_get_ep_mapping(client);
+	if (ipa_ep_idx == IPA_EP_NOT_ALLOCATED)
+		return;
+	ch_id = ipa3_ctx->ep[ipa_ep_idx].gsi_chan_hdl;
+	stats->rp = gsi_get_refetch_reg(ch_id, true);
+	stats->wp = gsi_get_refetch_reg(ch_id, false);
+	stats->err = gsi_get_drop_stats(ipa_ep_idx, scratch_id);
+	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
 }
