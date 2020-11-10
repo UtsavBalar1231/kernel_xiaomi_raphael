@@ -7046,6 +7046,7 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 	ipa3_ctx->ipa_wdi3_5g_holb_timeout =
 		resource_p->ipa_wdi3_5g_holb_timeout;
 	ipa3_ctx->is_wdi3_tx1_needed = false;
+	ipa3_ctx->ipa_in_cpe_cfg = resource_p->ipa_in_cpe_cfg;
 
 	if (ipa3_ctx->secure_debug_check_action == USE_SCM) {
 		if (ipa_is_mem_dump_allowed())
@@ -7722,6 +7723,8 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	ipa_drv_res->wan_aggr_time_limit = IPA_GENERIC_AGGR_TIME_LIMIT;
 	ipa_drv_res->lan_aggr_time_limit = IPA_GENERIC_AGGR_TIME_LIMIT;
 	ipa_drv_res->rndis_aggr_time_limit = IPA_RNDIS_DEFAULT_AGGR_TIME_LIMIT;
+	ipa_drv_res->ipa_in_cpe_cfg = false;
+
 	/* Get IPA HW Version */
 	result = of_property_read_u32(pdev->dev.of_node, "qcom,ipa-hw-ver",
 					&ipa_drv_res->ipa_hw_type);
@@ -8196,6 +8199,11 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	IPADBG(": manual-fw-load (%s)\n",
 		ipa_drv_res->manual_fw_load
 		? "True" : "False");
+	ipa_drv_res->ipa_in_cpe_cfg =
+		of_property_read_bool(pdev->dev.of_node,
+				"qcom,use-ipa-in-cpe-config");
+	IPADBG(": qcom,use-ipa-in-cpe-config = %s\n",
+		ipa_drv_res->ipa_in_cpe_cfg ? "True":"False");
 
 	return 0;
 }
