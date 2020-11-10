@@ -259,6 +259,7 @@ ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 		qcs610-iot-overlay.dtbo \
 		qcs610-ipc-overlay.dtbo \
 		qcs410-iot-overlay.dtbo \
+		qcs410-ipc-overlay.dtbo \
 		prairie-iot-idp-overlay.dtbo \
 		prairie-iot-external-codec-idp-overlay.dtbo \
 		prairie-iot-usbc-idp-overlay.dtbo \
@@ -283,6 +284,7 @@ sa6155p-v2-adp-air-overlay.dtbo-base := sa6155p.dtb
 qcs610-iot-overlay.dtbo-base := qcs610.dtb
 qcs610-ipc-overlay.dtbo-base := qcs610.dtb
 qcs410-iot-overlay.dtbo-base := qcs410.dtb
+qcs410-ipc-overlay.dtbo-base := qcs410.dtb
 prairie-iot-idp-overlay.dtbo-base := qcs610.dtb
 prairie-iot-external-codec-idp-overlay.dtbo-base := qcs610.dtb
 prairie-iot-usbc-idp-overlay.dtbo-base := qcs610.dtb
@@ -307,6 +309,7 @@ dtb-$(CONFIG_ARCH_SM6150)	+= sm6150-rumi.dtb \
 	qcs610-iot.dtb \
 	qcs610-ipc.dtb \
 	qcs410-iot.dtb \
+	qcs410-ipc.dtb \
 	prairie-iot-idp.dtb \
 	prairie-iot-external-codec-idp.dtb \
 	prairie-iot-usbc-idp.dtb \
