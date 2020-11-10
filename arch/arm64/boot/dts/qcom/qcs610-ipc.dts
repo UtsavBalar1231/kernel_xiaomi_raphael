@@ -11,15 +11,12 @@
  */
 
 /dts-v1/;
-/plugin/;
 
-#include <dt-bindings/clock/qcom,camcc-sm6150.h>
-
-#include "qcs610-iot.dtsi"
+#include "qcs610.dtsi"
+#include "qcs610-ipc.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. QCS610 IOT Overlay";
+	model = "Qualcomm Technologies, Inc. QCS610 IPC";
 	compatible = "qcom,qcs610-iot", "qcom,qcs610", "qcom,iot";
-	qcom,msm-id = <401 0x0>;
-	qcom,board-id = <32 0>;
+	qcom,board-id = <32 1>;
 };

@@ -503,7 +503,8 @@ int ipa3_conn_wdi3_pipes(struct ipa_wdi_conn_in_params *in,
 	memset(ep_rx, 0, offsetof(struct ipa3_ep_context, sys));
 	memset(ep_tx, 0, offsetof(struct ipa3_ep_context, sys));
 
-	if (in->is_tx1_used) {
+	if (in->is_tx1_used &&
+		ipa3_ctx->is_wdi3_tx1_needed) {
 		tx1_client = (in->is_smmu_enabled) ?
 			in->u_tx1.tx_smmu.client : in->u_tx1.tx.client;
 		ipa_ep_idx_tx1 = ipa_get_ep_mapping(tx1_client);
@@ -680,7 +681,8 @@ int ipa3_conn_wdi3_pipes(struct ipa_wdi_conn_in_params *in,
 		ep_tx->gsi_mem_info.evt_ring_base_addr, db_val);
 
 	/* setup tx1 ep cfg */
-	if (in->is_tx1_used && (ipa_ep_idx_tx1 !=
+	if (in->is_tx1_used &&
+		ipa3_ctx->is_wdi3_tx1_needed && (ipa_ep_idx_tx1 !=
 		IPA_EP_NOT_ALLOCATED) && (ipa_ep_idx_tx1 <
 		IPA3_MAX_NUM_PIPES)) {
 		ep_tx1->valid = 1;
@@ -1037,23 +1039,25 @@ int ipa3_disable_wdi3_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
 	 * as IPA uC will fail to suspend the pipe otherwise.
 	 */
 	ep = &ipa3_ctx->ep[ipa_ep_idx_rx];
-	source_pipe_bitmask = 1 <<
+	if (IPA_CLIENT_IS_PROD(ep->client)) {
+		source_pipe_bitmask = 1 <<
 			ipa3_get_ep_mapping(ep->client);
-	result = ipa3_enable_force_clear(ipa_ep_idx_rx,
-			false, source_pipe_bitmask);
-	if (result) {
-		/*
-		 * assuming here modem SSR, AP can remove
-		 * the delay in this case
-		 */
-		IPAERR("failed to force clear %d\n", result);
-		IPAERR("remove delay from SCND reg\n");
-		ep_ctrl_scnd.endp_delay = false;
-		ipahal_write_reg_n_fields(
-			IPA_ENDP_INIT_CTRL_SCND_n, ipa_ep_idx_rx,
-			&ep_ctrl_scnd);
-	} else {
-		disable_force_clear = true;
+		result = ipa3_enable_force_clear(ipa_ep_idx_rx,
+				false, source_pipe_bitmask);
+		if (result) {
+			/*
+			 * assuming here modem SSR, AP can remove
+			 * the delay in this case
+			 */
+			IPAERR("failed to force clear %d\n", result);
+			IPAERR("remove delay from SCND reg\n");
+			ep_ctrl_scnd.endp_delay = false;
+			ipahal_write_reg_n_fields(
+				IPA_ENDP_INIT_CTRL_SCND_n, ipa_ep_idx_rx,
+					&ep_ctrl_scnd);
+		} else {
+			disable_force_clear = true;
+		}
 	}
 
 	/* stop gsi rx channel */
@@ -1166,23 +1170,23 @@ int ipa3_get_wdi3_gsi_stats(struct ipa_uc_dbg_ring_stats *stats)
 
 	IPA_ACTIVE_CLIENTS_INC_SIMPLE();
 	for (i = 0; i < MAX_WDI3_CHANNELS; i++) {
-		stats->ring[i].ringFull = ioread32(
+		stats->u.ring[i].ringFull = ioread32(
 			ipa3_ctx->wdi3_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGFULL_OFF);
-		stats->ring[i].ringEmpty = ioread32(
+		stats->u.ring[i].ringEmpty = ioread32(
 			ipa3_ctx->wdi3_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGEMPTY_OFF);
-		stats->ring[i].ringUsageHigh = ioread32(
+		stats->u.ring[i].ringUsageHigh = ioread32(
 			ipa3_ctx->wdi3_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGUSAGEHIGH_OFF);
-		stats->ring[i].ringUsageLow = ioread32(
+		stats->u.ring[i].ringUsageLow = ioread32(
 			ipa3_ctx->wdi3_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGUSAGELOW_OFF);
-		stats->ring[i].RingUtilCount = ioread32(
+		stats->u.ring[i].RingUtilCount = ioread32(
 			ipa3_ctx->wdi3_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGUTILCOUNT_OFF);
