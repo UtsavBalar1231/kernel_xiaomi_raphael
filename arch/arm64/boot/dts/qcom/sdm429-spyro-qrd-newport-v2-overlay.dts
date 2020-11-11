@@ -78,10 +78,6 @@
 	/delete-node/ qcom,panel-supply-entry@0;
 };
 
-&blsp2_uart2_hs {
-	status = "disabled";
-};
-
 &int_codec {
 	qcom,model = "sdm429w-wtp-snd-card";
 };
