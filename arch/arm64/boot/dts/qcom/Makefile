@@ -102,10 +102,21 @@ dtb-$(CONFIG_ARCH_QCS403) += qcs403-iot-sku1.dtb \
 		qcs404-iot-sku3.dtb \
 		qcs404-iot-sku5.dtb \
 		qcs404-iot-sku6.dtb \
-		sa2145p-ccard-nand-dc.dtb \
+		sa2145p-ccard-nand-sd.dtb \
+		sa2145p-ccard-nand-emmc.dtb \
+		sa2145p-ccard-nand-eth-sw-sd.dtb \
+		sa2145p-ccard-nand-eth-sw-emmc.dtb \
+		sa2145p-ccard-nand-eth-phy-sd.dtb \
+		sa2145p-ccard-nand-eth-phy-emmc.dtb \
+		sa2150p-ccard-nand-sd.dtb \
+		sa2150p-ccard-nand-emmc.dtb \
+		sa2150p-ccard-nand-eth-sw-sd.dtb \
+		sa2150p-ccard-nand-eth-sw-emmc.dtb \
+		sa2150p-ccard-nand-eth-phy-sd.dtb \
+		sa2150p-ccard-nand-eth-phy-emmc.dtb \
 		sa2150p-ccard-nand-dc.dtb \
-		sa2150p-ccard-nand-eth-sw.dtb \
-		sa2150p-ccard-nand-eth-phy.dtb
+		sa2150p-ccard-nand-dc-eth-sw.dtb \
+		sa2150p-ccard-nand-dc-eth-phy.dtb
 
 dtb-$(CONFIG_ARCH_QCS405) += qcs405-iot-sku1.dtb \
 		qcs407-iot-sku1.dtb \
@@ -119,13 +130,17 @@ dtb-$(CONFIG_ARCH_QCS405) += qcs405-iot-sku1.dtb \
 		qcs405-iot-sku12.dtb \
 		qcs407-iot-sku12.dtb \
 		sa2150p-ccard-emmc.dtb \
-		sa2145p-ccard-nand-dc.dtb \
-		sa2150p-ccard-nand-dc.dtb \
-		sa2150p-ccard-nand.dtb \
 		sa2150p-ccard-emmc-eth-sw.dtb \
 		sa2150p-ccard-emmc-eth-phy.dtb \
-		sa2150p-ccard-nand-eth-sw.dtb \
-		sa2150p-ccard-nand-eth-phy.dtb \
+		sa2150p-ccard-nand-sd.dtb \
+		sa2150p-ccard-nand-emmc.dtb \
+		sa2150p-ccard-nand-eth-sw-sd.dtb \
+		sa2150p-ccard-nand-eth-sw-emmc.dtb \
+		sa2150p-ccard-nand-eth-phy-sd.dtb \
+		sa2150p-ccard-nand-eth-phy-emmc.dtb \
+		sa2150p-ccard-nand-dc.dtb \
+		sa2150p-ccard-nand-dc-eth-sw.dtb \
+		sa2150p-ccard-nand-dc-eth-phy.dtb \
 		qcs405-iot-sku13.dtb \
 		qcs407-iot-sku13.dtb \
 		qcs405-iot-robot-reference-board.dtb \

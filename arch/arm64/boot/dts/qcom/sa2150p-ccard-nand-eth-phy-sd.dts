@@ -14,12 +14,13 @@
 
 #include "qcs405.dtsi"
 #include "sa2150p-ccard.dtsi"
+#include "sa2145p-ccard.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SA2150P CCARD EMMC Eth Phy";
+	model = "Qualcomm Technologies, Inc. SA2150P CCARD NAND Eth Phy SD";
 	compatible = "qcom,sa2150p-ccard", "qcom,qcs405", "qcom,sa2150p",
 				"qcom,ccard";
-	qcom,board-id = <0x030019 0>;
+	qcom,board-id = <0x030019 3>;
 };
 
 &mtl_rx_setup {

@@ -10,8 +10,6 @@
  * GNU General Public License for more details.
  */
 
-#include "qcs405.dtsi"
-
 &tlmm {
 	pinctrl-0 = <&status_gpio>;
 	pinctrl-names = "default";
