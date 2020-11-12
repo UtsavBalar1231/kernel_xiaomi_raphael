@@ -26,9 +26,6 @@
 #define IPA_NTN_TX_DIR 1
 #define IPA_NTN_RX_DIR 2
 
-#define IPA_WDI3_TX_DIR 1
-#define IPA_WDI3_RX_DIR 2
-
 /**
  *  @brief   Enum value determined based on the feature it
  *           corresponds to

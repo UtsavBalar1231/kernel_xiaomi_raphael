@@ -237,7 +237,7 @@
 /**
  * maximal number of NAT PDNs in the PDN config table
  */
-#define IPA_MAX_PDN_NUM 7
+#define IPA_MAX_PDN_NUM 16
 #define IPA_MAX_PDN_NUM_v4 5
 
 /**
@@ -422,9 +422,12 @@ enum ipa_client_type {
 
 	IPA_CLIENT_ETHERNET2_PROD		= 112,
 	IPA_CLIENT_ETHERNET2_CONS		= 113,
+
+	/* RESERVERD PROD			= 114, */
+	IPA_CLIENT_WLAN2_CONS1			= 115,
 };
 
-#define IPA_CLIENT_MAX (IPA_CLIENT_ETHERNET2_CONS + 1)
+#define IPA_CLIENT_MAX (IPA_CLIENT_WLAN2_CONS1 + 1)
 
 #define IPA_CLIENT_WLAN2_PROD IPA_CLIENT_A5_WLAN_AMPDU_PROD
 #define IPA_CLIENT_Q6_DL_NLO_DATA_PROD IPA_CLIENT_Q6_DL_NLO_DATA_PROD
@@ -472,6 +475,7 @@ enum ipa_client_type {
 	((client) == IPA_CLIENT_WLAN1_CONS || \
 	(client) == IPA_CLIENT_WLAN2_CONS || \
 	(client) == IPA_CLIENT_WLAN3_CONS || \
+	(client) == IPA_CLIENT_WLAN2_CONS1 || \
 	(client) == IPA_CLIENT_WLAN4_CONS)
 
 #define IPA_CLIENT_IS_ODU_CONS(client) \

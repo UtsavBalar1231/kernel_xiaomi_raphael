@@ -2428,6 +2428,13 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_INVALID,
 			QMB_MASTER_SELECT_DDR,
 			{ 24, 3, 8, 14, IPA_EE_AP, GSI_SMART_PRE_FETCH, 3 } },
+
+	[IPA_4_5][IPA_CLIENT_WLAN2_CONS1]         = {
+			true, IPA_v4_5_GROUP_UL_DL,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_INVALID,
+			QMB_MASTER_SELECT_DDR,
+			{ 27, 18, 8, 14, IPA_EE_AP, GSI_SMART_PRE_FETCH, 3 } },
 	/* config wlan1_cons same as wlan2_cons */
 	[IPA_4_5][IPA_CLIENT_WLAN1_CONS]          = {
 			true, IPA_v4_5_GROUP_UL_DL,
@@ -3491,8 +3498,8 @@ static struct ipa3_mem_partition ipa_4_5_mem_part = {
 	.uc_descriptor_ram_ofst	= 0x3800,
 	.uc_descriptor_ram_size	= 0x1000,
 	.pdn_config_ofst	= 0x4800,
-	.pdn_config_size	= 0x70,
-	.end_ofst		= 0x4870,
+	.pdn_config_size	= 0x100,
+	.end_ofst		= 0x4900,
 };
 
 
@@ -3535,6 +3542,7 @@ int ipa3_get_clients_from_rm_resource(
 		clients->names[i++] = IPA_CLIENT_WLAN1_CONS;
 		clients->names[i++] = IPA_CLIENT_WLAN2_CONS;
 		clients->names[i++] = IPA_CLIENT_WLAN3_CONS;
+		clients->names[i++] = IPA_CLIENT_WLAN2_CONS1;
 		break;
 	case IPA_RM_RESOURCE_MHI_CONS:
 		clients->names[i++] = IPA_CLIENT_MHI_CONS;
@@ -3613,6 +3621,7 @@ bool ipa3_should_pipe_be_suspended(enum ipa_client_type client)
 		client == IPA_CLIENT_WLAN1_CONS   ||
 		client == IPA_CLIENT_WLAN2_CONS   ||
 		client == IPA_CLIENT_WLAN3_CONS   ||
+		client == IPA_CLIENT_WLAN2_CONS1  ||
 		client == IPA_CLIENT_WLAN4_CONS   ||
 		client == IPA_CLIENT_ODU_EMB_CONS ||
 		client == IPA_CLIENT_ODU_TETH_CONS ||
@@ -9071,6 +9080,7 @@ int ipa3_get_prot_id(enum ipa_client_type client)
 		break;
 	case IPA_CLIENT_WLAN2_PROD:
 	case IPA_CLIENT_WLAN2_CONS:
+	case IPA_CLIENT_WLAN2_CONS1:
 		prot_id = IPA_HW_PROTOCOL_WDI3;
 		break;
 	case IPA_CLIENT_USB_PROD:
@@ -9820,7 +9830,8 @@ error:
 
 int ipa3_get_max_pdn(void)
 {
-	if (ipa3_get_hw_type_index() == IPA_4_5_AUTO)
+	if ((ipa3_get_hw_type_index() == IPA_4_5_AUTO) ||
+		(ipa3_get_hw_type_index() == IPA_4_5))
 		return IPA_MAX_PDN_NUM;
 	else
 		return IPA_MAX_PDN_NUM_v4;
