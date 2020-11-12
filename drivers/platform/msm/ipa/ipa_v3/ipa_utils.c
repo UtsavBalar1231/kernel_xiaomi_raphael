@@ -4429,6 +4429,35 @@ enum ipacm_client_enum ipa3_get_client(int pipe_idx)
 }
 
 /**
+ * ipa3_get_default_aggr_time_limit() - provide default aggregation
+ * timeout for a supported client.
+ * @client: client type - currently USB is supported.
+ *
+ * Return value: 0 on Success, Negative on failure.
+ */
+int ipa3_get_default_aggr_time_limit(enum ipa_client_type client,
+	u32 *default_aggr_time_limit)
+{
+
+	if (!default_aggr_time_limit) {
+		IPAERR("NULL out param\n");
+		return -EINVAL;
+	}
+
+	if (client == IPA_CLIENT_USB_CONS) {
+		*default_aggr_time_limit = ipa3_ctx->rndis_aggr_time_limit;
+		IPADBG("Default aggregation timeout for RNDIS:%d\n",
+			*default_aggr_time_limit);
+	} else {
+		IPAERR("Client not supproted now: %d\n", client);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+
+/**
  * ipa2_get_client_uplink() - provide client mapping
  * @client: client type
  *
@@ -7448,6 +7477,8 @@ int ipa3_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 	api_ctrl->ipa_del_socksv5_conn = ipa3_del_socksv5_conn;
 	api_ctrl->ipa_conn_qdss_pipes = ipa3_conn_qdss_pipes;
 	api_ctrl->ipa_disconn_qdss_pipes = ipa3_disconn_qdss_pipes;
+	api_ctrl->ipa_get_default_aggr_time_limit =
+		ipa3_get_default_aggr_time_limit;
 	return 0;
 }
 

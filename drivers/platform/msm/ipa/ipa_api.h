@@ -504,6 +504,8 @@ struct ipa_api_controller {
 
 	int (*ipa_disconn_qdss_pipes)(void);
 
+	int (*ipa_get_default_aggr_time_limit)(enum ipa_client_type client,
+		u32 *default_aggr_time_limit);
 };
 
 #ifdef CONFIG_IPA
