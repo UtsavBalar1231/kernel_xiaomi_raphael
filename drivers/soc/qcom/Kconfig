@@ -1093,6 +1093,14 @@ config QTI_CRYPTO_TZ
 	 performing hardware based file encryption. This means keys are
 	 programmed and managed through SCM calls to TZ where ICE driver
 	 will configure keys.
+
+config SUBSYS_BACKUP
+	bool "Subsystem Backup-Restore driver"
+	help
+	  This driver helps HLOS to backup-restore the remote subsystem image.
+	  This driver implements the QMI interface and responds to the backup
+	  and restore requests from the remote subsystem.
+
 endmenu
 
 config QCOM_HYP_CORE_CTL
