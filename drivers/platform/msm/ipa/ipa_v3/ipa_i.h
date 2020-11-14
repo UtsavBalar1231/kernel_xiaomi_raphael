@@ -1852,6 +1852,7 @@ struct ipa3_app_clock_vote {
  * @wdi3_ctx: IPA wdi3 context
  * @gsi_info: channel/protocol info for GSI offloading uC stats
  * @app_vote: holds userspace application clock vote count
+ * @ipa_in_cpe_cfg : boolean denotes whether CPE config is enabled
  * IPA context - holds all relevant info about IPA driver and its state
  * @coal_cmd_pyld: holds the coslescing close frame command payload
  * @manual_fw_load: bool,if fw load is done manually
@@ -2046,6 +2047,7 @@ struct ipa3_context {
 	u32 wan_aggr_time_limit;
 	u32 lan_aggr_time_limit;
 	u32 rndis_aggr_time_limit;
+	bool ipa_in_cpe_cfg;
 };
 
 struct ipa3_plat_drv_res {
@@ -2102,6 +2104,7 @@ struct ipa3_plat_drv_res {
 	u32 wan_aggr_time_limit;
 	u32 lan_aggr_time_limit;
 	u32 rndis_aggr_time_limit;
+	bool ipa_in_cpe_cfg;
 };
 
 /**

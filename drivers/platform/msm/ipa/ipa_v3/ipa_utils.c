@@ -8205,6 +8205,12 @@ int ipa3_suspend_apps_pipes(bool suspend)
 	res = _ipa_suspend_resume_pipe(IPA_CLIENT_APPS_LAN_CONS, suspend);
 	if (res == -EAGAIN)
 		goto undo_lan_cons;
+	/* ODL_DPL_CONS in CPE cfg & MHI_DPL_CONS for PCIE uses same ep */
+	if (ipa3_ctx->ipa_config_is_mhi &&
+			!ipa3_ctx->ipa_in_cpe_cfg) {
+		IPADBG("ODL DPS cons not valid for PCIe ep use case\n");
+		return 0;
+	}
 
 	res = _ipa_suspend_resume_pipe(IPA_CLIENT_ODL_DPL_CONS, suspend);
 	if (res == -EAGAIN)
