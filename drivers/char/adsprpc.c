@@ -399,6 +399,8 @@ struct fastrpc_file {
 	char *debug_buf;
 	/* Flag to enable PM wake/relax voting for every remote invoke */
 	int wake_enable;
+	/* To indicate attempt has been made to allocate memory for debug_buf */
+	int debug_buf_alloced_attempted;
 };
 
 static struct fastrpc_apps gfa;
@@ -3421,6 +3423,14 @@ static int fastrpc_set_process_info(struct fastrpc_file *fl)
 	if (debugfs_root) {
 		buf_size = strlen(current->comm) + strlen("_")
 			+ strlen(strpid) + 1;
+
+		spin_lock(&fl->hlock);
+		if (fl->debug_buf_alloced_attempted) {
+			spin_unlock(&fl->hlock);
+			return err;
+		}
+		fl->debug_buf_alloced_attempted = 1;
+		spin_unlock(&fl->hlock);
 		fl->debug_buf = kzalloc(buf_size, GFP_KERNEL);
 		if (!fl->debug_buf) {
 			err = -ENOMEM;
