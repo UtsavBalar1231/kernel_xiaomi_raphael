@@ -505,6 +505,7 @@ dtb-$(CONFIG_ARCH_SA515) +=	sdxprairie-cdp.dtb \
 	sa515m-ccard-pcie-ep.dtb \
 	sa515m-ccard-usb-ep.dtb \
 	sa515m-ccard-eth-ep.dtb \
+	sa515m-v2-cdp-usb-ep.dtb \
 	sa515m-v2-ccard.dtb \
 	sa515m-v2-ccard-pcie-ep.dtb \
 	sa515m-v2-ccard-usb-ep.dtb \
