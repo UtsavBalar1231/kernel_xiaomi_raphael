@@ -184,6 +184,7 @@ struct qmi_info {
  *		 or restore.
  * @qmi: Details of the QMI client on the kernel side.
  * @cdev: Device used by the Userspace to read/write the image buffer.
+ * @open_count: Account open instances.
  */
 struct subsys_backup {
 	struct device *dev;
@@ -193,6 +194,7 @@ struct subsys_backup {
 	struct qmi_info qmi;
 	struct work_struct request_handler_work;
 	struct cdev cdev;
+	atomic_t open_count;
 };
 
 static struct qmi_elem_info qmi_backup_ind_type_ei[] = {
@@ -1162,6 +1164,12 @@ static int backup_buffer_open(struct inode *inodep, struct file *filep)
 {
 	struct subsys_backup *backup_dev = container_of(inodep->i_cdev,
 					struct subsys_backup, cdev);
+	if (atomic_inc_return(&backup_dev->open_count) != 1) {
+		dev_err(backup_dev->dev,
+				"Multiple instances of open  not allowed\n");
+		atomic_dec(&backup_dev->open_count);
+		return -EBUSY;
+	}
 	filep->private_data = backup_dev;
 	return 0;
 }
@@ -1226,7 +1234,14 @@ static int backup_buffer_flush(struct file *filp, fl_owner_t id)
 	if (ret)
 		dev_err(backup_dev->dev, "%s: Remote notif failed: %d\n",
 				__func__, ret);
+	return 0;
+}
 
+static int backup_buffer_release(struct inode *inodep, struct file *filep)
+{
+	struct subsys_backup *backup_dev = container_of(inodep->i_cdev,
+					struct subsys_backup, cdev);
+	atomic_dec(&backup_dev->open_count);
 	return 0;
 }
 
@@ -1236,6 +1251,7 @@ static const struct file_operations backup_buffer_fops = {
 	.read	= backup_buffer_read,
 	.write	= backup_buffer_write,
 	.flush	= backup_buffer_flush,
+	.release = backup_buffer_release,
 };
 
 static int subsys_backup_init_device(struct platform_device *pdev,
