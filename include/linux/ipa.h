@@ -1043,13 +1043,34 @@ struct IpaHwRingStats_t {
 } __packed;
 
 /**
+* struct ipa_uc_dbg_rtk_ring_stats - uC dbg stats info for RTK
+* offloading protocol
+* @commStats: common stats
+* @trCount: transfer ring count
+* @erCount: event ring count
+* @totalAosCount: total AoS completion count
+* @busyTime: total busy time
+*/
+struct ipa_uc_dbg_rtk_ring_stats {
+	struct IpaHwRingStats_t commStats;
+	u32 trCount;
+	u32 erCount;
+	u32 totalAosCount;
+	u64 busyTime;
+} __packed;
+
+/**
  * struct ipa_uc_dbg_ring_stats - uC dbg stats info for each
  * offloading protocol
  * @ring: ring stats for each channel
  * @ch_num: number of ch supported for given protocol
  */
 struct ipa_uc_dbg_ring_stats {
-	struct IpaHwRingStats_t ring[IPA_MAX_CH_STATS_SUPPORTED];
+	union {
+		struct IpaHwRingStats_t ring[IPA_MAX_CH_STATS_SUPPORTED];
+		struct ipa_uc_dbg_rtk_ring_stats
+			rtk[IPA_MAX_CH_STATS_SUPPORTED];
+	} u;
 	u8 num_ch;
 };
 
