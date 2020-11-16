@@ -1291,7 +1291,7 @@ static int subsys_backup_driver_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct subsys_backup *backup_dev;
-	size_t buf_size;
+	u32 buf_size;
 
 	backup_dev = devm_kzalloc(&pdev->dev, sizeof(struct subsys_backup),
 					GFP_KERNEL);
