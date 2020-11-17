@@ -1208,6 +1208,12 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 		goto err_setup_cb;
 	}
 
+	rc = of_property_read_u32_array(np, "cma-addr-pool",
+			(u32 *)&cb->cma.addr_range, 2);
+	cb->cma.s1_bypass = of_property_read_bool(np, "qcom,cma-s1-bypass");
+	if (cb->cma.s1_bypass && !rc)
+		core->resources.cma_exist = true;
+
 	cb->is_secure = of_property_read_bool(np, "qcom,secure-context-bank");
 	dprintk(VIDC_DBG, "context bank %s : secure = %d\n",
 			cb->name, cb->is_secure);
@@ -1220,9 +1226,11 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 		goto err_setup_cb;
 	}
 	dprintk(VIDC_DBG,
-		"context bank %s address start = %x address size = %x buffer_type = %x\n",
+"cb %s addr: %x size: %x cma_addr: %x cma__size: %x s1_bp: %d  buf_typ: %x\n",
 		cb->name, cb->addr_range.start,
-		cb->addr_range.size, cb->buffer_type);
+		cb->addr_range.size, cb->cma.addr_range.start,
+		cb->cma.addr_range.size,
+		cb->cma.s1_bypass, cb->buffer_type);
 
 	rc = msm_vidc_setup_context_bank(&core->resources, cb, dev);
 	if (rc) {
