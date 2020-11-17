@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1160,6 +1160,7 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 	int rc = 0;
 	struct context_bank_info *cb = NULL;
 	struct device_node *np = NULL;
+	unsigned int i = 0, j = 0, count = 0;
 
 	if (!dev || !core) {
 		dprintk(VIDC_ERR, "%s - invalid inputs\n", __func__);
@@ -1184,6 +1185,20 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 	}
 
 	dprintk(VIDC_DBG, "%s: context bank has name %s\n", __func__, cb->name);
+	of_get_property(np, "iommus", &count);
+	memset(&cb->sids, -1, sizeof(cb->sids));
+	count /= 4;
+	for (i = 1, j = 0 ; i < count; i = i+2, j++) {
+		rc = of_property_read_u32_index
+			(dev->of_node, "iommus", i, &cb->sids[j]);
+		if (rc < 0)
+			dprintk(VIDC_ERR, "can't fetch SID\n");
+
+		dprintk(VIDC_DBG, "%s sid[%d]:0x%x\n",
+				cb->name, j, cb->sids[j]);
+	}
+	cb->num_sids = j;
+
 	rc = of_property_read_u32_array(np, "virtual-addr-pool",
 			(u32 *)&cb->addr_range, 2);
 	if (rc) {

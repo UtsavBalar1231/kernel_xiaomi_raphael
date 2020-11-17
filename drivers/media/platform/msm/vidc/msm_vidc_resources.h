@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +21,7 @@
 #include "soc/qcom/cx_ipeak.h"
 
 #define MAX_BUFFER_TYPES 32
+#define VENUS_SID_MAX 32
 
 struct dcvs_table {
 	u32 load;
@@ -62,6 +63,8 @@ struct context_bank_info {
 	struct addr_range addr_range;
 	struct device *dev;
 	struct dma_iommu_mapping *mapping;
+	int sids[VENUS_SID_MAX];
+	int num_sids;
 };
 
 struct buffer_usage_table {
