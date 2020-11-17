@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -580,6 +580,14 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 			nr + 1, core, dev);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to register video encoder\n");
+		goto err_enc;
+	}
+
+	/* setup the encoder device with cma */
+	rc = msm_vidc_register_video_device(MSM_VIDC_ENCODER_CMA,
+				nr + 3, core, dev);
+	if (rc) {
+		dprintk(VIDC_ERR, "Failed to register video cma encoder\n");
 		goto err_enc;
 	}
 

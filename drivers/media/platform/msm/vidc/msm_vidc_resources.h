@@ -225,6 +225,7 @@ struct msm_vidc_platform_resources {
 	struct msm_vidc_ubwc_config *ubwc_config;
 	uint32_t ubwc_config_length;
 	bool cma_exist;
+	bool cma_status;
 };
 
 
