@@ -53,12 +53,12 @@
 &tlmm {
 	sdx_ext_ipc_gpio_default: sdx_ext_ipc_gpio_default {
 		mux {
-			pins = "gpio77";
+			pins = "gpio14", "gpio77";
 			function = "gpio";
 		};
 
 		config {
-			pins = "gpio77";
+			pins = "gpio14", "gpio77";
 			drive-strength = <2>;
 			bias-pull-down;
 		};
