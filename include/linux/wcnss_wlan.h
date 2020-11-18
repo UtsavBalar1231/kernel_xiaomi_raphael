@@ -195,6 +195,7 @@ struct rpmsg_endpoint *wcnss_open_channel(const char *name,
 void wcnss_close_channel(struct rpmsg_endpoint *channel);
 int wcnss_smd_tx(struct rpmsg_endpoint *channel, void *data, int len);
 int wcnss_get_nv_name(char *nv_name);
+int wcnss_is_sw_pta_enabled(void);
 #define wcnss_wlan_get_drvdata(dev) dev_get_drvdata(dev)
 #define wcnss_wlan_set_drvdata(dev, data) dev_set_drvdata((dev), (data))
 /* WLAN driver uses these names */

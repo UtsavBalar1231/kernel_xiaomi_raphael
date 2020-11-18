@@ -489,6 +489,7 @@ static struct {
 	struct bt_profile_state bt_state;
 	u32 multi_sku;
 	char nv_name[NVBIN_FILE_SIZE];
+	u32 sw_pta;
 } *penv = NULL;
 
 static void *wcnss_ipc_log;
@@ -1357,9 +1358,11 @@ static int wcnss_create_sysfs(struct device *dev)
 	if (ret)
 		goto remove_version;
 
-	ret = device_create_file(dev, &dev_attr_bt_profile);
-	if (ret)
-		goto remove_mac_addr;
+	if (wcnss_is_sw_pta_enabled()) {
+		ret = device_create_file(dev, &dev_attr_bt_profile);
+		if (ret)
+			goto remove_mac_addr;
+	}
 
 	return 0;
 
@@ -2639,6 +2642,12 @@ int wcnss_get_nv_name(char *nv_name)
 }
 EXPORT_SYMBOL(wcnss_get_nv_name);
 
+int wcnss_is_sw_pta_enabled(void)
+{
+	return penv->sw_pta;
+}
+EXPORT_SYMBOL(wcnss_is_sw_pta_enabled);
+
 static void wcnss_nvbin_dnld(void)
 {
 	int ret = 0;
@@ -3809,6 +3818,9 @@ wcnss_wlan_probe(struct platform_device *pdev)
 		wcnss_log(ERR, "Failed to alloc memory for cal data.\n");
 		return -ENOMEM;
 	}
+
+	device_property_read_u32(&pdev->dev, "qcom,sw_pta",
+				 &penv->sw_pta);
 
 	/* register sysfs entries */
 	ret = wcnss_create_sysfs(&pdev->dev);
