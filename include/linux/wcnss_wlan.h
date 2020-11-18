@@ -52,6 +52,7 @@ struct wcnss_wlan_config {
 struct bt_profile_state {
 	bool bt_enabled;
 	bool bt_ble;
+	bool bt_adv;
 	bool bt_a2dp;
 	bool bt_sco;
 };

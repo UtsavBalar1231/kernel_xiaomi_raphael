@@ -216,7 +216,7 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define WCNSS_USR_CTRL_MSG_START  0x00000000
 #define WCNSS_USR_HAS_CAL_DATA    (WCNSS_USR_CTRL_MSG_START + 2)
 #define WCNSS_USR_WLAN_MAC_ADDR   (WCNSS_USR_CTRL_MSG_START + 3)
-#define WCNSS_MAX_USR_BT_PROFILE_IND_CMD_SIZE 32
+#define WCNSS_MAX_USR_BT_PROFILE_IND_CMD_SIZE 64
 
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
 #define SHOW_MAC_ADDRESS_STR	"%02x:%02x:%02x:%02x:%02x:%02x\n"
@@ -653,13 +653,16 @@ static int wcnss_bt_profile_validate_cmd(char *dest_buf, size_t dest_buf_size,
 		if (profile_idx == 1 && !strcmp(found, "BT_ENABLED")) {
 			found = strsep(&dest_buf, " ");
 			penv->bt_state.bt_enabled = strcmp(found, "0");
-		} else if (profile_idx == 2 && !strcmp(found, "BLE")) {
+		} else if (profile_idx == 2 && !strcmp(found, "BT_ADV")) {
+			found = strsep(&dest_buf, " ");
+			penv->bt_state.bt_adv = strcmp(found, "0");
+		} else if (profile_idx == 3 && !strcmp(found, "BLE")) {
 			found = strsep(&dest_buf, " ");
 			penv->bt_state.bt_ble = strcmp(found, "0");
-		} else if (profile_idx == 3 && !strcmp(found, "A2DP")) {
+		} else if (profile_idx == 4 && !strcmp(found, "A2DP")) {
 			found = strsep(&dest_buf, " ");
 			penv->bt_state.bt_a2dp = strcmp(found, "0");
-		} else if (profile_idx == 4 && !strcmp(found, "SCO")) {
+		} else if (profile_idx == 5 && !strcmp(found, "SCO")) {
 			found = strsep(&dest_buf, " ");
 			penv->bt_state.bt_sco = strcmp(found, "0");
 		} else {
@@ -700,8 +703,9 @@ static ssize_t wcnss_bt_profile_show(struct device *dev,
 		return -ENODEV;
 
 	return scnprintf(buf, PAGE_SIZE,
-			 "BT_ENABLED = %d\nBLE = %d\nA2Dp = %d\nSCO = %d\n",
+			 "BT_ENABLED = %d\nBT_ADV = %d\nBLE = %d\nA2DP = %d\nSCO = %d\n",
 			 penv->bt_state.bt_enabled,
+			 penv->bt_state.bt_adv,
 			 penv->bt_state.bt_ble,
 			 penv->bt_state.bt_a2dp,
 			 penv->bt_state.bt_sco);
