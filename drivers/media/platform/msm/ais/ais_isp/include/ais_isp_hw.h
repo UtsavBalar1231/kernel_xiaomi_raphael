@@ -304,6 +304,16 @@ struct ais_ife_rdi_out_cfg {
 };
 
 /**
+ * struct ais_ife_diag_info - queries total number of packets received
+ *
+ * @pkts_rcvd : CSID packets received
+ *
+ */
+struct ais_ife_diag_info {
+	uint32_t pkts_rcvd;
+};
+
+/**
  * struct ais_ife_csid_csi_info
  *
  * @brief CSI Configuration

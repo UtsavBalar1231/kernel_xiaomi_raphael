@@ -399,6 +399,27 @@ static int ais_ife_driver_cmd(struct ais_ife_dev *p_ife_dev, void *arg)
 		}
 	}
 		break;
+	case AIS_IFE_DIAG_INFO: {
+		struct ais_ife_diag_info ife_diag;
+
+		if (cmd->size != sizeof(ife_diag)) {
+			rc = -EINVAL;
+		} else if (copy_from_user(&ife_diag,
+				u64_to_user_ptr(cmd->handle),
+				cmd->size)) {
+			rc = -EFAULT;
+		} else {
+			rc = csid_drv->hw_ops.process_cmd(csid_drv->hw_priv,
+					AIS_IFE_CSID_CMD_DIAG_INFO, &ife_diag,
+					cmd->size);
+			if (!rc) {
+				if (copy_to_user(u64_to_user_ptr(cmd->handle),
+						&ife_diag, cmd->size))
+					rc = -EFAULT;
+			}
+		}
+	}
+		break;
 	default:
 		rc = -EINVAL;
 		break;
