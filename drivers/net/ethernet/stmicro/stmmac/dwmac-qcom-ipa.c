@@ -2910,6 +2910,10 @@ void ethqos_ipa_offload_event_handler(void *data,
 		if (!eth_ipa_ctx.ipa_uc_ready)
 			ethqos_ipa_uc_ready(eth_ipa_ctx.ethqos);
 
+		if (eth_ipa_ctx.ipa_uc_ready &&
+		    qcom_ethqos_is_phy_link_up(eth_ipa_ctx.ethqos))
+			ethqos_enable_ipa_offload(eth_ipa_ctx.ethqos);
+
 		break;
 	case EV_IPA_READY:
 		eth_ipa_ctx.ipa_ready = true;
