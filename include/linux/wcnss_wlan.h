@@ -127,6 +127,7 @@ int wcnss_wlan_get_dxe_tx_irq(struct device *dev);
 int wcnss_wlan_get_dxe_rx_irq(struct device *dev);
 int wcnss_register_driver(struct wcnss_driver_ops *ops, void *priv);
 int wcnss_unregister_driver(struct wcnss_driver_ops *ops);
+void wcnss_update_bt_profile(void);
 void wcnss_wlan_register_pm_ops(struct device *dev,
 				const struct dev_pm_ops *pm_ops);
 void wcnss_wlan_unregister_pm_ops(struct device *dev,

@@ -1862,6 +1862,17 @@ out:
 }
 EXPORT_SYMBOL(wcnss_unregister_driver);
 
+void wcnss_update_bt_profile(void)
+{
+	if (!penv || !penv->pdev || !penv->ops)
+		return;
+
+	if (penv->bt_state.bt_enabled)
+		penv->ops->bt_profile_state(penv->ops->priv_data,
+					    &penv->bt_state);
+}
+EXPORT_SYMBOL(wcnss_update_bt_profile);
+
 void wcnss_wlan_register_pm_ops(struct device *dev,
 				const struct dev_pm_ops *pm_ops)
 {
