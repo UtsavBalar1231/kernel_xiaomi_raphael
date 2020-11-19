@@ -1657,6 +1657,10 @@ static int ath10k_mac_setup_prb_tmpl(struct ath10k_vif *arvif)
 	if (arvif->vdev_type != WMI_VDEV_TYPE_AP)
 		return 0;
 
+	 /* For mesh, probe response and beacon share the same template */
+	if (ieee80211_vif_is_mesh(vif))
+		return 0;
+
 	prb = ieee80211_proberesp_get(hw, vif);
 	if (!prb) {
 		ath10k_warn(ar, "failed to get probe resp template from mac80211\n");
@@ -8015,6 +8019,20 @@ static const struct ieee80211_iface_limit ath10k_tlv_if_limit_ibss[] = {
 	},
 };
 
+static const struct ieee80211_iface_limit ath10k_tlv_if_vap_limit[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 3,
+		.types = BIT(NL80211_IFTYPE_AP)
+#ifdef CONFIG_MAC80211_MESH
+			| BIT(NL80211_IFTYPE_MESH_POINT)
+#endif
+	},
+};
+
 /* FIXME: This is not thouroughly tested. These combinations may over- or
  * underestimate hw/fw capabilities.
  */
@@ -8030,6 +8048,14 @@ static struct ieee80211_iface_combination ath10k_tlv_if_comb[] = {
 		.num_different_channels = 1,
 		.max_interfaces = 2,
 		.n_limits = ARRAY_SIZE(ath10k_tlv_if_limit_ibss),
+	},
+	{
+		.limits = ath10k_tlv_if_vap_limit,
+		.num_different_channels = 1,
+		.max_interfaces = 4,
+		.beacon_int_infra_match = true,
+		.beacon_int_min_gcd = 1,
+		.n_limits = ARRAY_SIZE(ath10k_tlv_if_vap_limit),
 	},
 };
 
@@ -8051,6 +8077,12 @@ static struct ieee80211_iface_combination ath10k_tlv_qcs_if_comb[] = {
 		.num_different_channels = 1,
 		.max_interfaces = 2,
 		.n_limits = ARRAY_SIZE(ath10k_tlv_if_limit_ibss),
+	},
+	{
+		.limits = ath10k_tlv_if_vap_limit,
+		.num_different_channels = 1,
+		.max_interfaces = 4,
+		.n_limits = ARRAY_SIZE(ath10k_tlv_if_vap_limit),
 	},
 };
 
