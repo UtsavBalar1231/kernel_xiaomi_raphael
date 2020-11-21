@@ -78,6 +78,11 @@
 	qcom,batteryless-platform;
 };
 
+&emac_hw{
+	qcom,phyvoltage_min = <3300000>;
+	qcom,phyvoltage_max = <3300000>;
+};
+
 &ir_led {
 	gpios = <&tlmm 74 0>,
 		<&tlmm 73 0>;
