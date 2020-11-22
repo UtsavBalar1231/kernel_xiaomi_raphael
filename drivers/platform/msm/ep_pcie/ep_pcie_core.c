@@ -1982,7 +1982,6 @@ out:
 int ep_pcie_core_disable_endpoint(void)
 {
 	int rc = 0;
-	u32 val = 0;
 	unsigned long irqsave_flags;
 	struct ep_pcie_dev_t *dev = &ep_pcie_dev;
 
@@ -2011,9 +2010,6 @@ int ep_pcie_core_disable_endpoint(void)
 			dev->rev);
 	}
 
-	val =  readl_relaxed(dev->elbi + PCIE20_ELBI_SYS_STTS);
-	EP_PCIE_DBG(dev, "PCIe V%d: LTSSM_STATE during disable:0x%x\n",
-		dev->rev, (val >> 0xC) & 0x3f);
 	ep_pcie_pipe_clk_deinit(dev);
 	ep_pcie_clk_deinit(dev);
 	ep_pcie_vreg_deinit(dev);
@@ -2359,6 +2355,18 @@ static irqreturn_t ep_pcie_handle_perst_irq(int irq, void *data)
 			dev->rev, perst ? "de" : "");
 		atomic_set(&dev->perst_deast, perst ? 1 : 0);
 		if (perst) {
+			/*
+			 * Hold a wakelock to avoid delay during
+			 * link enablement in PCIE layer in non
+			 * enumerated scenario.
+			 */
+			if (!atomic_read(&dev->ep_pcie_dev_wake)) {
+				pm_stay_awake(&dev->pdev->dev);
+				atomic_set(&dev->ep_pcie_dev_wake, 1);
+				EP_PCIE_DBG(dev,
+					"PCIe V%d: Acquired wakelock\n",
+					dev->rev);
+			}
 			/* start work for link enumeration with the host side */
 			queue_work(system_highpri_wq, &dev->handle_perst_work);
 		} else {
