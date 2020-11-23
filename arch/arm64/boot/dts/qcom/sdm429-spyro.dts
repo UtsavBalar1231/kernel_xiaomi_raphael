@@ -28,3 +28,7 @@
 	qcom,hsusb-otg-mode = <3>; /* OTG mode */
 	/delete-property/ qcom,enumeration-check-for-sdp;
 };
+
+&wcnss_prima {
+	/delete-property/ qcom,sw_pta;
+};

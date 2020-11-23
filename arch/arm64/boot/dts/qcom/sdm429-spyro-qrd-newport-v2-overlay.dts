@@ -84,5 +84,4 @@
 
 &wcnss_prima {
 	qcom,multi_sku = <1>;
-	qcom,sw_pta = <1>;
 };
