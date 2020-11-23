@@ -360,9 +360,9 @@
 		qcom,mi2s-auxpcm-cdc-gpios;
 	};
 
-	sec_master: sec_master_pinctrl {
+	sec_master_slave: sec_master_slave_pinctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
-		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-names = "aud_active", "aud_sleep", "aud_alt_active";
 		pinctrl-0 = <&sec_ws_active_master
 				&sec_sck_active_master
 				&sec_dout_active
@@ -371,6 +371,10 @@
 				&sec_sck_sleep
 				&sec_dout_sleep
 				&sec_din_sleep>;
+		pinctrl-2 = <&sec_ws_active_slave
+				&sec_sck_active_slave
+				&sec_dout_active
+				&sec_din_active>;
 		qcom,mi2s-auxpcm-cdc-gpios;
 	};
 
