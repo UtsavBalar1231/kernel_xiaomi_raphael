@@ -1004,6 +1004,9 @@ static ssize_t f_uac1_opts_speaker_volume_show(struct config_item *item,
 	struct usb_audio_control *con;
 	int value;
 
+	if (!uac1)
+		return 0;
+
 	list_for_each_entry(cs, &uac1->cs, list) {
 		if (cs->id == FEATURE_UNIT_ID) {
 			list_for_each_entry(con, &cs->control, list) {
@@ -1029,6 +1032,9 @@ static ssize_t f_uac1_opts_mic_volume_show(struct config_item *item, char *page)
 	struct usb_audio_control_selector *cs;
 	struct usb_audio_control *con;
 	int value;
+
+	if (!uac1)
+		return 0;
 
 	list_for_each_entry(cs, &uac1->cs, list) {
 		if (cs->id == MIC_FEATURE_UNIT_ID) {
@@ -1057,6 +1063,9 @@ static ssize_t f_uac1_opts_speaker_mute_show(struct config_item *item,
 	struct usb_audio_control *con;
 	int value;
 
+	if (!uac1)
+		return 0;
+
 	list_for_each_entry(cs, &uac1->cs, list) {
 		if (cs->id == FEATURE_UNIT_ID) {
 			list_for_each_entry(con, &cs->control, list) {
@@ -1082,6 +1091,9 @@ static ssize_t f_uac1_opts_mic_mute_show(struct config_item *item, char *page)
 	struct usb_audio_control_selector *cs;
 	struct usb_audio_control *con;
 	int value;
+
+	if (!uac1)
+		return 0;
 
 	list_for_each_entry(cs, &uac1->cs, list) {
 		if (cs->id == MIC_FEATURE_UNIT_ID) {
