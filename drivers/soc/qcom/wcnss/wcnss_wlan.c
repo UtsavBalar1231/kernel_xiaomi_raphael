@@ -2839,14 +2839,14 @@ static int wcnss_pm_notify(struct notifier_block *b,
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
 		down_write(&wcnss_pm_sem);
-		if (penv->wake_state)
+		if (penv->wake_state && penv->ops)
 			qcom_smem_state_update_bits(penv->wake_state,
 						    AWAKE_BIT, 0);
 		break;
 
 	case PM_POST_SUSPEND:
 		up_write(&wcnss_pm_sem);
-		if (penv->wake_state)
+		if (penv->wake_state && penv->ops)
 			qcom_smem_state_update_bits(penv->wake_state, AWAKE_BIT,
 						    AWAKE_BIT);
 		break;
@@ -3801,13 +3801,11 @@ wcnss_wlan_probe(struct platform_device *pdev)
 	penv->wake_state = qcom_smem_state_get(&pdev->dev,
 					      "wake-state",
 					      &penv->wake_state_bit);
-	if (IS_ERR(penv->wake_state))
+	if (IS_ERR(penv->wake_state)) {
+		penv->wake_state = NULL;
 		wcnss_log(WARN, "%s: qcom_smem_wake_state_get failed",
 			  __func__);
-
-	if (penv->wake_state)
-		qcom_smem_state_update_bits(penv->wake_state,
-					    AWAKE_BIT, AWAKE_BIT);
+	}
 
 	return wcnss_cdev_register(pdev);
 }
@@ -3818,7 +3816,10 @@ wcnss_wlan_remove(struct platform_device *pdev)
 	if (penv->wcnss_notif_hdle)
 		subsys_notif_unregister_notifier(penv->wcnss_notif_hdle, &wnb);
 	wcnss_cdev_unregister(pdev);
-	qcom_smem_state_put(penv->wake_state);
+
+	if (penv->wake_state)
+		qcom_smem_state_put(penv->wake_state);
+
 	wcnss_remove_sysfs(&pdev->dev);
 	penv = NULL;
 	return 0;
