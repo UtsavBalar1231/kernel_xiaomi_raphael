@@ -525,6 +525,15 @@ config SDX_EXT_IPC
 
 	  If unsure, say N.
 
+config QTI_NOTIFY_RESUME
+	tristate "QCOM notify resume"
+	help
+	  This exposes a sysfs node to notify userspace application
+	  about system resume. The userspace applications can hook
+	  to this sysfs node to know about system resume.
+
+	  If unsure, say N.
+
 config QTI_NOTIFY_SIDEBAND
 	tristate "QCOM sideband signalling helper"
 	help
