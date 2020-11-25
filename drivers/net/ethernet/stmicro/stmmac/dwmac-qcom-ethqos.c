@@ -124,22 +124,7 @@ u16 dwmac_qcom_select_queue(
 	/* Retrieve ETH type */
 	eth_type = dwmac_qcom_get_eth_type(skb->data);
 
-	if (pethqos->cv2x_mode == CV2X_MODE_AP) {
-		if (skb_vlan_tag_present(skb)) {
-			vlan_id = skb_vlan_tag_get_id(skb);
-			if (vlan_id == pethqos->cv2x_vlan.vlan_id)
-				txqueue_select = CV2X_TAG_TX_CHANNEL;
-			else if (vlan_id == pethqos->qoe_vlan.vlan_id)
-				txqueue_select = QMI_TAG_TX_CHANNEL;
-			else
-				txqueue_select =
-				ALL_OTHER_TX_TRAFFIC_IPA_DISABLED;
-		} else {
-			txqueue_select = ALL_OTHER_TX_TRAFFIC_IPA_DISABLED;
-		}
-	} else if (pethqos->cv2x_mode == CV2X_MODE_MDM) {
-		txqueue_select = ALL_OTHER_TRAFFIC_TX_CHANNEL;
-	} else if (eth_type == ETH_P_TSN) {
+	if (eth_type == ETH_P_TSN && pethqos->cv2x_mode == CV2X_MODE_DISABLE) {
 		/* Read VLAN priority field from skb->data */
 		priority = dwmac_qcom_get_vlan_ucp(skb->data);
 
@@ -148,6 +133,25 @@ u16 dwmac_qcom_select_queue(
 			txqueue_select = CLASS_A_TRAFFIC_TX_CHANNEL;
 		} else if (priority == CLASS_B_TRAFFIC_UCP) {
 			txqueue_select = CLASS_B_TRAFFIC_TX_CHANNEL;
+		} else {
+			if (ipa_enabled)
+				txqueue_select = ALL_OTHER_TRAFFIC_TX_CHANNEL;
+			else
+				txqueue_select =
+				ALL_OTHER_TX_TRAFFIC_IPA_DISABLED;
+		}
+	} else if (eth_type == ETH_P_1588) {
+		/*gPTP seelct tx queue 1*/
+		txqueue_select = NON_TAGGED_IP_TRAFFIC_TX_CHANNEL;
+	} else if (skb_vlan_tag_present(skb)) {
+		vlan_id = skb_vlan_tag_get_id(skb);
+
+		if (pethqos->cv2x_mode == CV2X_MODE_AP &&
+		    vlan_id == pethqos->cv2x_vlan.vlan_id) {
+			txqueue_select = CV2X_TAG_TX_CHANNEL;
+		} else if (pethqos->qoe_mode &&
+			 vlan_id == pethqos->qoe_vlan.vlan_id){
+			txqueue_select = QMI_TAG_TX_CHANNEL;
 		} else {
 			if (ipa_enabled)
 				txqueue_select = ALL_OTHER_TRAFFIC_TX_CHANNEL;
