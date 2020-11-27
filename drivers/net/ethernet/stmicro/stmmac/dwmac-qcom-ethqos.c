@@ -3278,7 +3278,7 @@ static int qcom_ethqos_suspend(struct device *dev)
 	struct qcom_ethqos *ethqos;
 	struct net_device *ndev = NULL;
 	int ret;
-	int allow_suspend = 0;
+	int allow_suspend = 1;
 	struct stmmac_priv *priv;
 	struct plat_stmmacenet_data *plat;
 
