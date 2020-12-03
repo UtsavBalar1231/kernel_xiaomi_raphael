@@ -91,6 +91,9 @@ enum print_reason {
 #define BOOST_BACK_STORM_COUNT	3
 #define WEAK_CHG_STORM_COUNT	8
 
+/* thermal micros */
+#define MAX_TEMP_LEVEL		16
+
 #define VBAT_TO_VRAW_ADC(v)		div_u64((u64)v * 1000000UL, 194637UL)
 
 #define ITERM_LIMITS_PMI632_MA		5000
@@ -506,7 +509,24 @@ struct smb_charger {
 	int			boost_threshold_ua;
 	int			system_temp_level;
 	int			thermal_levels;
+#ifdef CONFIG_THERMAL
+	int 		*thermal_mitigation_dcp;
+	int 		*thermal_mitigation_qc2;
+	int 		*thermal_mitigation_pd_base;
+	int 		*thermal_mitigation_icl;
+	int 		*thermal_fcc_qc3_normal;
+	int 		*thermal_fcc_qc3_cp;
+	int 		*thermal_fcc_qc3_classb_cp;
+	int 		*thermal_fcc_pps_cp;
+	int 		*thermal_mitigation_dc;
+	int 		*lpd_hwversion;
+	int 		*thermal_mitigation_epp;
+	int 		*thermal_mitigation_bpp_qc3;
+	int 		*thermal_mitigation_bpp_qc2;
+	int 		*thermal_mitigation_bpp;
+#else
 	int			*thermal_mitigation;
+#endif
 	int			dcp_icl_ua;
 	int			fake_capacity;
 	int			fake_batt_status;
