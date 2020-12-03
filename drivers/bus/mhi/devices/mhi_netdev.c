@@ -941,16 +941,15 @@ static void mhi_netdev_remove(struct mhi_device *mhi_dev)
 	MSG_LOG("Remove notification received\n");
 
 	/* rsc parent takes cares of the cleanup */
-	if (mhi_netdev->is_rsc_dev) {
-		mhi_netdev_free_pool(mhi_netdev);
+	if (mhi_netdev->is_rsc_dev && mhi_netdev->rsc_parent)
 		return;
-	}
 
 	kthread_stop(mhi_netdev->alloc_task);
 	netif_stop_queue(mhi_netdev->ndev);
 	napi_disable(mhi_netdev->napi);
 	unregister_netdev(mhi_netdev->ndev);
 	netif_napi_del(mhi_netdev->napi);
+	mhi_netdev_free_pool(mhi_netdev);
 	free_netdev(mhi_netdev->ndev);
 
 	if (!IS_ERR_OR_NULL(mhi_netdev->dentry))
