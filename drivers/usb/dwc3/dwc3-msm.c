@@ -4893,9 +4893,10 @@ static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned int mA)
 		 * Do not notify charger driver for any current and
 		 * bail out if suspend happened with float cable
 		 * connected
-		 */
+
 		if (mA == 2)
 			return 0;
+		*/
 
 		if (!mA)
 			pval.intval = -ETIMEDOUT;
