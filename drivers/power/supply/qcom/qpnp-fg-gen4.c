@@ -917,6 +917,18 @@ static int fg_gen4_get_prop_capacity(struct fg_dev *fg, int *val)
 		return 0;
 	}
 
+	rc = fg_get_msoc(fg, &msoc);
+	if (rc < 0)
+		return rc;
+
+	if (fg->empty_restart_fg && (msoc == 0))
+		msoc = EMPTY_REPORT_SOC;
+
+	if (chip->dt.linearize_soc && fg->delta_soc > 0)
+		*val = fg->maint_soc;
+	else
+		*val = msoc;
+
 	if (chip->soc_scale_mode) {
 		mutex_lock(&chip->soc_scale_lock);
 		*val = chip->soc_scale_msoc;
@@ -4058,7 +4070,7 @@ static void status_change_work(struct work_struct *work)
 	struct fg_dev *fg = container_of(work,
 			struct fg_dev, status_change_work);
 	struct fg_gen4_chip *chip = container_of(fg, struct fg_gen4_chip, fg);
-	int rc, batt_soc, batt_temp;
+	int rc, batt_soc, batt_temp, msoc_raw;
 	bool input_present, qnovo_en;
 	u32 batt_soc_cp;
 
@@ -4084,6 +4096,16 @@ static void status_change_work(struct work_struct *work)
 	}
 
 	get_batt_psy_props(fg);
+
+	if (fg->charge_done && !fg->report_full) {
+		fg->report_full = true;
+	} else if (!fg->charge_done && fg->report_full) {
+		rc = fg_get_msoc_raw(fg, &msoc_raw);
+		if (rc < 0)
+			pr_err("Error in getting msoc, rc=%d\n", rc);
+		if (msoc_raw < FULL_SOC_REPORT_THR - 4)
+			fg->report_full = false;
+	}
 
 	rc = fg_get_sram_prop(fg, FG_SRAM_BATT_SOC, &batt_soc);
 	if (rc < 0) {
@@ -6252,7 +6274,7 @@ static void fg_gen4_shutdown(struct platform_device *pdev)
 {
 	struct fg_gen4_chip *chip = dev_get_drvdata(&pdev->dev);
 	struct fg_dev *fg = &chip->fg;
-	int rc, bsoc;
+	int rc, bsoc, msoc;
 
 	fg_unregister_interrupts(fg, chip, FG_GEN4_IRQ_MAX);
 
@@ -6266,13 +6288,19 @@ static void fg_gen4_shutdown(struct platform_device *pdev)
 				rc);
 	}
 
+	rc = fg_gen4_get_prop_capacity(fg, &msoc);
+	if (rc < 0) {
+		pr_err("Error in getting capacity, rc=%d\n", rc);
+		return;
+	}
+
 	rc = fg_get_sram_prop(fg, FG_SRAM_BATT_SOC, &bsoc);
 	if (rc < 0) {
 		pr_err("Error in getting BATT_SOC, rc=%d\n", rc);
 		return;
 	}
 
-	if (fg->charge_full) {
+	if (fg->charge_full || (msoc == 100)) {
 		/* We need 2 most significant bytes here */
 		bsoc = (u32)bsoc >> 16;
 

@@ -92,6 +92,7 @@
 
 #define FULL_CAPACITY			100
 #define FULL_SOC_RAW			255
+#define FULL_SOC_REPORT_THR		250
 
 #define DEBUG_BATT_SOC			67
 #define BATT_MISS_SOC			50
@@ -490,6 +491,7 @@ struct fg_dev {
 	bool			use_ima_single_mode;
 	bool			usb_present;
 	bool			twm_state;
+	bool			report_full;
 	bool			use_dma;
 	bool			qnovo_enable;
 	enum fg_version		version;
