@@ -25,6 +25,7 @@
 
 #define CAM_EXT_OPCODE_BASE                     0x200
 #define CAM_CONFIG_DEV_EXTERNAL                 (CAM_EXT_OPCODE_BASE + 0x1)
+#define CAM_DIAG_INFO                           (CAM_EXT_OPCODE_BASE + 0x2)
 
 /* camera handle type */
 #define CAM_HANDLE_USER_POINTER                 1
