@@ -326,6 +326,22 @@ static void dsi_bridge_disp_param_set(struct drm_bridge *bridge, int cmd)
 	SDE_ATRACE_END("panel_disp_param_send");
 }
 
+static int dsi_bridge_get_panel_info(struct drm_bridge *bridge, char *buf)
+{
+	int rc = 0;
+	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
+
+	if (!c_bridge) {
+		pr_err("Invalid params\n");
+		return rc;
+	}
+
+	if (c_bridge->display->name)
+		return snprintf(buf, PAGE_SIZE, c_bridge->display->name);
+
+	return rc;
+}
+
 static void dsi_bridge_enable(struct drm_bridge *bridge)
 {
 	int rc = 0;
@@ -668,6 +684,7 @@ static const struct drm_bridge_funcs dsi_bridge_ops = {
 	.post_disable = dsi_bridge_post_disable,
 	.mode_set     = dsi_bridge_mode_set,
 	.disp_param_set = dsi_bridge_disp_param_set,
+	.disp_get_panel_info = dsi_bridge_get_panel_info,
 };
 
 int dsi_conn_set_info_blob(struct drm_connector *connector,

@@ -379,6 +379,18 @@ void drm_bridge_disp_param_set(struct drm_bridge *bridge, int cmd)
 	if (bridge->funcs->disp_param_set)
 		bridge->funcs->disp_param_set(bridge, cmd);
 }
+int drm_get_panel_info(struct drm_bridge *bridge, char *buf)
+{
+	int rc = 0;
+	if (!bridge)
+		return rc;
+
+	if (bridge->funcs->disp_get_panel_info)
+		return bridge->funcs->disp_get_panel_info(bridge, buf);
+
+	return rc;
+}
+EXPORT_SYMBOL(drm_get_panel_info);
 
 /**
  * drm_bridge_enable - enables all bridges in the encoder chain
