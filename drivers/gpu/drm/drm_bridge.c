@@ -369,6 +369,17 @@ void drm_bridge_pre_enable(struct drm_bridge *bridge)
 }
 EXPORT_SYMBOL(drm_bridge_pre_enable);
 
+void drm_bridge_disp_param_set(struct drm_bridge *bridge, int cmd)
+{
+	if (!bridge)
+		return;
+
+	drm_bridge_disp_param_set(bridge->next, cmd);
+
+	if (bridge->funcs->disp_param_set)
+		bridge->funcs->disp_param_set(bridge, cmd);
+}
+
 /**
  * drm_bridge_enable - enables all bridges in the encoder chain
  * @bridge: bridge control structure
