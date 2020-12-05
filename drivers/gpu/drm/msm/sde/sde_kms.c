@@ -1052,6 +1052,10 @@ static void sde_kms_commit(struct msm_kms *kms,
 		}
 	}
 
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		sde_crtc_fod_ui_ready(crtc, old_crtc_state);
+	}
+
 	SDE_ATRACE_END("sde_kms_commit");
 }
 
