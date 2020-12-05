@@ -411,6 +411,24 @@ static ssize_t dimlayer_hbm_enabled_show(struct device *device,
 	return snprintf(buf, PAGE_SIZE, "%d\n", fod_dimlayer_hbm_enabled_status);
 }
 
+extern ssize_t mipi_reg_write(char *buf, size_t count);
+extern ssize_t mipi_reg_read(char *buf);
+
+static ssize_t mipi_reg_show(struct device *device,
+			  struct device_attribute *attr,
+			 char *buf)
+{
+	return mipi_reg_read(buf);
+}
+
+static ssize_t mipi_reg_store(struct device *device,
+			 struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	return mipi_reg_write((char *)buf, count);
+}
+
+
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
@@ -423,6 +441,7 @@ static DEVICE_ATTR_RW(dim_layer_enable);
 static DEVICE_ATTR(dim_alpha, S_IRUGO|S_IWUSR, NULL, xm_fod_dim_layer_alpha_store);
 static DEVICE_ATTR_RO(dimlayer_hbm_enabled);
 static DEVICE_ATTR_RO(fod_ui_ready);
+static DEVICE_ATTR_RW(mipi_reg);
 
 static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_status.attr,
@@ -437,6 +456,7 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_dimlayer_hbm_enabled.attr,
 	&dev_attr_dim_alpha.attr,
 	&dev_attr_fod_ui_ready.attr,
+	&dev_attr_mipi_reg.attr,
 	NULL
 };
 
