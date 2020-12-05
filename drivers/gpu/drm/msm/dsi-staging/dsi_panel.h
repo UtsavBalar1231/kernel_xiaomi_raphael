@@ -120,6 +120,7 @@ struct dsi_backlight_config {
 	u32 bl_scale_ad;
 
 	int en_gpio;
+	bool dcs_type_ss;
 	/* PWM params */
 	struct pwm_device *pwm_bl;
 	bool pwm_enabled;
