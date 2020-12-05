@@ -1045,6 +1045,45 @@ int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline)
 EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_scanline);
 
 /**
+ * mipi_dsi_dcs_set_display_brightness_ss() - sets the brightness value of the
+ * display for ss type displays
+ * @dsi: DSI peripheral device
+ * @brightness: brightness value
+ * @num_params: Number of parameters (bytes) to encode brightness value in. The
+ *              MIPI specification states that one parameter shall be sent for
+ *              devices that support 8-bit brightness levels. For devices that
+ *              support brightness levels wider than 8-bit, two parameters
+ *              shall be sent.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+
+int mipi_dsi_dcs_set_display_brightness_ss(struct mipi_dsi_device *dsi,
+					u16 brightness, size_t num_params)
+{
+	u8 payload[2];
+	ssize_t err;
+
+	switch (num_params) {
+	case 1:
+		payload[0] = brightness & 0xff;
+		break;
+	case 2:
+		payload[0] = brightness >> 8;
+		payload[1] = brightness & 0xff;
+		break;
+	default:
+		return -EINVAL;
+	}
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
+				 payload, num_params);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+/**
  * mipi_dsi_dcs_set_display_brightness() - sets the brightness value of the
  *    display
  * @dsi: DSI peripheral device
