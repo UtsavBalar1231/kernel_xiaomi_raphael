@@ -184,8 +184,8 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	int rc = 0;
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
-	int event = MSM_DRM_BLANK_UNBLANK;
-	notify_data.data = &event;
+	struct drm_device *dev;
+	int event;
 
 	if (!bridge) {
 		pr_err("Invalid params\n");
@@ -196,6 +196,12 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		pr_err("Incorrect bridge details\n");
 		return;
 	}
+
+	dev = bridge->dev;
+	if (dev->doze_state == MSM_DRM_BLANK_POWERDOWN)
+		dev->doze_state = MSM_DRM_BLANK_UNBLANK;
+	event = dev->doze_state;
+	notify_data.data = &event;
 
 	msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &notify_data);
 
@@ -453,11 +459,26 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 {
 	int rc = 0;
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
-	int event = MSM_DRM_BLANK_POWERDOWN;
+	struct drm_device *dev;
+	int event;
 	notify_data.data = &event;
 
 	if (!bridge) {
 		pr_err("Invalid params\n");
+		return;
+	}
+
+	dev = bridge->dev;
+	if (dev->doze_state == MSM_DRM_BLANK_UNBLANK)
+		dev->doze_state = MSM_DRM_BLANK_POWERDOWN;
+	event = dev->doze_state;
+	notify_data.data = &event;
+
+	if (dev->doze_state == MSM_DRM_BLANK_LP1 ||
+		dev->doze_state == MSM_DRM_BLANK_LP2) {
+		event = MSM_DRM_BLANK_POWERDOWN;
+		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &notify_data);
+		msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		return;
 	}
 

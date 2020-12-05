@@ -712,12 +712,14 @@ int dsi_panel_set_doze_backlight(struct dsi_display *display)
 			if (rc)
 				pr_err("[%s] failed to send DSI_CMD_SET_DOZE_HBM cmd, rc=%d\n",
 				panel->name, rc);
+			panel->in_aod = true;
 			panel->skip_dimmingon = STATE_DIM_BLOCK;
 		} else if (drm_dev->doze_brightness == DOZE_BRIGHTNESS_LBM) {
 			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_LBM);
 			if (rc)
 				pr_err("[%s] failed to send DSI_CMD_SET_DOZE_LBM cmd, rc=%d\n",
 				panel->name, rc);
+			panel->in_aod = true;
 			panel->skip_dimmingon = STATE_DIM_BLOCK;
 		} else
 			drm_dev->doze_brightness = DOZE_BRIGHTNESS_INVALID;
@@ -3475,6 +3477,7 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 	else
 		panel->dispparam_enabled = false;
 
+	panel->in_aod = false;
 	rc = dsi_panel_parse_host_config(panel);
 	if (rc) {
 		pr_err("failed to parse host configuration, rc=%d\n", rc);
@@ -4153,6 +4156,7 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 	}
 
 	mutex_lock(&panel->panel_lock);
+	panel->in_aod = false;
 	if (!panel->panel_initialized)
 		goto exit;
 
@@ -4559,12 +4563,16 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_SRGB);
 		break;
 	case DISPPARAM_DOZE_BRIGHTNESS_HBM:
-		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_HBM);
-		panel->skip_dimmingon = STATE_DIM_BLOCK;
+		if (panel->in_aod) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_HBM);
+			panel->skip_dimmingon = STATE_DIM_BLOCK;
+		}
 		break;
 	case DISPPARAM_DOZE_BRIGHTNESS_LBM:
-		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_LBM);
-		panel->skip_dimmingon = STATE_DIM_BLOCK;
+		if (panel->in_aod) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_LBM);
+			panel->skip_dimmingon = STATE_DIM_BLOCK;
+		}
 		break;
 	case DISPPARAM_DOZE_OFF:
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_NOLP);
@@ -4746,6 +4754,7 @@ int dsi_panel_enable(struct dsi_panel *panel)
 		       panel->name, rc);
 	else
 		panel->panel_initialized = true;
+	panel->in_aod = false;
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
@@ -4832,6 +4841,7 @@ int dsi_panel_disable(struct dsi_panel *panel)
 		}
 	}
 	panel->panel_initialized = false;
+	panel->in_aod = false;
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 
 	mutex_unlock(&panel->panel_lock);
