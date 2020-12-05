@@ -686,6 +686,71 @@ error:
 	return rc;
 }
 
+int dsi_panel_set_doze_backlight(struct dsi_display *display)
+{
+	int rc = 0;
+	struct dsi_display *dsi_display = display;
+	struct dsi_panel *panel = NULL;
+	struct drm_device *drm_dev = NULL;
+
+	if (!dsi_display || !dsi_display->panel || !dsi_display->drm_dev) {
+		pr_err("invalid display/panel/drm_dev\n");
+		return -EINVAL;
+	}
+	panel = dsi_display->panel;
+	drm_dev = dsi_display->drm_dev;
+	mutex_lock(&panel->panel_lock);
+
+	if (!dsi_panel_initialized(panel))
+		goto error;
+
+	if (drm_dev && (drm_dev->doze_state == MSM_DRM_BLANK_LP1 ||
+			drm_dev->doze_state == MSM_DRM_BLANK_LP2)) {
+
+		if (drm_dev->doze_brightness == DOZE_BRIGHTNESS_HBM) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_HBM);
+			if (rc)
+				pr_err("[%s] failed to send DSI_CMD_SET_DOZE_HBM cmd, rc=%d\n",
+				panel->name, rc);
+			panel->skip_dimmingon = STATE_DIM_BLOCK;
+		} else if (drm_dev->doze_brightness == DOZE_BRIGHTNESS_LBM) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_LBM);
+			if (rc)
+				pr_err("[%s] failed to send DSI_CMD_SET_DOZE_LBM cmd, rc=%d\n",
+				panel->name, rc);
+			panel->skip_dimmingon = STATE_DIM_BLOCK;
+		} else
+			drm_dev->doze_brightness = DOZE_BRIGHTNESS_INVALID;
+	}
+
+error:
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+ssize_t dsi_panel_get_doze_backlight(struct dsi_display *display, char *buf)
+{
+
+	int rc = 0;
+	struct dsi_display *dsi_display = display;
+	struct dsi_panel *panel = NULL;
+	struct drm_device *drm_dev = NULL;
+
+	if (!dsi_display || !dsi_display->panel || !dsi_display->drm_dev) {
+		pr_err("invalid display/panel/drm_dev\n");
+		return -EINVAL;
+	}
+	panel = dsi_display->panel;
+	drm_dev = dsi_display->drm_dev;
+
+	mutex_lock(&panel->panel_lock);
+
+	rc = snprintf(buf, PAGE_SIZE, "%d\n", drm_dev->doze_brightness);
+
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 {
 	int rc = 0;
@@ -1763,6 +1828,8 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"ROI not parsed from DTSI, generated dynamically",
 	"qcom,mdss-dsi-timing-switch-command",
 	"qcom,mdss-dsi-post-mode-switch-on-command",
+	"qcom,mdss-dsi-doze-hbm-command",
+	"qcom,mdss-dsi-doze-lbm-command",
 	"qcom,mdss-dsi-dispparam-elvss-dimming-offset-command",
 	"qcom,mdss-dsi-dispparam-elvss-dimming-read-command",
 	"qcom,mdss-dsi-dispparam-warm-command",
@@ -1831,6 +1898,8 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"ROI not parsed from DTSI, generated dynamically",
 	"qcom,mdss-dsi-timing-switch-command-state",
 	"qcom,mdss-dsi-post-mode-switch-on-command-state",
+	"qcom,mdss-dsi-doze-hbm-command-state",
+	"qcom,mdss-dsi-doze-lbm-command-state",
 	"qcom,mdss-dsi-dispparam-elvss-dimming-offset-command-state",
 	"qcom,mdss-dsi-dispparam-elvss-dimming-read-command-state",
 	"qcom,mdss-dsi-dispparam-warm-command-state",
@@ -4488,6 +4557,17 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		break;
 	case DISPPARAM_SRGB:
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_SRGB);
+		break;
+	case DISPPARAM_DOZE_BRIGHTNESS_HBM:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_HBM);
+		panel->skip_dimmingon = STATE_DIM_BLOCK;
+		break;
+	case DISPPARAM_DOZE_BRIGHTNESS_LBM:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_LBM);
+		panel->skip_dimmingon = STATE_DIM_BLOCK;
+		break;
+	case DISPPARAM_DOZE_OFF:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_NOLP);
 		break;
 	case DISPPARAM_HBM_BACKLIGHT_RESEND:
 		{
