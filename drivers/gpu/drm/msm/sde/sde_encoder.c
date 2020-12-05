@@ -37,6 +37,7 @@
 #include "sde_crtc.h"
 #include "sde_trace.h"
 #include "sde_core_irq.h"
+#include "dsi_drm.h"
 #include "sde_hw_top.h"
 #include "sde_hw_qdss.h"
 
@@ -4747,6 +4748,12 @@ int sde_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 	if (sde_enc->cur_master && !sde_enc->cur_master->cont_splash_enabled)
 		sde_configure_qdss(sde_enc, sde_enc->cur_master->hw_qdss,
 				sde_enc->cur_master, sde_kms->qdss_enabled);
+
+	if (sde_enc->cur_master && sde_enc->cur_master->connector) {
+		struct sde_connector *c_conn;
+		c_conn = to_sde_connector(sde_enc->cur_master->connector);
+		sde_connector_update_hbm(c_conn);
+	}
 
 end:
 	SDE_ATRACE_END("sde_encoder_prepare_for_kickoff");

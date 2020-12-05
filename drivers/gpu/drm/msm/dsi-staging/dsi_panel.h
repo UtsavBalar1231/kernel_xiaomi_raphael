@@ -216,11 +216,36 @@ struct dsi_panel {
 	enum dsi_dms_mode dms_mode;
 
 	bool sync_broadcast_en;
-	bool in_aod;
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;
-
+	bool in_aod;
 	bool dispparam_enabled;
+	bool fod_backlight_flag;
+	bool fod_dimlayer_enabled;
+	bool fod_dimlayer_hbm_enabled;
+	bool fod_flag;
+	bool fod_hbm_enabled;
+	bool fod_ui_ready;
+	u32 fod_off_dimming_delay;
+	u32 fod_target_backlight;
+	ktime_t fod_hbm_off_time;
+	ktime_t fod_backlight_off_time;
+	u32 skip_dimmingon;
+	u32 last_bl_lvl;
+	s32 backlight_delta;
+	u32 doze_backlight_threshold;
+	u32 dc_threshold;
+	bool dc_enable;
+	bool fod_dimlayer_bl_block;
+	bool dim_layer_replace_dc;
+	u32 panel_on_dimming_delay;
+	struct delayed_work cmds_work;
+
+	bool elvss_dimming_check_enable;
+	struct dsi_read_config elvss_dimming_cmds;
+	struct dsi_panel_cmd_set elvss_dimming_offset;
+	struct dsi_panel_cmd_set hbm_fod_on;
+	struct dsi_panel_cmd_set hbm_fod_off;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
