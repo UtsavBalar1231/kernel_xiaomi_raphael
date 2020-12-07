@@ -50,7 +50,7 @@
 
 /* Version info*/
 #define UFSHPB_VER				0x0200
-#define UFSHPB_DD_VER				0x0208
+#define UFSHPB_DD_VER				0x0221
 
 /* Constant value*/
 #define MAX_ACTIVE_NUM				2
@@ -67,6 +67,7 @@
 #define HPB_512_CHUNK_LEN			128
 #define HPB_MULTI_CHUNK_LOW			9
 #define HPB_MULTI_CHUNK_HIGH			128
+
 #define MAX_HPB_CONTEXT_ID			0x7f
 
 /* Description */
@@ -96,7 +97,7 @@
 
 /*
  * UFSHPB DEBUG
- * */
+ */
 
 #define HPB_DEBUG(hpb, msg, args...)			\
 	do { if (hpb->debug)				\

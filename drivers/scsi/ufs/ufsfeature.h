@@ -61,6 +61,7 @@
 #define OS_PAGE_SHIFT				12
 
 #define UFSF_QUERY_REQ_RETRIES			1
+
 /* Description */
 #define UFSF_QUERY_DESC_DEVICE_MAX_SIZE		0x57
 #define UFSF_QUERY_DESC_CONFIGURAION_MAX_SIZE	0xE2
@@ -108,7 +109,7 @@
 		blk_add_trace_msg(					\
 			ufsf->sdev_ufs_lu[lun]->request_queue,		\
 			msg, ##args);					\
-	} while (0);							\
+	} while (0)							\
 
 struct ufsf_lu_desc {
 	/* Common info */

@@ -40,12 +40,9 @@
 #include "ufshcd.h"
 #include "ufstw.h"
 
-static int ufstw_create_sysfs(struct ufsf_feature *ufsf,
-		struct ufstw_lu *tw);
-static inline int ufstw_clear_lu_flag(struct ufstw_lu *tw, u8 idn,
-		bool *flag_res);
-static inline int ufstw_read_lu_attr(struct ufstw_lu *tw,
-		u8 idn, u32 *attr_val);
+static int ufstw_create_sysfs(struct ufsf_feature *ufsf, struct ufstw_lu *tw);
+static int ufstw_clear_lu_flag(struct ufstw_lu *tw, u8 idn, bool *flag_res);
+static int ufstw_read_lu_attr(struct ufstw_lu *tw, u8 idn, u32 *attr_val);
 
 static inline void ufstw_lu_get(struct ufstw_lu *tw)
 {
@@ -71,9 +68,8 @@ static int ufstw_switch_mode(struct ufstw_lu *tw, int tw_mode)
 
 	atomic_set(&tw->tw_mode, tw_mode);
 	if (tw->tw_enable)
-		ret = ufstw_clear_lu_flag(tw,
-				QUERY_FLAG_IDN_TW_EN,
-				&tw->tw_enable);
+		ret = ufstw_clear_lu_flag(tw, QUERY_FLAG_IDN_TW_EN,
+					  &tw->tw_enable);
 	return ret;
 }
 
@@ -92,15 +88,17 @@ static void ufstw_lifetime_work_fn(struct work_struct *work)
 	struct ufstw_lu *tw;
 
 	tw = container_of(work, struct ufstw_lu, tw_lifetime_work);
+
 	ufstw_lu_get(tw);
+
 	if (atomic_read(&tw->ufsf->tw_state) != TW_PRESENT) {
 		INFO_MSG("tw_state != TW_PRESENT (%d)",
-				atomic_read(&tw->ufsf->tw_state));
+			 atomic_read(&tw->ufsf->tw_state));
 		goto out;
 	}
 
 	if (ufstw_read_lu_attr(tw, QUERY_ATTR_IDN_TW_BUF_LIFETIME_EST,
-			&tw->tw_lifetime_est))
+			       &tw->tw_lifetime_est))
 		goto out;
 
 #if defined(CONFIG_UFSTW_IGNORE_GUARANTEE_BIT)
@@ -159,8 +157,8 @@ void ufstw_prep_fn(struct ufsf_feature *ufsf, struct ufshcd_lrb *lrbp)
 	}
 
 	blk_add_trace_msg(tw->ufsf->sdev_ufs_lu[tw->lun]->request_queue,
-			"%s:%d tw_lifetime_work %u",
-			__func__, __LINE__, tw->stat_write_sec);
+			  "%s:%d tw_lifetime_work %u",
+			  __func__, __LINE__, tw->stat_write_sec);
 	spin_unlock_bh(&tw->lifetime_lock);
 }
 
@@ -174,9 +172,9 @@ static int ufstw_read_lu_attr(struct ufstw_lu *tw, u8 idn, u32 *attr_val)
 
 	ufstw_lu_get(tw);
 	err = ufsf_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR, idn,
-				(u8)tw->lun, &val);
+				    (u8)tw->lun, &val);
 	if (err) {
-		ERR_MSG("read attr [0x%.2X] failed...err%d", idn, err);
+		ERR_MSG("read attr [0x%.2X] failed...err %d", idn, err);
 		ufstw_lu_put(tw);
 		pm_runtime_put_sync(hba->dev);
 		return err;
@@ -185,17 +183,18 @@ static int ufstw_read_lu_attr(struct ufstw_lu *tw, u8 idn, u32 *attr_val)
 	*attr_val = val;
 
 	blk_add_trace_msg(tw->ufsf->sdev_ufs_lu[tw->lun]->request_queue,
-		"%s:%d IDN %s (%d)", __func__, __LINE__,
-		idn == QUERY_ATTR_IDN_TW_FLUSH_STATUS ? "TW_FLUSH_STATUS" :
-		idn == QUERY_ATTR_IDN_TW_BUF_SIZE ? "TW_BUF_SIZE" :
-		idn == QUERY_ATTR_IDN_TW_BUF_LIFETIME_EST ? "TW_BUF_LIFETIME_EST" :
-		"UNKNOWN", idn);
+			  "%s:%d IDN %s (%d)", __func__, __LINE__,
+			  idn == QUERY_ATTR_IDN_TW_FLUSH_STATUS ? "TW_FLUSH_STATUS" :
+			  idn == QUERY_ATTR_IDN_TW_BUF_SIZE ? "TW_BUF_SIZE" :
+			  idn == QUERY_ATTR_IDN_TW_BUF_LIFETIME_EST ? "TW_BUF_LIFETIME_EST" :
+			  "UNKNOWN", idn);
 
 	TW_DEBUG(tw->ufsf, "tw_attr LUN(%d) [0x%.2X] %u", tw->lun, idn,
 		 *attr_val);
 
 	ufstw_lu_put(tw);
 	pm_runtime_put_sync(hba->dev);
+
 	return 0;
 }
 
@@ -208,9 +207,9 @@ static int ufstw_set_lu_flag(struct ufstw_lu *tw, u8 idn, bool *flag_res)
 	ufstw_lu_get(tw);
 
 	err = ufsf_query_flag_retry(hba, UPIU_QUERY_OPCODE_SET_FLAG, idn,
-			      (u8)tw->lun, NULL);
+				    (u8)tw->lun, NULL);
 	if (err) {
-		ERR_MSG("set flag [0x%.2X] failed...err%d", idn, err);
+		ERR_MSG("set flag [0x%.2X] failed...err %d", idn, err);
 		ufstw_lu_put(tw);
 		pm_runtime_put_sync(hba->dev);
 		return err;
@@ -218,22 +217,22 @@ static int ufstw_set_lu_flag(struct ufstw_lu *tw, u8 idn, bool *flag_res)
 
 	*flag_res = true;
 	blk_add_trace_msg(tw->ufsf->sdev_ufs_lu[tw->lun]->request_queue,
-			"%s:%d IDN %s (%d)", __func__, __LINE__,
-			idn == QUERY_FLAG_IDN_TW_EN ? "TW_EN" :
-			idn == QUERY_FLAG_IDN_TW_BUF_FLUSH_EN ? "FLUSH_EN" :
-			idn == QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN ?
-			"HIBERN_EN" : "UNKNOWN", idn);
+			  "%s:%d IDN %s (%d)", __func__, __LINE__,
+			  idn == QUERY_FLAG_IDN_TW_EN ? "TW_EN" :
+			  idn == QUERY_FLAG_IDN_TW_BUF_FLUSH_EN ? "FLUSH_EN" :
+			  idn == QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN ?
+			  "HIBERN_EN" : "UNKNOWN", idn);
 
 	TW_DEBUG(tw->ufsf, "tw_flag LUN(%d) [0x%.2X] %u", tw->lun, idn,
 		 *flag_res);
 
 	ufstw_lu_put(tw);
 	pm_runtime_put_sync(hba->dev);
+
 	return 0;
 }
 
-static int ufstw_clear_lu_flag(struct ufstw_lu *tw, u8 idn,
-				      bool *flag_res)
+static int ufstw_clear_lu_flag(struct ufstw_lu *tw, u8 idn, bool *flag_res)
 {
 	struct ufs_hba *hba = tw->ufsf->hba;
 	int err;
@@ -242,7 +241,7 @@ static int ufstw_clear_lu_flag(struct ufstw_lu *tw, u8 idn,
 	ufstw_lu_get(tw);
 
 	err = ufsf_query_flag_retry(hba, UPIU_QUERY_OPCODE_CLEAR_FLAG, idn,
-			      (u8)tw->lun, NULL);
+				    (u8)tw->lun, NULL);
 	if (err) {
 		ERR_MSG("clear flag [0x%.2X] failed...err%d", idn, err);
 		ufstw_lu_put(tw);
@@ -253,11 +252,11 @@ static int ufstw_clear_lu_flag(struct ufstw_lu *tw, u8 idn,
 	*flag_res = false;
 
 	blk_add_trace_msg(tw->ufsf->sdev_ufs_lu[tw->lun]->request_queue,
-		"%s:%d IDN %s (%d)", __func__, __LINE__,
-		idn == QUERY_FLAG_IDN_TW_EN ? "TW_EN" :
-		idn == QUERY_FLAG_IDN_TW_BUF_FLUSH_EN ? "FLUSH_EN" :
-		idn == QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN ? "HIBERN_EN" :
-		"UNKNOWN", idn);
+			  "%s:%d IDN %s (%d)", __func__, __LINE__,
+			  idn == QUERY_FLAG_IDN_TW_EN ? "TW_EN" :
+			  idn == QUERY_FLAG_IDN_TW_BUF_FLUSH_EN ? "FLUSH_EN" :
+			  idn == QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN ? "HIBERN_EN" :
+			  "UNKNOWN", idn);
 
 	TW_DEBUG(tw->ufsf, "tw_flag LUN(%d) [0x%.2X] %u", tw->lun, idn,
 		 *flag_res);
@@ -288,7 +287,7 @@ static inline int ufstw_read_lu_flag(struct ufstw_lu *tw, u8 idn,
 	ufstw_lu_get(tw);
 
 	err = ufsf_query_flag_retry(hba, UPIU_QUERY_OPCODE_READ_FLAG, idn,
-			      (u8)tw->lun, &val);
+				    (u8)tw->lun, &val);
 	if (err) {
 		ERR_MSG("read flag [0x%.2X] failed...err%d", idn, err);
 		ufstw_lu_put(tw);
@@ -313,7 +312,7 @@ static int ufstw_auto_ee(struct ufsf_feature *ufsf)
 	struct ufs_hba *hba = ufsf->hba;
 	u16 mask = MASK_EE_TW;
 	u32 val;
-	int err;
+	int err = 0;
 
 	pm_runtime_get_sync(hba->dev);
 
@@ -323,7 +322,7 @@ static int ufstw_auto_ee(struct ufsf_feature *ufsf)
 	val = hba->ee_ctrl_mask | mask;
 	val &= 0xFFFF; /* 2 bytes */
 	err = ufsf_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
-				QUERY_ATTR_IDN_EE_CONTROL, 0, &val);
+				    QUERY_ATTR_IDN_EE_CONTROL, 0, &val);
 	if (err) {
 		ERR_MSG("failed to enable exception event err%d", err);
 		goto out;
@@ -354,7 +353,7 @@ static int ufstw_disable_ee(struct ufsf_feature *ufsf)
 	val = hba->ee_ctrl_mask & ~mask;
 	val &= 0xFFFF;	/* 2 bytes */
 	err = ufsf_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
-				QUERY_ATTR_IDN_EE_CONTROL, 0, &val);
+				    QUERY_ATTR_IDN_EE_CONTROL, 0, &val);
 	if (err) {
 		ERR_MSG("failed to disable exception event err%d", err);
 		goto out;
@@ -377,12 +376,12 @@ static void ufstw_flush_work_fn(struct work_struct *dwork)
 
 	tw = container_of(dwork, struct ufstw_lu, tw_flush_work.work);
 
-	TW_DEBUG(tw->ufsf, "start flush worker\n");
+	TW_DEBUG(tw->ufsf, "start flush worker");
 
 	ufstw_lu_get(tw);
 	if (atomic_read(&tw->ufsf->tw_state) != TW_PRESENT) {
 		ERR_MSG("tw_state != TW_PRESENT (%d)",
-				atomic_read(&tw->ufsf->tw_state));
+			atomic_read(&tw->ufsf->tw_state));
 		ufstw_lu_put(tw);
 		return;
 	}
@@ -398,31 +397,31 @@ static void ufstw_flush_work_fn(struct work_struct *dwork)
 
 	pm_runtime_get_sync(hba->dev);
 	if (ufstw_read_lu_attr(tw, QUERY_ATTR_IDN_TW_BUF_SIZE,
-			&tw->tw_available_buffer_size))
+			       &tw->tw_available_buffer_size))
 		goto error_put;
 
 	mutex_lock(&tw->flush_lock);
 
 	if (tw->tw_flush_during_hibern_enter &&
-			tw->tw_available_buffer_size >= tw->flush_th_max) {
-		TW_DEBUG(tw->ufsf, "flush_disable QR (%d, %d)\n",
+	    tw->tw_available_buffer_size >= tw->flush_th_max) {
+		TW_DEBUG(tw->ufsf, "flush_disable QR (%d, %d)",
 			 tw->lun, tw->tw_available_buffer_size);
 
 		if (ufstw_clear_lu_flag(tw,
-				QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
-				&tw->tw_flush_during_hibern_enter))
+					QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
+					&tw->tw_flush_during_hibern_enter))
 			goto error_unlock;
 		tw->next_q = 0;
 		need_resched = false;
 	} else if (tw->tw_available_buffer_size < tw->flush_th_max) {
 		if (tw->tw_flush_during_hibern_enter) {
 			need_resched = true;
-		} else if (tw->tw_available_buffer_size < tw->flush_th_min) {
-			TW_DEBUG(tw->ufsf, "flush_enable  QR (%d, %d)\n",
+		} else if (tw->tw_available_buffer_size <= tw->flush_th_min) {
+			TW_DEBUG(tw->ufsf, "flush_enable  QR (%d, %d)",
 				 tw->lun, tw->tw_available_buffer_size);
 			if (ufstw_set_lu_flag(tw,
-					QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
-					&tw->tw_flush_during_hibern_enter))
+					      QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
+					      &tw->tw_flush_during_hibern_enter))
 				goto error_unlock;
 			need_resched = true;
 		} else {
@@ -435,8 +434,8 @@ static void ufstw_flush_work_fn(struct work_struct *dwork)
 	pm_runtime_put(hba->dev);
 
 	if (need_resched) {
-		tw->next_q = jiffies + msecs_to_jiffies(
-				UFSTW_FLUSH_CHECK_PERIOD_MS);
+		tw->next_q =
+			jiffies + msecs_to_jiffies(UFSTW_FLUSH_CHECK_PERIOD_MS);
 		if (schedule_delayed_work(&tw->tw_flush_work,
 					  msecs_to_jiffies(UFSTW_FLUSH_CHECK_PERIOD_MS)))
 			pm_runtime_get_noresume(hba->dev);
@@ -450,8 +449,8 @@ error_put:
 	pm_runtime_put(hba->dev);
 
 	if (tw->next_q) {
-		tw->next_q = jiffies + msecs_to_jiffies(
-				UFSTW_FLUSH_CHECK_PERIOD_MS);
+		tw->next_q =
+			jiffies + msecs_to_jiffies(UFSTW_FLUSH_CHECK_PERIOD_MS);
 		if (schedule_delayed_work(&tw->tw_flush_work,
 					  msecs_to_jiffies(UFSTW_FLUSH_CHECK_PERIOD_MS)))
 			pm_runtime_get_noresume(hba->dev);
@@ -514,20 +513,18 @@ static inline void ufstw_init_lu_jobs(struct ufstw_lu *tw)
 static inline void ufstw_cancel_lu_jobs(struct ufstw_lu *tw)
 {
 	int ret;
+
 	ret = cancel_delayed_work_sync(&tw->tw_flush_work);
-	INIT_INFO("cancel_delayed_work_sync(tw_flush_work) ufstw_lu%d = %d",
-		  tw->lun, ret);
 	ret = cancel_work_sync(&tw->tw_lifetime_work);
-	INIT_INFO("cancel_work_sync(tw_lifetime_work) ufstw_lu%d = %d",
-		  tw->lun, ret);
 }
 
 static inline int ufstw_version_check(struct ufstw_dev_info *tw_dev_info)
 {
 	INFO_MSG("tw_dev [55] wTurboWriteVersion Driver = %.4x, Device = %.4x",
 		UFSTW_VER, tw_dev_info->tw_ver);
+
 	if (tw_dev_info->tw_ver != UFSTW_VER) {
-		ERR_MSG("ERROR: TW version mismatch. So TW disabled.");
+		ERR_MSG("ERROR: TW Spec Version mismatch. So TW disabled.");
 		return -ENODEV;
 	}
 	return 0;
@@ -571,7 +568,7 @@ void ufstw_get_geo_info(struct ufstw_dev_info *tw_dev_info, u8 *geo_buf)
 	INFO_MSG("tw_geo [4F:52] dTurboWriteBufferMaxNAllocUnits %u",
 		 LI_EN_32(&geo_buf[GEOMETRY_DESC_TW_MAX_SIZE]));
 	INFO_MSG("tw_geo [53] bDeviceMaxTurboWriteLUs %u",
-		  tw_dev_info->tw_number_lu);
+		 tw_dev_info->tw_number_lu);
 	INFO_MSG("tw_geo [54] bTurboWriteBufferCapAdjFac %u",
 		 geo_buf[GEOMETRY_DESC_TW_CAP_ADJ_FAC]);
 	INFO_MSG("tw_geo [55] bSupportedTurboWriteBufferUserSpaceReductionTypes %u",
@@ -639,21 +636,24 @@ static inline void ufstw_lu_update(struct ufstw_lu *tw)
 		goto error_put;
 
 	if (ufstw_read_lu_flag(tw, QUERY_FLAG_IDN_TW_BUF_FLUSH_EN,
-				&tw->tw_flush_enable))
+			       &tw->tw_flush_enable))
 		goto error_put;
+
 	if (ufstw_read_lu_flag(tw, QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
-				&tw->tw_flush_during_hibern_enter))
+			       &tw->tw_flush_during_hibern_enter))
 		goto error_put;
 
 	/* Attribute */
 	if (ufstw_read_lu_attr(tw, QUERY_ATTR_IDN_TW_FLUSH_STATUS,
-			&tw->tw_flush_status))
+			       &tw->tw_flush_status))
 		goto error_put;
+
 	if (ufstw_read_lu_attr(tw, QUERY_ATTR_IDN_TW_BUF_SIZE,
-			&tw->tw_available_buffer_size))
+			       &tw->tw_available_buffer_size))
 		goto error_put;
+
 	ufstw_read_lu_attr(tw, QUERY_ATTR_IDN_TW_BUF_LIFETIME_EST,
-			   &tw->tw_lifetime_est);
+			       &tw->tw_lifetime_est);
 error_put:
 	ufstw_lu_put(tw);
 }
@@ -757,7 +757,6 @@ void ufstw_init(struct ufsf_feature *ufsf)
 out_free_mem:
 	seq_scan_lu(lun)
 		kfree(ufsf->tw_lup[lun]);
-
 	ufsf->tw_dev_info.tw_device = false;
 	atomic_set(&ufsf->tw_state, TW_NOT_SUPPORTED);
 }
@@ -802,8 +801,8 @@ void ufstw_suspend(struct ufsf_feature *ufsf)
 		tw = ufsf->tw_lup[lun];
 		if (!tw)
 			continue;
+
 		ufstw_lu_get(tw);
-		INFO_MSG("ufstw_lu%d goto suspend", lun);
 		ufstw_cancel_lu_jobs(tw);
 		ufstw_lu_put(tw);
 	}
@@ -818,6 +817,7 @@ void ufstw_resume(struct ufsf_feature *ufsf)
 		tw = ufsf->tw_lup[lun];
 		if (!tw)
 			continue;
+
 		ufstw_lu_get(tw);
 		TW_DEBUG(ufsf, "ufstw_lu %d resume", lun);
 		if (tw->next_q) {
@@ -842,11 +842,12 @@ void ufstw_release(struct kref *kref)
 	ufsf = container_of(kref, struct ufsf_feature, tw_kref);
 	RELEASE_INFO("start release");
 
-	RELEASE_INFO("tw_state : %d -> %d", atomic_read(&ufsf->tw_state), TW_FAILED);
+	RELEASE_INFO("tw_state : %d -> %d", atomic_read(&ufsf->tw_state),
+		     TW_FAILED);
 	atomic_set(&ufsf->tw_state, TW_FAILED);
 
-	RELEASE_INFO("kref count %d", atomic_read(
-				&ufsf->tw_kref.refcount.refs));
+	RELEASE_INFO("kref count %d",
+		     atomic_read(&ufsf->tw_kref.refcount.refs));
 
 	ret = cancel_delayed_work_sync(&ufsf->tw_reset_work);
 	RELEASE_INFO("cancel_delayed_work_sync(tw_reset_work) = %d", ret);
@@ -897,6 +898,7 @@ static void ufstw_reset(struct ufsf_feature *ufsf)
 		TW_DEBUG(ufsf, "reset tw[%d]=%p", lun, tw);
 		if (!tw)
 			continue;
+
 		INFO_MSG("ufstw_lu%d reset", lun);
 
 		ufstw_lu_get(tw);
@@ -915,25 +917,25 @@ static void ufstw_reset(struct ufsf_feature *ufsf)
 		ufstw_cancel_lu_jobs(tw);
 
 		if (atomic_read(&tw->tw_mode) == TW_MODE_MANUAL &&
-				tw->tw_enable) {
+		    tw->tw_enable) {
 			ret = ufstw_set_lu_flag(tw, QUERY_FLAG_IDN_TW_EN,
-					&tw->tw_enable);
+						&tw->tw_enable);
 			if (ret)
 				goto out;
 		}
 
 		if (tw->tw_flush_enable) {
 			ret = ufstw_set_lu_flag(tw,
-					QUERY_FLAG_IDN_TW_BUF_FLUSH_EN,
-					&tw->tw_flush_enable);
+						QUERY_FLAG_IDN_TW_BUF_FLUSH_EN,
+						&tw->tw_flush_enable);
 			if (ret)
 				goto out;
 		}
 
 		if (tw->tw_flush_during_hibern_enter) {
 			ret = ufstw_set_lu_flag(tw,
-					QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
-					&tw->tw_flush_during_hibern_enter);
+						QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
+						&tw->tw_flush_during_hibern_enter);
 			if (ret)
 				goto out;
 		}
@@ -1010,15 +1012,14 @@ static void __active_turbo_write(struct ufstw_lu *tw, int do_work)
 		return;
 
 	blk_add_trace_msg(tw->ufsf->sdev_ufs_lu[tw->lun]->request_queue,
-		"%s:%d do_work %d active_cnt %d",
-		__func__, __LINE__, do_work, atomic_read(&tw->active_cnt));
+			  "%s:%d do_work %d active_cnt %d",
+			  __func__, __LINE__, do_work,
+			  atomic_read(&tw->active_cnt));
 
 	if (do_work == TW_FLAG_ENABLE_SET && !tw->tw_enable)
-		ufstw_set_lu_flag(tw, QUERY_FLAG_IDN_TW_EN,
-				&tw->tw_enable);
+		ufstw_set_lu_flag(tw, QUERY_FLAG_IDN_TW_EN, &tw->tw_enable);
 	else if (do_work == TW_FLAG_ENABLE_CLEAR && tw->tw_enable)
-			ufstw_clear_lu_flag(tw, QUERY_FLAG_IDN_TW_EN,
-					&tw->tw_enable);
+		ufstw_clear_lu_flag(tw, QUERY_FLAG_IDN_TW_EN, &tw->tw_enable);
 }
 
 static void ufstw_active_turbo_write(struct request_queue *q, bool on)
@@ -1050,18 +1051,16 @@ static void ufstw_active_turbo_write(struct request_queue *q, bool on)
 	}
 
 	blk_add_trace_msg(q, "%s:%d on %d active cnt %d do_work %d state %d mode %d",
-			__func__, __LINE__, on,
-			atomic_read(&tw->active_cnt),
-			do_work, atomic_read(&tw->ufsf->tw_state),
-			atomic_read(&tw->tw_mode));
+			  __func__, __LINE__, on, atomic_read(&tw->active_cnt),
+			  do_work, atomic_read(&tw->ufsf->tw_state),
+			  atomic_read(&tw->tw_mode));
 
 	if (!do_work)
 		goto out;
 
-	if (atomic_read(&tw->ufsf->tw_state)
-			!= TW_PRESENT) {
+	if (atomic_read(&tw->ufsf->tw_state) != TW_PRESENT) {
 		WARNING_MSG("tw_state %d.. cannot enable turbo_write..",
-				atomic_read(&tw->ufsf->tw_state));
+			    atomic_read(&tw->ufsf->tw_state));
 		goto out;
 	}
 
@@ -1080,7 +1079,7 @@ void bdev_set_turbo_write(struct block_device *bdev)
 	struct request_queue *q = bdev->bd_queue;
 
 	blk_add_trace_msg(q, "%s:%d turbo_write_dev %d\n",
-			__func__, __LINE__, q->turbo_write_dev);
+			  __func__, __LINE__, q->turbo_write_dev);
 
 	if (q->turbo_write_dev)
 		ufstw_active_turbo_write(bdev->bd_queue, true);
@@ -1091,7 +1090,7 @@ void bdev_clear_turbo_write(struct block_device *bdev)
 	struct request_queue *q = bdev->bd_queue;
 
 	blk_add_trace_msg(q, "%s:%d turbo_write_dev %d\n",
-			__func__, __LINE__, q->turbo_write_dev);
+			  __func__, __LINE__, q->turbo_write_dev);
 
 	if (q->turbo_write_dev)
 		ufstw_active_turbo_write(bdev->bd_queue, false);
@@ -1101,11 +1100,12 @@ void bdev_clear_turbo_write(struct block_device *bdev)
 static ssize_t ufstw_sysfs_show_ee_mode(struct ufstw_lu *tw, char *buf)
 {
 	SYSFS_INFO("TW_ee_mode %d", tw->ufsf->tw_ee_mode);
+
 	return snprintf(buf, PAGE_SIZE, "%d", tw->ufsf->tw_ee_mode);
 }
 
 static ssize_t ufstw_sysfs_store_ee_mode(struct ufstw_lu *tw,
-					   const char *buf, size_t count)
+					 const char *buf, size_t count)
 {
 	unsigned long val;
 
@@ -1114,7 +1114,7 @@ static ssize_t ufstw_sysfs_store_ee_mode(struct ufstw_lu *tw,
 
 	if (atomic_read(&tw->ufsf->tw_state) != TW_PRESENT) {
 		SYSFS_INFO("ee_mode cannot change, because current state is not TW_PRESENT (%d)..",
-			atomic_read(&tw->ufsf->tw_state));
+			   atomic_read(&tw->ufsf->tw_state));
 		return -EINVAL;
 	}
 
@@ -1133,29 +1133,29 @@ static ssize_t ufstw_sysfs_store_ee_mode(struct ufstw_lu *tw,
 	return count;
 }
 
-static ssize_t ufstw_sysfs_show_flush_during_hibern_enter(
-		struct ufstw_lu *tw, char *buf)
+static ssize_t ufstw_sysfs_show_flush_during_hibern_enter(struct ufstw_lu *tw,
+							  char *buf)
 {
 	int ret;
 
 	mutex_lock(&tw->flush_lock);
-	if (ufstw_read_lu_flag(tw,
-				QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
-				&tw->tw_flush_during_hibern_enter)) {
+	if (ufstw_read_lu_flag(tw, QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
+			       &tw->tw_flush_during_hibern_enter)) {
 		mutex_unlock(&tw->flush_lock);
 		return -EINVAL;
 	}
 
 	SYSFS_INFO("TW_flush_during_hibern_enter %d",
-			tw->tw_flush_during_hibern_enter);
+		   tw->tw_flush_during_hibern_enter);
 	ret = snprintf(buf, PAGE_SIZE, "%d", tw->tw_flush_during_hibern_enter);
 
 	mutex_unlock(&tw->flush_lock);
 	return ret;
 }
 
-static ssize_t ufstw_sysfs_store_flush_during_hibern_enter(
-		struct ufstw_lu *tw, const char *buf, size_t count)
+static ssize_t ufstw_sysfs_store_flush_during_hibern_enter(struct ufstw_lu *tw,
+							   const char *buf,
+							   size_t count)
 {
 	unsigned long val;
 
@@ -1164,7 +1164,7 @@ static ssize_t ufstw_sysfs_store_flush_during_hibern_enter(
 
 	if (atomic_read(&tw->ufsf->tw_state) != TW_PRESENT) {
 		SYSFS_INFO("tw_mode cannot change, because current state is not TW_PRESENT (%d)..",
-			atomic_read(&tw->ufsf->tw_state));
+			   atomic_read(&tw->ufsf->tw_state));
 		return -EINVAL;
 	}
 
@@ -1177,24 +1177,24 @@ static ssize_t ufstw_sysfs_store_flush_during_hibern_enter(
 
 	if (val) {
 		if (ufstw_set_lu_flag(tw,
-				QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
-				&tw->tw_flush_during_hibern_enter)) {
+				      QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
+				      &tw->tw_flush_during_hibern_enter)) {
 			mutex_unlock(&tw->flush_lock);
 			return -EINVAL;
 		}
 	} else {
 		if (ufstw_clear_lu_flag(tw,
-				QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
-				&tw->tw_flush_during_hibern_enter)) {
+					QUERY_FLAG_IDN_TW_FLUSH_DURING_HIBERN,
+					&tw->tw_flush_during_hibern_enter)) {
 			mutex_unlock(&tw->flush_lock);
 			return -EINVAL;
 		}
 	}
 
 	SYSFS_INFO("TW_flush_during_hibern_enter %d",
-			tw->tw_flush_during_hibern_enter);
-
+		   tw->tw_flush_during_hibern_enter);
 	mutex_unlock(&tw->flush_lock);
+
 	return count;
 }
 
@@ -1203,16 +1203,18 @@ static ssize_t ufstw_sysfs_show_flush_enable(struct ufstw_lu *tw, char *buf)
 	int ret;
 
 	if (ufstw_read_lu_flag(tw, QUERY_FLAG_IDN_TW_BUF_FLUSH_EN,
-				&tw->tw_flush_enable))
+			       &tw->tw_flush_enable))
 		return -EINVAL;
 
 	SYSFS_INFO("TW_flush_enable %d", tw->tw_flush_enable);
+
 	ret = snprintf(buf, PAGE_SIZE, "%d", tw->tw_flush_enable);
+
 	return ret;
 }
 
 static ssize_t ufstw_sysfs_store_flush_enable(struct ufstw_lu *tw,
-					   const char *buf, size_t count)
+					      const char *buf, size_t count)
 {
 	unsigned long val;
 
@@ -1221,7 +1223,7 @@ static ssize_t ufstw_sysfs_store_flush_enable(struct ufstw_lu *tw,
 
 	if (atomic_read(&tw->ufsf->tw_state) != TW_PRESENT) {
 		SYSFS_INFO("tw_mode cannot change, because current tw-state is not TW_PRESENT..(state:%d)..",
-			atomic_read(&tw->ufsf->tw_state));
+			   atomic_read(&tw->ufsf->tw_state));
 		return -EINVAL;
 	}
 
@@ -1232,28 +1234,28 @@ static ssize_t ufstw_sysfs_store_flush_enable(struct ufstw_lu *tw,
 
 	if (val) {
 		if (ufstw_set_lu_flag(tw, QUERY_FLAG_IDN_TW_BUF_FLUSH_EN,
-				      &tw->tw_flush_enable)) {
+				      &tw->tw_flush_enable))
 			return -EINVAL;
-		}
 	} else {
 		if (ufstw_clear_lu_flag(tw, QUERY_FLAG_IDN_TW_BUF_FLUSH_EN,
-					&tw->tw_flush_enable)) {
+					&tw->tw_flush_enable))
 			return -EINVAL;
-		}
 	}
 
 	SYSFS_INFO("TW_flush_enable %d", tw->tw_flush_enable);
+
 	return count;
 }
 
 static ssize_t ufstw_sysfs_show_debug(struct ufstw_lu *tw, char *buf)
 {
 	SYSFS_INFO("debug %d", tw->ufsf->tw_debug);
+
 	return snprintf(buf, PAGE_SIZE, "%d", tw->ufsf->tw_debug);
 }
 
-static ssize_t ufstw_sysfs_store_debug(struct ufstw_lu *tw,
-				       const char *buf, size_t count)
+static ssize_t ufstw_sysfs_store_debug(struct ufstw_lu *tw, const char *buf,
+				       size_t count)
 {
 	unsigned long val;
 
@@ -1273,11 +1275,12 @@ static ssize_t ufstw_sysfs_store_debug(struct ufstw_lu *tw,
 static ssize_t ufstw_sysfs_show_flush_th_min(struct ufstw_lu *tw, char *buf)
 {
 	SYSFS_INFO("flush_th_min%d", tw->flush_th_min);
+
 	return snprintf(buf, PAGE_SIZE, "%d", tw->flush_th_min);
 }
 
 static ssize_t ufstw_sysfs_store_flush_th_min(struct ufstw_lu *tw,
-					       const char *buf, size_t count)
+					      const char *buf, size_t count)
 {
 	unsigned long val;
 
@@ -1285,30 +1288,32 @@ static ssize_t ufstw_sysfs_store_flush_th_min(struct ufstw_lu *tw,
 		return -EINVAL;
 
 	if (val < 0 || val > 10) {
-		SYSFS_INFO("input value is wrong.. your input %lu\n", val);
+		SYSFS_INFO("input value is wrong.. your input %lu", val);
 		return -EINVAL;
 	}
 
 	if (tw->flush_th_max <= val) {
-		SYSFS_INFO("input value could not be greater than flush_th_max..\n");
-		SYSFS_INFO("your input %lu, flush_th_max %u\n",
-			val, tw->flush_th_max);
+		SYSFS_INFO("input value could not be greater than flush_th_max..");
+		SYSFS_INFO("your input %lu, flush_th_max %u",
+			   val, tw->flush_th_max);
 		return -EINVAL;
 	}
 
 	tw->flush_th_min = val;
 	SYSFS_INFO("flush_th_min %u", tw->flush_th_min);
+
 	return count;
 }
 
 static ssize_t ufstw_sysfs_show_flush_th_max(struct ufstw_lu *tw, char *buf)
 {
 	SYSFS_INFO("flush_th_max %d", tw->flush_th_max);
+
 	return snprintf(buf, PAGE_SIZE, "%d", tw->flush_th_max);
 }
 
 static ssize_t ufstw_sysfs_store_flush_th_max(struct ufstw_lu *tw,
-					       const char *buf, size_t count)
+					      const char *buf, size_t count)
 {
 	unsigned long val;
 
@@ -1323,7 +1328,7 @@ static ssize_t ufstw_sysfs_store_flush_th_max(struct ufstw_lu *tw,
 	if (tw->flush_th_min >= val) {
 		SYSFS_INFO("input value could not be less than flush_th_min..");
 		SYSFS_INFO("your input %lu, flush_th_min %u",
-			val, tw->flush_th_min);
+			   val, tw->flush_th_min);
 		return -EINVAL;
 	}
 
@@ -1336,21 +1341,20 @@ static ssize_t ufstw_sysfs_store_flush_th_max(struct ufstw_lu *tw,
 static ssize_t ufstw_sysfs_show_version(struct ufstw_lu *tw, char *buf)
 {
 	SYSFS_INFO("TW version %.4X D/D version %.4X",
-		       tw->ufsf->tw_dev_info.tw_ver, UFSTW_DD_VER);
+		   tw->ufsf->tw_dev_info.tw_ver, UFSTW_DD_VER);
 
 	return snprintf(buf, PAGE_SIZE, "TW version %.4X DD version %.4X",
-		       tw->ufsf->tw_dev_info.tw_ver, UFSTW_DD_VER);
+			tw->ufsf->tw_dev_info.tw_ver, UFSTW_DD_VER);
 }
 
 static ssize_t ufstw_sysfs_show_debug_active_cnt(struct ufstw_lu *tw, char *buf)
 {
 	SYSFS_INFO("debug active cnt %d",
-			atomic_read(&tw->active_cnt));
+		   atomic_read(&tw->active_cnt));
 
 	return snprintf(buf, PAGE_SIZE, "active_cnt %d",
 			atomic_read(&tw->active_cnt));
 }
-
 
 /* SYSFS DEFINE */
 #define define_sysfs_ro(_name) __ATTR(_name, 0444,\
@@ -1383,7 +1387,7 @@ static ssize_t ufstw_sysfs_show_tw_enable(struct ufstw_lu *tw, char *buf)
 }
 
 static ssize_t ufstw_sysfs_store_tw_enable(struct ufstw_lu *tw, const char *buf,
-					 size_t count)
+					   size_t count)
 {
 	unsigned long val;
 	ssize_t ret = count;
@@ -1405,16 +1409,16 @@ static ssize_t ufstw_sysfs_store_tw_enable(struct ufstw_lu *tw, const char *buf,
 
 	if (atomic_read(&tw->tw_mode) != TW_MODE_MANUAL) {
 		SYSFS_INFO("cannot set tw_enable.. current %s (%d) mode..",
-				atomic_read(&tw->tw_mode) == TW_MODE_FS ?
-				"TW_MODE_FS" : "UNKNOWN",
-				atomic_read(&tw->tw_mode));
+			   atomic_read(&tw->tw_mode) == TW_MODE_FS ?
+			   "TW_MODE_FS" : "UNKNOWN",
+			   atomic_read(&tw->tw_mode));
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (val) {
 		if (ufstw_set_lu_flag(tw, QUERY_FLAG_IDN_TW_EN,
-					&tw->tw_enable)) {
+				      &tw->tw_enable)) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1436,8 +1440,8 @@ static ssize_t ufstw_sysfs_show_tw_mode(struct ufstw_lu *tw, char *buf)
 	int tw_mode = atomic_read(&tw->tw_mode);
 
 	SYSFS_INFO("TW_mode %s %d",
-			tw_mode == TW_MODE_MANUAL ? "manual" :
-			tw_mode == TW_MODE_FS ? "fs" : "unknown", tw_mode);
+		   tw_mode == TW_MODE_MANUAL ? "manual" :
+		   tw_mode == TW_MODE_FS ? "fs" : "unknown", tw_mode);
 	return snprintf(buf, PAGE_SIZE, "%d", tw_mode);
 }
 
@@ -1451,12 +1455,12 @@ static ssize_t ufstw_sysfs_store_tw_mode(struct ufstw_lu *tw, const char *buf,
 
 	if (atomic_read(&tw->ufsf->tw_state) != TW_PRESENT) {
 		SYSFS_INFO("tw_mode cannot change, because current state is not TW_PRESENT (%d)..",
-			atomic_read(&tw->ufsf->tw_state));
+			   atomic_read(&tw->ufsf->tw_state));
 		return -EINVAL;
 	}
 
 	if (tw_mode >= TW_MODE_NUM ||
-			tw_mode == TW_MODE_DISABLED) {
+	    tw_mode == TW_MODE_DISABLED) {
 		SYSFS_INFO("wrong mode number.. your input %d", tw_mode);
 		return -EINVAL;
 	}
