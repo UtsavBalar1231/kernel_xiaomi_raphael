@@ -392,6 +392,34 @@ int drm_get_panel_info(struct drm_bridge *bridge, char *buf)
 }
 EXPORT_SYMBOL(drm_get_panel_info);
 
+void drm_bridge_disp_count_set(struct drm_bridge *bridge, const char *buf)
+{
+	if (!bridge)
+		return;
+
+	drm_bridge_disp_count_set(bridge->next, buf);
+
+	if (bridge->funcs->disp_count_set)
+		bridge->funcs->disp_count_set(bridge, buf);
+}
+EXPORT_SYMBOL(drm_bridge_disp_count_set);
+
+ssize_t drm_bridge_disp_count_get(struct drm_bridge *bridge, char *buf)
+{
+	ssize_t ret = 0;
+
+	if (!bridge)
+		return 0;
+
+	ret = drm_bridge_disp_count_get(bridge->next, buf);
+
+	if (bridge->funcs->disp_count_get)
+		ret = bridge->funcs->disp_count_get(bridge, buf);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_bridge_disp_count_get);
+
 /**
  * drm_bridge_enable - enables all bridges in the encoder chain
  * @bridge: bridge control structure
