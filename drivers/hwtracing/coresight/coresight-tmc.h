@@ -1,5 +1,5 @@
 /*
- * Copyright(C) 2015 Linaro Limited. All rights reserved.
+ * Copyright(C) 2015, 2020 Linaro Limited. All rights reserved.
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -207,6 +207,7 @@ struct tmc_etr_bam_data {
 	struct sps_mem_buffer	desc_fifo;
 	struct sps_mem_buffer	data_fifo;
 	bool			enable;
+	enum usb_pipe_mem_type	mem_type;
 };
 
 /**
