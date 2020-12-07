@@ -4836,6 +4836,12 @@ void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool is_error)
 				nsecs_to_jiffies(ktime_to_ns(wakeup_time)));
 	}
 
+	if (drm_enc->bridge && drm_enc->bridge->is_dsi_drm_bridge) {
+		struct dsi_bridge *c_bridge = container_of((drm_enc->bridge), struct dsi_bridge, base);
+		if (c_bridge && c_bridge->display && c_bridge->display->panel)
+			c_bridge->display->panel->kickoff_count++;
+	}
+
 	SDE_ATRACE_END("encoder_kickoff");
 }
 
@@ -5331,6 +5337,7 @@ static int sde_encoder_setup_display(struct sde_encoder_virt *sde_enc,
 	} else if (disp_info->intf_type == DRM_MODE_CONNECTOR_VIRTUAL) {
 		*drm_enc_mode = DRM_MODE_ENCODER_VIRTUAL;
 		intf_type = INTF_WB;
+		phys_params.parent_ops.handle_vblank_virt = NULL;
 	} else {
 		SDE_ERROR_ENC(sde_enc, "unsupported display interface type\n");
 		return -EINVAL;

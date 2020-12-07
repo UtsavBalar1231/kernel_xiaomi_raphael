@@ -254,6 +254,20 @@ struct dsi_panel {
 	struct dsi_panel_cmd_set elvss_dimming_offset;
 	struct dsi_panel_cmd_set hbm_fod_on;
 	struct dsi_panel_cmd_set hbm_fod_off;
+
+	/* Display count */
+	bool panel_active_count_enable;
+	u64 boottime;
+	u64 bootRTCtime;
+	u64 bootdays;
+	u64 panel_active;
+	u64 kickoff_count;
+	u64 bl_duration;
+	u64 bl_level_integral;
+	u64 bl_highlevel_duration;
+	u64 bl_lowlevel_duration;
+	u64 hbm_duration;
+	u64 hbm_times;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)

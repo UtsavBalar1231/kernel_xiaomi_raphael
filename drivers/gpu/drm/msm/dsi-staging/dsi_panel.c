@@ -59,6 +59,21 @@
 #define DEFAULT_PANEL_PREFILL_LINES	25
 #define TICKS_IN_MICRO_SECOND		1000000
 
+#define HWCONPONENT_NAME "display"
+#define HWCONPONENT_KEY_LCD "LCD"
+#define HWMON_CONPONENT_NAME "display"
+#define HWMON_KEY_ACTIVE "panel_active"
+#define HWMON_KEY_REFRESH "panel_refresh"
+#define HWMON_KEY_BOOTTIME "kernel_boottime"
+#define HWMON_KEY_DAYS "kernel_days"
+#define HWMON_KEY_BL_AVG "bl_level_avg"
+#define HWMON_KEY_BL_HIGH "bl_level_high"
+#define HWMON_KEY_BL_LOW "bl_level_low"
+#define HWMON_KEY_HBM_DRUATION "hbm_duration"
+#define HWMON_KEY_HBM_TIMES "hbm_times"
+
+#define DAY_SECS (60*60*24)
+
 static struct dsi_panel *g_panel;
 
 int dsi_display_read_panel(struct dsi_panel *panel, struct dsi_read_config *read_config);
@@ -3719,6 +3734,16 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 	panel->in_aod = false;
 	panel->dc_enable = false;
 
+	panel->panel_active_count_enable = false;
+	panel->panel_active = 0;
+	panel->kickoff_count = 0;
+	panel->bl_duration = 0;
+	panel->bl_level_integral = 0;
+	panel->bl_highlevel_duration = 0;
+	panel->bl_lowlevel_duration = 0;
+	panel->hbm_duration = 0;
+	panel->hbm_times = 0;
+
 	rc = dsi_panel_parse_host_config(panel);
 	if (rc) {
 		pr_err("failed to parse host configuration, rc=%d\n", rc);
@@ -5580,4 +5605,55 @@ int dsi_panel_post_unprepare(struct dsi_panel *panel)
 error:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
+}
+
+ssize_t dsi_panel_disp_count_get(struct dsi_display *display, char *buf)
+{
+	int ret = -1;
+	struct timespec64 now_boot;
+	u64 record_end = 0;
+	/* struct timespec rtctime; */
+	struct dsi_panel *panel = NULL;
+
+	if (!display || !display->panel || !display->drm_dev) {
+		pr_err("invalid display/panel/drm_dev\n");
+		return -EINVAL;
+	}
+
+	if (buf == NULL) {
+		pr_err("dsi_panel_disp_count_get buffer is NULL!\n");
+		return -EINVAL;
+	}
+
+	panel = display->panel;
+	get_monotonic_boottime64(&now_boot);
+	/* getnstimeofday(&rtctime); */
+
+	ret = scnprintf(buf, PAGE_SIZE,
+		"panel_active=%llu\n"
+		"panel_kickoff_count=%llu\n"
+		"kernel_boottime=%llu\n"
+		"kernel_rtctime=%llu\n"
+		"kernel_days=%llu\n"
+		"bl_duration=%llu\n"
+		"bl_level_integral=%llu\n"
+		"bl_highlevel_duration=%llu\n"
+		"bl_lowlevel_duration=%llu\n"
+		"hbm_duration=%llu\n"
+		"hbm_times=%llu\n"
+		"record_end=%llu\n",
+		panel->panel_active,
+		panel->kickoff_count,
+		panel->boottime + now_boot.tv_sec,
+		panel->bootRTCtime,
+		panel->bootdays,
+		panel->bl_duration,
+		panel->bl_level_integral,
+		panel->bl_highlevel_duration,
+		panel->bl_lowlevel_duration,
+		panel->hbm_duration,
+		panel->hbm_times,
+		record_end);
+
+	return ret;
 }

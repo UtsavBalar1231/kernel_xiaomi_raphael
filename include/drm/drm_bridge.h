@@ -246,6 +246,9 @@ struct drm_bridge_funcs {
 	 */
 	void (*disp_param_set)(struct drm_bridge *bridge, int cmd);
 	int (*disp_get_panel_info)(struct drm_bridge *bridge, char *name);
+
+	void (*disp_count_set)(struct drm_bridge *bridge, const char *buf);
+	ssize_t (*disp_count_get)(struct drm_bridge *bridge, char *buf);
 };
 
 /**
