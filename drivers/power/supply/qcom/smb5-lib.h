@@ -70,6 +70,7 @@ enum print_reason {
 #define LPD_VOTER			"LPD_VOTER"
 #define FCC_STEPPER_VOTER		"FCC_STEPPER_VOTER"
 #define SW_THERM_REGULATION_VOTER	"SW_THERM_REGULATION_VOTER"
+#define LIQUID_DETECTION_VOTER		"LIQUID_DETECTION_VOTER"
 #define JEITA_ARB_VOTER			"JEITA_ARB_VOTER"
 #define MOISTURE_VOTER			"MOISTURE_VOTER"
 #define HVDCP2_ICL_VOTER		"HVDCP2_ICL_VOTER"
@@ -410,6 +411,7 @@ struct smb_charger {
 	int			otg_delay_ms;
 	int			*weak_chg_icl_ua;
 	bool			pd_not_supported;
+	bool			support_liquid;
 
 	/* locks */
 	struct mutex		smb_lock;
@@ -474,6 +476,7 @@ struct smb_charger {
 	struct work_struct	moisture_protection_work;
 	struct work_struct	chg_termination_work;
 	struct work_struct	dcin_aicl_work;
+	struct work_struct	lpd_disable_chg_work;
 	struct delayed_work	ps_change_timeout_work;
 	struct delayed_work	clear_hdc_work;
 	struct delayed_work	icl_change_work;
@@ -522,6 +525,7 @@ struct smb_charger {
 	int			boost_threshold_ua;
 	int			system_temp_level;
 	int			thermal_levels;
+	int			lpd_levels;
 #ifdef CONFIG_THERMAL
 	int 		*thermal_mitigation_dcp;
 	int 		*thermal_mitigation_qc2;
@@ -546,6 +550,7 @@ struct smb_charger {
 	bool			step_chg_enabled;
 	bool			sw_jeita_enabled;
 	bool			typec_legacy_use_rp_icl;
+	bool			lpd_enabled;
 	bool			is_hdc;
 	bool			chg_done;
 	int			connector_type;
@@ -576,6 +581,7 @@ struct smb_charger {
 	enum lpd_stage		lpd_stage;
 	bool			lpd_disabled;
 	enum lpd_reason		lpd_reason;
+	bool			lpd_status;
 	bool			fcc_stepper_enable;
 	int			die_temp;
 	int			smb_temp;
@@ -869,7 +875,10 @@ int smblib_set_prop_type_recheck(struct smb_charger *chg,
 int smblib_get_prop_type_recheck(struct smb_charger *chg,
 				 union power_supply_propval *val);
 int smblib_get_quick_charge_type(struct smb_charger *chg);
+int smblib_get_prop_liquid_status(struct smb_charger *chg,
+					union power_supply_propval *val);
 
+bool smblib_support_liquid_feature(struct smb_charger *chg);
 int smblib_toggle_smb_en(struct smb_charger *chg, int toggle);
 void smblib_hvdcp_detect_enable(struct smb_charger *chg, bool enable);
 void smblib_hvdcp_exit_config(struct smb_charger *chg);
