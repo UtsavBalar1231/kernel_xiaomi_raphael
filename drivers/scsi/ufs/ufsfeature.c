@@ -47,13 +47,11 @@
 #define QUERY_REQ_TIMEOUT				1500 /* msec */
 
 static inline void ufsf_init_query(struct ufs_hba *hba,
-		struct ufs_query_req **request, struct ufs_query_res **response,
-		enum query_opcode opcode, u8 idn, u8 index, u8 selector)
+				   struct ufs_query_req **request,
+				   struct ufs_query_res **response,
+				   enum query_opcode opcode, u8 idn,
+				   u8 index, u8 selector)
 {
-	int idn_t = (int)idn;
-
-	idn = idn_t;
-
 	*request = &hba->dev_cmd.query.request;
 	*response = &hba->dev_cmd.query.response;
 	memset(*request, 0, sizeof(struct ufs_query_req));
@@ -63,6 +61,7 @@ static inline void ufsf_init_query(struct ufs_hba *hba,
 	(*request)->upiu_req.index = index;
 	(*request)->upiu_req.selector = selector;
 }
+
 /*
  * ufs feature common functions.
  */
@@ -71,7 +70,7 @@ int ufsf_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 {
 	struct ufs_query_req *request = NULL;
 	struct ufs_query_res *response = NULL;
-	int err, selector = UFSFEATURE_SELECTOR;
+	int err;
 
 	BUG_ON(!hba);
 
@@ -82,7 +81,8 @@ int ufsf_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 	 * Init the query response and request parameters
 	 */
 	ufsf_init_query(hba, &request, &response, opcode, idn, index,
-			selector);
+			UFSFEATURE_SELECTOR);
+
 	switch (opcode) {
 	case UPIU_QUERY_OPCODE_SET_FLAG:
 	case UPIU_QUERY_OPCODE_CLEAR_FLAG:
@@ -108,15 +108,13 @@ int ufsf_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 	}
 
 	/* Send query request */
-	err = ufshcd_exec_dev_cmd(hba, DEV_CMD_TYPE_QUERY,
-				  QUERY_REQ_TIMEOUT);
+	err = ufshcd_exec_dev_cmd(hba, DEV_CMD_TYPE_QUERY, QUERY_REQ_TIMEOUT);
 	if (err) {
 		dev_err(hba->dev,
 			"%s: Sending flag query for idn %d failed, err = %d\n",
 			__func__, idn, err);
 		goto out_unlock;
 	}
-	/* Send query request */
 
 	if (flag_res)
 		*flag_res = (be32_to_cpu(response->upiu_res.value) &
@@ -129,7 +127,7 @@ out_unlock:
 }
 
 int ufsf_query_flag_retry(struct ufs_hba *hba, enum query_opcode opcode,
-		    enum flag_idn idn, u8 idx, bool *flag_res)
+			  enum flag_idn idn, u8 idx, bool *flag_res)
 {
 	int ret;
 	int retries;
@@ -181,9 +179,9 @@ static int ufsf_read_desc(struct ufs_hba *hba, u8 desc_id, u8 desc_index,
 	pm_runtime_get_sync(hba->dev);
 
 	err = ufshcd_query_descriptor_retry(hba, UPIU_QUERY_OPCODE_READ_DESC,
-			desc_id, desc_index,
-			selector,
-			desc_buf, &size);
+					    desc_id, desc_index,
+					    selector,
+					    desc_buf, &size);
 	if (err)
 		ERR_MSG("reading Device Desc failed. err = %d", err);
 
@@ -206,12 +204,13 @@ static int ufsf_read_dev_desc(struct ufsf_feature *ufsf, u8 selector)
 	INIT_INFO("device lu count %d", ufsf->num_lu);
 
 	INIT_INFO("sel=%u length=%u(0x%x) bSupport=0x%.2x, extend=0x%.2x_%.2x",
-		  selector,
+		  selector, desc_buf[DEVICE_DESC_PARAM_LEN],
 		  desc_buf[DEVICE_DESC_PARAM_LEN],
 		  desc_buf[DEVICE_DESC_PARAM_LEN],
 		  desc_buf[DEVICE_DESC_PARAM_FEAT_SUP],
 		  desc_buf[DEVICE_DESC_PARAM_EX_FEAT_SUP+2],
 		  desc_buf[DEVICE_DESC_PARAM_EX_FEAT_SUP+3]);
+
 #if defined(CONFIG_UFSHPB)
 	ufshpb_get_dev_info(&ufsf->hpb_dev_info, desc_buf);
 #endif
@@ -333,19 +332,19 @@ static void ufsf_print_query_buf(unsigned char *field, int size)
 	int count = 0;
 	int i;
 
-	count += sprintf(buf, "(0x00):");
+	count += snprintf(buf, 8, "(0x00):");
 
 	for (i = 0; i < size; i++) {
-		count += sprintf(buf + count, " %.2X", field[i]);
+		count += snprintf(buf + count, 4, " %.2X", field[i]);
 
 		if ((i + 1) % 16 == 0) {
 			buf[count] = '\n';
 			buf[count + 1] = '\0';
 			printk(buf);
 			count = 0;
-			count += sprintf(buf, "(0x%.2X):", i + 1);
+			count += snprintf(buf, 8, "(0x%.2X):", i + 1);
 		} else if ((i + 1) % 4 == 0)
-			count += sprintf(buf + count, " :");
+			count += snprintf(buf + count, 3, " :");
 	}
 	buf[count] = '\n';
 	buf[count + 1] = '\0';
@@ -439,8 +438,9 @@ int ufsf_query_ioctl(struct ufsf_feature *ufsf, int lun, void __user *buffer,
 
 	length = ioctl_data->buf_size;
 
-	err = ufshcd_query_descriptor_retry(ufsf->hba, opcode, ioctl_data->idn, index,
-				      selector, kernel_buf, &length);
+	err = ufshcd_query_descriptor_retry(ufsf->hba, opcode, ioctl_data->idn,
+					    index, selector, kernel_buf,
+					    &length);
 	if (err)
 		goto out_release_mem;
 
@@ -472,7 +472,7 @@ inline bool ufsf_is_valid_lun(int lun)
 inline int ufsf_get_ee_status(struct ufs_hba *hba, u32 *status)
 {
 	return ufsf_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
-			QUERY_ATTR_IDN_EE_STATUS, 0, status);
+				     QUERY_ATTR_IDN_EE_STATUS, 0, status);
 }
 
 /*
@@ -550,9 +550,8 @@ inline void ufsf_hpb_init(struct ufsf_feature *ufsf)
 inline void ufsf_hpb_reset(struct ufsf_feature *ufsf)
 {
 	if (ufsf->hpb_dev_info.hpb_device &&
-	    ufsf->ufshpb_state == HPB_RESET) {
+	    ufsf->ufshpb_state == HPB_RESET)
 		schedule_work(&ufsf->ufshpb_reset_work);
-	}
 }
 
 inline void ufsf_hpb_suspend(struct ufsf_feature *ufsf)
@@ -589,54 +588,21 @@ inline int ufsf_hpb_prepare_add_lrbp(struct ufsf_feature *ufsf, int add_tag)
 }
 
 inline void ufsf_hpb_end_pre_req(struct ufsf_feature *ufsf,
-				 struct request *req)
-{
-}
+				 struct request *req) {}
 inline void ufsf_hpb_change_lun(struct ufsf_feature *ufsf,
-				struct ufshcd_lrb *lrbp)
-{
-}
-
+				struct ufshcd_lrb *lrbp) {}
 inline void ufsf_hpb_prep_fn(struct ufsf_feature *ufsf,
-			     struct ufshcd_lrb *lrbp)
-{
-}
-
-inline void ufsf_hpb_noti_rb(struct ufsf_feature *ufsf, struct ufshcd_lrb *lrbp)
-{
-}
-
-inline void ufsf_hpb_reset_lu(struct ufsf_feature *ufsf)
-{
-}
-
-inline void ufsf_hpb_reset_host(struct ufsf_feature *ufsf)
-{
-}
-
-inline void ufsf_hpb_init(struct ufsf_feature *ufsf)
-{
-}
-
-inline void ufsf_hpb_reset(struct ufsf_feature *ufsf)
-{
-}
-
-inline void ufsf_hpb_suspend(struct ufsf_feature *ufsf)
-{
-}
-
-inline void ufsf_hpb_resume(struct ufsf_feature *ufsf)
-{
-}
-
-inline void ufsf_hpb_release(struct ufsf_feature *ufsf)
-{
-}
-
-inline void ufsf_hpb_set_init_state(struct ufsf_feature *ufsf)
-{
-}
+			     struct ufshcd_lrb *lrbp) {}
+inline void ufsf_hpb_noti_rb(struct ufsf_feature *ufsf,
+			     struct ufshcd_lrb *lrbp) {}
+inline void ufsf_hpb_reset_lu(struct ufsf_feature *ufsf) {}
+inline void ufsf_hpb_reset_host(struct ufsf_feature *ufsf) {}
+inline void ufsf_hpb_init(struct ufsf_feature *ufsf) {}
+inline void ufsf_hpb_reset(struct ufsf_feature *ufsf) {}
+inline void ufsf_hpb_suspend(struct ufsf_feature *ufsf) {}
+inline void ufsf_hpb_resume(struct ufsf_feature *ufsf) {}
+inline void ufsf_hpb_release(struct ufsf_feature *ufsf) {}
+inline void ufsf_hpb_set_init_state(struct ufsf_feature *ufsf) {}
 #endif
 
 /*
@@ -663,12 +629,11 @@ inline void ufsf_tw_init(struct ufsf_feature *ufsf)
 inline void ufsf_tw_reset(struct ufsf_feature *ufsf)
 {
 	if (ufsf->tw_dev_info.tw_device &&
-	    atomic_read(&ufsf->tw_state) == TW_RESET) {
-		INIT_INFO("reset start.. tw_state %d\n",
-			  atomic_read(&ufsf->tw_state));
-
+		atomic_read(&ufsf->tw_state) == TW_RESET) {
+		INIT_INFO("reset start.. tw_state %d",
+		atomic_read(&ufsf->tw_state));
 		schedule_delayed_work(&ufsf->tw_reset_work,
-				      msecs_to_jiffies(0));
+		msecs_to_jiffies(0));
 	}
 }
 
@@ -697,17 +662,17 @@ inline void ufsf_tw_set_init_state(struct ufsf_feature *ufsf)
 inline void ufsf_tw_reset_lu(struct ufsf_feature *ufsf)
 {
 	INFO_MSG("run reset_lu.. tw_state(%d) -> TW_RESET \n",
-			atomic_read(&ufsf->tw_state));
+		 atomic_read(&ufsf->tw_state));
 	atomic_set(&ufsf->tw_state, TW_RESET);
 	schedule_delayed_work(&ufsf->tw_reset_work, msecs_to_jiffies(0));
 }
 
 inline void ufsf_tw_reset_host(struct ufsf_feature *ufsf)
 {
-	INFO_MSG("run reset_host.. tw_state(%d) -> TW_RESET\n",
-			atomic_read(&ufsf->tw_state));
+	INFO_MSG("run reset_host.. tw_state(%d) -> TW_RESET \n",
+		 atomic_read(&ufsf->tw_state));
 	if (atomic_read(&ufsf->tw_state) == TW_PRESENT)
-		 atomic_set(&ufsf->tw_state, TW_RESET);
+		atomic_set(&ufsf->tw_state, TW_RESET);
 }
 
 inline void ufsf_tw_ee_handler(struct ufsf_feature *ufsf)
@@ -735,7 +700,7 @@ inline void ufsf_tw_ee_handler(struct ufsf_feature *ufsf)
 }
 #else
 inline void ufsf_tw_prep_fn(struct ufsf_feature *ufsf,
-		struct ufshcd_lrb *lrbp) {}
+			    struct ufshcd_lrb *lrbp) {}
 inline void ufsf_tw_init(struct ufsf_feature *ufsf) {}
 inline void ufsf_tw_reset(struct ufsf_feature *ufsf) {}
 inline void ufsf_tw_suspend(struct ufsf_feature *ufsf) {}

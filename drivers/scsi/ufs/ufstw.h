@@ -47,7 +47,7 @@
 #include "../../../block/blk.h"
 
 #define UFSTW_VER					0x0101
-#define UFSTW_DD_VER					0x0105
+#define UFSTW_DD_VER					0x0110
 
 #define UFSTW_FLUSH_CHECK_PERIOD_MS			1000
 #define UFSTW_FLUSH_WORKER_TH_MIN			3
