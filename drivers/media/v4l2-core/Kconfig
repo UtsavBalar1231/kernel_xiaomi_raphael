@@ -118,3 +118,10 @@ config V4L2_LOOPBACK
 	Enable v4l2loopback support, it allows to create
 	"virtual video devices". Normal (v4l2) applications will
 	read these devices as if they were ordinary video devices.
+
+config V4L2_LOOPBACK_V2
+	tristate "v4l2loopback_v2 driver"
+	---help---
+	Enable v4l2loopback support, it allows to create
+	"virtual video devices". Normal (v4l2) applications will
+	read these devices as if they were ordinary video devices.
