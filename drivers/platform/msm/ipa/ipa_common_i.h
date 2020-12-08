@@ -21,6 +21,7 @@
 #include <linux/ipa_uc_offload.h>
 #include <linux/ipa_wdi3.h>
 #include <linux/ipa_wigig.h>
+#include <linux/ipa_eth.h>
 #include <linux/ratelimit.h>
 
 #define WARNON_RATELIMIT_BURST 1
@@ -156,6 +157,9 @@ do {\
 
 #define IPA_GSI_CHANNEL_STOP_SLEEP_MIN_USEC (1000)
 #define IPA_GSI_CHANNEL_STOP_SLEEP_MAX_USEC (2000)
+
+/* Aggregation timeout values for Tethered pipes. */
+#define IPA_RNDIS_DEFAULT_AGGR_TIME_LIMIT 1000 /* 1ms */
 
 enum ipa_active_client_log_type {
 	EP,
@@ -495,5 +499,33 @@ void ipa_register_client_callback(int (*client_cb)(bool is_lock),
 			bool (*teth_port_state)(void), u32 ipa_ep_idx);
 
 void ipa_deregister_client_callback(u32 ipa_ep_idx);
+
+int ipa_eth_rtk_connect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type);
+
+int ipa_eth_aqc_connect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type);
+
+int ipa_eth_emac_connect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type);
+
+int ipa_eth_rtk_disconnect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type);
+
+int ipa_eth_aqc_disconnect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type);
+
+int ipa_eth_emac_disconnect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type);
+
+int ipa_eth_client_conn_evt(struct ipa_ecm_msg *msg);
+
+int ipa_eth_client_disconn_evt(struct ipa_ecm_msg *msg);
 
 #endif /* _IPA_COMMON_I_H_ */

@@ -115,6 +115,7 @@
 
 &usb {
 	extcon = <&vbus_detect>;
+	qcom,num-gsi-evt-buffs = <0x5>;
 };
 
 &spmi_bus {
@@ -158,4 +159,8 @@
 
 &mpss_adsp_mem {
 	reg = <0x90800000 0xf800000>;
+};
+
+&ipa_hw {
+	qcom,ipa-config-is-sa;
 };

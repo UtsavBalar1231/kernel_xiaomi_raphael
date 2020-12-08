@@ -167,6 +167,10 @@
 			regulator-name = "usb30_sec_gdsc";
 		};
 
+		usb30_mp_gdsc: usb30_mp_gdsc {
+			regulator-name = "usb30_mp_gdsc";
+		};
+
 		pcie_0_gdsc: pcie_0_gdsc {
 			regulator-name = "pcie_0_gdsc";
 		};

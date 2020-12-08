@@ -12,13 +12,15 @@
 
 /dts-v1/;
 
+#include "qcs405.dtsi"
 #include "sa2150p-ccard.dtsi"
+#include "sa2145p-ccard.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SA2150P CCARD NAND Eth Phy";
+	model = "Qualcomm Technologies, Inc. SA2150P CCARD NAND DC Eth Sw";
 	compatible = "qcom,sa2150p-ccard", "qcom,qcs405", "qcom,sa2150p",
 				"qcom,ccard";
-	qcom,board-id = <0x030019 2>;
+	qcom,board-id = <0x020019 2>;
 
 	cpus {
 		/delete-node/ cpu@102;
@@ -89,68 +91,7 @@
 	/delete-node/ cpuss-3-step;
 };
 
-&qnand_1 {
-	status = "okay";
-};
-
-&sdhc_1 {
-	status = "disabled";
-};
-
-&blsp1_uart1_hs {
-	status = "ok";
-};
-
-&blsp1_uart4_hs {
-	status = "disabled";
-};
-
-&wlan_fw_mem {
-	reg = <0x0 0x86400000 0x0 0x100000>;
-};
-
-&reserved_mem {
-	linux,cma {
-		size = <0 0x400000>;
-	};
-};
-
-&qseecom_mem {
-	size = <0 0x400000>;
-};
-
-&soc {
-	/delete-node/ qcom,wlan_dsp@7000000;
-	/delete-node/ qcom,icnss@18800000;
-};
-
-&reserved_mem {
-	/delete-node/ wlan_msa_region@88E0000;
-	/delete-node/ wlan_fw_mem@86400000;
-};
-
 &tlmm {
-	sdx_ext_ipc_gpio_default: sdx_ext_ipc_gpio_default {
-		mux {
-			pins = "gpio77";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio77";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
-	};
-};
-
-&sdx_ext_ipc {
-	qcom,wakeup-gpio-out = <&tlmm 77 0x00>;
-};
-
-&tlmm {
-	/delete-node/ mdss_hdmi_ddc_active;
-	/delete-node/ mdss_hdmi_ddc_suspend;
 	rgmii_level_shifter: rgmii_level_shifter {
 		mux {
 			pins = "gpio16";
@@ -176,28 +117,6 @@
 		"dev-emac-phy_intr", "dev-emac-phy_reset_state",
 		"dev-emac-rgmii_lvl_shift_state";
 	pinctrl-16 = <&rgmii_level_shifter>;
-
-	rxc-skew-ps = <660>;
-	io-macro-info {
-		/delete-property/ sdcc-usr-ctl;
-		rx-dll-bypass;
-	};
-};
-
-&gpu_bw_tbl {
-	status = "disabled";
-};
-
-&gpubw {
-	status = "disabled";
-};
-
-&msm_gpu {
-	status = "disabled";
-};
-
-&kgsl_msm_iommu {
-	status = "disabled";
 };
 
 &mtl_rx_setup {
@@ -229,4 +148,6 @@
 	qcom,cv2x_mode = <2>;
 	qcom,cv2x-queue = <3>;
 	qcom,cv2x-vlan-offset = <1>;
+	mac2mac;
+	mac2mac-rgmii-speed = <1000>;
 };

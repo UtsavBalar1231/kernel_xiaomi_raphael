@@ -411,8 +411,8 @@
 		qcom,msm-bus,vectors-KBps =
 			<106 512 0 0>,
 			<106 512 0 0>;
-		qcom,src-clock-rates = <100000000 200000000 384000000 404000000
-			480000000 576000000>;
+		qcom,src-clock-rates = <133333333 160000000 200000000
+			266666667 308570000 320000000 360000000>;
 		qcom,msm-bus-vector-dyn-vote;
 		qcom,micro-reset;
 		qcom,cpp-fw-payload-info {
