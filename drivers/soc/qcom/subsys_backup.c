@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -62,8 +62,10 @@ enum client_notif_type {
 	BACKUP_NOTIF_END,
 	RESTORE_NOTIF_START,
 	RESTORE_NOTIF_END,
-	ALLOC_SUCCESS,
-	ALLOC_FAIL,
+	BACKUP_ALLOC_SUCCESS,
+	BACKUP_ALLOC_FAIL,
+	RESTORE_ALLOC_SUCCESS,
+	RESTORE_ALLOC_FAIL,
 };
 
 enum qmi_backup_type {
@@ -739,13 +741,13 @@ static int backup_notify_remote(struct subsys_backup *backup_dev,
 	}
 
 	data = &req->backup_mem_ready_info;
-	if (type == ALLOC_SUCCESS) {
+	if (type == BACKUP_ALLOC_SUCCESS) {
 		data->backup_addr_valid = 1;
 		data->image_buffer_addr = backup_dev->img_buf.paddr;
 		data->scratch_buffer_addr = backup_dev->scratch_buf.paddr;
 		data->image_buffer_size = backup_dev->img_buf.total_size;
 		data->scratch_buffer_size = backup_dev->scratch_buf.total_size;
-	} else if (type == ALLOC_FAIL) {
+	} else if (type == BACKUP_ALLOC_FAIL) {
 		data->backup_addr_valid = 0;
 		data->retry_timer = 10;
 	}
@@ -792,13 +794,13 @@ static int restore_notify_remote(struct subsys_backup *backup_dev,
 	}
 
 	data = &req->restore_mem_ready_info;
-	if (type == ALLOC_SUCCESS) {
+	if (type == RESTORE_ALLOC_SUCCESS) {
 		data->restore_addr_valid = true;
 		data->image_buffer_addr = backup_dev->img_buf.paddr;
 		data->scratch_buffer_addr = backup_dev->scratch_buf.paddr;
 		data->image_buffer_size = backup_dev->img_buf.total_size;
 		data->scratch_buffer_size = backup_dev->scratch_buf.total_size;
-	} else if (type == ALLOC_FAIL) {
+	} else if (type == RESTORE_ALLOC_FAIL) {
 		dev_warn(backup_dev->dev, "%s: Remote notification skipped\n",
 				__func__);
 		goto exit;
@@ -831,22 +833,28 @@ static void notify_userspace(struct subsys_backup *backup_dev,
 	switch (type) {
 
 	case BACKUP_NOTIF_START:
-		info[0] = "EVENT=BACKUP_START";
+		info[0] = "EVENT=BACKUP_NOTIF_START";
 		break;
 	case BACKUP_NOTIF_END:
-		info[0] = "EVENT=BACKUP_END";
+		info[0] = "EVENT=BACKUP_NOTIF_END";
 		break;
 	case RESTORE_NOTIF_START:
-		info[0] = "EVENT=RESTORE_START";
+		info[0] = "EVENT=RESTORE_NOTIF_START";
 		break;
 	case RESTORE_NOTIF_END:
-		info[0] = "EVENT=RESTORE_END";
+		info[0] = "EVENT=RESTORE_NOTIF_END";
 		break;
-	case ALLOC_SUCCESS:
-		info[0] = "EVENT=ALLOC_SUCCESS";
+	case BACKUP_ALLOC_SUCCESS:
+		info[0] = "EVENT=BACKUP_ALLOC_SUCCESS";
 		break;
-	case ALLOC_FAIL:
-		info[0] = "EVENT=ALLOC_FAIL";
+	case BACKUP_ALLOC_FAIL:
+		info[0] = "EVENT=BACKUP_ALLOC_FAIL";
+		break;
+	case RESTORE_ALLOC_SUCCESS:
+		info[0] = "EVENT=RESTORE_ALLOC_SUCCESS";
+		break;
+	case RESTORE_ALLOC_FAIL:
+		info[0] = "EVENT=RESTORE_ALLOC_FAIL";
 		break;
 	}
 
@@ -870,8 +878,9 @@ static void request_handler_worker(struct work_struct *work)
 				hyp_assign_buffers(backup_dev, VMID_MSS_MSA,
 				VMID_HLOS)) {
 			free_buffers(backup_dev);
-			notify_userspace(backup_dev, ALLOC_FAIL);
-			ret = backup_notify_remote(backup_dev, ALLOC_FAIL);
+			notify_userspace(backup_dev, BACKUP_ALLOC_FAIL);
+			ret = backup_notify_remote(backup_dev,
+							BACKUP_ALLOC_FAIL);
 			if (!ret)
 				dev_err(backup_dev->dev,
 					"%s: Remote notif failed %d\n",
@@ -879,8 +888,8 @@ static void request_handler_worker(struct work_struct *work)
 			backup_dev->state = IDLE;
 			break;
 		}
-		notify_userspace(backup_dev, ALLOC_SUCCESS);
-		backup_notify_remote(backup_dev, ALLOC_SUCCESS);
+		notify_userspace(backup_dev, BACKUP_ALLOC_SUCCESS);
+		backup_notify_remote(backup_dev, BACKUP_ALLOC_SUCCESS);
 		break;
 
 	case BACKUP_END:
@@ -909,11 +918,11 @@ static void request_handler_worker(struct work_struct *work)
 		notify_userspace(backup_dev, RESTORE_NOTIF_START);
 		ret = allocate_buffers(backup_dev);
 		if (ret) {
-			notify_userspace(backup_dev, ALLOC_FAIL);
+			notify_userspace(backup_dev, RESTORE_ALLOC_FAIL);
 			backup_dev->state = IDLE;
 			break;
 		}
-		notify_userspace(backup_dev, ALLOC_SUCCESS);
+		notify_userspace(backup_dev, RESTORE_ALLOC_SUCCESS);
 		break;
 
 	case RESTORE_END:
@@ -1242,7 +1251,7 @@ static int backup_buffer_flush(struct file *filp, fl_owner_t id)
 		return 0;
 	}
 
-	ret = restore_notify_remote(backup_dev, ALLOC_SUCCESS);
+	ret = restore_notify_remote(backup_dev, RESTORE_ALLOC_SUCCESS);
 	if (ret)
 		dev_err(backup_dev->dev, "%s: Remote notif failed: %d\n",
 				__func__, ret);
