@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2018, 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -819,7 +819,7 @@ static u64 core_ctl_check_timestamp;
 int core_ctl_set_boost(bool boost)
 {
 	unsigned int index = 0;
-	struct cluster_data *cluster = NULL;
+	struct cluster_data *cluster;
 	unsigned long flags;
 	int ret = 0;
 	bool boost_state_changed = false;
@@ -850,8 +850,7 @@ int core_ctl_set_boost(bool boost)
 			apply_need(cluster);
 	}
 
-	if (cluster)
-		trace_core_ctl_set_boost(cluster->boost, ret);
+	trace_core_ctl_set_boost(cluster->boost, ret);
 
 	return ret;
 }
