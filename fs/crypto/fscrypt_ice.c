@@ -11,6 +11,7 @@
  */
 
 #include "fscrypt_ice.h"
+#include "../../security/pfe/pfk_kc.h"
 
 extern int fscrypt_get_mode_key_size(int mode);
 
@@ -148,6 +149,11 @@ bool fscrypt_is_ice_encryption_info_equal(const struct inode *inode1,
 		return true;
 
 	return false;
+}
+
+bool fscrypt_force_iv_ino_lblk_32(void)
+{
+	return strcmp("sdcc", pfk_kc_get_storage_type()) == 0;
 }
 
 static u64 fscrypt_generate_dun(const struct inode *inode, u64 lblk_num)
