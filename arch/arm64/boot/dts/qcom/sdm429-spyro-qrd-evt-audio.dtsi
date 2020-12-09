@@ -182,7 +182,7 @@
 		irq-gpio = <&tlmm 73 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pa_int_default &pa_rst_default>;
-		dvdd-supply = <&pm660_l9>;
+		dvdd-supply = <&pm660_l11>;
 		dvdd-voltage = <1800000 1800000>;
 		dvdd-current = <15000>;
 	};
