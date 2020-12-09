@@ -74,7 +74,7 @@ EXPORT_SYMBOL(msm_drm_unregister_client);
  *     event(unblank or power down).
  */
 static bool notifier_enabled __read_mostly = true;
-int msm_drm_notifier_call_chain(unsigned long val, void *v)
+static int msm_drm_notifier_call_chain(unsigned long val, void *v)
 {
 	if (unlikely(!notifier_enabled))
 		return 0;
@@ -82,7 +82,6 @@ int msm_drm_notifier_call_chain(unsigned long val, void *v)
 	return blocking_notifier_call_chain(&msm_drm_notifier_list, val,
 					    v);
 }
-EXPORT_SYMBOL(msm_drm_notifier_call_chain);
 
 void msm_drm_notifier_enable(bool val)
 {

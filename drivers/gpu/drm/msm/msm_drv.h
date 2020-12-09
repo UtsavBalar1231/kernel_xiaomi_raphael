@@ -106,7 +106,6 @@ enum msm_mdp_plane_property {
 
 	/* range properties */
 	PLANE_PROP_ZPOS = PLANE_PROP_BLOBCOUNT,
-	PLANE_PROP_FOD,
 	PLANE_PROP_ALPHA,
 	PLANE_PROP_COLOR_FILL,
 	PLANE_PROP_H_DECIMATE,
@@ -583,15 +582,6 @@ struct msm_drm_thread {
 	struct kthread_worker worker;
 };
 
-struct msm_idle {
-	u32 timeout_ms;
-	u32 encoder_mask;
-	u32 active_mask;
-
-	spinlock_t lock;
-	struct delayed_work work;
-};
-
 struct msm_drm_private {
 
 	struct drm_device *dev;
@@ -700,8 +690,6 @@ struct msm_drm_private {
 
 	/* update the flag when msm driver receives shutdown notification */
 	bool shutdown_in_progress;
-
-	struct msm_idle idle;
 };
 
 /* get struct msm_kms * from drm_device * */
@@ -952,7 +940,6 @@ static inline int msm_dsi_modeset_init(struct msm_dsi *msm_dsi,
 void __init msm_mdp_register(void);
 void __exit msm_mdp_unregister(void);
 
-void msm_idle_set_state(struct drm_encoder *encoder, bool active);
 #ifdef CONFIG_DEBUG_FS
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void msm_gem_describe_objects(struct list_head *list, struct seq_file *m);

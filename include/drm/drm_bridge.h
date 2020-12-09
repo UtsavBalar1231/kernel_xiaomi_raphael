@@ -236,19 +236,6 @@ struct drm_bridge_funcs {
 	 * The enable callback is optional.
 	 */
 	void (*enable)(struct drm_bridge *bridge);
-
-	/**
-	 * @disp_param_set:
-	 *
-	 * This callback allows to set custom paramaters used by
-	 * DisplayFeature HIDL to handle display/panel related commands
-	 * (i.e. HBM, Doze, Color modes, etc )
-	 */
-	void (*disp_param_set)(struct drm_bridge *bridge, int cmd);
-	int (*disp_get_panel_info)(struct drm_bridge *bridge, char *name);
-
-	void (*disp_count_set)(struct drm_bridge *bridge, const char *buf);
-	ssize_t (*disp_count_get)(struct drm_bridge *bridge, char *buf);
 };
 
 /**

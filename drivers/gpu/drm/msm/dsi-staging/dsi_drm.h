@@ -154,16 +154,5 @@ u64 dsi_drm_find_bit_clk_rate(void *display,
 int dsi_conn_prepare_commit(void *display,
 		struct msm_display_conn_params *params);
 
-/**
- * dsi_display_set_doze_backlight() - sets doze backlight
- * @display: Handle to display.
- */
-int dsi_panel_set_doze_backlight(struct dsi_display *display);
 
-/**
- * dsi_display_get_doze_backlight() - gets doze backlight
- * @display: Handle to display.
- * @buf: buffer
- */
-ssize_t dsi_panel_get_doze_backlight(struct dsi_display *display, char *buf);
 #endif /* _DSI_DRM_H_ */

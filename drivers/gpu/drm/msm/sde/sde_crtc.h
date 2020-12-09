@@ -436,9 +436,6 @@ struct sde_crtc_state {
 	u32 padding_active;
 	u32 padding_dummy;
 
-	bool finger_down;
-	bool dim_layer_status;
-	struct sde_hw_dim_layer *fingerprint_dim_layer;
 	struct sde_crtc_respool rp;
 };
 
@@ -574,14 +571,6 @@ void sde_crtc_prepare_commit(struct drm_crtc *crtc,
  * @old_state: Pointer to drm crtc old state object
  */
 void sde_crtc_complete_commit(struct drm_crtc *crtc,
-		struct drm_crtc_state *old_state);
-
-/**
- * sde_crtc_fod_ui_ready - callback to notify fod ui ready message
- * @crtc: Pointer to drm crtc object
- * @old_state: Pointer to drm crtc old state object
- */
-void sde_crtc_fod_ui_ready(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state);
 
 /**

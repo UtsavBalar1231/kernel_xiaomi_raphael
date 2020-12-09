@@ -121,7 +121,6 @@ struct dsi_backlight_config {
 	bool bl_inverted_dbv;
 
 	int en_gpio;
-	bool dcs_type_ss;
 	/* PWM params */
 	struct pwm_device *pwm_bl;
 	bool pwm_enabled;
@@ -167,17 +166,6 @@ struct drm_panel_esd_config {
 	u8 *return_buf;
 	u8 *status_buf;
 	u32 groups;
-	int esd_err_irq_gpio;
-	int esd_err_irq;
-	int esd_err_irq_flags;
-};
-
-struct dsi_read_config {
-	bool enabled;
-	struct dsi_panel_cmd_set read_cmd;
-	u32 cmds_rlen;
-	u32 valid_bits;
-	u8 rbuf[64];
 };
 
 struct dsi_panel {
@@ -214,7 +202,6 @@ struct dsi_panel {
 
 	struct dsi_parser_utils utils;
 
-	u32 init_delay_us;
 	bool lp11_init;
 	bool ulps_feature_enabled;
 	bool ulps_suspend_enabled;
@@ -231,48 +218,6 @@ struct dsi_panel {
 	bool sync_broadcast_en;
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;
-	bool in_aod;
-	bool dispparam_enabled;
-	bool fod_backlight_flag;
-	bool fod_dimlayer_enabled;
-	bool fod_dimlayer_hbm_enabled;
-	bool fod_flag;
-	bool fod_hbm_enabled;
-	bool fod_ui_ready;
-	u32 fod_off_dimming_delay;
-	u32 fod_target_backlight;
-	ktime_t fod_hbm_off_time;
-	ktime_t fod_backlight_off_time;
-	u32 skip_dimmingon;
-	u32 last_bl_lvl;
-	s32 backlight_delta;
-	u32 doze_backlight_threshold;
-	u32 dc_threshold;
-	bool dc_enable;
-	bool fod_dimlayer_bl_block;
-	bool dim_layer_replace_dc;
-	u32 panel_on_dimming_delay;
-	struct delayed_work cmds_work;
-
-	bool elvss_dimming_check_enable;
-	struct dsi_read_config elvss_dimming_cmds;
-	struct dsi_panel_cmd_set elvss_dimming_offset;
-	struct dsi_panel_cmd_set hbm_fod_on;
-	struct dsi_panel_cmd_set hbm_fod_off;
-
-	/* Display count */
-	bool panel_active_count_enable;
-	u64 boottime;
-	u64 bootRTCtime;
-	u64 bootdays;
-	u64 panel_active;
-	u64 kickoff_count;
-	u64 bl_duration;
-	u64 bl_level_integral;
-	u64 bl_highlevel_duration;
-	u64 bl_lowlevel_duration;
-	u64 hbm_duration;
-	u64 hbm_times;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
