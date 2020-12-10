@@ -1,0 +1,6 @@
+KERNEL_DIR=${ROOT_DIR}/kernel_xiaomi_raphael
+. ${KERNEL_DIR}/build.config.raphael.common.clang
+POST_DEFCONFIG_CMDS="check_defconfig"
+UNSTRIPPED_MODULES="
+wlan.ko
+"

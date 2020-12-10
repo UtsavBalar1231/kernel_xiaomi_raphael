@@ -1,0 +1,8 @@
+. ${KERNEL_DIR}/build.config.common
+DEFCONFIG=raphael_defconfig
+BUILD_INITRAMFS=1
+#EXT_MODULES="
+#private/msm-google-modules/wlan/qcacld-3.0
+#"
+
+SKIP_MRPROPER=1
