@@ -35,6 +35,14 @@
 #include <linux/dma-buf.h>
 #include <linux/msm_ion.h>
 
+#include <uapi/media/ais_v4l2loopback.h>
+#include <uapi/media/cam_defs.h>
+
+
+#include <linux/init.h>
+#include <linux/kprobes.h>
+#include <asm/traps.h>
+
 
 
 # define HAVE__V4L2_DEVICE
@@ -42,7 +50,6 @@
 # define HAVE__V4L2_CTRLS
 # include <media/v4l2-ctrls.h>
 
-#include "ais_v4l2loopback.h"
 
 #if defined(timer_setup) && defined(from_timer)
 #define HAVE_TIMER_SETUP
@@ -136,6 +143,12 @@ static inline void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 #ifndef MAX_TIMEOUT
 # define MAX_TIMEOUT (100 * 1000) /* in msecs */
 #endif
+
+/* Timeout value in msec */
+#define GPARAM_TIMEOUT 1000
+#define SPARAM_TIMEOUT 1000
+
+
 
 /* max buffers that can be mapped, actually they
  * are all mapped to max_buffers buffers
@@ -310,6 +323,15 @@ struct v4l2_loopback_device {
 	/* pixel and stream format */
 	struct v4l2_pix_format pix_format;
 	struct v4l2_captureparm capture_param;
+
+	/* param for vendor extension&other qcarcam API*/
+	u8 qcarcam_code;
+	u8 qcarcam_param[MAX_AIS_V4L2_PAYLOAD_SIZE];
+	long qcarcam_param_size;
+	struct completion sparam_complete;
+	struct completion gparam_complete;
+	int qcarcam_sparam_ret;
+
 	struct v4l2_crop frame_crop;
 	unsigned long frame_jiffies;
 
@@ -439,17 +461,32 @@ static char *fourcc2str(unsigned int fourcc, char buf[4])
 	return buf;
 }
 
-static void send_v4l2_event(struct video_device *vdev,
-	enum AIS_V4L2_CTRL_CMD cmd)
+static void send_v4l2_event(struct video_device *vdev, unsigned int type,
+	enum AIS_V4L2_NOTIFY_CMD cmd)
 {
 	struct v4l2_event event;
 	__u64 *payload_data = NULL;
 
 	event.id = cmd;
-	event.type = 1;
+	event.type = type;
 
 	v4l2_event_queue(vdev, &event);
-	pr_info("send v4l2 event for ais_v4l2loopback :%d\n",
+	pr_debug("send v4l2 event for ais_v4l2loopback :%d\n",
+		cmd);
+}
+
+static void send_v4l2_event_ex(struct video_device *vdev, unsigned int type,
+	enum AIS_V4L2_NOTIFY_CMD cmd, u8 code)
+{
+	struct v4l2_event event;
+	__u64 *payload_data = NULL;
+
+	event.id = cmd;
+	event.type = type;
+	event.u.data[0] = code;
+
+	v4l2_event_queue(vdev, &event);
+	pr_debug("send v4l2 event for ais_v4l2loopback :%d\n",
 		cmd);
 }
 
@@ -466,7 +503,7 @@ static int cam_mem_util_map_cpu_va(struct dma_buf *dmabuf,
 	 */
 	rc = dma_buf_begin_cpu_access(dmabuf, DMA_BIDIRECTIONAL);
 	if (rc) {
-		pr_err("dma begin access failed rc=%d", rc);
+		pr_err("dma begin access failed rc=%d\n", rc);
 		return rc;
 	}
 
@@ -480,7 +517,7 @@ static int cam_mem_util_map_cpu_va(struct dma_buf *dmabuf,
 	for (i = 0; i < PAGE_ALIGN(dmabuf->size) / PAGE_SIZE; i++) {
 		addr = dma_buf_kmap(dmabuf, i);
 		if (addr == NULL) {
-			pr_err("kernel map fail");
+			pr_err("kernel map fail\n");
 			for (j = 0; j < i; j++)
 				dma_buf_kunmap(dmabuf,
 					j,
@@ -509,7 +546,7 @@ static int cam_mem_util_unmap_cpu_va(struct dma_buf *dmabuf,
 	int i, rc = 0, page_num;
 
 	if (!dmabuf || !vaddr) {
-		pr_err("Invalid input args %pK %llX", dmabuf, vaddr);
+		pr_err("Invalid input args %pK %llX\n", dmabuf, vaddr);
 		return -EINVAL;
 	}
 
@@ -527,7 +564,7 @@ static int cam_mem_util_unmap_cpu_va(struct dma_buf *dmabuf,
 	 */
 	rc = dma_buf_end_cpu_access(dmabuf, DMA_BIDIRECTIONAL);
 	if (rc) {
-		pr_err("Failed in end cpu access, dmabuf=%pK",
+		pr_err("Failed in end cpu access, dmabuf=%pK\n",
 			dmabuf);
 		return rc;
 	}
@@ -1352,7 +1389,11 @@ static int vidioc_g_parm(struct file *file, void *priv,
 
 	MARK();
 	dev = v4l2loopback_getdevice(file);
-	parm->parm.capture = dev->capture_param;
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+		parm->type !=  V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -1364,30 +1405,14 @@ static int vidioc_s_parm(struct file *file, void *priv,
 		struct v4l2_streamparm *parm)
 {
 	struct v4l2_loopback_device *dev;
-	int err = 0;
 
 	MARK();
 	dev = v4l2loopback_getdevice(file);
-	pr_debug("%s: called frate=%d/%d\n", __func__,
-			parm->parm.capture.timeperframe.numerator,
-			parm->parm.capture.timeperframe.denominator);
 
-	switch (parm->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		err = set_timeperframe(dev, &parm->parm.capture.timeperframe);
-		if (err < 0)
-			return err;
-		break;
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		err = set_timeperframe(dev, &parm->parm.capture.timeperframe);
-		if (err < 0)
-			return err;
-		break;
-	default:
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+		parm->type !=  V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
-	}
 
-	parm->parm.capture = dev->capture_param;
 	return 0;
 }
 
@@ -2045,7 +2070,8 @@ static int vidioc_streamon(struct file *file,
 		if (!dev->ready_for_capture)
 			return -EIO;
 
-		send_v4l2_event(dev->vdev, AIS_V4L2_START_INPUT);
+		send_v4l2_event(dev->vdev, AIS_V4L2_CLIENT_OUTPUT,
+			AIS_V4L2_START_INPUT);
 		return 0;
 	default:
 		return -EINVAL;
@@ -2100,6 +2126,197 @@ static int cam_unsubscribe_event(struct v4l2_fh *fh,
 	const struct v4l2_event_subscription *sub)
 {
 	return v4l2_event_unsubscribe(fh, sub);
+}
+
+static int process_capture_cmd(struct v4l2_loopback_device *dev,
+	struct ais_v4l2_control_t *kcmd)
+{
+	int rc = 0;
+
+	switch (kcmd->cmd) {
+	case AIS_V4L2_CAPTURE_PRIV_SET_PARAM: {
+		if (kcmd->size > MAX_AIS_V4L2_PAYLOAD_SIZE) {
+			rc = -EINVAL;
+		} else if (kcmd->payload == NULL) {
+			rc = -EINVAL;
+			pr_err("payload is NULL on set param\n");
+		} else if (copy_from_user(dev->qcarcam_param,
+				u64_to_user_ptr(kcmd->payload),
+				kcmd->size)) {
+			rc = -EFAULT;
+			pr_err("copy_from_user fail on set param\n");
+		} else {
+			dev->qcarcam_param_size = kcmd->size;
+			dev->qcarcam_code = kcmd->param_type;
+			pr_debug("s_param %u\n", kcmd->param_type);
+
+			send_v4l2_event_ex(dev->vdev, AIS_V4L2_CLIENT_OUTPUT,
+				AIS_V4L2_SET_PARAM, kcmd->param_type);
+			/* wait for the signal */
+			rc = wait_for_completion_timeout(&dev->sparam_complete,
+					msecs_to_jiffies(SPARAM_TIMEOUT));
+			if (rc) {
+				rc = dev->qcarcam_sparam_ret;
+			} else {
+				pr_err("s_param fail, timeout %d\n", rc);
+				rc = -ETIMEDOUT;
+			}
+		}
+
+		break;
+	}
+	case AIS_V4L2_CAPTURE_PRIV_GET_PARAM: {
+
+		/* send get_param to output end and wait */
+		pr_info("g_param param_type %d\n", kcmd->param_type);
+		send_v4l2_event_ex(dev->vdev, AIS_V4L2_CLIENT_OUTPUT,
+			AIS_V4L2_GET_PARAM, kcmd->param_type);
+		/* wait for the signal */
+		rc = wait_for_completion_timeout(&dev->gparam_complete,
+			msecs_to_jiffies(GPARAM_TIMEOUT));
+		if (rc) {
+			rc = 0;
+		} else {
+			pr_err("g_param fail, timeout %d\n", rc);
+			rc = -ETIMEDOUT;
+			return rc;
+		}
+
+		if (dev->qcarcam_param_size == 0) {
+			/* g_param fail */
+			rc = -EINVAL;
+			pr_err("get param size is 0\n");
+		} else if (kcmd->payload == NULL) {
+			rc = -EINVAL;
+			pr_err("payload is NULL on get param\n");
+		} else if (copy_to_user(u64_to_user_ptr(kcmd->payload),
+					dev->qcarcam_param,
+					dev->qcarcam_param_size)) {
+			/* copy the param from kernel */
+			rc = -EFAULT;
+			pr_err("copy_from_user fail on get param\n");
+		} else {
+			kcmd->size = dev->qcarcam_param_size;
+			kcmd->param_type = dev->qcarcam_code;
+		}
+		break;
+	}
+	default:
+		rc = -EINVAL;
+		break;
+	}
+
+	return rc;
+}
+
+static int process_output_cmd(struct v4l2_loopback_device *dev,
+	struct ais_v4l2_control_t *kcmd)
+{
+	int rc = 0;
+
+	switch (kcmd->cmd) {
+	case AIS_V4L2_OUTPUT_PRIV_SET_PARAM_EVENT: {
+		struct v4l2_event event;
+
+		if (kcmd->size > MAX_AIS_V4L2_PARAM_EVNET_SIZE) {
+			rc = -EINVAL;
+			pr_err("fail to set param event, size=%u\n",
+				kcmd->size);
+		} else if (copy_from_user(&event.u.data[2],
+				u64_to_user_ptr(kcmd->payload),
+				kcmd->size)) {
+			rc = -EFAULT;
+			pr_err("fail to copy from user on set param event\n");
+		} else {
+			event.type = AIS_V4L2_CLIENT_CAPTURE;
+			event.id = AIS_V4L2_PARAM_EVENT;
+
+			event.u.data[0] = kcmd->param_type;
+			event.u.data[1] = kcmd->size;
+			v4l2_event_queue(dev->vdev, &event);
+			pr_debug("send AIS_V4L2_PARAM_EVENT :%d %d\n",
+				event.u.data[2], event.u.data[3]);
+		}
+		break;
+	}
+	case AIS_V4L2_OUTPUT_PRIV_SET_PARAM_RET:
+		/* signal capture_s_param_cond */
+		dev->qcarcam_sparam_ret = kcmd->param_type;
+		complete(&dev->sparam_complete);
+		break;
+	case AIS_V4L2_OUTPUT_PRIV_SET_PARAM2:
+		if (kcmd->size > MAX_AIS_V4L2_PAYLOAD_SIZE) {
+			rc = -EINVAL;
+		} else if (copy_from_user(dev->qcarcam_param,
+				u64_to_user_ptr(kcmd->payload),
+				kcmd->size)) {
+			rc = -EFAULT;
+			pr_err("fail to AIS_V4L2_OUTPUT_PRIV_SET_PARAM2\n");
+		} else {
+			dev->qcarcam_param_size = kcmd->size;
+			dev->qcarcam_code = kcmd->param_type;
+			/* signal capture_g_param_cond */
+			complete(&dev->gparam_complete);
+		}
+		break;
+	case AIS_V4L2_OUTPUT_PRIV_GET_PARAM:
+		/* copy the param from kernel */
+		if (copy_to_user(u64_to_user_ptr(kcmd->payload),
+						dev->qcarcam_param,
+						dev->qcarcam_param_size)) {
+			rc = -EFAULT;
+			pr_err("fail to AIS_V4L2_OUTPUT_PRIV_GET_PARAM\n");
+		} else {
+			kcmd->size = dev->qcarcam_param_size;
+			kcmd->param_type = dev->qcarcam_code;
+		}
+		break;
+	}
+
+	return rc;
+
+}
+
+
+static long ais_v4l2loopback_dev_ioctl(struct file *file, void *fh,
+			bool valid_prio, unsigned int cmd, void *arg)
+{
+	int32_t rc = 0;
+
+	struct v4l2_loopback_device *dev;
+	struct v4l2_loopback_opener *opener;
+
+	struct ais_v4l2_control_t *kcmd = (struct ais_v4l2_control_t *)arg;
+
+	MARK();
+	dev = v4l2loopback_getdevice(file);
+
+	pr_debug("%s enter\n", __func__);
+
+	if (!dev) {
+		pr_err("v4l2loopback dev NULL\n");
+		return -EINVAL;
+	}
+
+	if (!kcmd || !arg)
+		return -EINVAL;
+
+	if (cmd != VIDIOC_CAM_CONTROL)
+		return -ENOIOCTLCMD;
+
+	switch (kcmd->type) {
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		rc = process_capture_cmd(dev, kcmd);
+		break;
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+		rc = process_output_cmd(dev, kcmd);
+		break;
+	default:
+		rc = -EINVAL;
+		break;
+	}
+
+	return rc;
 }
 
 /* file operations */
@@ -2225,17 +2442,18 @@ static unsigned int v4l2_loopback_poll(struct file *file,
 	opener = fh_to_opener(file->private_data);
 	dev = v4l2loopback_getdevice(file);
 
+	if (req_events & POLLPRI) {
+		if (!v4l2_event_pending(&opener->fh))
+			poll_wait(file, &opener->fh.wait, pts);
+		if (v4l2_event_pending(&opener->fh)) {
+			ret_mask |= POLLPRI;
+			if (!(req_events & DEFAULT_POLLMASK))
+				return ret_mask;
+		}
+	}
+
 	switch (opener->type) {
 	case WRITER:
-		if (req_events & POLLPRI) {
-			if (!v4l2_event_pending(&opener->fh))
-				poll_wait(file, &opener->fh.wait, pts);
-			if (v4l2_event_pending(&opener->fh)) {
-				ret_mask |= POLLPRI;
-				if (!(req_events & DEFAULT_POLLMASK))
-					return ret_mask;
-			}
-		}
 		ret_mask |= POLLOUT | POLLWRNORM;
 		break;
 	case READER:
@@ -2310,10 +2528,11 @@ static int v4l2_loopback_open(struct file *file)
 		dev->ready_for_output = 0;
 	} else if (dev->ready_for_capture) {
 		opener->type = READER;
-		send_v4l2_event(dev->vdev, AIS_V4L2_OPEN_INPUT);
+		send_v4l2_event(dev->vdev, AIS_V4L2_CLIENT_OUTPUT,
+			AIS_V4L2_OPEN_INPUT);
 		try_free_buffers(dev);
 	} else {
-		pr_err("Please config output config at first");
+		pr_err("Please config output config at first\n");
 		rc = -EINVAL;
 	}
 
@@ -2344,7 +2563,10 @@ static int v4l2_loopback_close(struct file *file)
 		dev->ready_for_capture = 0;
 	} else {
 		/* notify the close to ais_v4l2_proxy */
-		send_v4l2_event(dev->vdev, AIS_V4L2_CLOSE_INPUT);
+		send_v4l2_event(dev->vdev, AIS_V4L2_CLIENT_OUTPUT,
+			AIS_V4L2_CLOSE_INPUT);
+		reinit_completion(&dev->gparam_complete);
+		reinit_completion(&dev->sparam_complete);
 	}
 
 	atomic_dec(&dev->open_count);
@@ -2409,7 +2631,7 @@ static ssize_t v4l2_loopback_write(struct file *file,
 	 */
 
 	if (dev->image == NULL && dev->dmabufs[0] == NULL) {
-		pr_err("v4l2-loopback: need allocate buffer at first");
+		pr_err("v4l2-loopback: need allocate buffer at first\n");
 		return -EFAULT;
 	}
 
@@ -2857,6 +3079,9 @@ static int v4l2_loopback_init(struct v4l2_loopback_device *dev, int nr)
 	allocate_buffers(dev);
 
 	init_waitqueue_head(&dev->read_event);
+
+	init_completion(&dev->gparam_complete);
+	init_completion(&dev->sparam_complete);
 	ret = v4l2_loopback_cropcap(dev, &cropcap);
 	if (ret)
 		goto error;
@@ -2952,6 +3177,7 @@ static const struct v4l2_ioctl_ops v4l2_loopback_ioctl_ops = {
 
 	.vidioc_subscribe_event = cam_subscribe_event,
 	.vidioc_unsubscribe_event = cam_unsubscribe_event,
+	.vidioc_default = ais_v4l2loopback_dev_ioctl
 };
 
 static void zero_devices(void)
@@ -2993,7 +3219,7 @@ static int __init v4l2loopback_init_module(void)
 	video_nr[0] = 51;
 	video_nr[1] = 52;
 	devices = 2;
-	max_buffers = 32;
+	max_buffers = 20;
 
 	if (devices < 0) {
 		devices = 1;
