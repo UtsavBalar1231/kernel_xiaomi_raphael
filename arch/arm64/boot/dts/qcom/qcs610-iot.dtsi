@@ -418,6 +418,10 @@
 	connectors = <&sde_rscc &sde_wb &sde_dsi>;
 };
 
+&cont_splash_memory {
+	status = "disabled";
+};
+
 &disp_rdump_memory {
 	status = "disabled";
 };
