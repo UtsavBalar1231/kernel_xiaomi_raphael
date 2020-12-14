@@ -1995,7 +1995,7 @@ static int stmmac_emb_smmu_cb_probe(struct platform_device *pdev)
 	int bypass = 1;
 	struct iommu_domain_geometry geometry = {0};
 
-	ETHQOSDBG("EMAC EMB SMMU CB probe: smmu pdev=%p\n", pdev);
+	ETHQOSDBG("EMAC EMB SMMU CB probe: smmu pdev=%px\n", pdev);
 
 	result = of_property_read_u32_array(dev->of_node, "qcom,iova-mapping",
 					    iova_ap_mapping, 2);
@@ -2778,21 +2778,25 @@ static int qcom_ethos_panic_notifier(struct notifier_block *this,
 	struct stmmac_priv *priv = qcom_ethqos_get_priv(pethqos);
 
 	if (pethqos) {
-		pr_info("qcom-ethqos: ethqos 0x%p\n", pethqos);
-		pr_info("qcom-ethqos: stmmac_priv 0x%p\n", priv);
 
-		pethqos->iommu_domain = stmmac_emb_smmu_ctx.iommu_domain;
-		pr_info("qcom-ethqos: emac iommu domain 0x%p\n",
+		pr_info("qcom-ethqos: ethqos 0x%px\n", pethqos);
+
+		pr_info("qcom-ethqos: stmmac_priv 0x%px\n", priv);
+
+		pethqos->iommu_domain =
+			stmmac_emb_smmu_ctx.iommu_domain;
+
+		pr_info("qcom-ethqos: emac iommu domain 0x%px\n",
 			pethqos->iommu_domain);
 
-		pr_info("qcom-ethqos: emac register mem 0x%p\n",
+		pr_info("qcom-ethqos: emac register mem 0x%px\n",
 			pethqos->emac_reg_base_address);
 		if (pethqos->emac_reg_base_address)
 			memcpy_fromio(pethqos->emac_reg_base_address,
 				      pethqos->ioaddr,
 				      pethqos->emac_mem_size);
 
-		pr_info("qcom-ethqos: rgmii register mem 0x%p\n",
+		pr_info("qcom-ethqos: rgmii register mem 0x%px\n",
 			pethqos->rgmii_reg_base_address);
 		size_iomacro_regs =
 		qcom_ethqos_rgmii_io_macro_num_of_regs(pethqos->emac_ver) * 4;
