@@ -282,6 +282,9 @@
 &usb0 {
 	qcom,default-mode-none;
 	qcom,ignore-wakeup-src-in-hostmode;
+	dwc3@a600000 {
+		snps,dis_u3_susphy_quirk;
+	};
 };
 
 &qusb_phy0 {
