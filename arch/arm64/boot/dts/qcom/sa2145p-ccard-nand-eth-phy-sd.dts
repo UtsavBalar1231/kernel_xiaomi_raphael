@@ -57,9 +57,9 @@
 &i2c_3 {
 	status = "okay";
 
-	eeprom@52 {
+	eeprom@57 {
 		compatible = "atmel,24c128";
-		reg = <0x52>;
+		reg = <0x57>;
 		pagesize = <32>;
 	};
 };
