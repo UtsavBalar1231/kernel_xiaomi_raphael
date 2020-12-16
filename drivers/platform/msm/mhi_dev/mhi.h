@@ -619,8 +619,12 @@ struct mhi_dev {
 	/*Register for interrupt*/
 	bool				mhi_int;
 	bool				mhi_int_en;
+
 	/* Enable M2 autonomous mode from MHI */
 	bool				enable_m2;
+
+	/* Dont timeout waiting for M0 */
+	bool				no_m0_timeout;
 
 	/* Registered client callback list */
 	struct list_head		client_cb_list;
@@ -989,6 +993,12 @@ int mhi_dev_mmio_get_cmd_db(struct mhi_dev_ring *ring, uint64_t *wr_offset);
  * @value:	Value of the EXEC EVN.
  */
 int mhi_dev_mmio_set_env(struct mhi_dev *dev, uint32_t value);
+
+/**
+ * mhi_dev_mmio_clear_reset() - Clear the reset bit
+ * @dev:	MHI device structure.
+ */
+int mhi_dev_mmio_clear_reset(struct mhi_dev *dev);
 
 /**
  * mhi_dev_mmio_reset() - Reset the MMIO done as part of initialization.

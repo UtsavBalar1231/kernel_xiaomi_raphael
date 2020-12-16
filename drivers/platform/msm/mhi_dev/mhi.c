@@ -1810,8 +1810,10 @@ static void mhi_dev_process_cmd_ring(struct mhi_dev *mhi,
 					return;
 				}
 			}
+			mutex_lock(&mhi->ch[ch_id].ch_lock);
 			mhi_dev_alloc_evt_buf_evt_req(mhi, &mhi->ch[ch_id],
 					evt_ring);
+			mutex_unlock(&mhi->ch[ch_id].ch_lock);
 		}
 
 		if (MHI_USE_DMA(mhi))
@@ -2505,34 +2507,51 @@ static int mhi_dev_cache_host_cfg(struct mhi_dev *mhi)
 					mhi->cfg.event_rings;
 	mhi->ch_ctx_shadow.size = sizeof(struct mhi_dev_ch_ctx) *
 					mhi->cfg.channels;
-
-	mhi->cmd_ctx_cache = dma_alloc_coherent(&pdev->dev,
-				sizeof(struct mhi_dev_cmd_ctx),
-				&mhi->cmd_ctx_cache_dma_handle,
-				GFP_KERNEL);
+	/*
+	 * This func mhi_dev_cache_host_cfg will be called when
+	 * processing mhi device reset as well, do not allocate
+	 * the command, event and channel context caches if they
+	 * were already allocated during device boot, to avoid
+	 * memory leak.
+	 */
 	if (!mhi->cmd_ctx_cache) {
-		pr_err("no memory while allocating cmd ctx\n");
-		return -ENOMEM;
+		mhi->cmd_ctx_cache = dma_alloc_coherent(&pdev->dev,
+			sizeof(struct mhi_dev_cmd_ctx),
+			&mhi->cmd_ctx_cache_dma_handle,
+			GFP_KERNEL);
+		if (!mhi->cmd_ctx_cache) {
+			pr_err("no memory while allocating cmd ctx\n");
+			rc = -ENOMEM;
+			goto exit;
+		}
 	}
 	memset(mhi->cmd_ctx_cache, 0, sizeof(struct mhi_dev_cmd_ctx));
 
-	mhi->ev_ctx_cache = dma_alloc_coherent(&pdev->dev,
-				sizeof(struct mhi_dev_ev_ctx) *
-				mhi->cfg.event_rings,
-				&mhi->ev_ctx_cache_dma_handle,
-				GFP_KERNEL);
-	if (!mhi->ev_ctx_cache)
-		return -ENOMEM;
+	if (!mhi->ev_ctx_cache) {
+		mhi->ev_ctx_cache = dma_alloc_coherent(&pdev->dev,
+			sizeof(struct mhi_dev_ev_ctx) *
+			mhi->cfg.event_rings,
+			&mhi->ev_ctx_cache_dma_handle,
+			GFP_KERNEL);
+		if (!mhi->ev_ctx_cache) {
+			rc = -ENOMEM;
+			goto exit;
+		}
+	}
 	memset(mhi->ev_ctx_cache, 0, sizeof(struct mhi_dev_ev_ctx) *
 						mhi->cfg.event_rings);
 
-	mhi->ch_ctx_cache = dma_alloc_coherent(&pdev->dev,
-				sizeof(struct mhi_dev_ch_ctx) *
-				mhi->cfg.channels,
-				&mhi->ch_ctx_cache_dma_handle,
-				GFP_KERNEL);
-	if (!mhi->ch_ctx_cache)
-		return -ENOMEM;
+	if (!mhi->ch_ctx_cache) {
+		mhi->ch_ctx_cache = dma_alloc_coherent(&pdev->dev,
+			sizeof(struct mhi_dev_ch_ctx) *
+			mhi->cfg.channels,
+			&mhi->ch_ctx_cache_dma_handle,
+			GFP_KERNEL);
+		if (!mhi->ch_ctx_cache) {
+			rc = -ENOMEM;
+			goto exit;
+		}
+	}
 	memset(mhi->ch_ctx_cache, 0, sizeof(struct mhi_dev_ch_ctx) *
 						mhi->cfg.channels);
 
@@ -2568,6 +2587,20 @@ static int mhi_dev_cache_host_cfg(struct mhi_dev *mhi)
 
 	return mhi_ring_start(&mhi->ring[0],
 			(union mhi_dev_ring_ctx *)mhi->cmd_ctx_cache, mhi);
+
+exit:
+	if (mhi->cmd_ctx_cache)
+		dma_free_coherent(&pdev->dev,
+			sizeof(struct mhi_dev_cmd_ctx),
+			mhi->cmd_ctx_cache,
+			mhi->cmd_ctx_cache_dma_handle);
+	if (mhi->ev_ctx_cache)
+		dma_free_coherent(&pdev->dev,
+			sizeof(struct mhi_dev_ev_ctx) *
+			mhi->cfg.event_rings,
+			mhi->ev_ctx_cache,
+			mhi->ev_ctx_cache_dma_handle);
+	return rc;
 }
 
 void mhi_dev_pm_relax(void)
@@ -3398,14 +3431,25 @@ static void mhi_dev_enable(struct work_struct *work)
 		pr_err("%s: get mhi state failed\n", __func__);
 		return;
 	}
+	if (mhi_reset) {
+		mhi_dev_mmio_clear_reset(mhi);
+		mhi_log(MHI_MSG_VERBOSE,
+			"Cleared reset before waiting for M0\n");
+	}
 
-	while (state != MHI_DEV_M0_STATE && max_cnt < MHI_SUSPEND_TIMEOUT) {
+	while (state != MHI_DEV_M0_STATE &&
+		((max_cnt < MHI_SUSPEND_TIMEOUT) || mhi->no_m0_timeout)) {
 		/* Wait for Host to set the M0 state */
 		msleep(MHI_SUSPEND_MIN);
 		rc = mhi_dev_mmio_get_mhi_state(mhi, &state, &mhi_reset);
 		if (rc) {
 			pr_err("%s: get mhi state failed\n", __func__);
 			return;
+		}
+		if (mhi_reset) {
+			mhi_dev_mmio_clear_reset(mhi);
+			mhi_log(MHI_MSG_VERBOSE,
+				"Cleared reset while waiting for M0\n");
 		}
 		max_cnt++;
 	}
@@ -3663,6 +3707,9 @@ static int get_device_tree_data(struct platform_device *pdev)
 	mhi->enable_m2 = of_property_read_bool((&pdev->dev)->of_node,
 				"qcom,enable-m2");
 
+	mhi->no_m0_timeout = of_property_read_bool((&pdev->dev)->of_node,
+		"qcom,no-m0-timeout");
+
 	mhi_log(MHI_MSG_VERBOSE, "acquiring wakelock\n");
 
 	return 0;
@@ -3673,40 +3720,9 @@ err:
 
 static int mhi_deinit(struct mhi_dev *mhi)
 {
-	int i = 0, ring_id = 0;
-	struct mhi_dev_ring *ring;
 	struct platform_device *pdev = mhi->pdev;
 
-	ring_id = mhi->cfg.channels + mhi->cfg.event_rings + 1;
-
-	for (i = 0; i < ring_id; i++) {
-		ring = &mhi->ring[i];
-		if (ring->state == RING_STATE_UINT)
-			continue;
-
-		dma_free_coherent(mhi->dev, ring->ring_size *
-			sizeof(union mhi_dev_ring_element_type),
-			ring->ring_cache,
-			ring->ring_cache_dma_handle);
-
-		if (mhi->use_edma)
-			dma_free_coherent(mhi->dev, sizeof(u32),
-				ring->msi_buffer.buf,
-				ring->msi_buffer.dma_addr);
-		if (ring->type == RING_TYPE_ER) {
-			dma_free_coherent(mhi->dev, ring->ring_size *
-				sizeof(uint64_t),
-				ring->evt_rp_cache,
-				ring->evt_rp_cache_dma_handle);
-			dma_free_coherent(mhi->dev,
-				sizeof(uint32_t),
-				ring->msi_buf,
-				ring->msi_buf_dma_handle);
-		}
-	}
-
 	devm_kfree(&pdev->dev, mhi->mmio_backup);
-	devm_kfree(&pdev->dev, mhi->ring);
 
 	mhi_dev_sm_exit(mhi);
 
@@ -3726,10 +3742,11 @@ static int mhi_init(struct mhi_dev *mhi)
 		return rc;
 	}
 
-	mhi->ring = devm_kzalloc(&pdev->dev,
-			(sizeof(struct mhi_dev_ring) *
-			(mhi->cfg.channels + mhi->cfg.event_rings + 1)),
-			GFP_KERNEL);
+	if (!mhi->ring)
+		mhi->ring = devm_kzalloc(&pdev->dev,
+				(sizeof(struct mhi_dev_ring) *
+				(mhi->cfg.channels + mhi->cfg.event_rings + 1)),
+				GFP_KERNEL);
 	if (!mhi->ring)
 		return -ENOMEM;
 
