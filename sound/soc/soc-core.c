@@ -2661,6 +2661,20 @@ int snd_soc_add_dai_controls(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_dai_controls);
 
+
+int snd_soc_dai_set_tdm_clkmode(struct snd_soc_dai *dai, int clk_mode)
+{
+	if (dai->driver == NULL)
+		return -EINVAL;
+
+	if (dai->driver->ops->set_clkmode == NULL)
+		return -ENOTSUPP;
+
+	return dai->driver->ops->set_clkmode(dai, clk_mode);
+
+}
+EXPORT_SYMBOL(snd_soc_dai_set_tdm_clkmode);
+
 /**
  * snd_soc_dai_set_sysclk - configure DAI system or master clock.
  * @dai: DAI

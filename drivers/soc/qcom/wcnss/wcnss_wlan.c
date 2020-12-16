@@ -216,7 +216,7 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define WCNSS_USR_CTRL_MSG_START  0x00000000
 #define WCNSS_USR_HAS_CAL_DATA    (WCNSS_USR_CTRL_MSG_START + 2)
 #define WCNSS_USR_WLAN_MAC_ADDR   (WCNSS_USR_CTRL_MSG_START + 3)
-#define WCNSS_MAX_USR_BT_PROFILE_IND_CMD_SIZE 32
+#define WCNSS_MAX_USR_BT_PROFILE_IND_CMD_SIZE 64
 
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
 #define SHOW_MAC_ADDRESS_STR	"%02x:%02x:%02x:%02x:%02x:%02x\n"
@@ -285,12 +285,14 @@ static struct notifier_block wnb = {
 	.notifier_call = wcnss_notif_cb,
 };
 
-#define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv.bin"
+#define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv"
 
 /* On SMD channel 4K of maximum data can be transferred, including message
  * header, so NV fragment size as next multiple of 1Kb is 3Kb.
  */
 #define NV_FRAGMENT_SIZE  3072
+#define NVBIN_FILE_SIZE 64
+#define IRIS_VARIANT_SIZE 8
 #define MAX_CALIBRATED_DATA_SIZE  (64 * 1024)
 #define LAST_FRAGMENT        BIT(0)
 #define MESSAGE_TO_FOLLOW    BIT(1)
@@ -485,6 +487,9 @@ static struct {
 	struct qcom_smem_state *wake_state;
 	unsigned int wake_state_bit;
 	struct bt_profile_state bt_state;
+	u32 multi_sku;
+	char nv_name[NVBIN_FILE_SIZE];
+	u32 sw_pta;
 } *penv = NULL;
 
 static void *wcnss_ipc_log;
@@ -653,13 +658,16 @@ static int wcnss_bt_profile_validate_cmd(char *dest_buf, size_t dest_buf_size,
 		if (profile_idx == 1 && !strcmp(found, "BT_ENABLED")) {
 			found = strsep(&dest_buf, " ");
 			penv->bt_state.bt_enabled = strcmp(found, "0");
-		} else if (profile_idx == 2 && !strcmp(found, "BLE")) {
+		} else if (profile_idx == 2 && !strcmp(found, "BT_ADV")) {
+			found = strsep(&dest_buf, " ");
+			penv->bt_state.bt_adv = strcmp(found, "0");
+		} else if (profile_idx == 3 && !strcmp(found, "BLE")) {
 			found = strsep(&dest_buf, " ");
 			penv->bt_state.bt_ble = strcmp(found, "0");
-		} else if (profile_idx == 3 && !strcmp(found, "A2DP")) {
+		} else if (profile_idx == 4 && !strcmp(found, "A2DP")) {
 			found = strsep(&dest_buf, " ");
 			penv->bt_state.bt_a2dp = strcmp(found, "0");
-		} else if (profile_idx == 4 && !strcmp(found, "SCO")) {
+		} else if (profile_idx == 5 && !strcmp(found, "SCO")) {
 			found = strsep(&dest_buf, " ");
 			penv->bt_state.bt_sco = strcmp(found, "0");
 		} else {
@@ -700,8 +708,9 @@ static ssize_t wcnss_bt_profile_show(struct device *dev,
 		return -ENODEV;
 
 	return scnprintf(buf, PAGE_SIZE,
-			 "BT_ENABLED = %d\nBLE = %d\nA2Dp = %d\nSCO = %d\n",
+			 "BT_ENABLED = %d\nBT_ADV = %d\nBLE = %d\nA2DP = %d\nSCO = %d\n",
 			 penv->bt_state.bt_enabled,
+			 penv->bt_state.bt_adv,
 			 penv->bt_state.bt_ble,
 			 penv->bt_state.bt_a2dp,
 			 penv->bt_state.bt_sco);
@@ -1349,9 +1358,11 @@ static int wcnss_create_sysfs(struct device *dev)
 	if (ret)
 		goto remove_version;
 
-	ret = device_create_file(dev, &dev_attr_bt_profile);
-	if (ret)
-		goto remove_mac_addr;
+	if (wcnss_is_sw_pta_enabled()) {
+		ret = device_create_file(dev, &dev_attr_bt_profile);
+		if (ret)
+			goto remove_mac_addr;
+	}
 
 	return 0;
 
@@ -1857,6 +1868,17 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(wcnss_unregister_driver);
+
+void wcnss_update_bt_profile(void)
+{
+	if (!penv || !penv->pdev || !penv->ops)
+		return;
+
+	if (penv->bt_state.bt_enabled)
+		penv->ops->bt_profile_state(penv->ops->priv_data,
+					    &penv->bt_state);
+}
+EXPORT_SYMBOL(wcnss_update_bt_profile);
 
 void wcnss_wlan_register_pm_ops(struct device *dev,
 				const struct dev_pm_ops *pm_ops)
@@ -2597,6 +2619,35 @@ static void wcnss_pm_qos_enable_pc(struct work_struct *worker)
 
 static DECLARE_RWSEM(wcnss_pm_sem);
 
+int wcnss_get_nv_name(char *nv_name)
+{
+	char variant[8] = {0};
+	int ret;
+
+	if (penv->multi_sku) {
+		ret = wcnss_get_iris_name(variant);
+		if (ret) {
+			wcnss_log(ERR, "Invalid IRIS name\n");
+			return 1;
+		}
+
+		scnprintf(nv_name, NVBIN_FILE_SIZE, "%s_%s.bin",
+			  NVBIN_FILE, variant);
+	} else {
+		scnprintf(nv_name, NVBIN_FILE_SIZE, "%s.bin",
+			  NVBIN_FILE);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(wcnss_get_nv_name);
+
+int wcnss_is_sw_pta_enabled(void)
+{
+	return penv->sw_pta;
+}
+EXPORT_SYMBOL(wcnss_is_sw_pta_enabled);
+
 static void wcnss_nvbin_dnld(void)
 {
 	int ret = 0;
@@ -2613,12 +2664,18 @@ static void wcnss_nvbin_dnld(void)
 
 	down_read(&wcnss_pm_sem);
 
-	ret = request_firmware(&nv, NVBIN_FILE, dev);
+	ret = wcnss_get_nv_name(penv->nv_name);
+	if (ret) {
+		wcnss_log(ERR, "failed getting nv name\n");
+		goto out;
+	}
+
+	ret = request_firmware(&nv, penv->nv_name, dev);
 
 	if (ret || !nv || !nv->data || !nv->size) {
 		wcnss_log(ERR,
 			  "%s: request_firmware failed for %s (ret = %d)\n",
-		       __func__, NVBIN_FILE, ret);
+		       __func__, penv->nv_name, ret);
 		goto out;
 	}
 
@@ -2835,14 +2892,14 @@ static int wcnss_pm_notify(struct notifier_block *b,
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
 		down_write(&wcnss_pm_sem);
-		if (penv->wake_state)
+		if (penv->wake_state && penv->ops)
 			qcom_smem_state_update_bits(penv->wake_state,
 						    AWAKE_BIT, 0);
 		break;
 
 	case PM_POST_SUSPEND:
 		up_write(&wcnss_pm_sem);
-		if (penv->wake_state)
+		if (penv->wake_state && penv->ops)
 			qcom_smem_state_update_bits(penv->wake_state, AWAKE_BIT,
 						    AWAKE_BIT);
 		break;
@@ -3324,6 +3381,9 @@ wcnss_trigger_config(struct platform_device *pdev)
 		}
 	}
 
+	device_property_read_u32(&pdev->dev, "qcom,multi_sku",
+				 &penv->multi_sku);
+
 	do {
 		/* trigger initialization of the WCNSS */
 		penv->pil = subsystem_get(WCNSS_PIL_DEVICE);
@@ -3759,6 +3819,9 @@ wcnss_wlan_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	device_property_read_u32(&pdev->dev, "qcom,sw_pta",
+				 &penv->sw_pta);
+
 	/* register sysfs entries */
 	ret = wcnss_create_sysfs(&pdev->dev);
 	if (ret) {
@@ -3797,13 +3860,11 @@ wcnss_wlan_probe(struct platform_device *pdev)
 	penv->wake_state = qcom_smem_state_get(&pdev->dev,
 					      "wake-state",
 					      &penv->wake_state_bit);
-	if (IS_ERR(penv->wake_state))
+	if (IS_ERR(penv->wake_state)) {
+		penv->wake_state = NULL;
 		wcnss_log(WARN, "%s: qcom_smem_wake_state_get failed",
 			  __func__);
-
-	if (penv->wake_state)
-		qcom_smem_state_update_bits(penv->wake_state,
-					    AWAKE_BIT, AWAKE_BIT);
+	}
 
 	return wcnss_cdev_register(pdev);
 }
@@ -3814,7 +3875,10 @@ wcnss_wlan_remove(struct platform_device *pdev)
 	if (penv->wcnss_notif_hdle)
 		subsys_notif_unregister_notifier(penv->wcnss_notif_hdle, &wnb);
 	wcnss_cdev_unregister(pdev);
-	qcom_smem_state_put(penv->wake_state);
+
+	if (penv->wake_state)
+		qcom_smem_state_put(penv->wake_state);
+
 	wcnss_remove_sysfs(&pdev->dev);
 	penv = NULL;
 	return 0;

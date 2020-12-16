@@ -174,7 +174,7 @@
 /**
  * Max number of clients supported for mac based exception
  */
-#define IPA_MAX_NUM_MAC_FLT 5
+#define IPA_MAX_NUM_MAC_FLT 32
 
 /**
  * MAX number of the FLT_RT stats counter supported.
@@ -237,7 +237,7 @@
 /**
  * maximal number of NAT PDNs in the PDN config table
  */
-#define IPA_MAX_PDN_NUM 7
+#define IPA_MAX_PDN_NUM 16
 #define IPA_MAX_PDN_NUM_v4 5
 
 /**
@@ -425,9 +425,12 @@ enum ipa_client_type {
 
 	/* RESERVERD PROD			= 114, */
 	IPA_CLIENT_WLAN2_CONS1			= 115,
+
+	IPA_CLIENT_RTK_ETHERNET_PROD = 116,
+	IPA_CLIENT_RTK_ETHERNET_CONS = 117,
 };
 
-#define IPA_CLIENT_MAX (IPA_CLIENT_WLAN2_CONS1 + 1)
+#define IPA_CLIENT_MAX (IPA_CLIENT_RTK_ETHERNET_CONS + 1)
 
 #define IPA_CLIENT_WLAN2_PROD IPA_CLIENT_A5_WLAN_AMPDU_PROD
 #define IPA_CLIENT_Q6_DL_NLO_DATA_PROD IPA_CLIENT_Q6_DL_NLO_DATA_PROD
@@ -450,6 +453,7 @@ enum ipa_client_type {
 #define IPA_CLIENT_MHI_PRIME_DPL_PROD IPA_CLIENT_MHI_PRIME_DPL_PROD
 #define IPA_CLIENT_MHI_QDSS_CONS IPA_CLIENT_MHI_QDSS_CONS
 #define IPA_CLIENT_QDSS_PROD IPA_CLIENT_QDSS_PROD
+
 
 #define IPA_CLIENT_IS_APPS_CONS(client) \
 	((client) == IPA_CLIENT_APPS_LAN_CONS || \

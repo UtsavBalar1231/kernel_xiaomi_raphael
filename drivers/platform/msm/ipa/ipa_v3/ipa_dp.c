@@ -37,7 +37,6 @@
 /* 8K less 1 nominal MTU (1500 bytes) rounded to units of KB */
 #define IPA_MTU 1500
 #define IPA_GENERIC_AGGR_BYTE_LIMIT 6
-#define IPA_GENERIC_AGGR_TIME_LIMIT 500 /* 0.5msec */
 #define IPA_GENERIC_AGGR_PKT_LIMIT 0
 
 #define IPA_GSB_AGGR_BYTE_LIMIT 14
@@ -3805,8 +3804,6 @@ static int ipa3_assign_policy(struct ipa_sys_connect_params *in,
 				in->ipa_ep_cfg.aggr.aggr = IPA_COALESCE;
 			else
 				in->ipa_ep_cfg.aggr.aggr = IPA_GENERIC;
-			in->ipa_ep_cfg.aggr.aggr_time_limit =
-				IPA_GENERIC_AGGR_TIME_LIMIT;
 			if (in->client == IPA_CLIENT_APPS_LAN_CONS) {
 				INIT_WORK(&sys->repl_work, ipa3_wq_repl_rx);
 				sys->pyld_hdlr = ipa3_lan_rx_pyld_hdlr;
@@ -3816,6 +3813,8 @@ static int ipa3_assign_policy(struct ipa_sys_connect_params *in,
 					ipa3_recycle_rx_wrapper;
 				sys->rx_pool_sz =
 					ipa3_ctx->lan_rx_ring_size;
+				in->ipa_ep_cfg.aggr.aggr_time_limit =
+					ipa3_ctx->lan_aggr_time_limit;
 				in->ipa_ep_cfg.aggr.aggr_byte_limit =
 				IPA_GENERIC_AGGR_BYTE_LIMIT;
 				in->ipa_ep_cfg.aggr.aggr_pkt_limit =
@@ -3854,6 +3853,8 @@ static int ipa3_assign_policy(struct ipa_sys_connect_params *in,
 				}
 				in->ipa_ep_cfg.aggr.aggr_sw_eof_active
 						= true;
+				in->ipa_ep_cfg.aggr.aggr_time_limit =
+					ipa3_ctx->wan_aggr_time_limit;
 				if (apps_wan_cons_agg_gro_flag)
 					ipa3_set_aggr_limit(in, sys);
 				else {

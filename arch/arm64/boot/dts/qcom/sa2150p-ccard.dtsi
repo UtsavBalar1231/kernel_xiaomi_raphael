@@ -10,8 +10,6 @@
  * GNU General Public License for more details.
  */
 
-#include "qcs405.dtsi"
-
 &tlmm {
 	pinctrl-0 = <&status_gpio>;
 	pinctrl-names = "default";
@@ -229,6 +227,10 @@
 		<0x74 0x10 0>,
 		<0x90 0x60 0>,
 		<0xffffffff 0xffffffff 0>;
+};
+
+&usb_ss_phy {
+	qcom,vdd-voltage-level = <0 1100000 1100000>;
 };
 
 &usb3_extcon {

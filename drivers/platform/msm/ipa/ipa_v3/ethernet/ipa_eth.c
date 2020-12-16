@@ -35,8 +35,7 @@ bool ipa_eth_is_ready(void)
 bool ipa_eth_all_ready(void)
 {
 	return ipa_eth_is_ready() &&
-		test_bit(IPA_ETH_ST_UC_READY, &ipa_eth_state) &&
-		test_bit(IPA_ETH_ST_IPA_READY, &ipa_eth_state);
+		test_bit(IPA_ETH_ST_API_READY, &ipa_eth_state);
 }
 
 static inline bool present(struct ipa_eth_device *eth_dev)
@@ -674,29 +673,6 @@ static void ipa_eth_dev_start_timer_cb(unsigned long data)
 	}
 }
 
-static int ipa_eth_uc_ready_cb(struct notifier_block *nb,
-	unsigned long action, void *data)
-{
-	ipa_eth_log("IPA uC is ready");
-
-	set_bit(IPA_ETH_ST_UC_READY, &ipa_eth_state);
-	ipa_eth_global_refresh_sched();
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block uc_ready_cb = {
-	.notifier_call = ipa_eth_uc_ready_cb,
-};
-
-static void ipa_eth_ipa_ready_cb(void *data)
-{
-	ipa_eth_log("IPA is ready");
-
-	set_bit(IPA_ETH_ST_IPA_READY, &ipa_eth_state);
-	ipa_eth_global_refresh_sched();
-}
-
 static int ipa_eth_panic_notifier(struct notifier_block *nb,
 	unsigned long event, void *ptr)
 {
@@ -1056,6 +1032,18 @@ void ipa_eth_unregister_offload_driver(struct ipa_eth_offload_driver *od)
 }
 EXPORT_SYMBOL(ipa_eth_unregister_offload_driver);
 
+static void ipa_eth_api_ready_cb(void *user_data)
+{
+	ipa_eth_log("IPA API is ready");
+
+	set_bit(IPA_ETH_ST_API_READY, &ipa_eth_state);
+	ipa_eth_global_refresh_sched();
+}
+
+static struct ipa_eth_ready eth_api_rdy = {
+	.notify = ipa_eth_api_ready_cb,
+};
+
 int ipa_eth_init(void)
 {
 	int rc;
@@ -1093,21 +1081,10 @@ int ipa_eth_init(void)
 		goto err_dbgfs;
 	}
 
-	rc = ipa3_uc_register_ready_cb(&uc_ready_cb);
+	rc = ipa_eth_register_ready_cb(&eth_api_rdy);
 	if (rc) {
-		ipa_eth_err("Failed to register for uC ready cb");
-		goto err_uc;
-	}
-
-	/* Register for IPA ready cb in the end since there is no
-	 * mechanism to unregister it.
-	 */
-	rc = ipa_register_ipa_ready_cb(ipa_eth_ipa_ready_cb, NULL);
-	if (rc == -EEXIST) {
-		set_bit(IPA_ETH_ST_IPA_READY, &ipa_eth_state);
-	} else if (rc) {
-		ipa_eth_err("Failed to register for IPA ready cb");
-		goto err_ipa;
+		ipa_eth_err("Failed to register ready cb with IPA driver");
+		goto err_reg_rdy;
 	}
 
 	set_bit(IPA_ETH_ST_READY, &ipa_eth_state);
@@ -1118,9 +1095,7 @@ int ipa_eth_init(void)
 
 	return 0;
 
-err_ipa:
-	ipa3_uc_unregister_ready_cb(&uc_ready_cb);
-err_uc:
+err_reg_rdy:
 	ipa_eth_debugfs_cleanup();
 err_dbgfs:
 	ipa_eth_bus_modexit();
@@ -1142,12 +1117,7 @@ void ipa_eth_exit(void)
 	 */
 	clear_bit(IPA_ETH_ST_READY, &ipa_eth_state);
 
-	/* IPA ready CB can not be unregistered. But since ipa_eth_exit() is
-	 * only called when IPA driver itself is deinitialized, we do not
-	 * expect the IPA ready CB to happen beyond this point.
-	 */
-
-	ipa3_uc_unregister_ready_cb(&uc_ready_cb);
+	ipa_eth_unregister_ready_cb(&eth_api_rdy);
 
 	ipa_eth_debugfs_cleanup();
 

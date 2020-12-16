@@ -30,6 +30,9 @@
 extern void *ipc_stmmac_log_ctxt;
 extern void *ipc_stmmac_log_ctxt_low;
 
+#define SSR_EVENT_UP 20
+#define SSR_EVENT_DOWN 21
+
 #define QCOM_ETH_QOS_MAC_ADDR_LEN 6
 #define QCOM_ETH_QOS_MAC_ADDR_STR_LEN 18
 

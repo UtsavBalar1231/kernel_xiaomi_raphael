@@ -23,6 +23,7 @@
 #define AIS_IFE_PAUSE         (AIS_IFE_OPCODE_START + 9)
 #define AIS_IFE_RESUME        (AIS_IFE_OPCODE_START + 10)
 #define AIS_IFE_BUFFER_ENQ    (AIS_IFE_OPCODE_START + 11)
+#define AIS_IFE_DIAG_INFO     (AIS_IFE_OPCODE_START + 12)
 
 /* Specific event ids to get notified in user space */
 #define V4L_EVENT_TYPE_AIS_IFE  (V4L2_EVENT_PRIVATE_START)

@@ -61,6 +61,9 @@ static void diag_pcie_event_notifier(struct mhi_dev_client_cb_reason *reason)
 		pcie_info = &diag_pcie[i];
 		if (reason->reason == MHI_DEV_TRE_AVAILABLE)
 			if (reason->ch_id == pcie_info->in_chan) {
+				DIAG_LOG(DIAG_DEBUG_MUX,
+					"diag: queueing a read off pcie (pcie_info->read_cnt: %d)\n",
+					pcie_info->read_cnt);
 				queue_work(pcie_info->wq,
 					&pcie_info->read_work);
 				break;
@@ -86,17 +89,29 @@ void diag_pcie_read_work_fn(struct work_struct *work)
 	ureq.buf = pcie_info->in_chan_attr.read_buffer;
 	ureq.len = pcie_info->in_chan_attr.read_buffer_size;
 	ureq.transfer_len = 0;
-	bytes_avail = mhi_dev_read_channel(&ureq);
-	if (bytes_avail < 0)
-		return;
-	DIAG_LOG(DIAG_DEBUG_MUX, "read total bytes %d from chan:%d",
-		bytes_avail, pcie_info->in_chan);
-	pcie_info->read_cnt++;
 
-	if (pcie_info->ops && pcie_info->ops->read_done)
-		pcie_info->ops->read_done(pcie_info->in_chan_attr.read_buffer,
-					ureq.transfer_len, pcie_info->ctxt);
+	do {
+		bytes_avail = mhi_dev_read_channel(&ureq);
+		if (bytes_avail < 0) {
+			DIAG_LOG(DIAG_DEBUG_MUX,
+				"diag: failed to read with error: %d\n",
+				bytes_avail);
+			return;
+		}
+		if (bytes_avail == 0)
+			return;
 
+		pcie_info->read_cnt++;
+		DIAG_LOG(DIAG_DEBUG_MUX,
+			"diag: read total bytes: %d from chan: %d with read_cnt: %d\n",
+			bytes_avail, pcie_info->in_chan, pcie_info->read_cnt);
+
+		if (pcie_info->ops && pcie_info->ops->read_done)
+			pcie_info->ops->read_done(
+				pcie_info->in_chan_attr.read_buffer,
+				ureq.transfer_len, pcie_info->ctxt);
+
+	} while (bytes_avail > 0);
 }
 
 static void diag_pcie_buf_tbl_remove(struct diag_pcie_info *pcie_info,

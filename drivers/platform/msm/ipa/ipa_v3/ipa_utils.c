@@ -2390,6 +2390,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			IPA_DPS_HPS_SEQ_TYPE_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
 			QMB_MASTER_SELECT_DDR,
 			{ 10, 13, 8, 16, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
+	[IPA_4_5][IPA_CLIENT_RTK_ETHERNET_PROD] = {
+			true, IPA_v4_5_GROUP_UL_DL,
+			true,
+			IPA_DPS_HPS_SEQ_TYPE_2ND_PKT_PROCESS_PASS_NO_DEC_UCP,
+			QMB_MASTER_SELECT_DDR,
+			{ 10, 13, 8, 16, IPA_EE_AP, GSI_ESCAPE_BUF_ONLY, 0 } },
 	/* Only for test purpose */
 	[IPA_4_5][IPA_CLIENT_TEST_PROD]           = {
 			true, IPA_v4_5_GROUP_UL_DL,
@@ -2521,6 +2527,12 @@ static const struct ipa_ep_configuration ipa3_ep_mapping
 			QMB_MASTER_SELECT_DDR,
 			{ 18, 4, 9, 9, IPA_EE_Q6, GSI_ESCAPE_BUF_ONLY, 0 } },
 	[IPA_4_5][IPA_CLIENT_AQC_ETHERNET_CONS] = {
+			true, IPA_v4_5_GROUP_UL_DL,
+			false,
+			IPA_DPS_HPS_SEQ_TYPE_INVALID,
+			QMB_MASTER_SELECT_DDR,
+			{ 23, 8, 9, 9, IPA_EE_AP, GSI_SMART_PRE_FETCH, 4 } },
+	[IPA_4_5][IPA_CLIENT_RTK_ETHERNET_CONS] = {
 			true, IPA_v4_5_GROUP_UL_DL,
 			false,
 			IPA_DPS_HPS_SEQ_TYPE_INVALID,
@@ -3498,8 +3510,8 @@ static struct ipa3_mem_partition ipa_4_5_mem_part = {
 	.uc_descriptor_ram_ofst	= 0x3800,
 	.uc_descriptor_ram_size	= 0x1000,
 	.pdn_config_ofst	= 0x4800,
-	.pdn_config_size	= 0x70,
-	.end_ofst		= 0x4870,
+	.pdn_config_size	= 0x100,
+	.end_ofst		= 0x4900,
 };
 
 
@@ -4427,6 +4439,35 @@ enum ipacm_client_enum ipa3_get_client(int pipe_idx)
 		return ipa3_ctx->ipacm_client[pipe_idx].client_enum;
 	}
 }
+
+/**
+ * ipa3_get_default_aggr_time_limit() - provide default aggregation
+ * timeout for a supported client.
+ * @client: client type - currently USB is supported.
+ *
+ * Return value: 0 on Success, Negative on failure.
+ */
+int ipa3_get_default_aggr_time_limit(enum ipa_client_type client,
+	u32 *default_aggr_time_limit)
+{
+
+	if (!default_aggr_time_limit) {
+		IPAERR("NULL out param\n");
+		return -EINVAL;
+	}
+
+	if (client == IPA_CLIENT_USB_CONS) {
+		*default_aggr_time_limit = ipa3_ctx->rndis_aggr_time_limit;
+		IPADBG("Default aggregation timeout for RNDIS:%d\n",
+			*default_aggr_time_limit);
+	} else {
+		IPAERR("Client not supproted now: %d\n", client);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 
 /**
  * ipa2_get_client_uplink() - provide client mapping
@@ -5794,7 +5835,8 @@ int ipa3_write_qmap_id(struct ipa_ioc_write_qmapid *param_in)
 	    param_in->client == IPA_CLIENT_ETHERNET_PROD ||
 	    param_in->client == IPA_CLIENT_ETHERNET2_PROD ||
 		param_in->client == IPA_CLIENT_WIGIG_PROD ||
-		param_in->client == IPA_CLIENT_AQC_ETHERNET_PROD) {
+		param_in->client == IPA_CLIENT_AQC_ETHERNET_PROD ||
+		param_in->client == IPA_CLIENT_RTK_ETHERNET_PROD) {
 		result = ipa3_cfg_ep_metadata(ipa_ep_idx, &meta);
 	} else if (param_in->client == IPA_CLIENT_WLAN1_PROD ||
 			   param_in->client == IPA_CLIENT_WLAN2_PROD ||
@@ -7448,6 +7490,16 @@ int ipa3_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 	api_ctrl->ipa_del_socksv5_conn = ipa3_del_socksv5_conn;
 	api_ctrl->ipa_conn_qdss_pipes = ipa3_conn_qdss_pipes;
 	api_ctrl->ipa_disconn_qdss_pipes = ipa3_disconn_qdss_pipes;
+	api_ctrl->ipa_get_default_aggr_time_limit =
+		ipa3_get_default_aggr_time_limit;
+	api_ctrl->ipa_eth_rtk_connect = ipa3_eth_rtk_connect;
+	api_ctrl->ipa_eth_aqc_connect = ipa3_eth_aqc_connect;
+	api_ctrl->ipa_eth_emac_connect = ipa3_eth_emac_connect;
+	api_ctrl->ipa_eth_rtk_disconnect = ipa3_eth_rtk_disconnect;
+	api_ctrl->ipa_eth_aqc_disconnect = ipa3_eth_aqc_disconnect;
+	api_ctrl->ipa_eth_emac_disconnect = ipa3_eth_emac_disconnect;
+	api_ctrl->ipa_eth_client_conn_evt = ipa3_eth_client_conn_evt;
+	api_ctrl->ipa_eth_client_disconn_evt = ipa3_eth_client_conn_evt;
 	return 0;
 }
 
@@ -8034,6 +8086,7 @@ static int __ipa3_stop_gsi_channel(u32 clnt_hdl)
 	}
 
 	IPAERR("Failed  to stop GSI channel with retries\n");
+	ipa_assert();
 	return -EFAULT;
 }
 
@@ -8174,6 +8227,12 @@ int ipa3_suspend_apps_pipes(bool suspend)
 	res = _ipa_suspend_resume_pipe(IPA_CLIENT_APPS_LAN_CONS, suspend);
 	if (res == -EAGAIN)
 		goto undo_lan_cons;
+	/* ODL_DPL_CONS in CPE cfg & MHI_DPL_CONS for PCIE uses same ep */
+	if (ipa3_ctx->ipa_config_is_mhi &&
+			!ipa3_ctx->ipa_in_cpe_cfg) {
+		IPADBG("ODL DPS cons not valid for PCIe ep use case\n");
+		return 0;
+	}
 
 	res = _ipa_suspend_resume_pipe(IPA_CLIENT_ODL_DPL_CONS, suspend);
 	if (res == -EAGAIN)
@@ -9027,6 +9086,10 @@ void ipa3_get_gsi_stats(int prot_id,
 		stats->num_ch = MAX_AQC_CHANNELS;
 		ipa3_get_aqc_gsi_stats(stats);
 		break;
+	case IPA_HW_PROTOCOL_RTK:
+		stats->num_ch = MAX_RTK_CHANNELS;
+		ipa3_get_rtk_gsi_stats(stats);
+		break;
 	case IPA_HW_PROTOCOL_11ad:
 		break;
 	case IPA_HW_PROTOCOL_WDI:
@@ -9067,6 +9130,10 @@ int ipa3_get_prot_id(enum ipa_client_type client)
 	case IPA_CLIENT_AQC_ETHERNET_CONS:
 	case IPA_CLIENT_AQC_ETHERNET_PROD:
 		prot_id = IPA_HW_PROTOCOL_AQC;
+		break;
+	case IPA_CLIENT_RTK_ETHERNET_CONS:
+	case IPA_CLIENT_RTK_ETHERNET_PROD:
+		prot_id = IPA_HW_PROTOCOL_RTK;
 		break;
 	case IPA_CLIENT_MHI_PRIME_TETH_PROD:
 	case IPA_CLIENT_MHI_PRIME_TETH_CONS:
@@ -9830,8 +9897,27 @@ error:
 
 int ipa3_get_max_pdn(void)
 {
-	if (ipa3_get_hw_type_index() == IPA_4_5_AUTO)
+	if ((ipa3_get_hw_type_index() == IPA_4_5_AUTO) ||
+		(ipa3_get_hw_type_index() == IPA_4_5))
 		return IPA_MAX_PDN_NUM;
 	else
 		return IPA_MAX_PDN_NUM_v4;
+}
+
+
+void ipa3_eth_get_status(u32 client, int scratch_id,
+	struct ipa3_eth_error_stats *stats)
+{
+	int ch_id;
+	int ipa_ep_idx;
+
+	IPA_ACTIVE_CLIENTS_INC_SIMPLE();
+	ipa_ep_idx = ipa3_get_ep_mapping(client);
+	if (ipa_ep_idx == IPA_EP_NOT_ALLOCATED)
+		return;
+	ch_id = ipa3_ctx->ep[ipa_ep_idx].gsi_chan_hdl;
+	stats->rp = gsi_get_refetch_reg(ch_id, true);
+	stats->wp = gsi_get_refetch_reg(ch_id, false);
+	stats->err = gsi_get_drop_stats(ipa_ep_idx, scratch_id);
+	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
 }

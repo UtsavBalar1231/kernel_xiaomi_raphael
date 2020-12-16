@@ -3077,14 +3077,20 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		if (ep_info.max_ep_pairs != QUERY_MAX_EP_PAIRS)
+		if (ep_info.max_ep_pairs != QUERY_MAX_EP_PAIRS) {
 			IPAERR_RL("unexpected max_ep_pairs %d\n",
 			ep_info.max_ep_pairs);
+			retval = -EFAULT;
+			break;
+		}
 
-		if (ep_info.ep_pair_size !=
-			(QUERY_MAX_EP_PAIRS * sizeof(struct ipa_ep_pair_info)))
+		if (ep_info.ep_pair_size != (QUERY_MAX_EP_PAIRS *
+			sizeof(struct ipa_ep_pair_info))) {
 			IPAERR_RL("unexpected ep_pair_size %d\n",
 			ep_info.max_ep_pairs);
+			retval = -EFAULT;
+			break;
+		}
 
 		uptr = ep_info.info;
 		if (unlikely(!uptr)) {
@@ -7003,6 +7009,9 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 	ipa3_ctx->use_64_bit_dma_mask = resource_p->use_64_bit_dma_mask;
 	ipa3_ctx->wan_rx_ring_size = resource_p->wan_rx_ring_size;
 	ipa3_ctx->lan_rx_ring_size = resource_p->lan_rx_ring_size;
+	ipa3_ctx->wan_aggr_time_limit = resource_p->wan_aggr_time_limit;
+	ipa3_ctx->lan_aggr_time_limit = resource_p->lan_aggr_time_limit;
+	ipa3_ctx->rndis_aggr_time_limit = resource_p->rndis_aggr_time_limit;
 	ipa3_ctx->ipa_wan_skb_page = resource_p->ipa_wan_skb_page;
 	ipa3_ctx->stats.page_recycle_stats[0].total_replenished = 0;
 	ipa3_ctx->stats.page_recycle_stats[0].tmp_alloc = 0;
@@ -7043,6 +7052,7 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 	ipa3_ctx->ipa_wdi3_5g_holb_timeout =
 		resource_p->ipa_wdi3_5g_holb_timeout;
 	ipa3_ctx->is_wdi3_tx1_needed = false;
+	ipa3_ctx->ipa_in_cpe_cfg = resource_p->ipa_in_cpe_cfg;
 
 	if (ipa3_ctx->secure_debug_check_action == USE_SCM) {
 		if (ipa_is_mem_dump_allowed())
@@ -7716,6 +7726,10 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	ipa_drv_res->ipa_config_is_auto = false;
 	ipa_drv_res->ipa_config_is_sa = false;
 	ipa_drv_res->manual_fw_load = false;
+	ipa_drv_res->wan_aggr_time_limit = IPA_GENERIC_AGGR_TIME_LIMIT;
+	ipa_drv_res->lan_aggr_time_limit = IPA_GENERIC_AGGR_TIME_LIMIT;
+	ipa_drv_res->rndis_aggr_time_limit = IPA_RNDIS_DEFAULT_AGGR_TIME_LIMIT;
+	ipa_drv_res->ipa_in_cpe_cfg = false;
 
 	/* Get IPA HW Version */
 	result = of_property_read_u32(pdev->dev.of_node, "qcom,ipa-hw-ver",
@@ -7774,6 +7788,37 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	else
 		IPADBG(": found ipa_drv_res->lan-rx-ring-size = %u",
 			ipa_drv_res->lan_rx_ring_size);
+
+	/* Get IPA WAN / LAN / RNDIS Aggregation timeout value in ms */
+	result = of_property_read_u32(pdev->dev.of_node,
+			"qcom,wan-aggr-time-limit",
+			&ipa_drv_res->wan_aggr_time_limit);
+	if (result)
+		IPADBG("using default for wan-aggr-time-limit = %u\n",
+				ipa_drv_res->wan_aggr_time_limit);
+	else
+		IPADBG(": found ipa_drv_res->wan_aggr_time_limit = %u",
+				ipa_drv_res->wan_aggr_time_limit);
+
+	result = of_property_read_u32(pdev->dev.of_node,
+			"qcom,lan-aggr-time-limit",
+			&ipa_drv_res->lan_aggr_time_limit);
+	if (result)
+		IPADBG("using default for lan-aggr-time-limit = %u\n",
+				ipa_drv_res->lan_aggr_time_limit);
+	else
+		IPADBG(": found ipa_drv_res->lan_aggr_time_limit = %u",
+				ipa_drv_res->lan_aggr_time_limit);
+
+	result = of_property_read_u32(pdev->dev.of_node,
+			"qcom,rndis-aggr-time-limit",
+			&ipa_drv_res->rndis_aggr_time_limit);
+	if (result)
+		IPADBG("using default for rndis-aggr-time-limit = %u\n",
+				ipa_drv_res->rndis_aggr_time_limit);
+	else
+		IPADBG(": found ipa_drv_res->rndis_aggr_time_limit = %u",
+				ipa_drv_res->rndis_aggr_time_limit);
 
 	ipa_drv_res->use_ipa_teth_bridge =
 			of_property_read_bool(pdev->dev.of_node,
@@ -8160,6 +8205,11 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 	IPADBG(": manual-fw-load (%s)\n",
 		ipa_drv_res->manual_fw_load
 		? "True" : "False");
+	ipa_drv_res->ipa_in_cpe_cfg =
+		of_property_read_bool(pdev->dev.of_node,
+				"qcom,use-ipa-in-cpe-config");
+	IPADBG(": qcom,use-ipa-in-cpe-config = %s\n",
+		ipa_drv_res->ipa_in_cpe_cfg ? "True":"False");
 
 	return 0;
 }

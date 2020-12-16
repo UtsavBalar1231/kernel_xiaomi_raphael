@@ -14,6 +14,7 @@
 #include <linux/ipa_uc_offload.h>
 #include <linux/ipa_wdi3.h>
 #include <linux/ipa_qdss.h>
+#include <linux/ipa_eth.h>
 #include "ipa_common_i.h"
 
 #ifndef _IPA_API_H_
@@ -225,6 +226,34 @@ struct ipa_api_controller {
 	int (*ipa_suspend_wdi_pipe)(u32 clnt_hdl);
 
 	int (*ipa_get_wdi_stats)(struct IpaHwStatsWDIInfoData_t *stats);
+
+	int (*ipa_eth_rtk_connect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_aqc_connect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_emac_connect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_rtk_disconnect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_aqc_disconnect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_emac_disconnect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_client_conn_evt)(struct ipa_ecm_msg *msg);
+
+	int (*ipa_eth_client_disconn_evt)(struct ipa_ecm_msg *msg);
 
 	u16 (*ipa_get_smem_restr_bytes)(void);
 
@@ -504,6 +533,8 @@ struct ipa_api_controller {
 
 	int (*ipa_disconn_qdss_pipes)(void);
 
+	int (*ipa_get_default_aggr_time_limit)(enum ipa_client_type client,
+		u32 *default_aggr_time_limit);
 };
 
 #ifdef CONFIG_IPA
