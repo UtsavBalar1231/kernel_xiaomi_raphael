@@ -55,6 +55,7 @@
 #define WSA8810_NAME_1 "wsa881x.20170211"
 #define WSA8810_NAME_2 "wsa881x.20170212"
 #define SDM660_SOC_MSM_ID 0x13D
+#define SDM660_SOC_SDA_ID 0x144
 static int msm_ext_spk_control = 1;
 static struct wcd_mbhc_config *wcd_mbhc_cfg_ptr;
 
@@ -1295,7 +1296,7 @@ static int msm_adsp_power_up_config(struct snd_soc_codec *codec,
 		goto err_fail;
 	}
 
-	if (socinfo_get_id() == SDM660_SOC_MSM_ID) {
+	if (socinfo_get_id() == SDM660_SOC_MSM_ID) || (socinfo_get_id() == SDM660_SOC_SDA_ID) {
 		msm_snd_interrupt_config(pdata);
 	}
 
