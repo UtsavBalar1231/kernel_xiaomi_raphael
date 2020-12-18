@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -642,10 +642,11 @@
 			<&clock_gpucc GPU_CC_AHB_CLK>,
 			<&clock_gcc GCC_GPU_MEMNOC_GFX_CLK>,
 			<&clock_gpucc GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK>,
-			<&clock_gpucc GPU_CC_GX_GFX3D_CLK>;
+			<&clock_gpucc GPU_CC_GX_GFX3D_CLK>,
+			<&clock_aop QDSS_CLK>;
 
 		clock-names = "gmu", "rbbmtimer", "mem",
 				"iface", "mem_iface",
-				"smmu_vote", "core";
+				"smmu_vote", "core", "apb_pclk";
 	};
 };
