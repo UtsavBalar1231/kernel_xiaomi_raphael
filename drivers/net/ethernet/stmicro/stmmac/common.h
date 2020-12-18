@@ -438,6 +438,7 @@ struct stmmac_dma_ops {
 	void (*init_tx_chan)(void __iomem *ioaddr,
 			     struct stmmac_dma_cfg *dma_cfg,
 			     u32 dma_tx_phy, u32 chan);
+	void (*set_rx_buff)(void __iomem *ioaddr, u32 buff_size, u32 chan);
 	/* Configure the AXI Bus Mode Register */
 	void (*axi)(void __iomem *ioaddr, struct stmmac_axi *axi);
 	/* Dump DMA registers */
