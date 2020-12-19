@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -69,6 +69,8 @@
 #define CAM_CSIPHY_MAX_CPHY_LANES    3
 
 #define ENABLE_IRQ false
+
+#define CSIPHY_DIAG_STATUS_MAX 16
 
 #undef CDBG
 #ifdef CAM_CSIPHY_CORE_DEBUG
@@ -212,6 +214,16 @@ struct csiphy_ctrl_t {
 	struct csiphy_reg_t (*csiphy_2ph_3ph_mode_reg)[MAX_SETTINGS_PER_LANE];
 	enum   cam_vote_level (*getclockvoting)(struct csiphy_device *phy_dev);
 	struct data_rate_settings_t *data_rates_settings_table;
+};
+
+/**
+ * struct csiphy_diag_info - csiphy reg status for diagnostics
+ *
+ * @status          : stores status of csiphy_dev->num_irq_registers registers
+ *
+ */
+struct csiphy_diag_info {
+	uint32_t       status[CSIPHY_DIAG_STATUS_MAX];
 };
 
 /**

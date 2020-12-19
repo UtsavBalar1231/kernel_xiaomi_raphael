@@ -160,3 +160,7 @@
 &mpss_adsp_mem {
 	reg = <0x90800000 0xf800000>;
 };
+
+&ipa_hw {
+	qcom,ipa-config-is-sa;
+};

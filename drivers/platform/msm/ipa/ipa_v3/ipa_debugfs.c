@@ -3322,6 +3322,8 @@ static ssize_t ipa3_eth_read_err_status(struct file *file,
 		goto done;
 	}
 	client = (struct ipa_eth_client *)file->private_data;
+	tx_ep = -1;
+	rx_ep = -1;
 	switch (client->client_type) {
 	case IPA_ETH_CLIENT_AQC107:
 	case IPA_ETH_CLIENT_AQC113:
@@ -3332,11 +3334,17 @@ static ssize_t ipa3_eth_read_err_status(struct file *file,
 	case IPA_ETH_CLIENT_RTK8125B:
 		tx_ep = IPA_CLIENT_RTK_ETHERNET_CONS;
 		rx_ep = IPA_CLIENT_RTK_ETHERNET_PROD;
-		ipa3_eth_get_status(tx_ep, 5, &tx_stats);
-		ipa3_eth_get_status(rx_ep, 5, &rx_stats);
 		break;
 	default:
 		IPAERR("Not supported\n");
+		goto done;
+	}
+	if (tx_ep == -1 || rx_ep == -1) {
+		IPAERR("tx and rx ep's are not correct");
+		goto done;
+	} else {
+		ipa3_eth_get_status(tx_ep, 5, &tx_stats);
+		ipa3_eth_get_status(rx_ep, 5, &rx_stats);
 	}
 	nbytes = scnprintf(dbg_buff, IPA_MAX_MSG_LEN,
 		"%s_RP=0x%x\n"
@@ -3392,6 +3400,10 @@ void ipa3_eth_debugfs_add_node(struct ipa_eth_client *client)
 	}
 
 	type = client->client_type;
+	if (type >= IPA_ETH_CLIENT_MAX) {
+		IPAERR("eth client type is not correct");
+		goto fail;
+	}
 	inst_id = client->inst_id;
 	snprintf(name, IPA_RESOURCE_NAME_MAX,
 		"%s_%d_stats", ipa_eth_clients_strings[type], inst_id);

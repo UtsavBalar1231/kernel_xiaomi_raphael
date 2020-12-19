@@ -22,3 +22,13 @@
 				"qcom,ccard";
 	qcom,board-id = <0x010019 3>;
 };
+
+&i2c_3 {
+	status = "okay";
+
+	eeprom@52 {
+		compatible = "atmel,24c128";
+		reg = <0x52>;
+		pagesize = <32>;
+	};
+};
