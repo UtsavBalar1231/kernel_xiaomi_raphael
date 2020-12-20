@@ -41,4 +41,7 @@ int qseecom_send_command(struct qseecom_handle *handle, void *send_buf,
 int qseecom_set_bandwidth(struct qseecom_handle *handle, bool high);
 int qseecom_process_listener_from_smcinvoke(struct scm_desc *desc);
 
+#ifdef CONFIG_GHS_VMM
+struct device *qseecom_get_dev(void);
+#endif /*CONFIG_GHS_VMM*/
 #endif /* __QSEECOM_KERNEL_H_ */

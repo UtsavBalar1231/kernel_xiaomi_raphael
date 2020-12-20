@@ -2877,14 +2877,14 @@ static void qcom_ethqos_handle_ssr_workqueue(struct work_struct *work)
 	priv = qcom_ethqos_get_priv(pethqos);
 	plat = priv->plat;
 
-	ETHQOSINFO("%s is executing action: %d\n", __func__, pethqos->action);
+	ETHQOSDBG("%s is executing action: %d\n", __func__, pethqos->action);
 
 	if (pethqos->action & SSR_SIG_DOWN)
-		qcom_ethqos_handle_ssr(priv, SPEED_10, plat, EV_PHY_LINK_DOWN,
-				       LINK_DOWN);
+		qcom_ethqos_handle_ssr(priv, SPEED_10, plat,
+				       SSR_EVENT_DOWN, LINK_DOWN);
 	else if (pethqos->action & SSR_SIG_UP)
 		qcom_ethqos_handle_ssr(priv, plat->mac2mac_rgmii_speed, plat,
-				       EV_PHY_LINK_UP, LINK_UP);
+				       SSR_EVENT_UP, LINK_UP);
 }
 
 static int qcom_ethqos_qti_alert(struct notifier_block *nb,
@@ -2907,11 +2907,11 @@ static int qcom_ethqos_qti_alert(struct notifier_block *nb,
 
 	switch (action) {
 	case EVENT_REMOTE_STATUS_UP:
-		ETHQOSINFO("Link up\n");
+		ETHQOSDBG("Link up\n");
 		pethqos->action = SSR_SIG_UP;
 		break;
 	case EVENT_REMOTE_STATUS_DOWN:
-		ETHQOSINFO("Link down\n");
+		ETHQOSDBG("Link down\n");
 		pethqos->action = SSR_SIG_DOWN;
 		break;
 	default:
@@ -2937,7 +2937,7 @@ static void qcom_ethqos_register_listener(void)
 {
 	int ret;
 
-	ETHQOSINFO("Registering sb notification listener: %s\n", __func__);
+	ETHQOSDBG("Registering sb notification listener: %s\n", __func__);
 
 	pethqos->qti_nb.notifier_call = qcom_ethqos_qti_alert;
 	ret = sb_register_evt_listener(&pethqos->qti_nb);

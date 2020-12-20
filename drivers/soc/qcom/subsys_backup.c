@@ -934,6 +934,38 @@ static void request_handler_worker(struct work_struct *work)
 	}
 }
 
+static int is_valid_indication(struct subsys_backup *dev, void *ind,
+							 int restore)
+{
+	struct qmi_backup_ind_type *backup_ind;
+	struct qmi_restore_ind_type *restore_ind;
+
+	if (restore) {
+		/* Is backup in progress? */
+		if (dev->state == BACKUP_START || dev->state == BACKUP_END)
+			return 0;
+		restore_ind = (struct qmi_restore_ind_type *)ind;
+		/* Duplicate start indication */
+		if (dev->state == RESTORE_START && ind->restore_state == START)
+			return 0;
+		/* Duplicate end indication */
+		if (dev->state == RESTORE_END && ind->restore_state == END)
+			return 0;
+	} else {
+		/* Is restore in progress? */
+		if (dev->state == RESTORE_START || dev->state == RESTORE_END)
+			return 0;
+		backup_ind = struct qmi_backup_ind_type *(ind);
+		/* Duplicate start indication */
+		if (dev->state == BACKUP_START && ind->backup_state == START)
+			return 0;
+		/* Duplicate end indication */
+		if (dev->state == BACKUP_END && ind->backup_state == END)
+			return 0;
+	}
+	return 1;
+}
+
 static void backup_notif_handler(struct qmi_handle *handle,
 	struct sockaddr_qrtr *sq, struct qmi_txn *txn, const void *decoded_msg)
 {
@@ -944,17 +976,8 @@ static void backup_notif_handler(struct qmi_handle *handle,
 	qmi = container_of(handle, struct qmi_info, qmi_svc_handle);
 	backup_dev = container_of(qmi, struct subsys_backup, qmi);
 
-	if (backup_dev->state == RESTORE_START ||
-			backup_dev->state == RESTORE_END) {
-		dev_err(backup_dev->dev, "%s: Error: Restore in progress\n",
-				__func__);
-		return;
-	}
-
 	ind = (struct qmi_backup_ind_type *)decoded_msg;
-
-	if ((backup_dev->state == BACKUP_START && ind->backup_state == START) ||
-		(backup_dev->state == BACKUP_END && ind->backup_state == END)) {
+	if (!is_valid_indication(backup_dev, (void *)ind, 0)) {
 		dev_err(backup_dev->dev, "%s: Error: Spurious request\n",
 				__func__);
 		return;
@@ -971,7 +994,7 @@ static void backup_notif_handler(struct qmi_handle *handle,
 
 	backup_dev->qmi.decoded_msg = devm_kzalloc(backup_dev->dev,
 					sizeof(*decoded_msg), GFP_KERNEL);
-	if (!backup_dev) {
+	if (!backup_dev->qmi.decoded_msg) {
 		dev_err(backup_dev->dev, "%s: Failed to allocate memory\n",
 				__func__);
 		return;
@@ -992,19 +1015,8 @@ static void restore_notif_handler(struct qmi_handle *handle,
 	qmi = container_of(handle, struct qmi_info, qmi_svc_handle);
 	backup_dev = container_of(qmi, struct subsys_backup, qmi);
 
-	if (backup_dev->state == BACKUP_START ||
-			backup_dev->state == BACKUP_END) {
-		dev_err(backup_dev->dev, "%s: Error: Backup in progress\n",
-				__func__);
-		return;
-	}
-
 	ind = (struct qmi_restore_ind_type *)decoded_msg;
-
-	if ((backup_dev->state == RESTORE_START &&
-			ind->restore_state == START) ||
-			(backup_dev->state == RESTORE_END &&
-			ind->restore_state == END)) {
+	if (!is_valid_indication(backup_dev, (void *)ind, 1)) {
 		dev_err(backup_dev->dev, "%s: Error: Spurious request\n",
 				__func__);
 		return;
@@ -1021,7 +1033,7 @@ static void restore_notif_handler(struct qmi_handle *handle,
 
 	backup_dev->qmi.decoded_msg = devm_kzalloc(backup_dev->dev,
 					sizeof(*decoded_msg), GFP_KERNEL);
-	if (!backup_dev) {
+	if (!backup_dev->qmi.decoded_msg) {
 		dev_err(backup_dev->dev, "%s: Failed to allocate memory\n",
 				__func__);
 		return;

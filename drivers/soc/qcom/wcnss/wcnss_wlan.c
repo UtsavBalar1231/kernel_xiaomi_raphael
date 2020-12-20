@@ -285,12 +285,14 @@ static struct notifier_block wnb = {
 	.notifier_call = wcnss_notif_cb,
 };
 
-#define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv.bin"
+#define NVBIN_FILE "wlan/prima/WCNSS_qcom_wlan_nv"
 
 /* On SMD channel 4K of maximum data can be transferred, including message
  * header, so NV fragment size as next multiple of 1Kb is 3Kb.
  */
 #define NV_FRAGMENT_SIZE  3072
+#define NVBIN_FILE_SIZE 64
+#define IRIS_VARIANT_SIZE 8
 #define MAX_CALIBRATED_DATA_SIZE  (64 * 1024)
 #define LAST_FRAGMENT        BIT(0)
 #define MESSAGE_TO_FOLLOW    BIT(1)
@@ -485,6 +487,9 @@ static struct {
 	struct qcom_smem_state *wake_state;
 	unsigned int wake_state_bit;
 	struct bt_profile_state bt_state;
+	u32 multi_sku;
+	char nv_name[NVBIN_FILE_SIZE];
+	u32 sw_pta;
 } *penv = NULL;
 
 static void *wcnss_ipc_log;
@@ -1353,9 +1358,11 @@ static int wcnss_create_sysfs(struct device *dev)
 	if (ret)
 		goto remove_version;
 
-	ret = device_create_file(dev, &dev_attr_bt_profile);
-	if (ret)
-		goto remove_mac_addr;
+	if (wcnss_is_sw_pta_enabled()) {
+		ret = device_create_file(dev, &dev_attr_bt_profile);
+		if (ret)
+			goto remove_mac_addr;
+	}
 
 	return 0;
 
@@ -2612,6 +2619,35 @@ static void wcnss_pm_qos_enable_pc(struct work_struct *worker)
 
 static DECLARE_RWSEM(wcnss_pm_sem);
 
+int wcnss_get_nv_name(char *nv_name)
+{
+	char variant[8] = {0};
+	int ret;
+
+	if (penv->multi_sku) {
+		ret = wcnss_get_iris_name(variant);
+		if (ret) {
+			wcnss_log(ERR, "Invalid IRIS name\n");
+			return 1;
+		}
+
+		scnprintf(nv_name, NVBIN_FILE_SIZE, "%s_%s.bin",
+			  NVBIN_FILE, variant);
+	} else {
+		scnprintf(nv_name, NVBIN_FILE_SIZE, "%s.bin",
+			  NVBIN_FILE);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(wcnss_get_nv_name);
+
+int wcnss_is_sw_pta_enabled(void)
+{
+	return penv->sw_pta;
+}
+EXPORT_SYMBOL(wcnss_is_sw_pta_enabled);
+
 static void wcnss_nvbin_dnld(void)
 {
 	int ret = 0;
@@ -2628,12 +2664,18 @@ static void wcnss_nvbin_dnld(void)
 
 	down_read(&wcnss_pm_sem);
 
-	ret = request_firmware(&nv, NVBIN_FILE, dev);
+	ret = wcnss_get_nv_name(penv->nv_name);
+	if (ret) {
+		wcnss_log(ERR, "failed getting nv name\n");
+		goto out;
+	}
+
+	ret = request_firmware(&nv, penv->nv_name, dev);
 
 	if (ret || !nv || !nv->data || !nv->size) {
 		wcnss_log(ERR,
 			  "%s: request_firmware failed for %s (ret = %d)\n",
-		       __func__, NVBIN_FILE, ret);
+		       __func__, penv->nv_name, ret);
 		goto out;
 	}
 
@@ -3339,6 +3381,9 @@ wcnss_trigger_config(struct platform_device *pdev)
 		}
 	}
 
+	device_property_read_u32(&pdev->dev, "qcom,multi_sku",
+				 &penv->multi_sku);
+
 	do {
 		/* trigger initialization of the WCNSS */
 		penv->pil = subsystem_get(WCNSS_PIL_DEVICE);
@@ -3773,6 +3818,9 @@ wcnss_wlan_probe(struct platform_device *pdev)
 		wcnss_log(ERR, "Failed to alloc memory for cal data.\n");
 		return -ENOMEM;
 	}
+
+	device_property_read_u32(&pdev->dev, "qcom,sw_pta",
+				 &penv->sw_pta);
 
 	/* register sysfs entries */
 	ret = wcnss_create_sysfs(&pdev->dev);

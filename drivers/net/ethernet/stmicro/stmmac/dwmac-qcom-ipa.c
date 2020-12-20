@@ -84,6 +84,7 @@ static void eth_ipa_ctx_init(void)
 	eth_ipa_ctx.tx_queue_num[IPA_QUEUE_BE] = IPA_DMA_TX_CH_BE;
 	eth_ipa_ctx.rx_queue_num[IPA_QUEUE_CV2X] = IPA_DMA_RX_CH_CV2X;
 	eth_ipa_ctx.tx_queue_num[IPA_QUEUE_CV2X] = IPA_DMA_TX_CH_CV2X;
+	eth_ipa_ctx.cv2x_queue_enabled = false;
 
 	/* set desc count for BE queues */
 	if (eth_ipa_ctx.queue_enabled[IPA_QUEUE_BE]) {
@@ -2218,6 +2219,9 @@ static int ethqos_ipa_offload_connect(
 		return ret;
 	}
 
+	if (type == IPA_QUEUE_CV2X && eth_ipa_ctx.cv2x_queue_enabled)
+		return ret;
+
 	/* Configure interrupt route for ETHQOS TX DMA channel to IPA */
 	/* Currently, HW route is supported only for one DMA channel */
 	if (eth_ipa_queue_type_to_tx_intr_route(type) == IPA_INTR_ROUTE_HW)
@@ -2391,6 +2395,9 @@ static int ethqos_ipa_offload_connect(
 
 	if (eth_ipa_queue_type_to_send_msg_needed(type))
 		eth_ipa_send_msg(ethqos, IPA_PERIPHERAL_CONNECT, type);
+	if (type == IPA_QUEUE_CV2X)
+		eth_ipa_ctx.cv2x_queue_enabled = true;
+
  mem_free:
 	kfree(rx_setup_info.data_buff_list);
 	rx_setup_info.data_buff_list = NULL;
@@ -2433,6 +2440,9 @@ static int ethqos_ipa_offload_disconnect(
 
 	ETHQOSDBG("- begin\n");
 
+	if (type == IPA_QUEUE_CV2X && !eth_ipa_ctx.cv2x_queue_enabled)
+		return ret;
+
 	if (!ethqos) {
 		ETHQOSERR("Null Param\n");
 		return -ENOMEM;
@@ -2444,8 +2454,148 @@ static int ethqos_ipa_offload_disconnect(
 		return ret;
 	}
 
+	if (type == IPA_QUEUE_CV2X)
+		eth_ipa_ctx.cv2x_queue_enabled = false;
+
 	ETHQOSDBG("end\n");
 	return 0;
+}
+
+static int ethqos_ipa_cv2x_offload_suspend(struct qcom_ethqos *ethqos, int type)
+{
+	int ret = 0;
+	struct ipa_perf_profile profile;
+	struct platform_device *pdev = ethqos->pdev;
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	ETHQOSDBG("Suspend/disable cv2x IPA offload\n");
+
+	if (!eth_ipa_ctx.cv2x_queue_enabled)
+		return ret;
+
+	if (!eth_ipa_queue_type_enabled(type)) {
+		ETHQOSERR("%s queue not enabled\n", __func__);
+		return ret;
+	}
+
+	priv->hw->dma->stop_rx_chan(
+		priv->ioaddr,
+		eth_ipa_queue_type_to_rx_queue(type));
+
+	if (ret != 0) {
+		ETHQOSERR("%s: stop_dma_rx failed %d\n",
+			  __func__, ret);
+		return ret;
+	}
+
+	/* Disconnect IPA offload */
+	if (eth_ipa_ctx.ipa_offload_conn_cv2x) {
+		ret = ethqos_ipa_offload_disconnect(ethqos,
+						    type);
+		if (ret) {
+			ETHQOSERR("%s: Disconnect Failed %d\n",
+				  __func__, ret);
+			return ret;
+		}
+		eth_ipa_ctx.ipa_offload_conn_cv2x = false;
+		ETHQOSDBG("IPA Offload cv2x Disconnect Successfully\n");
+	}
+
+	priv->hw->dma->stop_tx_chan(
+		priv->ioaddr,
+		eth_ipa_queue_type_to_tx_queue(type));
+
+	if (ret != 0) {
+		ETHQOSERR("%s: stop_dma_tx failed %d\n",
+			  __func__, ret);
+		return ret;
+	}
+
+	if (eth_ipa_ctx.ipa_uc_ready) {
+		profile.max_supported_bw_mbps = 0;
+		profile.client =
+			eth_ipa_queue_type_to_tx_client(type);
+		profile.proto =
+			eth_ipa_queue_type_to_proto(type);
+		ret = ipa_set_perf_profile(&profile);
+		if (ret)
+			ETHQOSERR("%s: Err set BW for TX %d\n",
+				  __func__, ret);
+	}
+
+	if (eth_ipa_ctx.ipa_offload_init_cv2x) {
+		ret = ethqos_ipa_offload_cleanup(ethqos, type);
+		if (ret) {
+			ETHQOSERR("%s: Cleanup Failed, %d\n",
+				  __func__, ret);
+			return ret;
+		}
+		ETHQOSINFO("IPA Offload Cleanup Success\n");
+		eth_ipa_ctx.ipa_offload_init_cv2x = false;
+	}
+	eth_ipa_ctx.cv2x_queue_enabled = false;
+	return ret;
+}
+
+static int ethqos_ipa_cv2x_offload_resume(struct qcom_ethqos *ethqos, int type)
+{
+	int ret = 1;
+	struct ipa_perf_profile profile;
+
+	ETHQOSDBG("Enter\n");
+	if (eth_ipa_ctx.ipa_offload_susp)
+		return ret;
+
+	if (eth_ipa_ctx.cv2x_queue_enabled)
+		return ret;
+
+	if (!eth_ipa_queue_type_enabled(type)) {
+		ETHQOSERR("%s queue not enabled\n", __func__);
+		return ret;
+	}
+
+	if (!eth_ipa_ctx.ipa_offload_init_cv2x) {
+		eth_ipa_ctx.ipa_offload_init_cv2x =
+		!ethqos_ipa_offload_init(ethqos, type);
+		if (!eth_ipa_ctx.ipa_offload_init_cv2x)
+			ETHQOSERR("%s: Init Failed for %d\n",
+				  __func__, type);
+	}
+
+	/* Initialze descriptors before IPA connect */
+	/* Set IPA owned DMA channels to reset state */
+
+	ethqos_ipa_tx_desc_init(ethqos, type);
+	ethqos_ipa_rx_desc_init(ethqos, type);
+
+	ETHQOSERR("%s\n", __func__);
+
+	ret = ethqos_ipa_offload_connect(ethqos, type);
+	if (ret != 0)
+		goto fail;
+	else
+		eth_ipa_ctx.ipa_offload_conn_cv2x = true;
+
+	profile.max_supported_bw_mbps = ethqos->speed;
+	profile.client = eth_ipa_queue_type_to_tx_client(type);
+	profile.proto =  eth_ipa_queue_type_to_proto(type);
+	ret = ipa_set_perf_profile(&profile);
+	if (ret)
+		ETHQOSERR("%s: Err set BW for TX: %d\n", __func__, ret);
+
+	/*Initialize DMA CHs for offload*/
+	ethqos_init_offload(ethqos, type);
+	if (ret) {
+		ETHQOSERR("Offload channel Init Failed\n");
+		return ret;
+	}
+
+	eth_ipa_ctx.cv2x_queue_enabled = true;
+	ETHQOSDBG("Exit\n");
+
+fail:
+	return ret;
 }
 
 static int ethqos_ipa_offload_suspend(struct qcom_ethqos *ethqos)
@@ -2486,6 +2636,8 @@ static int ethqos_ipa_offload_suspend(struct qcom_ethqos *ethqos)
 				}
 			}
 			eth_ipa_ctx.ipa_offload_conn = false;
+			if (type == IPA_QUEUE_CV2X)
+				eth_ipa_ctx.ipa_offload_conn_cv2x = false;
 		}
 		ETHQOSERR("IPA Offload Disconnect Successfully\n");
 	}
@@ -2534,6 +2686,8 @@ static int ethqos_ipa_offload_suspend(struct qcom_ethqos *ethqos)
 		}
 		ETHQOSINFO("IPA Offload Cleanup Success\n");
 		eth_ipa_ctx.ipa_offload_init = false;
+		if (type == IPA_QUEUE_CV2X)
+			eth_ipa_ctx.ipa_offload_init_cv2x = false;
 	}
 
 	return ret;
@@ -2579,6 +2733,8 @@ static int ethqos_ipa_offload_resume(struct qcom_ethqos *ethqos)
 				goto fail;
 			else
 				eth_ipa_ctx.ipa_offload_conn = true;
+			if (type == IPA_QUEUE_CV2X)
+				eth_ipa_ctx.ipa_offload_conn_cv2x = true;
 		}
 	}
 
@@ -2606,6 +2762,9 @@ static int ethqos_ipa_offload_resume(struct qcom_ethqos *ethqos)
 					      EMAC_CHANNEL_1);
 		ETHQOSINFO("Mapped queue 0 to channel 1 again\n");
 	}
+	if (eth_ipa_ctx.ipa_offload_init)
+		eth_ipa_ctx.ipa_offload_init_cv2x = true;
+
 	ETHQOSDBG("Exit\n");
 
 fail:
@@ -2672,6 +2831,9 @@ static int ethqos_enable_ipa_offload(struct qcom_ethqos *ethqos)
 					eth_ipa_ctx.ipa_offload_conn = false;
 					goto fail;
 				}
+				if (type == IPA_QUEUE_CV2X)
+					eth_ipa_ctx.ipa_offload_conn_cv2x =
+								       true;
 			}
 		}
 		ETHQOSINFO("IPA Offload Connect Successfully\n");
@@ -2686,6 +2848,9 @@ static int ethqos_enable_ipa_offload(struct qcom_ethqos *ethqos)
 						  __func__);
 					goto fail;
 				}
+				if (type == IPA_QUEUE_CV2X)
+					eth_ipa_ctx.ipa_offload_init_cv2x =
+								       true;
 			}
 		}
 	}
@@ -2699,6 +2864,7 @@ static int ethqos_enable_ipa_offload(struct qcom_ethqos *ethqos)
 		}
 	}
 
+	eth_ipa_ctx.cv2x_queue_enabled = true;
 	ETHQOSINFO("IPA Offload Enabled successfully\n");
 	return ret;
 
@@ -2871,6 +3037,14 @@ void ethqos_ipa_offload_event_handler(void *data,
 	IPA_LOCK();
 
 	switch (ev) {
+	case SSR_EVENT_UP:
+		ethqos_ipa_cv2x_offload_resume(eth_ipa_ctx.ethqos,
+					       IPA_QUEUE_CV2X);
+		break;
+	case SSR_EVENT_DOWN:
+		ethqos_ipa_cv2x_offload_suspend(eth_ipa_ctx.ethqos,
+						IPA_QUEUE_CV2X);
+		break;
 	case EV_PHY_LINK_DOWN:
 		if (!eth_ipa_ctx.emac_dev_ready ||
 		    !eth_ipa_ctx.ipa_uc_ready ||
@@ -2909,6 +3083,10 @@ void ethqos_ipa_offload_event_handler(void *data,
 
 		if (!eth_ipa_ctx.ipa_uc_ready)
 			ethqos_ipa_uc_ready(eth_ipa_ctx.ethqos);
+
+		if (eth_ipa_ctx.ipa_uc_ready &&
+		    qcom_ethqos_is_phy_link_up(eth_ipa_ctx.ethqos))
+			ethqos_enable_ipa_offload(eth_ipa_ctx.ethqos);
 
 		break;
 	case EV_IPA_READY:
@@ -3016,11 +3194,11 @@ void ethqos_ipa_offload_event_handler(void *data,
 		break;
 	case EV_QTI_CHECK_CONN_UPDATE:
 		/* check if status is updated */
-		if (eth_ipa_ctx.ipa_offload_conn_prev !=
-			eth_ipa_ctx.ipa_offload_conn) {
+		if (eth_ipa_ctx.ipa_offload_conn_prev_cv2x !=
+			eth_ipa_ctx.ipa_offload_conn_cv2x) {
 			*(int *)data = true;
-			eth_ipa_ctx.ipa_offload_conn_prev =
-				eth_ipa_ctx.ipa_offload_conn;
+			eth_ipa_ctx.ipa_offload_conn_prev_cv2x =
+				eth_ipa_ctx.ipa_offload_conn_cv2x;
 		} else {
 			*(int *)data = false;
 		}
@@ -3050,8 +3228,8 @@ void ethqos_ipa_offload_event_handler(void *data,
 	    (ev == EV_USR_SUSPEND || ev == EV_USR_RESUME ||
 	     ev == EV_DEV_CLOSE || ev == EV_DEV_OPEN ||
 	     ev == EV_PHY_LINK_DOWN || ev ==  EV_PHY_LINK_UP)) {
-		if (eth_ipa_ctx.ipa_offload_conn_prev !=
-		    eth_ipa_ctx.ipa_offload_conn)
+		if (eth_ipa_ctx.ipa_offload_conn_prev_cv2x !=
+		    eth_ipa_ctx.ipa_offload_conn_cv2x)
 			ETHQOSDBG("need-status-updated\n");
 		ethqos_wakeup_dev_emac_queue();
 	}

@@ -110,7 +110,7 @@ static int ipa_eth_init_internal(void)
 	ipa_eth_ctx->wq = alloc_workqueue(buff,
 		WQ_MEM_RECLAIM | WQ_UNBOUND | WQ_SYSFS, 1);
 	if (!ipa_eth_ctx->wq) {
-		kfree(ipa_eth_ctx);
+		IPAERR("Workqueue is not allocated");
 		goto wq_err;
 	}
 	mutex_init(&ipa_eth_ctx->lock);
@@ -208,8 +208,7 @@ int ipa_eth_register_ready_cb(struct ipa_eth_ready *ready_info)
 			GFP_KERNEL);
 		if (!ready_cb) {
 			mutex_unlock(&ipa_eth_ctx->lock);
-			rc = -ENOMEM;
-			goto err_uc;
+			return -ENOMEM;
 		}
 		ready_cb->info = ready_info;
 		list_add_tail(&ready_cb->link, &ipa_eth_ctx->ready_cb_list);
@@ -537,9 +536,13 @@ static int ipa_eth_pm_register(struct ipa_eth_client *client)
 		IPA_ETH_ERR("null client");
 		return -EFAULT;
 	}
+
 	client_type = client->client_type;
 	inst_id = client->inst_id;
-
+	if (client_type >= IPA_ETH_CLIENT_MAX) {
+		IPAERR("Got wrong client type");
+		return -EINVAL;
+	}
 	if (atomic_read(
 		&ipa_eth_ctx->client[client_type][inst_id].ref_cnt))
 		goto add_pipe_list;
@@ -597,6 +600,10 @@ static int ipa_eth_pm_deregister(struct ipa_eth_client *client)
 	}
 	client_type = client->client_type;
 	inst_id = client->inst_id;
+	if (client_type >= IPA_ETH_CLIENT_MAX) {
+		IPAERR("Got wrong client type");
+		return -EINVAL;
+	}
 	if (atomic_read(
 		&ipa_eth_ctx->client[client_type][inst_id].ref_cnt)
 		== 1) {
@@ -638,6 +645,10 @@ int ipa_eth_client_conn_pipes(struct ipa_eth_client *client)
 	}
 	ipa_eth_ctx->client_priv = client->priv;
 	client_type = client->client_type;
+	if (client_type >= IPA_ETH_CLIENT_MAX) {
+		IPAERR("Got wrong client type");
+		return -EINVAL;
+	}
 	inst_id = client->inst_id;
 	traff_type = client->traffic_type;
 	IPA_ETH_DBG("ipa_eth conn client %d inst %d, traffic %d\n",
@@ -773,8 +784,15 @@ int ipa_eth_client_reg_intf(struct ipa_eth_intf_info *intf)
 
 	memset(&tx, 0, sizeof(struct ipa_tx_intf));
 	memset(&rx, 0, sizeof(struct ipa_rx_intf));
+	memset(&tx_client, 0, IPA_ETH_CLIENT_MAX * sizeof(int));
+	memset(&rx_client, 0, IPA_ETH_CLIENT_MAX * sizeof(int));
 	for (i = 0; i < intf->pipe_hdl_list_size; i++) {
 		pipe = ipa_eth_get_pipe_from_hdl(intf->pipe_hdl_list[i]);
+		if (pipe == NULL) {
+			IPAERR("got null pipe information");
+			ret = -EFAULT;
+			goto fail_commit_hdr;
+		}
 		if (pipe->dir == IPA_ETH_PIPE_DIR_TX) {
 			tx_client[tx.num_props] =
 				ipa_eth_get_ipa_client_type_from_pipe(pipe);
@@ -930,6 +948,10 @@ int ipa_eth_client_set_perf_profile(struct ipa_eth_client *client,
 
 	client_type = client->client_type;
 	inst_id = client->inst_id;
+	if (client_type >= IPA_ETH_CLIENT_MAX) {
+		IPAERR("Got wrong client type");
+		return -EINVAL;
+	}
 	if (profile == NULL) {
 		IPA_ETH_ERR("Invalid input\n");
 		return -EINVAL;
