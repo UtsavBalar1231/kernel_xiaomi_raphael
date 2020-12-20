@@ -110,22 +110,14 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	if (maskchip && chip->irq_mask)
 		chip->irq_mask(d);
 
+	if (cpumask_empty(d->common->old_affinity))
+		cpumask_copy(d->common->old_affinity, affinity);
 	cpumask_copy(&available_cpus, affinity);
 	cpumask_andnot(&available_cpus, &available_cpus, cpu_isolated_mask);
 	affinity = &available_cpus;
 
 	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 		const struct cpumask *default_affinity;
-
-		/*
-		 * If the interrupt is managed, then shut it down and leave
-		 * the affinity untouched.
-		 */
-		if (irqd_affinity_is_managed(d)) {
-			irqd_set_managed_shutdown(d);
-			irq_shutdown(desc);
-			return false;
-		}
 
 		default_affinity = desc->affinity_hint ? : irq_default_affinity;
 		/*
@@ -211,7 +203,7 @@ void irq_migrate_all_off_this_cpu(void)
 static void irq_restore_affinity_of_irq(struct irq_desc *desc, unsigned int cpu)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
-	const struct cpumask *affinity = irq_data_get_affinity_mask(data);
+	const struct cpumask *affinity = data->common->old_affinity;
 
 	if (!irqd_affinity_is_managed(data) || !desc->action ||
 	    !irq_data_get_irq_chip(data) || !cpumask_test_cpu(cpu, affinity))
@@ -222,13 +214,8 @@ static void irq_restore_affinity_of_irq(struct irq_desc *desc, unsigned int cpu)
 		return;
 	}
 
-	/*
-	 * If the interrupt can only be directed to a single target
-	 * CPU then it is already assigned to a CPU in the affinity
-	 * mask. No point in trying to move it around.
-	 */
-	if (!irqd_is_single_target(data))
-		irq_set_affinity_locked(data, affinity, false);
+	irq_set_affinity_locked(data, affinity, false);
+	cpumask_clear(data->common->old_affinity);
 }
 
 /**
