@@ -2915,8 +2915,8 @@ static int qcom_ethqos_qti_alert(struct notifier_block *nb,
 		pethqos->action = SSR_SIG_DOWN;
 		break;
 	default:
-		ETHQOSERR("Invalid action passed: %s, %d\n", __func__,
-			  pethqos->action);
+		ETHQOSERR("Invalid action passed: %s, %d\n", __func__, action);
+		return NOTIFY_DONE;
 	}
 
 	/*Avoids adding duplicate events to the work queue.*/
