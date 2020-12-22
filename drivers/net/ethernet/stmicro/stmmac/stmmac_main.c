@@ -2359,6 +2359,10 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 						    priv->plat->dma_cfg,
 						    rx_q->dma_rx_phy, chan);
 
+			priv->hw->dma->set_rx_buff(priv->ioaddr,
+						    priv->dma_buf_sz,
+						    chan);
+
 			rx_q->rx_tail_addr = rx_q->dma_rx_phy +
 				    (DMA_RX_SIZE * sizeof(struct dma_desc));
 			priv->hw->dma->set_rx_tail_ptr(priv->ioaddr,
@@ -2373,7 +2377,6 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 			priv->hw->dma->init_chan(priv->ioaddr,
 						 priv->plat->dma_cfg,
 						 chan);
-
 			priv->hw->dma->init_tx_chan(priv->ioaddr,
 						    priv->plat->dma_cfg,
 						    tx_q->dma_tx_phy, chan);
