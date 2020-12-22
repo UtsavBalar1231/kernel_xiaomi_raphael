@@ -40,7 +40,7 @@ struct eth_msg_meta {
  */
 
 #define ETH_IOC_MAGIC 0xA5
-#define ETH_ADAPTION_IOCTL_DEVICE_NAME "/dev/eth-adaption"
+#define ETH_ADAPTION_IOCTL_DEVICE_NAME "/dev/eth-pwr"
 
 #define IOC_MDM_ETH_SUSPEND _IOWR(ETH_IOC_MAGIC, \
 	IOCTL_MDM_ETH_SUSPEND, \
