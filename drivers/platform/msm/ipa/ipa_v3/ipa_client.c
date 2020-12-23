@@ -1117,7 +1117,7 @@ static int ipa3_stop_ul_chan_with_data_drain(u32 qmi_req_id,
 		goto exit;
 
 	/* Remove delay only if stop channel success*/
-	if (remove_delay && ep->ep_delay_set == true && !stop_in_proc) {
+	if (remove_delay && ep->ep_delay_set == true) {
 		memset(&ep_cfg_ctrl, 0, sizeof(struct ipa_ep_cfg_ctrl));
 		ep_cfg_ctrl.ipa_ep_delay = false;
 		result = ipa3_cfg_ep_ctrl(clnt_hdl,
@@ -1448,6 +1448,7 @@ int ipa3_xdci_disconnect(u32 clnt_hdl, bool should_force_clear, u32 qmi_req_id)
 			true);
 		if (result) {
 			IPAERR("Fail to stop UL channel with data drain\n");
+			ipa_assert();
 			WARN_ON(1);
 			goto stop_chan_fail;
 		}
