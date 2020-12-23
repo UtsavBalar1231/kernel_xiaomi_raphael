@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -51,5 +51,6 @@ int diag_rpmsg_init(void);
 void diag_rpmsg_early_exit(void);
 void diag_rpmsg_invalidate(void *ctxt, struct diagfwd_info *fwd_ctxt);
 int diag_rpmsg_check_state(void *ctxt);
+void rpmsg_mark_buffers_free(uint8_t peripheral, uint8_t type, int buf_num);
 
 #endif
