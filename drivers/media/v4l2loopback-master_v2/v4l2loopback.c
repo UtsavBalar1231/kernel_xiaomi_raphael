@@ -1,5 +1,3 @@
-/* Copyright (c) 2020, The Linux Foundation. All rights reserved.*/
-
 /* -*- c-file-style: "linux" -*-*/
 /*
  * v4l2loopback.c  --  video4linux2 loopback driver
@@ -8,6 +6,7 @@
  * Copyright (C) 2010-2019 IOhannes m zmoelnig (zmoelnig@iem.at)
  * Copyright (C) 2011 Stefan Diewald (stefan.diewald@mytum.de)
  * Copyright (C) 2012 Anton Novikov (random.plant@gmail.com)
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -111,7 +110,7 @@ void *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 
 
 #ifndef HAVE__V4L2_DEVICE
- /* dummy v4l2_device struct/functions */
+/* dummy v4l2_device struct/functions */
 #define V4L2_DEVICE_NAME_SIZE (20 + 16)
 struct v4l2_device {
 	char name[V4L2_DEVICE_NAME_SIZE];
@@ -472,7 +471,7 @@ static void send_v4l2_event(struct video_device *vdev, unsigned int type,
 	event.type = type;
 
 	v4l2_event_queue(vdev, &event);
-	pr_info("send v4l2 event for ais_v4l2loopback :%d\n",
+	pr_debug("send v4l2 event for ais_v4l2loopback :%d\n",
 		cmd);
 }
 
@@ -487,7 +486,7 @@ static void send_v4l2_event_ex(struct video_device *vdev, unsigned int type,
 	event.u.data[0] = code;
 
 	v4l2_event_queue(vdev, &event);
-	pr_info("send v4l2 event for ais_v4l2loopback :%d\n",
+	pr_debug("send v4l2 event for ais_v4l2loopback :%d\n",
 		cmd);
 }
 
@@ -504,7 +503,7 @@ static int cam_mem_util_map_cpu_va(struct dma_buf *dmabuf,
 	 */
 	rc = dma_buf_begin_cpu_access(dmabuf, DMA_BIDIRECTIONAL);
 	if (rc) {
-		pr_err("dma begin access failed rc=%d", rc);
+		pr_err("dma begin access failed rc=%d\n", rc);
 		return rc;
 	}
 
@@ -518,7 +517,7 @@ static int cam_mem_util_map_cpu_va(struct dma_buf *dmabuf,
 	for (i = 0; i < PAGE_ALIGN(dmabuf->size) / PAGE_SIZE; i++) {
 		addr = dma_buf_kmap(dmabuf, i);
 		if (addr == NULL) {
-			pr_err("kernel map fail");
+			pr_err("kernel map fail\n");
 			for (j = 0; j < i; j++)
 				dma_buf_kunmap(dmabuf,
 					j,
@@ -540,13 +539,14 @@ fail:
 	dma_buf_end_cpu_access(dmabuf, DMA_BIDIRECTIONAL);
 	return rc;
 }
+
 static int cam_mem_util_unmap_cpu_va(struct dma_buf *dmabuf,
 	uint64_t vaddr)
 {
 	int i, rc = 0, page_num;
 
 	if (!dmabuf || !vaddr) {
-		pr_err("Invalid input args %pK %llX", dmabuf, vaddr);
+		pr_err("Invalid input args %pK %llX\n", dmabuf, vaddr);
 		return -EINVAL;
 	}
 
@@ -564,7 +564,7 @@ static int cam_mem_util_unmap_cpu_va(struct dma_buf *dmabuf,
 	 */
 	rc = dma_buf_end_cpu_access(dmabuf, DMA_BIDIRECTIONAL);
 	if (rc) {
-		pr_err("Failed in end cpu access, dmabuf=%pK",
+		pr_err("Failed in end cpu access, dmabuf=%pK\n",
 			dmabuf);
 		return rc;
 	}
@@ -1156,7 +1156,8 @@ static int vidioc_try_fmt_out(struct file *file, void *priv,
 	MARK();
 	dev = v4l2loopback_getdevice(file);
 
-	/* TODO
+	/*
+	 * TODO
 	 * only WRITER can set output fmt,
 	 * for READER, can't do this operation, need refine
 	 * WRITER can't support various fmt
@@ -1385,24 +1386,15 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	 * compatible
 	 */
 	struct v4l2_loopback_device *dev;
-	int rc = 0;
-	u32 type = parm->type;
 
 	MARK();
 	dev = v4l2loopback_getdevice(file);
 
-	switch (type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		break;
-
-	default:
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+		parm->type !=  V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
-	}
 
-	return rc;
+	return 0;
 }
 
 /* get some data flow parameters, only capability, fps and readbuffers has
@@ -1413,26 +1405,15 @@ static int vidioc_s_parm(struct file *file, void *priv,
 		struct v4l2_streamparm *parm)
 {
 	struct v4l2_loopback_device *dev;
-	int err = 0;
-	int rc = 0;
 
 	MARK();
 	dev = v4l2loopback_getdevice(file);
 
-	switch (parm->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+		parm->type !=  V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
 
-
-		break;
-	}
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-
-		break;
-	default:
-		rc = -EINVAL;
-	}
-
-	return rc;
+	return 0;
 }
 
 #ifdef V4L2LOOPBACK_WITH_STD
@@ -1636,7 +1617,6 @@ static int vidioc_s_output(struct file *file, void *fh, unsigned int i)
 	return 0;
 }
 
-
 /* returns set of device inputs, in our case there is only one,
  * but later I may add more
  * called on VIDIOC_ENUMINPUT
@@ -1715,7 +1695,7 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 	dev = v4l2loopback_getdevice(file);
 	opener = fh_to_opener(fh);
 
-	/*release buffer when request buffer 0*/
+	/* release buffer when request buffer 0*/
 	if (b->count == 0) {
 		free_buffers(dev);
 		return 0;
@@ -1836,7 +1816,7 @@ static int vidioc_expbuf(struct file *file, void *fh,
 			struct v4l2_exportbuffer *e)
 {
 	struct v4l2_loopback_device *dev;
-	int fd = 0;
+	int fd;
 	struct dma_buf *dmabuf = NULL;
 	int rc;
 	size_t size;
@@ -1878,7 +1858,7 @@ static int vidioc_expbuf(struct file *file, void *fh,
 		return -EINVAL;
 	}
 
-	pr_info("exit %s\n", __func__);
+	pr_debug("exit %s\n", __func__);
 
 	e->fd = fd;
 	return 0;
@@ -2159,16 +2139,16 @@ static int process_capture_cmd(struct v4l2_loopback_device *dev,
 			rc = -EINVAL;
 		} else if (kcmd->payload == NULL) {
 			rc = -EINVAL;
-			pr_err("payload is NULL");
+			pr_err("payload is NULL on set param\n");
 		} else if (copy_from_user(dev->qcarcam_param,
-				kcmd->payload,
+				u64_to_user_ptr(kcmd->payload),
 				kcmd->size)) {
 			rc = -EFAULT;
-			pr_err("copy_from_user fail");
+			pr_err("copy_from_user fail on set param\n");
 		} else {
 			dev->qcarcam_param_size = kcmd->size;
 			dev->qcarcam_code = kcmd->param_type;
-			pr_info("s_param %u\n", kcmd->param_type);
+			pr_debug("s_param %u\n", kcmd->param_type);
 
 			send_v4l2_event_ex(dev->vdev, AIS_V4L2_CLIENT_OUTPUT,
 				AIS_V4L2_SET_PARAM, kcmd->param_type);
@@ -2178,7 +2158,7 @@ static int process_capture_cmd(struct v4l2_loopback_device *dev,
 			if (rc) {
 				rc = dev->qcarcam_sparam_ret;
 			} else {
-				pr_err("s_param fail %d", rc);
+				pr_err("s_param fail, timeout %d\n", rc);
 				rc = -ETIMEDOUT;
 			}
 		}
@@ -2197,7 +2177,7 @@ static int process_capture_cmd(struct v4l2_loopback_device *dev,
 		if (rc) {
 			rc = 0;
 		} else {
-			pr_err("g_param fail %d", rc);
+			pr_err("g_param fail, timeout %d\n", rc);
 			rc = -ETIMEDOUT;
 			return rc;
 		}
@@ -2205,13 +2185,16 @@ static int process_capture_cmd(struct v4l2_loopback_device *dev,
 		if (dev->qcarcam_param_size == 0) {
 			/* g_param fail */
 			rc = -EINVAL;
+			pr_err("get param size is 0\n");
 		} else if (kcmd->payload == NULL) {
 			rc = -EINVAL;
-		} else if (copy_to_user(kcmd->payload,
+			pr_err("payload is NULL on get param\n");
+		} else if (copy_to_user(u64_to_user_ptr(kcmd->payload),
 					dev->qcarcam_param,
 					dev->qcarcam_param_size)) {
 			/* copy the param from kernel */
 			rc = -EFAULT;
+			pr_err("copy_from_user fail on get param\n");
 		} else {
 			kcmd->size = dev->qcarcam_param_size;
 			kcmd->param_type = dev->qcarcam_code;
@@ -2237,12 +2220,13 @@ static int process_output_cmd(struct v4l2_loopback_device *dev,
 
 		if (kcmd->size > MAX_AIS_V4L2_PARAM_EVNET_SIZE) {
 			rc = -EINVAL;
-			pr_err("fail to AIS_V4L2_OUTPUT_PRIV_SET_PARAM2");
+			pr_err("fail to set param event, size=%u\n",
+				kcmd->size);
 		} else if (copy_from_user(&event.u.data[2],
-				kcmd->payload,
+				u64_to_user_ptr(kcmd->payload),
 				kcmd->size)) {
 			rc = -EFAULT;
-			pr_err("fail to AIS_V4L2_OUTPUT_PRIV_SET_PARAM2");
+			pr_err("fail to copy from user on set param event\n");
 		} else {
 			event.type = AIS_V4L2_CLIENT_CAPTURE;
 			event.id = AIS_V4L2_PARAM_EVENT;
@@ -2264,10 +2248,10 @@ static int process_output_cmd(struct v4l2_loopback_device *dev,
 		if (kcmd->size > MAX_AIS_V4L2_PAYLOAD_SIZE) {
 			rc = -EINVAL;
 		} else if (copy_from_user(dev->qcarcam_param,
-				kcmd->payload,
+				u64_to_user_ptr(kcmd->payload),
 				kcmd->size)) {
 			rc = -EFAULT;
-			pr_err("fail to AIS_V4L2_OUTPUT_PRIV_SET_PARAM2");
+			pr_err("fail to AIS_V4L2_OUTPUT_PRIV_SET_PARAM2\n");
 		} else {
 			dev->qcarcam_param_size = kcmd->size;
 			dev->qcarcam_code = kcmd->param_type;
@@ -2277,11 +2261,11 @@ static int process_output_cmd(struct v4l2_loopback_device *dev,
 		break;
 	case AIS_V4L2_OUTPUT_PRIV_GET_PARAM:
 		/* copy the param from kernel */
-		if (copy_to_user(kcmd->payload,
+		if (copy_to_user(u64_to_user_ptr(kcmd->payload),
 						dev->qcarcam_param,
 						dev->qcarcam_param_size)) {
 			rc = -EFAULT;
-			pr_err("fail to AIS_V4L2_OUTPUT_PRIV_GET_PARAM");
+			pr_err("fail to AIS_V4L2_OUTPUT_PRIV_GET_PARAM\n");
 		} else {
 			kcmd->size = dev->qcarcam_param_size;
 			kcmd->param_type = dev->qcarcam_code;
@@ -2307,10 +2291,10 @@ static long ais_v4l2loopback_dev_ioctl(struct file *file, void *fh,
 	MARK();
 	dev = v4l2loopback_getdevice(file);
 
-	pr_debug("ais_v4l2loopback_dev_ioctl");
+	pr_debug("%s enter\n", __func__);
 
 	if (!dev) {
-		pr_err("v4l2loopback dev NULL");
+		pr_err("v4l2loopback dev NULL\n");
 		return -EINVAL;
 	}
 
@@ -2387,8 +2371,8 @@ static int v4l2_loopback_mmap(struct file *file, struct vm_area_struct *vma)
 		dev->io_mode = V4L2L_IO_MODE_MMAP;
 		if (allocate_buffers(dev) < 0)
 			return -EINVAL;
-		/*TODO: refine the state transfer*/
-		// dev->ready_for_output = 1;
+		/* TODO: refine the state transfer*/
+
 	}
 
 	if (opener->timeout_image_io) {
@@ -2533,7 +2517,8 @@ static int v4l2_loopback_open(struct file *file)
 	}
 	v4l2_fh_add(&opener->fh);
 
-	/* WRITER should open it at first,
+	/*
+	 * WRITER should open it at first,
 	 * then READER can only open it 1 time,
 	 * if multi READER, some erro will happen
 	 * if multi WRITER, some error also happen
@@ -2547,11 +2532,11 @@ static int v4l2_loopback_open(struct file *file)
 			AIS_V4L2_OPEN_INPUT);
 		try_free_buffers(dev);
 	} else {
-		pr_err("Please config output config at first");
+		pr_err("Please config output config at first\n");
 		rc = -EINVAL;
 	}
 
-	pr_info("opened dev:%pK with image:%pK\n",
+	pr_debug("opened dev:%pK with image:%pK\n",
 			dev, dev ? dev->image : NULL);
 	MARK();
 	return rc;
@@ -2644,10 +2629,9 @@ static ssize_t v4l2_loopback_write(struct file *file,
 	/* there's at least one writer,
 	 * so don'stop announcing output capabilities
 	 */
-	//dev->ready_for_output = 0;
 
 	if (dev->image == NULL && dev->dmabufs[0] == NULL) {
-		pr_err("v4l2-loopback: need allocate buffer at first");
+		pr_err("v4l2-loopback: need allocate buffer at first\n");
 		return -EFAULT;
 	}
 
@@ -2729,6 +2713,7 @@ static int free_buffers(struct v4l2_loopback_device *dev)
 
 	return 0;
 }
+
 /* frees buffers, if they are no longer needed */
 static void try_free_buffers(struct v4l2_loopback_device *dev)
 {
@@ -2736,10 +2721,10 @@ static void try_free_buffers(struct v4l2_loopback_device *dev)
 	if ((dev->open_count.counter && !dev->keep_format) == 0) {
 		free_buffers(dev);
 		dev->ready_for_capture = 0;
-		//dev->buffer_size = 0;
 		dev->write_position = 0;
 	}
 }
+
 /* allocates buffers, if buffer_size is set */
 static int allocate_buffers(struct v4l2_loopback_device *dev)
 {
@@ -2750,7 +2735,7 @@ static int allocate_buffers(struct v4l2_loopback_device *dev)
 		return -EINVAL;
 
 	if (dev->image) {
-		pr_err("allocating buffers again: %ld %ld\n",
+		pr_debug("allocating buffers again: %ld %ld\n",
 			dev->buffer_size * dev->buffers_number, dev->imagesize);
 		/* FIXME: prevent double allocation more intelligently! */
 		if (dev->buffer_size * dev->buffers_number == dev->imagesize)
@@ -2780,9 +2765,6 @@ static int allocate_buffers(struct v4l2_loopback_device *dev)
 	return 0;
 }
 
-
-
-
 /* allocates buffers, if buffer_size is set */
 static int allocate_dma_buffers(struct v4l2_loopback_device *dev)
 {
@@ -2794,7 +2776,7 @@ static int allocate_dma_buffers(struct v4l2_loopback_device *dev)
 	MARK();
 	/* vfree on close file operation in case no open handles left */
 
-	pr_err("allocating %ld = %ldx%d\n",
+	pr_debug("allocating %ld = %ldx%d\n",
 			dev->imagesize, dev->buffer_size, dev->buffers_number);
 
 	if (dev->buffer_size == 0)
@@ -2820,7 +2802,7 @@ static int allocate_dma_buffers(struct v4l2_loopback_device *dev)
 
 	dev->imagesize = dev->buffer_size * dev->buffers_number;
 
-	pr_err("allocating dma buffer %ld = %ldx%d\n",
+	pr_debug("allocating dma buffer %ld = %ldx%d\n",
 			dev->imagesize, dev->buffer_size, dev->buffers_number);
 
 	for (i = 0; i < dev->buffers_number; ++i) {
@@ -3336,5 +3318,4 @@ void __exit cleanup_module(void)
 #else
 late_initcall(v4l2loopback_init_module);
 #endif
-
 

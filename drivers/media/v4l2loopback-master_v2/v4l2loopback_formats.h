@@ -1,3 +1,7 @@
+/* This file is copied from
+ * github.com/umlaeute/v4l2loopback/blob/master/v4l2loopback_formats.h
+ */
+
 /* here come the packed formats */
 {
 	.name = "32 bpp RGB, le",

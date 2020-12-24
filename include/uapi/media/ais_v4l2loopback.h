@@ -1,17 +1,5 @@
-/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
-#ifndef _AIS_V4L2_H
-#define _AIS_V4L2_H
+#ifndef _UAPI_AIS_V4L2_H
+#define _UAPI_AIS_V4L2_H
 
 #define AIS_V4L2_DRV_MAX_VERSION    1
 #define AIS_V4L2_DRV_MIN_VERSION    2
@@ -87,12 +75,12 @@ enum AIS_V4L2_CAPTURE_PRIVATE_CMD {
 
 struct ais_v4l2_control_t {
 	__u32 type;
+	__u32 size;
+	__u64 payload;
 	__u8  cmd;
 	__u8  param_type;
-	unsigned int size;
-	__u8 *payload;
 };
 
 
-#endif
+#endif /* _UAPI_AIS_V4L2_H */
 

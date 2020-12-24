@@ -454,12 +454,12 @@
 		status = "disabled";
 	};
 
-	spi_8: spi@7af5000 { /* BLSP2 QUP4 */
+	spi_8: spi@7af8000 { /* BLSP2 QUP4 */
 		compatible = "qcom,spi-qup-v2";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg-names = "spi_physical", "spi_bam_physical";
-		reg = <0x7af5000 0x600>,
+		reg = <0x7af8000 0x600>,
 			<0x7ac4000 0x1f000>;
 		interrupt-names = "spi_irq", "spi_bam_irq";
 		interrupts = <0 302 IRQ_TYPE_LEVEL_HIGH>,

@@ -3508,7 +3508,6 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 	struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
 	int dirty = stmmac_rx_dirty(priv, queue);
 	unsigned int entry = rx_q->dirty_rx;
-
 	int bfsize = priv->dma_buf_sz;
 
 	while (dirty-- > 0) {
@@ -3543,22 +3542,23 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 				dev_kfree_skb(skb);
 				break;
 			}
-
-			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00)) {
-				p->des0 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
-				p->des1 = 0;
-			} else {
-				p->des2 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
-			}
-			if (priv->hw->mode->refill_desc3)
-				priv->hw->mode->refill_desc3(rx_q, p);
-
-			if (rx_q->rx_zeroc_thresh > 0)
-				rx_q->rx_zeroc_thresh--;
-
-			netif_dbg(priv, rx_status, priv->dev,
-				  "refill entry #%d\n", entry);
 		}
+
+		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00)) {
+			p->des0 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
+			p->des1 = 0;
+		} else {
+			p->des2 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
+		}
+		if (priv->hw->mode->refill_desc3)
+			priv->hw->mode->refill_desc3(rx_q, p);
+
+		if (rx_q->rx_zeroc_thresh > 0)
+			rx_q->rx_zeroc_thresh--;
+
+		netif_dbg(priv, rx_status, priv->dev,
+			  "refill entry #%d\n", entry);
+
 		dma_wmb();
 
 		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))

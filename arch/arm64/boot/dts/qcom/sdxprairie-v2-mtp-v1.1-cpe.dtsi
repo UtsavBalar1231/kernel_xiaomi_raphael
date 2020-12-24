@@ -12,7 +12,6 @@
  */
 
 #include "sdxprairie-v2.dtsi"
-#include "sdxprairie-cpe-memory-map.dtsi"
 #include "sdxprairie-mtp.dtsi"
 
 &qnand_1 {

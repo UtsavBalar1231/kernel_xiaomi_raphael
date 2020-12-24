@@ -1541,6 +1541,26 @@ static int ais_ife_csid_dump_hw(
 	return 0;
 }
 
+static int ais_ife_csid_get_total_pkts(
+	struct ais_ife_csid_hw *csid_hw, void *cmd_args)
+{
+	struct ais_ife_diag_info                       *ife_diag;
+
+	struct cam_hw_soc_info                         *soc_info;
+	const struct ais_ife_csid_reg_offset           *csid_reg;
+
+	csid_reg = csid_hw->csid_info->csid_reg;
+	soc_info = &csid_hw->hw_info->soc_info;
+
+	ife_diag = (struct ais_ife_diag_info *)cmd_args;
+
+	ife_diag->pkts_rcvd = cam_io_r_mb(soc_info->reg_map[0].mem_base +
+			csid_reg->csi2_reg->csid_csi2_rx_total_pkts_rcvd_addr);
+
+	return 0;
+}
+
+
 static int ais_ife_csid_process_cmd(void *hw_priv,
 	uint32_t cmd_type, void *cmd_args, uint32_t arg_size)
 {
@@ -1572,6 +1592,9 @@ static int ais_ife_csid_process_cmd(void *hw_priv,
 	case AIS_ISP_HW_CMD_DUMP_HW:
 		rc = ais_ife_csid_dump_hw(csid_hw, cmd_args);
 		break;
+	case AIS_IFE_CSID_CMD_DIAG_INFO:
+		rc = ais_ife_csid_get_total_pkts(csid_hw, cmd_args);
+		break;
 	default:
 		CAM_ERR(CAM_ISP, "CSID:%d unsupported cmd:%d",
 			csid_hw->hw_intf->hw_idx, cmd_type);
@@ -1584,7 +1607,7 @@ static int ais_ife_csid_process_cmd(void *hw_priv,
 
 static int ais_csid_event_dispatch_process(void *priv, void *data)
 {
-	struct ais_ife_event_data evt_payload;
+	struct ais_ife_event_data evt_payload = {};
 	struct ais_ife_csid_hw *csid_hw;
 	struct ais_csid_hw_work_data *work_data;
 	int rc = 0;
@@ -1617,6 +1640,8 @@ static int ais_csid_event_dispatch_process(void *priv, void *data)
 	evt_payload.idx = csid_hw->hw_intf->hw_idx;
 	evt_payload.boot_ts = work_data->timestamp;
 	evt_payload.path = 0xF;
+	evt_payload.u.err_msg.reserved =
+		work_data->irq_status[CSID_IRQ_STATUS_RX];
 
 	switch (work_data->evt_type) {
 	case AIS_IFE_MSG_CSID_ERROR:

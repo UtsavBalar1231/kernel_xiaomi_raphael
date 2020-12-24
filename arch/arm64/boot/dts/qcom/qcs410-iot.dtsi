@@ -17,3 +17,7 @@
 	compatible = "qcom,qcs410-iot", "qcom,qcs410", "qcom,iot";
 };
 
+&ir_led {
+	gpios = <&tlmm 74 0>,
+		<&tlmm 73 0>;
+};

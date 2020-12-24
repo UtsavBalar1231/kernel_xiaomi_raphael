@@ -124,22 +124,7 @@ u16 dwmac_qcom_select_queue(
 	/* Retrieve ETH type */
 	eth_type = dwmac_qcom_get_eth_type(skb->data);
 
-	if (pethqos->cv2x_mode == CV2X_MODE_AP) {
-		if (skb_vlan_tag_present(skb)) {
-			vlan_id = skb_vlan_tag_get_id(skb);
-			if (vlan_id == pethqos->cv2x_vlan.vlan_id)
-				txqueue_select = CV2X_TAG_TX_CHANNEL;
-			else if (vlan_id == pethqos->qoe_vlan.vlan_id)
-				txqueue_select = QMI_TAG_TX_CHANNEL;
-			else
-				txqueue_select =
-				ALL_OTHER_TX_TRAFFIC_IPA_DISABLED;
-		} else {
-			txqueue_select = ALL_OTHER_TX_TRAFFIC_IPA_DISABLED;
-		}
-	} else if (pethqos->cv2x_mode == CV2X_MODE_MDM) {
-		txqueue_select = ALL_OTHER_TRAFFIC_TX_CHANNEL;
-	} else if (eth_type == ETH_P_TSN) {
+	if (eth_type == ETH_P_TSN && pethqos->cv2x_mode == CV2X_MODE_DISABLE) {
 		/* Read VLAN priority field from skb->data */
 		priority = dwmac_qcom_get_vlan_ucp(skb->data);
 
@@ -148,6 +133,25 @@ u16 dwmac_qcom_select_queue(
 			txqueue_select = CLASS_A_TRAFFIC_TX_CHANNEL;
 		} else if (priority == CLASS_B_TRAFFIC_UCP) {
 			txqueue_select = CLASS_B_TRAFFIC_TX_CHANNEL;
+		} else {
+			if (ipa_enabled)
+				txqueue_select = ALL_OTHER_TRAFFIC_TX_CHANNEL;
+			else
+				txqueue_select =
+				ALL_OTHER_TX_TRAFFIC_IPA_DISABLED;
+		}
+	} else if (eth_type == ETH_P_1588) {
+		/*gPTP seelct tx queue 1*/
+		txqueue_select = NON_TAGGED_IP_TRAFFIC_TX_CHANNEL;
+	} else if (skb_vlan_tag_present(skb)) {
+		vlan_id = skb_vlan_tag_get_id(skb);
+
+		if (pethqos->cv2x_mode == CV2X_MODE_AP &&
+		    vlan_id == pethqos->cv2x_vlan.vlan_id) {
+			txqueue_select = CV2X_TAG_TX_CHANNEL;
+		} else if (pethqos->qoe_mode &&
+			 vlan_id == pethqos->qoe_vlan.vlan_id){
+			txqueue_select = QMI_TAG_TX_CHANNEL;
 		} else {
 			if (ipa_enabled)
 				txqueue_select = ALL_OTHER_TRAFFIC_TX_CHANNEL;
@@ -1362,6 +1366,8 @@ static ssize_t phy_off_config(
 	unsigned long ret;
 	int config = 0;
 	struct qcom_ethqos *ethqos = file->private_data;
+	struct platform_device *pdev = ethqos->pdev;
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = qcom_ethqos_get_priv(ethqos);
 	struct plat_stmmacenet_data *plat;
 
@@ -1409,6 +1415,13 @@ static ssize_t phy_off_config(
 							       MII_BMCR);
 		} else {
 			ethqos->backup_autoneg = AUTONEG_ENABLE;
+		}
+		if (priv->phydev) {
+			if (qcom_ethqos_is_phy_link_up(ethqos)) {
+				ETHQOSINFO("Post Link down before PHY off\n");
+				netif_carrier_off(dev);
+				phy_mac_interrupt(priv->phydev, LINK_DOWN);
+			}
 		}
 		ethqos_phy_power_off(ethqos);
 	} else if (config == ENABLE_PHY_IMMEDIATELY) {
@@ -1648,6 +1661,11 @@ static ssize_t loopback_handling_config(
 		ETHQOSERR("Invalid config =%d\n", config);
 		return -EINVAL;
 	}
+	if (priv->current_loopback == ENABLE_PHY_LOOPBACK &&
+	    priv->plat->mac2mac_en) {
+		ETHQOSINFO("Not supported with Mac2Mac enabled\n");
+		return -EOPNOTSUPP;
+	}
 	if ((config == ENABLE_PHY_LOOPBACK  || priv->current_loopback ==
 			ENABLE_PHY_LOOPBACK) &&
 			ethqos->current_phy_mode == DISABLE_PHY_IMMEDIATELY) {
@@ -1872,12 +1890,14 @@ static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 	static struct dentry *ipc_stmmac_log_low;
 	static struct dentry *phy_off;
 	static struct dentry *loopback_enable_mode;
+	struct stmmac_priv *priv;
 
 	if (!ethqos) {
 		ETHQOSERR("Null Param %s\n", __func__);
 		return -ENOMEM;
 	}
 
+	priv = qcom_ethqos_get_priv(ethqos);
 	ethqos->debugfs_dir = debugfs_create_dir("eth", NULL);
 
 	if (!ethqos->debugfs_dir || IS_ERR(ethqos->debugfs_dir)) {
@@ -1909,12 +1929,15 @@ static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
 			  ipc_stmmac_log_low);
 		goto fail;
 	}
-	phy_off = debugfs_create_file("phy_off", 0400,
-				      ethqos->debugfs_dir, ethqos,
-				      &fops_phy_off);
-	if (!phy_off || IS_ERR(phy_off)) {
-		ETHQOSERR("Can't create phy_off %x\n", phy_off);
-		goto fail;
+
+	if (!priv->plat->mac2mac_en) {
+		phy_off = debugfs_create_file("phy_off", 0400,
+					      ethqos->debugfs_dir, ethqos,
+					      &fops_phy_off);
+		if (!phy_off || IS_ERR(phy_off)) {
+			ETHQOSERR("Can't create phy_off %x\n", phy_off);
+			goto fail;
+		}
 	}
 
 	loopback_enable_mode = debugfs_create_file("loopback_enable_mode", 0400,
@@ -2025,14 +2048,18 @@ static int stmmac_emb_smmu_cb_probe(struct platform_device *pdev)
 			goto err_smmu_probe;
 		}
 		ETHQOSDBG("SMMU atomic set\n");
-		if (iommu_domain_set_attr(stmmac_emb_smmu_ctx.mapping->domain,
-					  DOMAIN_ATTR_FAST,
-					  &fast)) {
-			ETHQOSERR("Couldn't set FAST SMMU\n");
-			result = -EIO;
-			goto err_smmu_probe;
+		if (of_property_read_bool(dev->of_node,
+					  "qcom,smmu-fastmap")) {
+			ETHQOSERR("SMMU-Fastmap device tree entry detected");
+			if (iommu_domain_set_attr
+			    (stmmac_emb_smmu_ctx.mapping->domain,
+			     DOMAIN_ATTR_FAST, &fast)) {
+				ETHQOSERR("Couldn't set FAST SMMU\n");
+				result = -EIO;
+				goto err_smmu_probe;
+			}
+			ETHQOSDBG("SMMU fast map set\n");
 		}
-		ETHQOSDBG("SMMU fast map set\n");
 		if (of_property_read_bool(dev->of_node,
 					  "qcom,smmu-geometry")) {
 			if (iommu_domain_set_attr
@@ -2748,10 +2775,11 @@ static int qcom_ethos_panic_notifier(struct notifier_block *this,
 				     unsigned long event, void *ptr)
 {
 	u32 size_iomacro_regs;
+	struct stmmac_priv *priv = qcom_ethqos_get_priv(pethqos);
 
 	if (pethqos) {
 		pr_info("qcom-ethqos: ethqos 0x%p\n", pethqos);
-
+		pr_info("qcom-ethqos: stmmac_priv 0x%p\n", priv);
 
 		pethqos->iommu_domain = stmmac_emb_smmu_ctx.iommu_domain;
 		pr_info("qcom-ethqos: emac iommu domain 0x%p\n",
@@ -2766,6 +2794,8 @@ static int qcom_ethos_panic_notifier(struct notifier_block *this,
 
 		pr_info("qcom-ethqos: rgmii register mem 0x%p\n",
 			pethqos->rgmii_reg_base_address);
+		size_iomacro_regs =
+		qcom_ethqos_rgmii_io_macro_num_of_regs(pethqos->emac_ver) * 4;
 		if (pethqos->rgmii_reg_base_address)
 			memcpy_fromio(pethqos->rgmii_reg_base_address,
 				      pethqos->rgmii_base,
@@ -2847,14 +2877,14 @@ static void qcom_ethqos_handle_ssr_workqueue(struct work_struct *work)
 	priv = qcom_ethqos_get_priv(pethqos);
 	plat = priv->plat;
 
-	ETHQOSINFO("%s is executing action: %d\n", __func__, pethqos->action);
+	ETHQOSDBG("%s is executing action: %d\n", __func__, pethqos->action);
 
 	if (pethqos->action & SSR_SIG_DOWN)
-		qcom_ethqos_handle_ssr(priv, SPEED_10, plat, EV_PHY_LINK_DOWN,
-				       LINK_DOWN);
+		qcom_ethqos_handle_ssr(priv, SPEED_10, plat,
+				       SSR_EVENT_DOWN, LINK_DOWN);
 	else if (pethqos->action & SSR_SIG_UP)
 		qcom_ethqos_handle_ssr(priv, plat->mac2mac_rgmii_speed, plat,
-				       EV_PHY_LINK_UP, LINK_UP);
+				       SSR_EVENT_UP, LINK_UP);
 }
 
 static int qcom_ethqos_qti_alert(struct notifier_block *nb,
@@ -2877,11 +2907,11 @@ static int qcom_ethqos_qti_alert(struct notifier_block *nb,
 
 	switch (action) {
 	case EVENT_REMOTE_STATUS_UP:
-		ETHQOSINFO("Link up\n");
+		ETHQOSDBG("Link up\n");
 		pethqos->action = SSR_SIG_UP;
 		break;
 	case EVENT_REMOTE_STATUS_DOWN:
-		ETHQOSINFO("Link down\n");
+		ETHQOSDBG("Link down\n");
 		pethqos->action = SSR_SIG_DOWN;
 		break;
 	default:
@@ -2907,7 +2937,7 @@ static void qcom_ethqos_register_listener(void)
 {
 	int ret;
 
-	ETHQOSINFO("Registering sb notification listener: %s\n", __func__);
+	ETHQOSDBG("Registering sb notification listener: %s\n", __func__);
 
 	pethqos->qti_nb.notifier_call = qcom_ethqos_qti_alert;
 	ret = sb_register_evt_listener(&pethqos->qti_nb);
@@ -3052,6 +3082,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 			of_platform_depopulate(&pdev->dev);
 			ret = stmmac_emb_smmu_ctx.ret;
 			stmmac_emb_smmu_ctx.ret = 0;
+			goto err_clk;
 		}
 	}
 
@@ -3247,7 +3278,7 @@ static int qcom_ethqos_suspend(struct device *dev)
 	struct qcom_ethqos *ethqos;
 	struct net_device *ndev = NULL;
 	int ret;
-	int allow_suspend = 0;
+	int allow_suspend = 1;
 	struct stmmac_priv *priv;
 	struct plat_stmmacenet_data *plat;
 

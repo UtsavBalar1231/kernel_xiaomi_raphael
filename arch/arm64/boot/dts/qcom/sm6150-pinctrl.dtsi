@@ -263,12 +263,12 @@
 		ss5_pwr_ctrl_pins: ss5_pwr_ctrl_pins {
 			ss5_pwr_ctrl_rst_on: ss5_pwr_ctrl_rst_on {
 				mux {
-					pins = "gpio87", "gpio18";
+					pins = "gpio87", "gpio18", "gpio21";
 					function = "gpio";
 				};
 
 				config {
-					pins = "gpio87", "gpio18";
+					pins = "gpio87", "gpio18", "gpio21";
 					drive-strength = <16>; /* 16 mA */
 					bias-pull-up;
 					output-high;
@@ -277,12 +277,12 @@
 
 			ss5_pwr_ctrl_rst_off: ss5_pwr_ctrl_off {
 				mux {
-					pins = "gpio87", "gpio18";
+					pins = "gpio87", "gpio18", "gpio21";
 					function = "gpio";
 				};
 
 				config {
-					pins = "gpio87", "gpio18";
+					pins = "gpio87", "gpio18", "gpio21";
 					drive-strength = <16>; /* 16 mA */
 					bias-pull-up;
 					output-high;

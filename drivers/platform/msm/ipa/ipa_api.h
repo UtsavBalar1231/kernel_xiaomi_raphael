@@ -14,6 +14,7 @@
 #include <linux/ipa_uc_offload.h>
 #include <linux/ipa_wdi3.h>
 #include <linux/ipa_qdss.h>
+#include <linux/ipa_eth.h>
 #include "ipa_common_i.h"
 
 #ifndef _IPA_API_H_
@@ -226,6 +227,34 @@ struct ipa_api_controller {
 
 	int (*ipa_get_wdi_stats)(struct IpaHwStatsWDIInfoData_t *stats);
 
+	int (*ipa_eth_rtk_connect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_aqc_connect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_emac_connect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_rtk_disconnect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_aqc_disconnect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_emac_disconnect)(
+		struct ipa_eth_client_pipe_info *pipe,
+		enum ipa_client_type client_type);
+
+	int (*ipa_eth_client_conn_evt)(struct ipa_ecm_msg *msg);
+
+	int (*ipa_eth_client_disconn_evt)(struct ipa_ecm_msg *msg);
+
 	u16 (*ipa_get_smem_restr_bytes)(void);
 
 	int (*ipa_broadcast_wdi_quota_reach_ind)(uint32_t fid,
@@ -434,13 +463,13 @@ struct ipa_api_controller {
 		ipa_wdi_meter_notifier_cb wdi_notify);
 
 	int (*ipa_disconn_wdi_pipes)(int ipa_ep_idx_tx,
-		int ipa_ep_idx_rx);
+		int ipa_ep_idx_rx, int ipa_ep_idx_tx1);
 
 	int (*ipa_enable_wdi_pipes)(int ipa_ep_idx_tx,
-		int ipa_ep_idx_rx);
+		int ipa_ep_idx_rx, int ipa_ep_idx_tx1);
 
 	int (*ipa_disable_wdi_pipes)(int ipa_ep_idx_tx,
-		int ipa_ep_idx_rx);
+		int ipa_ep_idx_rx, int ipa_ep_idx_tx1);
 
 	int (*ipa_tz_unlock_reg)(struct ipa_tz_unlock_reg_info *reg_info,
 		u16 num_regs);
@@ -504,6 +533,8 @@ struct ipa_api_controller {
 
 	int (*ipa_disconn_qdss_pipes)(void);
 
+	int (*ipa_get_default_aggr_time_limit)(enum ipa_client_type client,
+		u32 *default_aggr_time_limit);
 };
 
 #ifdef CONFIG_IPA

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -67,9 +67,11 @@ static void __init register_kernel_sections(void)
 {
 	struct md_region ksec_entry;
 	char *data_name = "KDATABSS";
+#ifdef CONFIG_SMP
 	const size_t static_size = __per_cpu_end - __per_cpu_start;
 	void __percpu *base = (void __percpu *)__per_cpu_start;
 	unsigned int cpu;
+#endif
 
 	strlcpy(ksec_entry.name, data_name, sizeof(ksec_entry.name));
 	ksec_entry.virt_addr = (uintptr_t)_sdata;
@@ -77,7 +79,7 @@ static void __init register_kernel_sections(void)
 	ksec_entry.size = roundup((__bss_stop - _sdata), 4);
 	if (msm_minidump_add_region(&ksec_entry))
 		pr_err("Failed to add data section in Minidump\n");
-
+#ifdef CONFIG_SMP
 	/* Add percpu static sections */
 	for_each_possible_cpu(cpu) {
 		void *start = per_cpu_ptr(base, cpu);
@@ -91,6 +93,7 @@ static void __init register_kernel_sections(void)
 		if (msm_minidump_add_region(&ksec_entry))
 			pr_err("Failed to add percpu sections in Minidump\n");
 	}
+#endif
 }
 
 static inline bool in_stack_range(u64 sp, u64 base_addr, unsigned int
@@ -128,7 +131,7 @@ void dump_stack_minidump(u64 sp)
 	if (is_idle_task(current))
 		return;
 
-	if (sp < KIMAGE_VADDR || sp > -256UL)
+	if (sp < MODULES_END || sp > -256UL)
 		sp = current_stack_pointer;
 
 	/*
