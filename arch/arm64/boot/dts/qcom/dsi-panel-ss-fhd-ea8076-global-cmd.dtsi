@@ -214,7 +214,7 @@
 				qcom,mdss-dsi-nolp-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-dispparam-hbm-off-command = [
-					39 01 00 00 00 00 02 53 28
+					39 01 00 00 10 00 02 53 28
 				];
 				qcom,mdss-dsi-dispparam-hbm-off-command-state = "dsi_lp_mode";
 
