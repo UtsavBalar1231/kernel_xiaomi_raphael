@@ -1368,7 +1368,6 @@ static int smb5_usb_set_prop(struct power_supply *psy,
 		smblib_set_prop_usb_voltage_max_limit(chg, val);
 		break;
 	case POWER_SUPPLY_PROP_TYPE_RECHECK:
-		pr_err("smblib_set_prop_type_recheck:: real_charger_type=%d val->intval=%d\n", chg->real_charger_type, val->intval);
 		rc = smblib_set_prop_type_recheck(chg, val);
 		break;
 	case POWER_SUPPLY_PROP_ADAPTER_CC_MODE:
