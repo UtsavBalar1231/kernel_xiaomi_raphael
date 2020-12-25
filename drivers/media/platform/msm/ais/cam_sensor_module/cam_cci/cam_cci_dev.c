@@ -224,7 +224,7 @@ irqreturn_t cam_cci_irq(int irq_num, void *data)
 	if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_ERROR_BMSK) {
 		cci_dev->cci_master_info[MASTER_0].status = -EINVAL;
 		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_NACK_ERROR_BMSK)
-			CAM_ERR(CAM_CCI, "Base:%pK, M0 NACK ERROR: 0x%x",
+			CAM_DBG(CAM_CCI, "Base:%pK, M0 NACK ERROR: 0x%x",
 				base, irq_status0);
 		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_Q0Q1_ERROR_BMSK)
 			CAM_ERR(CAM_CCI,
