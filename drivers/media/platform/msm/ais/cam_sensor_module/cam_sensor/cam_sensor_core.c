@@ -1117,8 +1117,8 @@ free_probe_cmd:
 			i2c_read.reg_addr, &i2c_read.reg_data,
 			i2c_read.addr_type, i2c_read.data_type);
 		if (rc < 0) {
-			CAM_ERR(CAM_SENSOR, "Failed to read 0x%x:0x%x",
-				slave_info.slave_addr, i2c_read.reg_addr);
+			CAM_ERR(CAM_SENSOR, "Failed to read 0x%x:0x%x, rc = %d",
+				slave_info.slave_addr, i2c_read.reg_addr, rc);
 			(void)cam_sensor_restore_slave_info(s_ctrl);
 			goto release_mutex;
 		}
