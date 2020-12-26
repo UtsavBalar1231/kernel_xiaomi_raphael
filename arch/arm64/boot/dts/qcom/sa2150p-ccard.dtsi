@@ -307,6 +307,8 @@
 
 	perst-gpio = <&tlmm 107 0>;
 	wake-gpio = <&tlmm 115 0>;
+	/delete-property/ qcom,no-l0s-supported;
+	/delete-property/ qcom,no-l1-supported;
 };
 
 &sdhc_2 {
