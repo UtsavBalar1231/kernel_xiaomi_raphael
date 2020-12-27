@@ -52,10 +52,12 @@ static void wmi_log_history(struct notifier_block *block, void *data,
 	if (!wmi_handle)
 		return;
 
+#ifdef WMI_INTERFACE_EVENT_LOGGING
 	if (wmi_history)
 		wmi_log = &wmi_handle->log_info.wmi_event_log_buf_info;
 	else
 		wmi_log = &wmi_handle->log_info.wmi_command_log_buf_info;
+#endif
 
 	total_len = sizeof(struct wmi_hang_data_fixed_param);
 

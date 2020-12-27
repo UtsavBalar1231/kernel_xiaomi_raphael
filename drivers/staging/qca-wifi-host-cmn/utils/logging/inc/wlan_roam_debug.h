@@ -118,7 +118,6 @@ enum peer_debug_op {
 void wlan_roam_debug_log(uint8_t vdev_id, uint8_t op,
 			uint16_t peer_id, void *mac_addr,
 			void *peer_obj, uint32_t arg1, uint32_t arg2);
-
 /**
  * wlan_roam_debug_dump_table() - Print the roam debug log records
  * print all the valid debug records in the order of timestamp
@@ -126,6 +125,7 @@ void wlan_roam_debug_log(uint8_t vdev_id, uint8_t op,
  * Return: none
  */
 void wlan_roam_debug_dump_table(void);
+<<<<<<< HEAD
 
 #ifdef WLAN_LOGGING_BUFFERS_DYNAMICALLY
 /**

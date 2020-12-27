@@ -34,6 +34,7 @@
 
 #include <wlan_defs.h>
 
+#ifdef WLAN_DEBUG
 static char *bw_str_arr[] = {"20MHz", "40MHz", "80MHz", "160MHz"};
 
 /*
@@ -1342,3 +1343,4 @@ void htt_t2h_stats_print(uint8_t *stats_data, int concise)
 		break;
 	}
 }
+#endif

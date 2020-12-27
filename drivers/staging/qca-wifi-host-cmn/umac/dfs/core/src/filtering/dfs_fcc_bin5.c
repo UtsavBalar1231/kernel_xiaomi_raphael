@@ -250,8 +250,12 @@ int dfs_bin5_check(struct wlan_dfs *dfs)
 {
 	struct dfs_bin5radars *br;
 	uint32_t n = 0, i = 0, i1 = 0, this = 0, prev = 0;
-	uint32_t bursts = 0, total_diff = 0, average_diff = 0;
-	uint32_t total_width = 0, average_width = 0, numevents = 0;
+	uint32_t bursts = 0;
+#ifdef WLAN_DEBUG
+	uint32_t total_diff = 0, average_diff = 0;
+	uint32_t total_width = 0, average_width = 0;
+#endif
+	uint32_t numevents = 0;
 	int index[DFS_MAX_B5_SIZE];
 
 	if (!dfs) {
@@ -299,6 +303,7 @@ int dfs_bin5_check(struct wlan_dfs *dfs)
 					3000000)
 				return 0;
 
+#ifdef WLAN_DEBUG
 			dfs_debug(dfs, WLAN_DEBUG_DFS_BIN5,
 					"bursts=%u numevents=%u total_width=%d average_width=%d total_diff=%d average_diff=%d",
 					bursts, numevents, total_width,
@@ -307,6 +312,7 @@ int dfs_bin5_check(struct wlan_dfs *dfs)
 			dfs_info(dfs, WLAN_DEBUG_DFS_ALWAYS,
 					"bin 5 radar detected, bursts=%d",
 					bursts);
+#endif
 			return 1;
 		}
 	}

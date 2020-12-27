@@ -2851,7 +2851,9 @@ QDF_STATUS sap_fsm(struct sap_context *sap_ctx, struct sap_sm_event *sap_event)
 
 	mac_ctx = sap_get_mac_context();
 	if (!mac_ctx) {
+#ifdef WLAN_DEBUG
 		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+#endif
 		return QDF_STATUS_E_FAILURE;
 	}
 	mac_handle = MAC_HANDLE(mac_ctx);
