@@ -4648,9 +4648,9 @@ int rmnet_ipa3_query_per_client_stats(
 		 */
 		if (data->disconnect_clnt &&
 			lan_client->inited) {
-			IPAWANERR("Client not inited. Try again.\n");
+			IPAWANERR("Client not inited.\n");
 			mutex_unlock(&rmnet_ipa3_ctx->per_client_stats_guard);
-			return -EAGAIN;
+			return -EALREADY;
 		}
 
 	} else {
@@ -4830,9 +4830,9 @@ int rmnet_ipa3_query_per_client_stats_v2(
 		 */
 		if (data->disconnect_clnt &&
 			rmnet_ipa3_check_any_client_inited(data->device_type)) {
-			IPAWANERR("CLient not inited. Try again.\n");
+			IPAWANERR("CLient not inited.\n");
 			mutex_unlock(&rmnet_ipa3_ctx->per_client_stats_guard);
-			return -EAGAIN;
+			return -EALREADY;
 		}
 		lan_clnt_idx = LAN_STATS_FOR_ALL_CLIENTS;
 	}

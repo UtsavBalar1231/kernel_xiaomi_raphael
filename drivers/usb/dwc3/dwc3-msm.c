@@ -4138,6 +4138,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	of_node_put(dwc3_node);
 	if (!mdwc->dwc3) {
 		dev_err(&pdev->dev, "failed to get dwc3 platform device\n");
+		ret = -ENODEV;
 		goto put_dwc3;
 	}
 
@@ -4193,6 +4194,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	dwc = platform_get_drvdata(mdwc->dwc3);
 	if (!dwc) {
 		dev_err(&pdev->dev, "Failed to get dwc3 device\n");
+		ret = -ENODEV;
 		goto put_dwc3;
 	}
 
@@ -4236,6 +4238,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 
 	if (mdwc->dual_port && dwc->dr_mode != USB_DR_MODE_HOST) {
 		dev_err(&pdev->dev, "Dual port not allowed for DRD core\n");
+		ret = -EINVAL;
 		goto err_get_extcon;
 	}
 

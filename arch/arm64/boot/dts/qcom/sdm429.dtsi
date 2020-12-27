@@ -1476,6 +1476,7 @@
 		qcom,is-pronto-v3;
 		qcom,has-pronto-hw;
 		qcom,has-vsys-adc-channel;
+		qcom,sw_pta=<1>;
 	};
 
 	bluetooth: bt_wcn3990 {
