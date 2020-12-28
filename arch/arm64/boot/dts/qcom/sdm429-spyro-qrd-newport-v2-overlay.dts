@@ -79,7 +79,8 @@
 };
 
 &int_codec {
-	qcom,model = "sdm429w-wtp-snd-card";
+	qcom,model = "sdm429w-wtp-newport-card";
+	qcom,wcn-bt-slim = <1>;
 };
 
 &wcnss_prima {
