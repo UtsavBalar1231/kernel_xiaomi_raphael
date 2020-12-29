@@ -328,6 +328,7 @@ static int ipa3_smmu_map_uc_ntn_pipes(struct ipa_ntn_setup_info *params,
 		if (ipa3_ctx->uc_ntn_ctx.smmu_mapped == 0) {
 			IPAERR("Invalid smmu_mapped %d\n",
 					ipa3_ctx->uc_ntn_ctx.smmu_mapped);
+			result = -EINVAL;
 			goto fail;
 		} else {
 			ipa3_ctx->uc_ntn_ctx.smmu_mapped--;

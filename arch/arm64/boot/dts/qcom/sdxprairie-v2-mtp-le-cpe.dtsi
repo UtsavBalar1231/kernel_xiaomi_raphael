@@ -97,6 +97,7 @@
 
 &mhi_device {
 	status = "ok";
+	qcom,no-m0-timeout;
 };
 
 &mhi_net_device {

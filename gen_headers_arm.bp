@@ -636,6 +636,7 @@ gen_headers_out_arm = [
     "linux/zorro_ids.h",
     "media/ais_isp.h",
     "media/ais_sensor.h",
+    "media/ais_v4l2loopback.h",
     "media/cam_cpas.h",
     "media/cam_defs.h",
     "media/cam_fd.h",
