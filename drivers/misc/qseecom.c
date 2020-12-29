@@ -458,6 +458,14 @@ __setup("androidboot.keymaster=", get_qseecom_keymaster_status);
 #define QSEECOM_SCM_EBUSY_WAIT_MS 30
 #define QSEECOM_SCM_EBUSY_MAX_RETRY 67
 
+#ifdef CONFIG_GHS_VMM
+struct device *qseecom_get_dev(void)
+{
+	return qseecom.dev;
+}
+EXPORT_SYMBOL(qseecom_get_dev);
+#endif /*CONFIG_GHS_VMM*/
+
 static int __qseecom_scm_call2_locked(uint32_t smc_id, struct scm_desc *desc)
 {
 	int ret = 0;

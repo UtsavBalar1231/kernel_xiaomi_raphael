@@ -476,6 +476,8 @@ enum {
 
 #define MBOX_TOUT_MS 100
 
+#define IPA_RULE_CNT_MAX 512
+
 struct ipa3_active_client_htable_entry {
 	struct hlist_node list;
 	char id_string[IPA3_ACTIVE_CLIENTS_LOG_NAME_LEN];
@@ -3108,6 +3110,8 @@ int ipa_get_quota_stats(struct ipa_quota_stats_all *out);
 int ipa_reset_quota_stats(enum ipa_client_type client);
 
 int ipa_reset_all_quota_stats(void);
+
+int ipa_drop_stats_init(void);
 
 int ipa_init_drop_stats(u32 pipe_bitmask);
 

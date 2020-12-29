@@ -577,6 +577,9 @@ static void ethqos_free_ipa_tx_queue_struct(struct qcom_ethqos *ethqos,
 	kfree(eth_ipa_ctx.tx_queue[type]->ipa_tx_buff_pool_va_addrs_base);
 	eth_ipa_ctx.tx_queue[type]->ipa_tx_buff_pool_va_addrs_base = NULL;
 
+	kfree(eth_ipa_ctx.tx_queue[type]->ipa_tx_phy_addr);
+	eth_ipa_ctx.tx_queue[type]->ipa_tx_phy_addr = NULL;
+
 	kfree(eth_ipa_ctx.tx_queue[type]->skb);
 	eth_ipa_ctx.tx_queue[type]->skb = NULL;
 }
@@ -710,8 +713,8 @@ err_out_rx_q_alloc_failed:
 static void ethqos_free_ipa_rx_queue_struct(struct qcom_ethqos *ethqos,
 					    enum ipa_queue_type type)
 {
-	kfree(eth_ipa_ctx.rx_queue[type]->skb);
-	eth_ipa_ctx.rx_queue[type]->skb = NULL;
+	kfree(eth_ipa_ctx.rx_queue[type]->skb_dma);
+	eth_ipa_ctx.rx_queue[type]->skb_dma = NULL;
 
 	kfree(eth_ipa_ctx.rx_queue[type]->rx_desc_dma_addrs);
 	eth_ipa_ctx.rx_queue[type]->rx_desc_dma_addrs = NULL;
@@ -721,6 +724,12 @@ static void ethqos_free_ipa_rx_queue_struct(struct qcom_ethqos *ethqos,
 
 	kfree(eth_ipa_ctx.rx_queue[type]->ipa_rx_buff_pool_va_addrs_base);
 	eth_ipa_ctx.rx_queue[type]->ipa_rx_buff_pool_va_addrs_base = NULL;
+
+	kfree(eth_ipa_ctx.rx_queue[type]->ipa_rx_buff_phy_addr);
+	eth_ipa_ctx.rx_queue[type]->ipa_rx_buff_phy_addr = NULL;
+
+	kfree(eth_ipa_ctx.rx_queue[type]->ipa_buff_va);
+	eth_ipa_ctx.rx_queue[type]->ipa_buff_va = NULL;
 
 	kfree(eth_ipa_ctx.rx_queue[type]->skb);
 	eth_ipa_ctx.rx_queue[type]->skb = NULL;

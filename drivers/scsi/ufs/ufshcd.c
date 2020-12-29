@@ -2171,8 +2171,16 @@ static int ufshcd_devfreq_target(struct device *dev,
 	}
 	spin_unlock_irqrestore(hba->host->host_lock, irq_flags);
 
+	pm_runtime_get_noresume(hba->dev);
+	if (!pm_runtime_active(hba->dev)) {
+		pm_runtime_put_noidle(hba->dev);
+		ret = -EAGAIN;
+		goto out;
+	}
 	start = ktime_get();
 	ret = ufshcd_devfreq_scale(hba, scale_up);
+	pm_runtime_put(hba->dev);
+
 	trace_ufshcd_profile_clk_scaling(dev_name(hba->dev),
 		(scale_up ? "up" : "down"),
 		ktime_to_us(ktime_sub(ktime_get(), start)), ret);
@@ -8771,9 +8779,9 @@ static int ufshcd_scsi_add_wlus(struct ufs_hba *hba)
 			NULL);
 
 		if (IS_ERR(sdev_boot)) {
+			ret = PTR_ERR(sdev_boot);
 			dev_err(hba->dev, "%s: failed adding BOOT_WLUN. ret %d\n",
 				__func__, ret);
-			ret = PTR_ERR(sdev_boot);
 			goto remove_sdev_ufs_device;
 		}
 		scsi_device_put(sdev_boot);
@@ -8784,9 +8792,9 @@ static int ufshcd_scsi_add_wlus(struct ufs_hba *hba)
 			ufshcd_upiu_wlun_to_scsi_wlun(UFS_UPIU_RPMB_WLUN),
 			NULL);
 		if (IS_ERR(sdev_rpmb)) {
+			ret = PTR_ERR(sdev_rpmb);
 			dev_err(hba->dev, "%s: failed adding RPMB_WLUN. ret %d\n",
 				__func__, ret);
-			ret = PTR_ERR(sdev_rpmb);
 			goto remove_sdev_boot;
 		}
 		scsi_device_put(sdev_rpmb);
