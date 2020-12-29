@@ -50,7 +50,7 @@ scm_version()
 		# get commit sha and leave.
 		if test "$CONFIG_LOCALVERSION_COMMIT_SHA" = "y"; then
 			last_commit=$(git rev-parse --verify --short=10 HEAD)
-			printf '%s' "//$last_commit"
+			printf '%s' "/$last_commit"
 			return
 		fi
 

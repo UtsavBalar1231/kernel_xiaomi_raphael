@@ -1,0 +1,31 @@
+---
+kind: pipeline
+type: docker
+name: kernel_xiaomi_raphael
+
+platform:
+  os: linux
+  arch: amd64
+
+clone:
+  depth: 1
+
+steps:
+- name: immensity_kernel
+  image: ubuntu:latest
+  environment:
+    CI_CHANNEL_ID:
+      from_secret: ci_channel_id
+    BOT_API_KEY:
+      from_secret: bot_api_key
+    TYPE: "OSSFOD"
+  commands:
+    - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip python flex
+    - git clone https://github.com/UtsavBalar1231/Drone-scripts.git -b master script && cd script
+    - ./setup-drone --proton
+    - ./build-kernel --proton --lto
+  when:
+    branch:
+      - android-11.0.0
+    event:
+      - push
