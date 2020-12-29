@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# HOME path
+HOME=/home/utsavthecunt
+# Kernel Output
+OUT_DIR=out
+BRANCH=`git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'`
+if [[ `echo $BRANCH` =~ "android-11.0.0-losfod"* ]]; then
+	VERSION="LOSFOD"
+elif [[ `echo $BRANCH` =~ "android-11.0.0-ossfod"* ]]; then
+	VERSION="OSSFOD"
+elif [[ `echo $BRANCH` =~ "android-11.0.0"* ]]; then
+	VERSION="hentaiOS"
+else
+	VERSION=""
+fi
+DATE=$(date +"%d.%m.%y")
+ZIPNAME=IMMENS1TY-X-RAPHAEL-$VERSION-${DATE}.zip
+
+make ARCH=arm64 \
+	O=${OUT_DIR} \
+	raphael_defconfig \
+	-j$(nproc --all)
+
+# Enable LLD
+scripts/config --file ${OUT_DIR}/.config \
+	-d LTO \
+	-d LTO_CLANG \
+	-e SHADOW_CALL_STACK \
+	-e TOOLS_SUPPORT_RELR \
+	-e LD_LLD
+
+# Make olddefconfig
+cd ${OUT_DIR}
+make O=${OUT_DIR} \
+	ARCH=arm64 \
+	olddefconfig
+cd ../
+
+# Set compiler PATH
+PATH=${HOME}/proton-clang/bin/:$PATH
+
+# Let's build
+START=$(date +"%s")
+
+make ARCH=arm64 \
+	O=${OUT_DIR} \
+	CC="ccache clang" \
+	LD="ld.lld" \
+	AR="llvm-ar" \
+	NM="llvm-nm" \
+	OBJCOPY="llvm-objcopy" \
+	OBJDUMP="llvm-objdump" \
+	STRIP="llvm-strip" \
+	CLANG_TRIPLE="aarch64-linux-gnu-" \
+	CROSS_COMPILE="aarch64-linux-gnu-" \
+	CROSS_COMPILE_ARM32="arm-linux-gnueabi-" \
+	-j$(nproc --all)
+
+# Import Anykernel3 folder
+cp -r ${HOME}/anykernel $(pwd)/
+cp $(pwd)/${OUT_DIR}/arch/arm64/boot/Image.gz-dtb $(pwd)/anykernel/
+cp $(pwd)/${OUT_DIR}/arch/arm64/boot/dtbo.img $(pwd)/anykernel/
+
+cd anykernel
+zip -r9 ${ZIPNAME} *
+CHECKER=$(ls -l ${ZIPNAME} | awk '{print $5}')
+if (($((CHECKER / 1048576)) > 5)); then
+	gdrive upload ${ZIPNAME}
+else
+	echo -e '\033[01;31m' "kernel compilation unsuccesfull"
+fi
+cd ../
+
+# Cleanup
+rm -fr anykernel/
+rm ${OUT_DIR}/.version
+rm ${OUT_DIR}/arch/arm64/boot/Image.gz-dtb
+rm ${OUT_DIR}/arch/arm64/boot/dtbo.img
+
+END=$(date +"%s")
+DIFF=$(( END - START))
+echo -e '\033[01;32m' "Kernel compiled successfully in $((DIFF / 60)) minute(s) and $((DIFF % 60)) seconds"

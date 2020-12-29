@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# HOME path
+HOME=/home/utsavthecunt
+# Kernel Output
+OUT_DIR=out
+
+make ARCH=arm64 \
+	O=${OUT_DIR} \
+	raphael_defconfig \
+	-j8
+
+# Set compiler PATH
+PATH=${HOME}/proton-clang/bin/:$PATH
+
+make ARCH=arm64 \
+	O=${OUT_DIR} \
+	savedefconfig \
+	-j8
+
+mv ${OUT_DIR}/defconfig arch/arm64/configs/raphael_defconfig
+
+git diff
