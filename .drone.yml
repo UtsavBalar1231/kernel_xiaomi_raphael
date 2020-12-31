@@ -20,7 +20,7 @@ steps:
       from_secret: bot_api_key
     TYPE: "LOSFOD"
   commands:
-    - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip python flex
+    - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip python flex cpio
     - git clone https://github.com/UtsavBalar1231/Drone-scripts.git -b master script && cd script
     - ./setup-drone --proton
     - ./build-kernel --proton --lto
