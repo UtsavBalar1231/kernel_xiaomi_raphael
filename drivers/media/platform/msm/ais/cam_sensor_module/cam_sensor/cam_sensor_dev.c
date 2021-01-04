@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -365,6 +365,41 @@ free_s_ctrl:
 
 MODULE_DEVICE_TABLE(of, cam_sensor_driver_dt_match);
 
+static int cam_pm_sensor_suspend(struct platform_device *pdev,
+	pm_message_t state)
+{
+	struct cam_sensor_ctrl_t  *s_ctrl;
+	struct cam_control cam_cmd = {};
+	int rc = 0;
+
+	CAM_DBG(CAM_SENSOR, "Call AIS_SENSOR_I2C_POWER_DOWN");
+	cam_cmd.op_code     = AIS_SENSOR_I2C_POWER_DOWN;
+	cam_cmd.handle_type = CAM_HANDLE_USER_POINTER;
+	cam_cmd.size        = 0;
+	s_ctrl = platform_get_drvdata(pdev);
+	rc = cam_sensor_driver_cmd(s_ctrl, &cam_cmd);
+	if (rc < 0)
+		CAM_ERR(CAM_SENSOR, "Failed to I2C_POWER_DOWN sensor");
+	return rc;
+}
+
+static int cam_pm_sensor_resume(struct platform_device *pdev)
+{
+	struct cam_sensor_ctrl_t  *s_ctrl;
+	struct cam_control cam_cmd = {};
+	int rc = 0;
+
+	CAM_DBG(CAM_SENSOR, "Call AIS_SENSOR_I2C_POWER_UP");
+	cam_cmd.op_code     = AIS_SENSOR_I2C_POWER_UP;
+	cam_cmd.handle_type = CAM_HANDLE_USER_POINTER;
+	cam_cmd.size        = 0;
+	s_ctrl = platform_get_drvdata(pdev);
+	rc = cam_sensor_driver_cmd(s_ctrl, &cam_cmd);
+	if (rc < 0)
+		CAM_ERR(CAM_SENSOR, "Failed to I2C_POWER_UP sensor");
+	return rc;
+}
+
 static struct platform_driver cam_sensor_platform_driver = {
 	.probe = cam_sensor_driver_platform_probe,
 	.driver = {
@@ -373,6 +408,8 @@ static struct platform_driver cam_sensor_platform_driver = {
 		.of_match_table = cam_sensor_driver_dt_match,
 		.suppress_bind_attrs = true,
 	},
+	.suspend = cam_pm_sensor_suspend,
+	.resume = cam_pm_sensor_resume,
 	.remove = cam_sensor_platform_remove,
 };
 
