@@ -40,8 +40,6 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/lmh.h>
-#undef CREATE_TRACE_POINTS
-#include <trace/events/power.h>
 
 #define LIMITS_DCVSH			0x10
 #define LIMITS_PROFILE_CHANGE		0x01
@@ -192,13 +190,9 @@ static unsigned long limits_mitigation_notify(struct limits_dcvs_hw *hw)
 	if (max_cpu_ct == cpumask_weight(&hw->core_map))
 		max_limit = max_cpu_limit;
 	sched_update_cpu_freq_min_max(&hw->core_map, 0, max_limit);
-	arch_set_max_thermal_scale(&hw->core_map, max_limit);
 	pr_debug("CPU:%d max limit:%lu\n", cpumask_first(&hw->core_map),
 			max_limit);
 	trace_lmh_dcvs_freq(cpumask_first(&hw->core_map), max_limit);
-	trace_clock_set_rate(hw->sensor_name,
-			max_limit,
-			cpumask_first(&hw->core_map));
 
 notify_exit:
 	hw->hw_freq_limit = max_limit;
@@ -588,7 +582,6 @@ static int limits_dcvs_probe(struct platform_device *pdev)
 	int cpu, idx = 0;
 	cpumask_t mask = { CPU_BITS_NONE };
 	const __be32 *addr;
-	unsigned long max_limit = 0;
 
 	for_each_possible_cpu(cpu) {
 		cpu_node = of_cpu_device_node_get(cpu);
@@ -622,13 +615,12 @@ static int limits_dcvs_probe(struct platform_device *pdev)
 	cpumask_copy(&hw->core_map, &mask);
 	cpumask_clear(&hw->online_mask);
 	hw->cdev_registered = 0;
-	limits_dcvs_get_freq_limits(hw);
 	for_each_cpu(cpu, &hw->core_map) {
 		hw->cdev_data[idx].cdev = NULL;
 		hw->cdev_data[idx].max_freq = U32_MAX;
 		hw->cdev_data[idx].min_freq = 0;
-		if (max_limit < hw->max_freq[idx])
-			max_limit = hw->max_freq[idx];
+		hw->max_freq[idx] = U32_MAX;
+		hw->min_freq[idx] = 0;
 		idx++;
 	}
 	ret = of_property_read_u32(dn, "qcom,affinity", &affinity);
@@ -711,7 +703,7 @@ static int limits_dcvs_probe(struct platform_device *pdev)
 	 */
 	hw->temp_limits[LIMITS_TRIP_HI] = INT_MAX;
 	hw->temp_limits[LIMITS_TRIP_ARM] = 0;
-	hw->hw_freq_limit = max_limit;
+	hw->hw_freq_limit = U32_MAX;
 	snprintf(hw->sensor_name, sizeof(hw->sensor_name), "limits_sensor-%02d",
 			affinity);
 	tzdev = thermal_zone_of_sensor_register(&pdev->dev, 0, hw,
