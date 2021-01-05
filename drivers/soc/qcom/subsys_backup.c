@@ -49,6 +49,9 @@ enum qmi_backup_restore_state {
 	END,
 };
 
+/**
+ * State of the driver.
+ */
 enum process_state {
 	IDLE,
 	BACKUP_START,
@@ -57,7 +60,11 @@ enum process_state {
 	RESTORE_END,
 };
 
-enum client_notif_type {
+/**
+ * Notifications that are sent by the kernel to the remote
+ * subsystem and the userspace.
+ */
+enum notif_type {
 	BACKUP_NOTIF_START,
 	BACKUP_NOTIF_END,
 	RESTORE_NOTIF_START,
@@ -196,6 +203,10 @@ struct subsys_backup {
 	struct qmi_info qmi;
 	struct work_struct request_handler_work;
 	struct cdev cdev;
+	enum notif_type last_notif_sent;
+	enum qmi_backup_type backup_type;
+	enum qmi_remote_status remote_status;
+	struct device *sysfs_dev;
 	atomic_t open_count;
 };
 
@@ -562,6 +573,63 @@ static struct qmi_elem_info qmi_restore_mem_ready_resp_ei[] = {
 	},
 };
 
+const char *backup_type_to_str(enum qmi_backup_type backup_type)
+{
+	switch (backup_type) {
+
+	case (BACKUP_TYPE_FACTORY):
+		return "BACKUP_TYPE_FACTORY";
+	case (BACKUP_TYPE_RUNTIME):
+		return "BACKUP_TYPE_RUNTIME";
+	case (BACKUP_SOFTWARE_ROLL_BACK):
+		return "BACKUP_SOFTWARE_ROLL_BACK";
+	default:
+		return NULL;
+	}
+}
+
+const char *event_to_str(enum notif_type event)
+{
+	switch (event) {
+
+	case (BACKUP_NOTIF_START):
+		return "BACKUP_NOTIF_START";
+	case (BACKUP_NOTIF_END):
+		return "BACKUP_NOTIF_END";
+	case (RESTORE_NOTIF_START):
+		return "RESTORE_NOTIF_START";
+	case (RESTORE_NOTIF_END):
+		return "RESTORE_NOTIF_END";
+	case (BACKUP_ALLOC_SUCCESS):
+		return "BACKUP_ALLOC_SUCCESS";
+	case (BACKUP_ALLOC_FAIL):
+		return "BACKUP_ALLOC_FAIL";
+	case (RESTORE_ALLOC_SUCCESS):
+		return "RESTORE_ALLOC_SUCCESS";
+	case (RESTORE_ALLOC_FAIL):
+		return "RESTORE_ALLOC_FAIL";
+	default:
+		return NULL;
+	}
+}
+
+const char *status_to_str(enum qmi_remote_status remote_status)
+{
+	switch (remote_status) {
+
+	case (SUCCESS):
+		return "SUCCESS";
+	case (FAILED):
+		return "FAILED";
+	case (ADDR_VALID):
+		return "ADDR_VALID";
+	case (ADDR_INVALID):
+		return "ADDR_INVALID";
+	default:
+		return NULL;
+	}
+}
+
 static int hyp_assign_buffers(struct subsys_backup *backup_dev, int dest,
 				int src)
 {
@@ -607,7 +675,7 @@ static int hyp_assign_buffers(struct subsys_backup *backup_dev, int dest,
 	return 0;
 
 error_hyp:
-	dev_err(backup_dev->dev, "%s: Failed\n", __func__);
+	dev_err(backup_dev->dev, "%s: Failed: %d\n", __func__, ret);
 	return ret;
 }
 
@@ -719,7 +787,7 @@ out:
 }
 
 static int backup_notify_remote(struct subsys_backup *backup_dev,
-				enum client_notif_type type)
+				enum notif_type type)
 {
 	struct qmi_backup_mem_ready_req *req;
 	struct qmi_backup_mem_ready_resp *resp;
@@ -742,13 +810,13 @@ static int backup_notify_remote(struct subsys_backup *backup_dev,
 
 	data = &req->backup_mem_ready_info;
 	if (type == BACKUP_ALLOC_SUCCESS) {
-		data->backup_addr_valid = 1;
+		data->backup_addr_valid = ADDR_VALID;
 		data->image_buffer_addr = backup_dev->img_buf.paddr;
 		data->scratch_buffer_addr = backup_dev->scratch_buf.paddr;
 		data->image_buffer_size = backup_dev->img_buf.total_size;
 		data->scratch_buffer_size = backup_dev->scratch_buf.total_size;
 	} else if (type == BACKUP_ALLOC_FAIL) {
-		data->backup_addr_valid = 0;
+		data->backup_addr_valid = ADDR_INVALID;
 		data->retry_timer = 10;
 	}
 
@@ -772,7 +840,7 @@ out:
 }
 
 static int restore_notify_remote(struct subsys_backup *backup_dev,
-				enum client_notif_type type)
+				enum notif_type type)
 {
 	struct qmi_restore_mem_ready_req *req;
 	struct qmi_restore_mem_ready_resp *resp;
@@ -795,7 +863,7 @@ static int restore_notify_remote(struct subsys_backup *backup_dev,
 
 	data = &req->restore_mem_ready_info;
 	if (type == RESTORE_ALLOC_SUCCESS) {
-		data->restore_addr_valid = true;
+		data->restore_addr_valid = ADDR_VALID;
 		data->image_buffer_addr = backup_dev->img_buf.paddr;
 		data->scratch_buffer_addr = backup_dev->scratch_buf.paddr;
 		data->image_buffer_size = backup_dev->img_buf.total_size;
@@ -826,10 +894,11 @@ exit:
 }
 
 static void notify_userspace(struct subsys_backup *backup_dev,
-				enum client_notif_type type)
+				enum notif_type type)
 {
 	char *info[2] = {NULL, NULL};
 
+	backup_dev->last_notif_sent = type;
 	switch (type) {
 
 	case BACKUP_NOTIF_START:
@@ -861,6 +930,36 @@ static void notify_userspace(struct subsys_backup *backup_dev,
 	kobject_uevent_env(&backup_dev->dev->kobj, KOBJ_CHANGE, info);
 }
 
+static int subsys_backup_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct subsys_backup *backup_dev;
+	int ret = 0;
+
+	if (!dev)
+		return -ENODEV;
+
+	backup_dev = dev_get_drvdata(dev);
+	if (!backup_dev)
+		return -ENODEV;
+
+	ret = add_uevent_var(env, "EVENT=%s",
+			event_to_str(backup_dev->last_notif_sent));
+	if (ret)
+		dev_err(backup_dev->dev, "Failed add_uevent_var: %d\n", ret);
+
+	ret = add_uevent_var(env, "BACKUP_TYPE=%s",
+			backup_type_to_str(backup_dev->backup_type));
+	if (ret)
+		dev_err(backup_dev->dev, "Failed add_uevent_var: %d\n", ret);
+
+	ret = add_uevent_var(env, "REMOTE_STATUS=%s",
+			status_to_str(backup_dev->remote_status));
+	if (ret)
+		dev_err(backup_dev->dev, "Failed add_uevent_var: %d\n", ret);
+
+	return ret;
+}
+
 static void request_handler_worker(struct work_struct *work)
 {
 	struct subsys_backup *backup_dev;
@@ -874,6 +973,8 @@ static void request_handler_worker(struct work_struct *work)
 
 	case BACKUP_START:
 		notify_userspace(backup_dev, BACKUP_NOTIF_START);
+		ind = (struct qmi_backup_ind_type *)backup_dev->qmi.decoded_msg;
+		backup_dev->backup_type = ind->qmi_backup_type;
 		if (allocate_buffers(backup_dev) ||
 				hyp_assign_buffers(backup_dev, VMID_MSS_MSA,
 				VMID_HLOS)) {
@@ -898,6 +999,7 @@ static void request_handler_worker(struct work_struct *work)
 		if (ind->backup_image_size > backup_dev->img_buf.total_size) {
 			dev_err(backup_dev->dev, "%s: Invalid image size\n",
 					__func__);
+			free_buffers(backup_dev);
 			backup_dev->state = IDLE;
 			break;
 		}
@@ -907,17 +1009,19 @@ static void request_handler_worker(struct work_struct *work)
 			dev_err(backup_dev->dev,
 				"%s: Hyp_assingn to HLOS failed: %d\n",
 				__func__, ret);
+			free_buffers(backup_dev);
 			backup_dev->state = IDLE;
 			break;
 		}
 		notify_userspace(backup_dev, BACKUP_NOTIF_END);
-		backup_dev->state = IDLE;
 		break;
 
 	case RESTORE_START:
 		notify_userspace(backup_dev, RESTORE_NOTIF_START);
 		ret = allocate_buffers(backup_dev);
 		if (ret) {
+			dev_err(backup_dev->dev,
+					"Error allocation of buffers\n");
 			notify_userspace(backup_dev, RESTORE_ALLOC_FAIL);
 			backup_dev->state = IDLE;
 			break;
@@ -955,21 +1059,25 @@ static int is_valid_indication(struct subsys_backup *dev, void *ind,
 			return 0;
 		restore_ind = (struct qmi_restore_ind_type *)ind;
 		/* Duplicate start indication */
-		if (dev->state == RESTORE_START && ind->restore_state == START)
+		if (dev->state == RESTORE_START &&
+				restore_ind->restore_state == START)
 			return 0;
 		/* Duplicate end indication */
-		if (dev->state == RESTORE_END && ind->restore_state == END)
+		if (dev->state == RESTORE_END &&
+				restore_ind->restore_state == END)
 			return 0;
 	} else {
 		/* Is restore in progress? */
 		if (dev->state == RESTORE_START || dev->state == RESTORE_END)
 			return 0;
-		backup_ind = struct qmi_backup_ind_type *(ind);
+		backup_ind = (struct qmi_backup_ind_type *)ind;
 		/* Duplicate start indication */
-		if (dev->state == BACKUP_START && ind->backup_state == START)
+		if (dev->state == BACKUP_START &&
+				backup_ind->backup_state == START)
 			return 0;
 		/* Duplicate end indication */
-		if (dev->state == BACKUP_END && ind->backup_state == END)
+		if (dev->state == BACKUP_END &&
+				backup_ind->backup_state == END)
 			return 0;
 	}
 	return 1;
@@ -1035,6 +1143,7 @@ static void restore_notif_handler(struct qmi_handle *handle,
 		backup_dev->state = RESTORE_START;
 	} else if (ind->restore_state == END) {
 		backup_dev->state = RESTORE_END;
+		backup_dev->remote_status = ind->restore_status;
 	} else {
 		dev_err(backup_dev->dev, "%s: Invalid request\n", __func__);
 		return;
@@ -1313,6 +1422,10 @@ static int subsys_backup_init_device(struct platform_device *pdev,
 		dev_err(backup_dev->dev, "device_create failed: %d\n", ret);
 		goto device_create_err;
 	}
+	backup_dev->sysfs_dev = backup_dev->dev;
+	dev_set_drvdata(backup_dev->sysfs_dev, backup_dev);
+
+	class->dev_uevent = subsys_backup_uevent;
 	return 0;
 
 device_create_err:
