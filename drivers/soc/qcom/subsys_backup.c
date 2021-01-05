@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/cdev.h>
+#include <linux/delay.h>
 
 #define SUBSYS_BACKUP_SVC_ID 0x54
 #define SUBSYS_BACKUP_SVC_VERS 1
@@ -1342,11 +1343,15 @@ static ssize_t backup_buffer_write(struct file *filp, const char __user *buf,
 {
 	struct subsys_backup *backup_dev = filp->private_data;
 
-	if (backup_dev->state != RESTORE_START || !backup_dev->img_buf.vaddr ||
-		!backup_dev->img_buf.hyp_assigned_to_hlos) {
-		dev_err(backup_dev->dev, "%s: Invalid Operation\n", __func__);
+	if (backup_dev->state != RESTORE_START) {
+		dev_err(backup_dev->dev, "%s: Restore not started\n", __func__);
+		return 0;
+	} else if (!backup_dev->img_buf.hyp_assigned_to_hlos) {
+		dev_err(backup_dev->dev, "%s: Not hyp_assinged to HLOS\n",
+				__func__);
 		return 0;
 	}
+
 
 	return simple_write_to_buffer(backup_dev->img_buf.vaddr,
 			backup_dev->img_buf.total_size, offp, buf, size);
@@ -1357,11 +1362,15 @@ static int backup_buffer_flush(struct file *filp, fl_owner_t id)
 	int ret;
 	struct subsys_backup *backup_dev = filp->private_data;
 
-	if (backup_dev->state != RESTORE_START || !backup_dev->img_buf.vaddr ||
-		!backup_dev->img_buf.hyp_assigned_to_hlos) {
+	if (backup_dev->state == IDLE &&
+		backup_dev->img_buf.hyp_assigned_to_hlos)
+		return 0;
+
+	if (backup_dev->state != RESTORE_START || !backup_dev->img_buf.vaddr) {
 		dev_err(backup_dev->dev, "%s: Invalid operation\n", __func__);
 		return -EBUSY;
 	}
+
 
 	ret = hyp_assign_buffers(backup_dev, VMID_MSS_MSA, VMID_HLOS);
 	if (ret) {
@@ -1381,6 +1390,24 @@ static int backup_buffer_release(struct inode *inodep, struct file *filep)
 {
 	struct subsys_backup *backup_dev = container_of(inodep->i_cdev,
 					struct subsys_backup, cdev);
+	int retry = 0, ret;
+
+	/*
+	 * In case the remote subsystem is actively using the shared memory,
+	 * wait for it to release. Hyp_assing to HLOS before the release might
+	 * fail. Retry hyp_assign for few times before it succeeds.
+	 */
+	do {
+		ret = hyp_assign_buffers(backup_dev, VMID_HLOS, VMID_MSS_MSA);
+		if (ret == 0)
+			break;
+		usleep_range(100000, 200000);
+		BUG_ON(retry == 10);
+		retry++;
+	} while (ret);
+
+	free_buffers(backup_dev);
+	backup_dev->state = IDLE;
 	atomic_dec(&backup_dev->open_count);
 	return 0;
 }
