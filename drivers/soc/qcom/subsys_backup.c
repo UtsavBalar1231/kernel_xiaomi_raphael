@@ -1093,6 +1093,11 @@ static void backup_notif_handler(struct qmi_handle *handle,
 	qmi = container_of(handle, struct qmi_info, qmi_svc_handle);
 	backup_dev = container_of(qmi, struct subsys_backup, qmi);
 
+	if (atomic_read(&backup_dev->open_count) == 0) {
+		dev_err(backup_dev->dev, "%s: No active users\n", __func__);
+		return;
+	}
+
 	ind = (struct qmi_backup_ind_type *)decoded_msg;
 	if (!is_valid_indication(backup_dev, (void *)ind, 0)) {
 		dev_err(backup_dev->dev, "%s: Error: Spurious request\n",
@@ -1131,6 +1136,11 @@ static void restore_notif_handler(struct qmi_handle *handle,
 
 	qmi = container_of(handle, struct qmi_info, qmi_svc_handle);
 	backup_dev = container_of(qmi, struct subsys_backup, qmi);
+
+	if (atomic_read(&backup_dev->open_count) == 0) {
+		dev_err(backup_dev->dev, "%s: No active users\n", __func__);
+		return;
+	}
 
 	ind = (struct qmi_restore_ind_type *)decoded_msg;
 	if (!is_valid_indication(backup_dev, (void *)ind, 1)) {
