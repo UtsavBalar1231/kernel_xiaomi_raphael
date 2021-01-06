@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2384,8 +2384,15 @@ static int ethqos_ipa_offload_connect(
 	profile.max_supported_bw_mbps = ethqos->speed;
 	profile.client = eth_ipa_queue_type_to_rx_client(type);
 	profile.proto =  eth_ipa_queue_type_to_proto(type);
-	ret = ipa_set_perf_profile(&profile);
-	if (ret) {
+	if (profile.proto < IPA_UC_MAX_PROT_SIZE) {
+		ret = ipa_set_perf_profile(&profile);
+		if (ret) {
+			ETHQOSERR("%s: Err IPA_RM_RESOURCE_ETHERNET_PROD: %d\n",
+				  __func__, ret);
+			ret = -1;
+			goto mem_free;
+		}
+	} else {
 		ETHQOSERR("%s: Err set IPA_RM_RESOURCE_ETHERNET_PROD :%d\n",
 			  __func__, ret);
 		ret = -1;
@@ -2394,8 +2401,15 @@ static int ethqos_ipa_offload_connect(
 
 	profile.client = eth_ipa_queue_type_to_tx_client(type);
 	profile.proto =  eth_ipa_queue_type_to_proto(type);
-	ret = ipa_set_perf_profile(&profile);
-	if (ret) {
+	if (profile.proto < IPA_UC_MAX_PROT_SIZE) {
+		ret = ipa_set_perf_profile(&profile);
+		if (ret) {
+			ETHQOSERR("%s: Err IPA_RM_RESOURCE_ETHERNET_CONS: %d\n",
+				  __func__, ret);
+			ret = -1;
+			goto mem_free;
+		}
+	} else {
 		ETHQOSERR("%s: Err set IPA_RM_RESOURCE_ETHERNET_CONS :%d\n",
 			  __func__, ret);
 		ret = -1;

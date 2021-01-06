@@ -1408,7 +1408,7 @@ static ssize_t phy_off_config(
 			priv->current_loopback = ENABLE_PHY_LOOPBACK;
 		}
 		/*Backup phy related data*/
-		if (priv->phydev->autoneg == AUTONEG_DISABLE) {
+		if (priv->phydev && priv->phydev->autoneg == AUTONEG_DISABLE) {
 			ethqos->backup_autoneg = priv->phydev->autoneg;
 			ethqos->backup_bmcr = ethqos_mdio_read(priv,
 							       plat->phy_addr,
@@ -2550,6 +2550,7 @@ static ssize_t ethqos_write_dev_emac(struct file *file,
 		prefix = strnchr(in_buf, strlen(in_buf), '=');
 		if (prefix) {
 			memcpy(mac_str, (char *)prefix + 1, 30);
+			mac_str[sizeof(mac_str) - 1] = '\0';
 
 			if (!mac_pton(mac_str, config_dev_addr)) {
 				ETHQOSERR("Invalid mac addr in /dev/emac\n");
@@ -2775,9 +2776,10 @@ static int qcom_ethos_panic_notifier(struct notifier_block *this,
 				     unsigned long event, void *ptr)
 {
 	u32 size_iomacro_regs;
-	struct stmmac_priv *priv = qcom_ethqos_get_priv(pethqos);
+	struct stmmac_priv *priv = NULL;
 
 	if (pethqos) {
+		priv = qcom_ethqos_get_priv(pethqos);
 
 		pr_info("qcom-ethqos: ethqos 0x%px\n", pethqos);
 
