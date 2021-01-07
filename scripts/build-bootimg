@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# HOME path
+HOME=/home/utsavthecunt
+# Kernel Output
+OUT_DIR=out
+DATE=$(date +"%d.%m.%y")
+BRANCH=`git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'`
+if [[ `echo $BRANCH` =~ "android-11.0.0"* ]]; then
+	VERSION="hentaiOS"
+elif [[ `echo $BRANCH` =~ "android-11.0.0-losfod"* ]]; then
+	VERSION="LOSFOD"
+elif [[ `echo $BRANCH` =~ "android-11.0.0-ossfod"* ]]; then
+	VERSION="OSSFOD"
+else
+	VERSION=""
+fi
+NAME=IMMENS1TY-android11-RAPHAEL-$VERSION${DATE}.img
+
+make ARCH=arm64 \
+	O=${OUT_DIR} \
+	raphael_defconfig \
+	-j$(nproc --all)
+
+# Enable LLD
+scripts/config --file ${OUT_DIR}/.config \
+	-d LTO \
+	-d LTO_CLANG \
+	-e SHADOW_CALL_STACK \
+	-e TOOLS_SUPPORT_RELR \
+	-e LD_LLD
+
+# Make olddefconfig
+cd ${OUT_DIR}
+make O=${OUT_DIR} \
+	ARCH=arm64 \
+	olddefconfig
+cd ../
+
+# Set compiler PATH
+PATH=${HOME}/proton-clang/bin/:$PATH
+
+# Let's build
+START=$(date +"%s")
+
+make ARCH=arm64 \
+	O=${OUT_DIR} \
+	CC="ccache clang" \
+	LD="ld.lld" \
+	AR="llvm-ar" \
+	NM="llvm-nm" \
+	OBJCOPY="llvm-objcopy" \
+	OBJDUMP="llvm-objdump" \
+	STRIP="llvm-strip" \
+	CLANG_TRIPLE="aarch64-linux-gnu-" \
+	CROSS_COMPILE="aarch64-linux-gnu-" \
+	CROSS_COMPILE_ARM32="arm-linux-gnueabi-" \
+	-j$(nproc --all)
+
+find ${OUT_DIR}/arch/arm64/boot/dts -name '*.dtb' -exec cat {} + > dtb
+
+mkbootimg=$(pwd)/scripts/mkbootimg
+chmod 777 $mkbootimg
+
+export OS="11.0.0"
+export SPL="2020-12"
+
+$mkbootimg \
+    --kernel $(pwd)/${OUT_DIR}/arch/arm64/boot/Image.gz \
+    --cmdline 'console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0xa90000 androidboot.hardware=qcom androidboot.console=ttyMSM0 lpm_levels.sleep_disabled=1 bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=2048 loop.max_part=7 androidboot.usbcontroller=a600000.dwc3 buildvariant=user' \
+    --base           0x00000000 \
+    --pagesize       4096 \
+    --kernel_offset  0x00008000 \
+    --ramdisk_offset 0x00000000 \
+    --tags_offset    0x00000100 \
+    --dtb            $(pwd)/dtb \
+    --dtb_offset     0x01f00000 \
+    --os_version     $OS \
+    --os_patch_level $SPL \
+    --header_version 2 \
+    -o $(pwd)/$NAME
+
+gdrive upload $NAME
+
+# Cleanup
+rm $NAME
+rm dtb
+
+END=$(date +"%s")
+DIFF=$(( END - START))
+echo -e '\033[01;32m' "Kernel compiled successfully in $((DIFF / 60)) minute(s) and $((DIFF % 60)) seconds"
