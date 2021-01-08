@@ -1242,6 +1242,7 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 	struct context_bank_info *cb = NULL;
 	struct device_node *np = NULL;
 	unsigned int i = 0, j = 0, count = 0;
+	u32 mask = 0;
 
 	if (!dev || !core) {
 		dprintk(VIDC_ERR, "%s - invalid inputs\n", __func__);
@@ -1274,7 +1275,9 @@ static int msm_vidc_populate_context_bank(struct device *dev,
 			(dev->of_node, "iommus", i, &cb->sids[j]);
 		if (rc < 0)
 			dprintk(VIDC_ERR, "can't fetch SID\n");
-
+		rc = of_property_read_u32_index
+					(dev->of_node, "iommus", i+1, &mask);
+		cb->sids[j] = (mask << 16 | cb->sids[j]);
 		dprintk(VIDC_DBG, "%s sid[%d]:0x%x\n",
 				cb->name, j, cb->sids[j]);
 	}
