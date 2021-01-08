@@ -1746,8 +1746,10 @@ static int __init early_memblock(char *p)
 early_param("memblock", early_memblock);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-static phys_addr_t no_hotplug_area[8];
-static phys_addr_t aligned_blocks[32];
+#define NUM_NOHP 8
+#define NUM_ALIGN_BLK 64
+static phys_addr_t no_hotplug_area[NUM_NOHP];
+static phys_addr_t aligned_blocks[NUM_ALIGN_BLK];
 
 static int __init early_no_hotplug_area(char *p)
 {
@@ -1757,16 +1759,20 @@ static int __init early_no_hotplug_area(char *p)
 
 	while (1) {
 		base = memparse(endp, &endp);
-		if (base && (*endp == ',')) {
+		if (base && *endp == ',') {
 			size = memparse(endp + 1, &endp);
 			if (size) {
 				no_hotplug_area[idx++] = base;
 				no_hotplug_area[idx++] = base+size;
 
-				if ((*endp == ';') && (idx <= 6))
+				if (*endp == ';' && idx <= NUM_NOHP-2) {
 					endp++;
-				else
+				} else {
+					if (*endp == ';' && idx == NUM_NOHP-1)
+						pr_err("%s: nohp overflows\n",
+							__func__);
 					break;
+				}
 			} else
 				break;
 		} else
@@ -1780,7 +1786,7 @@ static bool __init memblock_in_no_hotplug_area(phys_addr_t addr)
 {
 	int idx = 0;
 
-	while (idx < 8) {
+	while (idx < NUM_NOHP) {
 		if (!no_hotplug_area[idx])
 			break;
 
@@ -1808,8 +1814,16 @@ static int __init early_dyn_memhotplug(char *p)
 		rgn = &memblock.memory.regions[idx++];
 		addr = ALIGN(rgn->base, MIN_MEMORY_BLOCK_SIZE);
 		rgn_end = rgn->base + rgn->size;
+		if (idx == memblock.memory.cnt)
+			rgn_end--;
 		while (addr + MIN_MEMORY_BLOCK_SIZE <= rgn_end) {
 			if (!memblock_in_no_hotplug_area(addr)) {
+				if (blk == NUM_ALIGN_BLK-1) {
+					pr_err("%s: aligned_blocks overflows\n",
+						__func__);
+					return 0;
+				}
+
 				aligned_blocks[blk++] = addr;
 				memblock_remove(addr, MIN_MEMORY_BLOCK_SIZE);
 			}
