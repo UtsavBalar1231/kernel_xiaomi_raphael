@@ -68,7 +68,7 @@ struct context_bank_info {
 	struct addr_range addr_range;
 	struct device *dev;
 	struct dma_iommu_mapping *mapping;
-	int sids[VENUS_SID_MAX];
+	u32 sids[VENUS_SID_MAX];
 	int num_sids;
 	struct cma_info cma;
 };
