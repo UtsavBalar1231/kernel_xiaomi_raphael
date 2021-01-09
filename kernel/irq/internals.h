@@ -126,7 +126,7 @@ extern int irq_do_set_affinity(struct irq_data *data,
 
 #ifdef CONFIG_SMP
 extern int irq_setup_affinity(struct irq_desc *desc);
-extern int setup_perf_irq_locked(struct irq_desc *desc, unsigned int perf_flag);
+extern void setup_perf_irq_locked(struct irq_desc *desc, unsigned int perf_flag);
 #else
 static inline int irq_setup_affinity(struct irq_desc *desc) { return 0; }
 #endif

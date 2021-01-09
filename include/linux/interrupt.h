@@ -230,7 +230,7 @@ extern void irq_set_perf_affinity(unsigned int irq, unsigned int perf_flag);
 extern void suspend_device_irqs(void);
 extern void resume_device_irqs(void);
 extern void unaffine_perf_irqs(void);
-extern void reaffine_perf_irqs(void);
+extern void reaffine_perf_irqs(bool from_hotplug);
 
 /**
  * struct irq_affinity_notify - context for notification of IRQ affinity changes
