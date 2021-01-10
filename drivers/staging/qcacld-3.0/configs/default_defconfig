@@ -801,6 +801,9 @@ CONFIG_WLAN_WEXT_SUPPORT_ENABLE := y
 #Flag to enable nud tracking feature
 CONFIG_WLAN_NUD_TRACKING := y
 
+#Flag to enable/Disable Function call trace
+CONFIG_FUNC_CALL_MAP := n
+
 #Flag to enable wbuff feature
 CONFIG_WLAN_WBUFF := y
 
