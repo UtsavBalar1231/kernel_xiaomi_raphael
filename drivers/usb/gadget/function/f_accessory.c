@@ -82,13 +82,13 @@ struct acc_dev {
 	/* online indicates state of function_set_alt & function_unbind
 	 * set to 1 when we connect
 	 */
-	int online:1;
+	int online;
 
 	/* disconnected indicates state of open & release
 	 * Set to 1 when we disconnect.
 	 * Not cleared until our file is closed.
 	 */
-	int disconnected:1;
+	int disconnected;
 
 	/* strings sent by the host */
 	char manufacturer[ACC_STRING_SIZE];
@@ -226,6 +226,10 @@ static void __put_acc_dev(struct kref *kref)
 {
 	struct acc_dev_ref *ref = container_of(kref, struct acc_dev_ref, kref);
 	struct acc_dev *dev = ref->acc_dev;
+
+	/* Cancel any async work */
+	cancel_delayed_work_sync(&dev->start_work);
+	cancel_work_sync(&dev->hid_work);
 
 	ref->acc_dev = NULL;
 	kfree(dev);
@@ -1263,6 +1267,9 @@ static int acc_setup(void)
 	struct acc_dev *dev;
 	int ret;
 
+	if (kref_read(&ref->kref))
+		return -EBUSY;
+
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
@@ -1279,16 +1286,21 @@ static int acc_setup(void)
 	INIT_WORK(&dev->hid_work, acc_hid_work);
 
 	dev->ref = ref;
-	kref_init(&ref->kref);
-	ref->acc_dev = dev;
+	if (cmpxchg_relaxed(&ref->acc_dev, NULL, dev)) {
+		ret = -EBUSY;
+		goto err_free_dev;
+	}
 
 	ret = misc_register(&acc_device);
 	if (ret)
-		goto err;
+		goto err_zap_ptr;
 
+	kref_init(&ref->kref);
 	return 0;
 
-err:
+err_zap_ptr:
+	ref->acc_dev = NULL;
+err_free_dev:
 	kfree(dev);
 	pr_err("USB accessory gadget driver failed to initialize\n");
 	return ret;
@@ -1298,10 +1310,11 @@ void acc_disconnect(void)
 {
 	struct acc_dev *dev = get_acc_dev();
 
-	/* unregister all HID devices if USB is disconnected */
-	if (dev)
-		kill_all_hid_devices(dev);
+	if (!dev)
+		return;
 
+	/* unregister all HID devices if USB is disconnected */
+	kill_all_hid_devices(dev);
 	put_acc_dev(dev);
 }
 EXPORT_SYMBOL_GPL(acc_disconnect);
