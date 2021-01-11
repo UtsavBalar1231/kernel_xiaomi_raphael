@@ -2088,7 +2088,25 @@ static struct platform_driver qti_haptics_driver = {
 	.remove		= qti_haptics_remove,
 	.shutdown	= qti_haptics_shutdown,
 };
-module_platform_driver(qti_haptics_driver);
+
+static int __init qti_haptics_init(void)
+{
+	int rc = 0;
+
+	rc = platform_driver_register(&qti_haptics_driver);
+	if (rc)
+		pr_err("Failed to register platform driver: %d\n", rc);
+
+	return rc;
+}
+
+static void __exit qti_haptics_exit(void)
+{
+	platform_driver_unregister(&qti_haptics_driver);
+}
+
+late_initcall(qti_haptics_init);
+module_exit(qti_haptics_exit);
 
 MODULE_DESCRIPTION("QTI haptics driver");
 MODULE_LICENSE("GPL v2");
