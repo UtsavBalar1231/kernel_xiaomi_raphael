@@ -128,7 +128,7 @@ void arm_smmu_debug_dump_tbu_testbus(struct device *dev, void __iomem *tbu_base,
 		arm_smmu_debug_program_tbu_testbus(tbu_base, tcu_base,
 				testbus_version,
 				TBU_CLK_GATE_CONTROLLER_TESTBUS);
-		dev_info(dev, "testbus_sel: 0x%lx val: 0x%llx\n",
+		dev_info(dev, "testbus_sel: 0x%x val: 0x%x\n",
 			arm_smmu_debug_tbu_testbus_select(tbu_base, tcu_base,
 						testbus_version, READ, 0),
 			arm_smmu_debug_tbu_testbus_output(tbu_base,
@@ -227,7 +227,7 @@ void arm_smmu_debug_dump_tcu_testbus(struct device *dev, void __iomem *base,
 	/* program ARM_SMMU_TESTBUS_SEL_HLOS1_NS to select TCU clk testbus*/
 	arm_smmu_debug_tcu_testbus_select(base, tcu_base,
 			CLK_TESTBUS, WRITE, TCU_CLK_TESTBUS_SEL);
-	dev_info(dev, "Programming Tcu clk gate controller: testbus_sel: 0x%lx\n",
+	dev_info(dev, "Programming Tcu clk gate controller: testbus_sel: 0x%x\n",
 		arm_smmu_debug_tcu_testbus_select(base, tcu_base,
 						CLK_TESTBUS, READ, 0));
 }
