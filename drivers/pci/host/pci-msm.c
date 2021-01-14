@@ -4658,7 +4658,7 @@ int msm_pcie_enumerate(u32 rc_idx)
 			struct pci_dev *pcidev = NULL;
 			struct pci_host_bridge *bridge;
 			bool found = false;
-			struct pci_bus *bus;
+			struct pci_bus *bus, *child;
 			resource_size_t iobase = 0;
 			u32 ids = readl_relaxed(msm_pcie_dev[rc_idx].dm_core);
 			u32 vendor_id = ids & 0xffff;
@@ -4719,6 +4719,9 @@ int msm_pcie_enumerate(u32 rc_idx)
 			bus = bridge->bus;
 
 			pci_assign_unassigned_bus_resources(bus);
+			list_for_each_entry(child, &bus->children, node)
+				pcie_bus_configure_settings(child);
+
 			pci_bus_add_devices(bus);
 
 			dev->enumerated = true;
