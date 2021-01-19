@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2627,8 +2627,10 @@ int wcnss_get_nv_name(char *nv_name)
 	if (penv->multi_sku) {
 		ret = wcnss_get_iris_name(variant);
 		if (ret) {
-			wcnss_log(ERR, "Invalid IRIS name\n");
-			return 1;
+			wcnss_log(ERR, "Invalid IRIS name using default one\n");
+			scnprintf(nv_name, NVBIN_FILE_SIZE, "%s.bin",
+				  NVBIN_FILE);
+			return 0;
 		}
 
 		scnprintf(nv_name, NVBIN_FILE_SIZE, "%s_%s.bin",
@@ -2664,11 +2666,7 @@ static void wcnss_nvbin_dnld(void)
 
 	down_read(&wcnss_pm_sem);
 
-	ret = wcnss_get_nv_name(penv->nv_name);
-	if (ret) {
-		wcnss_log(ERR, "failed getting nv name\n");
-		goto out;
-	}
+	wcnss_get_nv_name(penv->nv_name);
 
 	ret = request_firmware(&nv, penv->nv_name, dev);
 
