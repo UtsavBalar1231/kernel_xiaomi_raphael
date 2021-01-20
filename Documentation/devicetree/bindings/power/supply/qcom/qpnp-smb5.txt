@@ -357,6 +357,12 @@ Charger specific properties:
 		charger. If left unspecified, the HW min value of 1.5 A is
 		applied by default.
 
+- qcom,jeita-arb-enable
+  Usage:      optional
+  Value type: bool
+  Definition: Boolean flag which indicates if JETIA ARB handling when
+		Vjeita > Vbatt is enabled.
+
 =============================================
 Second Level Nodes - SMB5 Charger Peripherals
 =============================================
