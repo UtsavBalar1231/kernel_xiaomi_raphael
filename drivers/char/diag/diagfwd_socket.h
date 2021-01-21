@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2021 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -41,6 +41,7 @@ struct diag_socket_info {
 	uint8_t type;
 	uint8_t port_type;
 	uint8_t inited;
+	uint8_t reset_flag;
 	atomic_t opened;
 	atomic_t diag_state;
 	uint32_t pkt_len;
@@ -76,4 +77,5 @@ int diag_socket_check_state(void *ctxt);
 int diag_socket_init(void);
 void diag_socket_exit(void);
 int diag_socket_init_peripheral(uint8_t peripheral);
+struct diag_socket_info *diag_get_socket_info_ptr(int type, int peripheral);
 #endif
