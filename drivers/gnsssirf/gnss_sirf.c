@@ -44,6 +44,7 @@
 
 static int resetPin;
 static int onOffPin;
+static int bootPin;
 
 static dev_t gnssDev;
 static struct cdev c_dev;
@@ -134,6 +135,12 @@ static long gnss_sirf_driver_ioctl(struct file *file,
 	case IO_CONTROL_SIRF_ON_OFF_SET:
 		gpio_direction_output(onOffPin, 1);
 		break;
+	case IO_CONTROL_SIRF_BOOT_CLEAR:
+		gpio_direction_output(bootPin, 0);
+		break;
+	case IO_CONTROL_SIRF_BOOT_SET:
+		gpio_direction_output(bootPin, 1);
+		break;
 	default:
 		break;
 	}
@@ -145,6 +152,7 @@ static int gnss_sirf_init_ports(void)
 {
 	gpio_direction_output(resetPin, 0);
 	gpio_direction_output(onOffPin, 0);
+	gpio_direction_output(bootPin, 0);
 	return 0;
 }
 
@@ -152,6 +160,7 @@ static int gnss_sirf_deInit_sirf_ports(void)
 {
 	gpio_direction_output(resetPin, 0);
 	gpio_direction_output(onOffPin, 0);
+	gpio_direction_output(bootPin, 0);
 	return 0;
 }
 
@@ -196,7 +205,6 @@ static int configurePins(struct platform_device *pdev)
 	struct device *dev;
 
 	dev = &pdev->dev;
-	dev_info(dev, "%s Reset and InputOutput", __func__);
 
 	if (gpio_is_valid(resetPin)) {
 		ret = gpio_request(resetPin, "ssVreset-gpio");
@@ -205,7 +213,10 @@ static int configurePins(struct platform_device *pdev)
 					 resetPin, ret);
 			return ret;
 		}
+	} else {
+		dev_info(dev, "%s resetPin not valid", __func__);
 	}
+
 	if (gpio_is_valid(onOffPin)) {
 		ret = gpio_request(onOffPin, "ssVonoff-gpio");
 		if (ret < 0) {
@@ -213,9 +224,21 @@ static int configurePins(struct platform_device *pdev)
 					 onOffPin, ret);
 			return ret;
 		}
+	} else {
+		dev_info(dev, "%s onOffPin not valid", __func__);
 	}
-	gpio_direction_output(resetPin, 1);
-	gpio_direction_output(onOffPin, 1);
+
+	if (gpio_is_valid(bootPin)) {
+		ret = gpio_request(bootPin, "ssVboot-gpio");
+		if (ret < 0) {
+			pr_err("failed to request gpio %d: error:%d\n",
+					 bootPin, ret);
+			return ret;
+		}
+	} else {
+		dev_info(dev, "%s bootPin not valid", __func__);
+	}
+
 	if (gnss_sirf_init_ports() < 0)
 		pr_err("gnss_sirf_init_ports failed\n");
 	else
@@ -237,6 +260,8 @@ static int gnss_sirf_probe(struct platform_device *pdev)
 					 "ssVreset-gpio", 0);
 			onOffPin = of_get_named_gpio(pdev->dev.of_node,
 					 "ssVonoff-gpio", 0);
+			bootPin = of_get_named_gpio(pdev->dev.of_node,
+					 "ssVboot-gpio", 0);
 			ret = configurePins(pdev);
 			if (ret == 0) {
 				snprintf(boot_marker, sizeof(boot_marker),
@@ -245,6 +270,8 @@ static int gnss_sirf_probe(struct platform_device *pdev)
 			}
 		}
 	}
+	dev_info(dev, "reset:%d onoff:%d boot:%d ",
+		resetPin, onOffPin, bootPin);
 	return ret;
 }
 
@@ -270,7 +297,6 @@ static int gnss_sirf_suspend(struct platform_device *pdev, pm_message_t state)
 	int ret = -ENODEV;
 
 	dev = &pdev->dev;
-	dev_info(dev, "%s Initial Freeing of resetPin & onOffPin", __func__);
 	gpio_free(resetPin);
 	ret = gpio_request_one(resetPin, 1, "ssVreset-gpio");
 	if (ret < 0) {
@@ -290,7 +316,16 @@ static int gnss_sirf_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 	gpio_direction_input(onOffPin);
 	gpio_free(onOffPin);
-	dev_info(dev, "%s Final Free of resetPin & onOffPin", __func__);
+
+	gpio_free(bootPin);
+	ret = gpio_request(bootPin, "ssVboot-gpio");
+	if (ret < 0) {
+		pr_err("failed to request gpio %d: error:%d\n",
+				 bootPin, ret);
+		return ret;
+	}
+	gpio_direction_input(bootPin);
+	gpio_free(bootPin);
 
 	return 0;
 }

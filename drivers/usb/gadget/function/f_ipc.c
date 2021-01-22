@@ -513,6 +513,7 @@ static int ipc_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ctxt->in_req)
 		goto fail;
 
+	ctxt->in_req->zero = true;
 	ctxt->in_req->complete = ipc_in_complete;
 	ctxt->out_req = usb_ep_alloc_request(ctxt->out, GFP_KERNEL);
 	if (!ctxt->out_req)

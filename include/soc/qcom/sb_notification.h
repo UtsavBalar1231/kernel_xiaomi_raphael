@@ -18,6 +18,13 @@
 /* Indicates a system wake up event */
 #define EVENT_REQUEST_WAKE_UP 0x01
 
+/* Events to indicate the remote processor power-up and power-down */
+#define EVENT_REMOTE_STATUS_UP 0x02
+#define EVENT_REMOTE_STATUS_DOWN 0x03
+
+/* Indicates remote processor woke up the local processor */
+#define EVENT_REMOTE_WOKEN_UP 0x04
+
 #ifdef CONFIG_QTI_NOTIFY_SIDEBAND
 /**
  * sb_register_evt_listener - registers a notifier callback

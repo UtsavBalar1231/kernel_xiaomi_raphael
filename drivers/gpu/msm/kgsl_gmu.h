@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -201,6 +201,11 @@ struct gmu_device {
 	struct kgsl_mailbox mailbox;
 	void __iomem *pdc_cfg_base;
 	void __iomem *pdc_seq_base;
+	/**
+	 * @itcm_shadow: Copy of the itcm block in firmware binary used for
+	 * snapshot
+	 */
+	void *itcm_shadow;
 };
 
 struct gmu_memdesc *gmu_get_memdesc(unsigned int addr, unsigned int size);

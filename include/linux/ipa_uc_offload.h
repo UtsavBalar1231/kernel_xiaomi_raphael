@@ -91,8 +91,9 @@ struct ntn_buff_smmu_map {
  * @ntn_ring_size: size of the Tx/Rx ring (in terms of elements)
  * @buff_pool_base_pa: physical address of the base of the Tx/Rx buffer pool
  * @buff_pool_base_iova: virtual address of the base of the Tx/Rx buffer pool
- * @buff_pool_base_sgt: Scatter table for buffer pools,contains valid non NULL
- *			 value when EMAC S1-SMMU enabed, else NULL.
+ * @buff_pool_base_sgt: Scatter table for buffer pools,
+ * contains valid non NULL. When NULL, do continuosly
+ * pa to iova mapping (SMMU disable, pa == iova).
  * @num_buffers: Rx/Tx buffer pool size (in terms of elements)
  * @data_buff_size: size of the each data buffer allocated in DDR
  * @ntn_reg_base_ptr_pa: physical address of the Tx/Rx NTN Ring's

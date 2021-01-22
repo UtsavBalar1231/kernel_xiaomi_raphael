@@ -37,7 +37,6 @@
 /* 8K less 1 nominal MTU (1500 bytes) rounded to units of KB */
 #define IPA_MTU 1500
 #define IPA_GENERIC_AGGR_BYTE_LIMIT 6
-#define IPA_GENERIC_AGGR_TIME_LIMIT 500 /* 0.5msec */
 #define IPA_GENERIC_AGGR_PKT_LIMIT 0
 
 #define IPA_GSB_AGGR_BYTE_LIMIT 14
@@ -2165,13 +2164,19 @@ static void ipa3_cleanup_wlan_rx_common_cache(void)
 {
 	struct ipa3_rx_pkt_wrapper *rx_pkt;
 	struct ipa3_rx_pkt_wrapper *tmp;
+	struct device *dev;
 
 	spin_lock_bh(&ipa3_ctx->wc_memb.wlan_spinlock);
 
+	dev = ipa3_get_wlan_device();
+	if (dev == NULL) {
+		IPAERR("Unable to get device information");
+		return;
+	}
 	list_for_each_entry_safe(rx_pkt, tmp,
 		&ipa3_ctx->wc_memb.wlan_comm_desc_list, link) {
 		list_del(&rx_pkt->link);
-		dma_unmap_single(ipa3_ctx->pdev, rx_pkt->data.dma_addr,
+		dma_unmap_single(dev, rx_pkt->data.dma_addr,
 				IPA_WLAN_RX_BUFF_SZ, DMA_FROM_DEVICE);
 		dev_kfree_skb_any(rx_pkt->data.skb);
 		kmem_cache_free(ipa3_ctx->rx_pkt_wrapper_cache, rx_pkt);
@@ -2195,11 +2200,18 @@ static void ipa3_cleanup_wlan_rx_common_cache(void)
 static void ipa3_alloc_wlan_rx_common_cache(u32 size)
 {
 	void *ptr;
+	struct device *dev;
 	struct ipa3_rx_pkt_wrapper *rx_pkt;
 	int rx_len_cached = 0;
 	gfp_t flag = GFP_NOWAIT | __GFP_NOWARN;
 
 	rx_len_cached = ipa3_ctx->wc_memb.wlan_comm_total_cnt;
+
+	dev = ipa3_get_wlan_device();
+	if (dev == NULL) {
+		IPAERR("Unable to get device information");
+		return;
+	}
 	while (rx_len_cached < size) {
 		rx_pkt = kmem_cache_zalloc(ipa3_ctx->rx_pkt_wrapper_cache,
 					   flag);
@@ -2217,14 +2229,13 @@ static void ipa3_alloc_wlan_rx_common_cache(u32 size)
 			goto fail_skb_alloc;
 		}
 		ptr = skb_put(rx_pkt->data.skb, IPA_WLAN_RX_BUFF_SZ);
-		rx_pkt->data.dma_addr = dma_map_single(ipa3_ctx->pdev, ptr,
+		rx_pkt->data.dma_addr = dma_map_single(dev, ptr,
 				IPA_WLAN_RX_BUFF_SZ, DMA_FROM_DEVICE);
-		if (dma_mapping_error(ipa3_ctx->pdev, rx_pkt->data.dma_addr)) {
+		if (dma_mapping_error(dev, rx_pkt->data.dma_addr)) {
 			IPAERR("dma_map_single failure %pK for %pK\n",
 			       (void *)rx_pkt->data.dma_addr, ptr);
 			goto fail_dma_mapping;
 		}
-
 		spin_lock_bh(&ipa3_ctx->wc_memb.wlan_spinlock);
 		list_add_tail(&rx_pkt->link,
 			&ipa3_ctx->wc_memb.wlan_comm_desc_list);
@@ -2268,6 +2279,7 @@ static void ipa3_replenish_rx_cache(struct ipa3_sys_context *sys)
 	int rx_len_cached = 0;
 	struct gsi_xfer_elem gsi_xfer_elem_array[IPA_REPL_XFER_MAX];
 	gfp_t flag = GFP_NOWAIT | __GFP_NOWARN;
+	struct device *dev;
 
 	rx_len_cached = sys->len;
 
@@ -2275,6 +2287,13 @@ static void ipa3_replenish_rx_cache(struct ipa3_sys_context *sys)
 	if (sys->rx_pool_sz - sys->len < IPA_REPL_XFER_THRESH)
 		return;
 
+	dev = ipa3_ctx->pdev;
+	if (IPA_CLIENT_IS_WLAN_CONS(sys->ep->client))
+		dev = ipa3_get_wlan_device();
+	if (dev == NULL) {
+		IPAERR("Unable to get device information");
+		return;
+	}
 
 	while (rx_len_cached < sys->rx_pool_sz) {
 		rx_pkt = kmem_cache_zalloc(ipa3_ctx->rx_pkt_wrapper_cache,
@@ -2291,10 +2310,10 @@ static void ipa3_replenish_rx_cache(struct ipa3_sys_context *sys)
 			goto fail_skb_alloc;
 		}
 		ptr = skb_put(rx_pkt->data.skb, sys->rx_buff_sz);
-		rx_pkt->data.dma_addr = dma_map_single(ipa3_ctx->pdev, ptr,
+		rx_pkt->data.dma_addr = dma_map_single(dev, ptr,
 						     sys->rx_buff_sz,
 						     DMA_FROM_DEVICE);
-		if (dma_mapping_error(ipa3_ctx->pdev, rx_pkt->data.dma_addr)) {
+		if (dma_mapping_error(dev, rx_pkt->data.dma_addr)) {
 			IPAERR("dma_map_single failure %pK for %pK\n",
 			       (void *)rx_pkt->data.dma_addr, ptr);
 			goto fail_dma_mapping;
@@ -2562,8 +2581,17 @@ static void free_rx_pkt(void *chan_user_data, void *xfer_user_data)
 		xfer_user_data;
 	struct ipa3_sys_context *sys = (struct ipa3_sys_context *)
 		chan_user_data;
+	struct device *dev;
 
-	dma_unmap_single(ipa3_ctx->pdev, rx_pkt->data.dma_addr,
+	dev = ipa3_ctx->pdev;
+	if (IPA_CLIENT_IS_WLAN_CONS(sys->ep->client))
+		dev = ipa3_get_wlan_device();
+	if (dev == NULL) {
+		IPAERR("Unable to get the device information");
+		return;
+	}
+
+	dma_unmap_single(dev, rx_pkt->data.dma_addr,
 		sys->rx_buff_sz, DMA_FROM_DEVICE);
 	sys->free_skb(rx_pkt->data.skb);
 	kmem_cache_free(ipa3_ctx->rx_pkt_wrapper_cache, rx_pkt);
@@ -2608,18 +2636,26 @@ static void ipa3_cleanup_rx(struct ipa3_sys_context *sys)
 	u32 head;
 	u32 tail;
 	int i;
+	struct device *dev;
 
 	/*
 	 * buffers not consumed by gsi are cleaned up using cleanup callback
 	 * provided to gsi
 	 */
 
+	dev = ipa3_ctx->pdev;
+	if (IPA_CLIENT_IS_WLAN_CONS(sys->ep->client))
+		dev = ipa3_get_wlan_device();
+	if (dev == NULL) {
+		IPAERR("Unable to get the device information");
+		return;
+	}
 	spin_lock_bh(&sys->spinlock);
 	list_for_each_entry_safe(rx_pkt, r,
 				 &sys->rcycl_list, link) {
 		list_del(&rx_pkt->link);
 		if (rx_pkt->data.dma_addr)
-			dma_unmap_single(ipa3_ctx->pdev, rx_pkt->data.dma_addr,
+			dma_unmap_single(dev, rx_pkt->data.dma_addr,
 				sys->rx_buff_sz, DMA_FROM_DEVICE);
 		else
 			IPADBG("DMA address already freed\n");
@@ -2634,13 +2670,13 @@ static void ipa3_cleanup_rx(struct ipa3_sys_context *sys)
 		while (head != tail) {
 			rx_pkt = sys->repl->cache[head];
 			if (!ipa3_ctx->ipa_wan_skb_page) {
-				dma_unmap_single(ipa3_ctx->pdev,
+				dma_unmap_single(dev,
 					rx_pkt->data.dma_addr,
 					sys->rx_buff_sz,
 					DMA_FROM_DEVICE);
 				sys->free_skb(rx_pkt->data.skb);
 			} else {
-				dma_unmap_page(ipa3_ctx->pdev,
+				dma_unmap_page(dev,
 					rx_pkt->page_data.dma_addr,
 					rx_pkt->len,
 					DMA_FROM_DEVICE);
@@ -2659,7 +2695,7 @@ static void ipa3_cleanup_rx(struct ipa3_sys_context *sys)
 		for (i = 0; i < sys->page_recycle_repl->capacity; i++) {
 			rx_pkt = sys->page_recycle_repl->cache[i];
 			if (rx_pkt) {
-				dma_unmap_page(ipa3_ctx->pdev,
+				dma_unmap_page(dev,
 					rx_pkt->page_data.dma_addr,
 					rx_pkt->len,
 					DMA_FROM_DEVICE);
@@ -3210,14 +3246,18 @@ void ipa3_lan_rx_cb(void *priv, enum ipa_dp_evt_type evt, unsigned long data)
 	unsigned int src_pipe;
 	u32 metadata;
 	u8 ucp;
+	void (*client_notify)(void *client_priv, enum ipa_dp_evt_type evt,
+		       unsigned long data);
+	void *client_priv;
 
 	ipahal_pkt_status_parse(rx_skb->data, &status);
 	src_pipe = status.endp_src_idx;
 	metadata = status.metadata;
 	ucp = status.ucp;
 	ep = &ipa3_ctx->ep[src_pipe];
-	if (unlikely(src_pipe >= ipa3_ctx->ipa_num_pipes)) {
-		IPAERR_RL("drop pipe=%d\n", src_pipe);
+	if (unlikely(src_pipe >= ipa3_ctx->ipa_num_pipes) ||
+		unlikely(atomic_read(&ep->disconnect_in_progress))) {
+		IPAERR("drop pipe=%d\n", src_pipe);
 		dev_kfree_skb_any(rx_skb);
 		return;
 	}
@@ -3239,12 +3279,19 @@ void ipa3_lan_rx_cb(void *priv, enum ipa_dp_evt_type evt, unsigned long data)
 			metadata, *(u32 *)rx_skb->cb);
 	IPADBG_LOW("ucp: %d\n", *(u8 *)(rx_skb->cb + 4));
 
+	spin_lock(&ipa3_ctx->disconnect_lock);
 	if (likely((!atomic_read(&ep->disconnect_in_progress)) &&
-				ep->valid && ep->client_notify))
-		ep->client_notify(ep->priv, IPA_RECEIVE,
+				ep->valid && ep->client_notify)) {
+		client_notify = ep->client_notify;
+		client_priv = ep->priv;
+		spin_unlock(&ipa3_ctx->disconnect_lock);
+		client_notify(client_priv, IPA_RECEIVE,
 				(unsigned long)(rx_skb));
-	else
+	} else {
+		spin_unlock(&ipa3_ctx->disconnect_lock);
 		dev_kfree_skb_any(rx_skb);
+	}
+
 }
 
 static void ipa3_recycle_rx_wrapper(struct ipa3_rx_pkt_wrapper *rx_pkt)
@@ -3757,8 +3804,6 @@ static int ipa3_assign_policy(struct ipa_sys_connect_params *in,
 				in->ipa_ep_cfg.aggr.aggr = IPA_COALESCE;
 			else
 				in->ipa_ep_cfg.aggr.aggr = IPA_GENERIC;
-			in->ipa_ep_cfg.aggr.aggr_time_limit =
-				IPA_GENERIC_AGGR_TIME_LIMIT;
 			if (in->client == IPA_CLIENT_APPS_LAN_CONS) {
 				INIT_WORK(&sys->repl_work, ipa3_wq_repl_rx);
 				sys->pyld_hdlr = ipa3_lan_rx_pyld_hdlr;
@@ -3768,6 +3813,8 @@ static int ipa3_assign_policy(struct ipa_sys_connect_params *in,
 					ipa3_recycle_rx_wrapper;
 				sys->rx_pool_sz =
 					ipa3_ctx->lan_rx_ring_size;
+				in->ipa_ep_cfg.aggr.aggr_time_limit =
+					ipa3_ctx->lan_aggr_time_limit;
 				in->ipa_ep_cfg.aggr.aggr_byte_limit =
 				IPA_GENERIC_AGGR_BYTE_LIMIT;
 				in->ipa_ep_cfg.aggr.aggr_pkt_limit =
@@ -3806,6 +3853,8 @@ static int ipa3_assign_policy(struct ipa_sys_connect_params *in,
 				}
 				in->ipa_ep_cfg.aggr.aggr_sw_eof_active
 						= true;
+				in->ipa_ep_cfg.aggr.aggr_time_limit =
+					ipa3_ctx->wan_aggr_time_limit;
 				if (apps_wan_cons_agg_gro_flag)
 					ipa3_set_aggr_limit(in, sys);
 				else {

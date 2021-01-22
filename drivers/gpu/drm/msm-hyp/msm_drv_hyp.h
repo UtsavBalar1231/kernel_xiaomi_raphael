@@ -31,6 +31,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
+#define MAX_BACKLIGHT_DEVICES 2
 /**
  * struct msm_file_private - per-client context
  * @dmabuf_list: buffer cache list
@@ -85,6 +86,7 @@ enum msm_mdp_display_id {
 struct msm_drm_private {
 	struct drm_device *dev;
 	struct msm_file_private *lastctx;
+	struct backlight_device *bl_device[MAX_BACKLIGHT_DEVICES];
 };
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)

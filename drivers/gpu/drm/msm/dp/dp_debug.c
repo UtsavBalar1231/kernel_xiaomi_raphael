@@ -1580,7 +1580,7 @@ static void dp_debug_set_sim_mode(struct dp_debug_private *debug, bool sim)
 		debug->dp_debug.sim_mode = false;
 		debug->dp_debug.mst_hpd_sim = false;
 
-		debug->panel->set_edid(debug->panel, NULL, 0);
+		debug->panel->set_edid(debug->panel, 0, debug->edid_size);
 		if (debug->edid) {
 			devm_kfree(debug->dev, debug->edid);
 			debug->edid = NULL;

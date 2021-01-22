@@ -82,4 +82,35 @@ struct hgsl_dbq_release_info {
 #define HGSL_IOCTL_WAIT_TIMESTAMP \
 				HGSL_IOW(0x12,  struct hgsl_wait_ts_info)
 
+struct hgsl_hsync_fence_create {
+	uint32_t timestamp;
+	int context_id;
+	int fence_fd;
+};
+#define HGSL_IOCTL_HSYNC_FENCE_CREATE \
+				HGSL_IOW(0x13, struct hgsl_hsync_fence_create)
+
+#define HGSL_IOCTL_ISYNC_TIMELINE_CREATE \
+				HGSL_IOW(0x14, uint32_t)
+
+
+#define HGSL_IOCTL_ISYNC_TIMELINE_DESTROY \
+				HGSL_IOW(0x15, uint32_t)
+
+struct hgsl_isync_create_fence {
+	uint32_t timeline_id;
+	int fence_id;
+};
+#define HGSL_IOCTL_ISYNC_FENCE_CREATE	\
+				HGSL_IOW(0x16,  \
+					 struct hgsl_isync_create_fence)
+
+struct hgsl_isync_signal_fence {
+	uint32_t timeline_id;
+	int fence_id;
+};
+#define HGSL_IOCTL_ISYNC_FENCE_SIGNAL \
+				HGSL_IOW(0x17, \
+					 struct hgsl_isync_signal_fence)
+
 #endif /* _UAPI_MSM_HGSL_H */

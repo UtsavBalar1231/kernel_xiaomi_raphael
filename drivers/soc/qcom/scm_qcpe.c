@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,6 +29,13 @@
 
 #include <linux/habmm.h>
 
+#ifdef CONFIG_GHS_VMM
+#include <soc/qcom/qseecomi.h>
+#include <linux/msm_ion.h>
+#include <linux/ion_kernel.h>
+#include <linux/ion.h>
+#include <../../misc/qseecom_kernel.h>
+#endif
 #define SCM_ENOMEM		-5
 #define SCM_EOPNOTSUPP		-4
 #define SCM_EINVAL_ADDR		-3
@@ -224,6 +231,284 @@ static int scm_qcpe_hab_send_receive_atomic(struct smc_params_s *smc_params,
 	return 0;
 }
 
+#ifdef CONFIG_GHS_VMM
+enum SCM_QCPE_IONIZE {
+	/* args[0] - physical addr, args[1] - length */
+	IONIZE_IDX_0,
+
+	/* args[1] - physical addr, args[2] - length */
+	IONIZE_IDX_1,
+
+	/* args[0] - physical addr, args[1] - length */
+	/* args[2] - physical addr, args[3] - length */
+	IONIZE_IDX_0_2,
+
+	/* args[2] - physical addr, args[3] - length */
+	IONIZE_IDX_2,
+
+	/*args[2] - physical addr, args[1], length*/
+	IONIZE_IDX_2_1,
+
+	/* args[5] - physical addr, args[6] - length */
+	IONIZE_IDX_5
+};
+#define MAKE_NULL(sgt, attach, dmabuf) do {\
+				sgt = NULL;\
+				attach = NULL;\
+				dmabuf = NULL;\
+				} while (0)
+
+int scm_dmabuf_map(struct sg_table **sgt,
+			struct dma_buf_attachment **attach,
+			struct dma_buf **dmabuf, size_t len)
+{
+	struct dma_buf *new_dma_buf = NULL;
+	struct dma_buf_attachment *new_attach = NULL;
+	struct sg_table *new_sgt = NULL;
+	int ret = 0;
+	struct device *qseecom_dev = NULL;
+
+	new_dma_buf = ion_alloc(((len + 4095) & (~4095)),
+				ION_HEAP(ION_QSECOM_HEAP_ID), 0);
+	if (IS_ERR_OR_NULL(new_dma_buf)) {
+		pr_err("%s: ion_alloc failed\n", __func__);
+		ret = -ENOMEM;
+		goto err;
+	}
+	/*get the qseecom.dev node and then use it to attach*/
+	qseecom_dev = qseecom_get_dev();
+	new_attach = dma_buf_attach(new_dma_buf, qseecom_dev);
+	if (IS_ERR_OR_NULL(new_attach)) {
+		pr_err("%s: dma_buf_attach() failed\n", __func__);
+		ret = -ENOMEM;
+		goto err_put;
+	}
+
+	new_sgt = dma_buf_map_attachment(new_attach, DMA_BIDIRECTIONAL);
+	if (IS_ERR_OR_NULL(new_sgt)) {
+		ret = PTR_ERR(new_sgt);
+		pr_err("%s: dma_buf_map_attachment ret = %d\n",
+			__func__, ret);
+		goto err_detach;
+	}
+	*sgt = new_sgt;
+	*attach = new_attach;
+	*dmabuf = new_dma_buf;
+	return ret;
+
+err_detach:
+	dma_buf_detach(new_dma_buf, new_attach);
+err_put:
+	dma_buf_put(new_dma_buf);
+err:
+	return ret;
+}
+
+static void scm_dmabuf_unmap(struct sg_table *sgt,
+		struct dma_buf_attachment *attach,
+		struct dma_buf *dmabuf)
+{
+	dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+	dma_buf_detach(dmabuf, attach);
+}
+
+/* get dma buf, phys_adds and virt_addr*/
+static int scm_vaddr_map(dma_addr_t *paddr, void **vaddr,
+		struct sg_table ****sgt,
+		struct dma_buf_attachment ****attach,
+		struct dma_buf ****dmabuf, size_t len)
+{
+	struct dma_buf *new_dma_buf = NULL;
+	struct dma_buf_attachment *new_attach = NULL;
+	struct sg_table *new_sgt = NULL;
+	void *new_va = NULL;
+	int ret = 0;
+	int i = 0;
+	dma_addr_t mpaddr;
+	struct scatterlist *sg = NULL;
+
+	ret = scm_dmabuf_map(&new_sgt, &new_attach, &new_dma_buf, len);
+	if (ret) {
+		pr_err("%s: qseecom_dmabuf_map failed ret = %d\n",
+			__func__, ret);
+		goto err;
+	}
+	if (new_sgt->nents != 1) {
+		pr_err("%s: error in contiguos memory QSEECOM ION\n", __func__);
+		goto err;
+}
+	for_each_sg(new_sgt->sgl, sg, new_sgt->nents, i) {
+		mpaddr = sg_phys(sg);
+	}
+
+	*paddr = mpaddr;
+
+	dma_buf_begin_cpu_access(new_dma_buf, DMA_BIDIRECTIONAL);
+	new_va = dma_buf_kmap(new_dma_buf, 0);
+	if (IS_ERR_OR_NULL(new_va)) {
+		pr_err("%s: dma_buf_kmap failed\n", __func__);
+		ret = -ENOMEM;
+		goto err_unmap;
+	}
+	***dmabuf = new_dma_buf;
+	***attach = new_attach;
+	***sgt = new_sgt;
+	*vaddr = new_va;
+	return ret;
+
+err_unmap:
+	dma_buf_end_cpu_access(new_dma_buf, DMA_BIDIRECTIONAL);
+	scm_dmabuf_unmap(new_sgt, new_attach, new_dma_buf);
+	MAKE_NULL(***sgt, ***attach, ***dmabuf);
+err:
+	return ret;
+}
+
+static void scm_vaddr_unmap(void *vaddr, struct sg_table *sgt,
+		struct dma_buf_attachment *attach,
+		struct dma_buf *dmabuf)
+{
+	dma_buf_kunmap(dmabuf, 0, vaddr);
+	dma_buf_end_cpu_access(dmabuf, DMA_BIDIRECTIONAL);
+	scm_dmabuf_unmap(sgt, attach, dmabuf);
+}
+
+static int scm_ionize(enum SCM_QCPE_IONIZE idx,
+		u64 *args, void ***ion_map_addr,
+		struct sg_table ***sgt, struct dma_buf_attachment ***attach,
+		struct dma_buf ***dmabuf)
+{
+	dma_addr_t ion_paddr;
+	void *krn_vaddr;
+	void *ion_vaddr;
+	size_t len, len1;
+	int ret = 0;
+
+	switch (idx) {
+	case IONIZE_IDX_0:
+		len = (size_t)args[1];
+		ret = scm_vaddr_map(&ion_paddr, &ion_vaddr,
+				&sgt, &attach, &dmabuf, len);
+		if (ret)
+			break;
+		krn_vaddr = phys_to_virt(args[0]);
+		memcpy(ion_vaddr, krn_vaddr, len);
+		args[0] = ion_paddr;
+		break;
+
+	case IONIZE_IDX_1:
+		len = (size_t)args[2];
+		ret = scm_vaddr_map(&ion_paddr, &ion_vaddr,
+				&sgt, &attach, &dmabuf, len);
+		if (ret)
+			break;
+		krn_vaddr = phys_to_virt(args[1]);
+		memcpy(ion_vaddr, krn_vaddr, len);
+		args[1] = ion_paddr;
+		break;
+
+	case IONIZE_IDX_0_2:
+		len = (size_t)args[1] + (size_t)args[3];
+		ret = scm_vaddr_map(&ion_paddr, &ion_vaddr,
+				&sgt, &attach, &dmabuf, len);
+		if (ret)
+			break;
+		krn_vaddr = phys_to_virt(args[0]);
+		len = (size_t)args[1];
+		memcpy(ion_vaddr, krn_vaddr, len);
+		args[0] = ion_paddr;
+
+		krn_vaddr = phys_to_virt(args[2]);
+		len1 = (size_t)args[3];
+		memcpy((uint8_t *)ion_vaddr + len, krn_vaddr, len1);
+		args[2] = ion_paddr;
+		break;
+
+	case IONIZE_IDX_2:
+		len = (size_t)args[3];
+		ret = scm_vaddr_map(&ion_paddr, &ion_vaddr,
+				&sgt, &attach, &dmabuf, len);
+		if (ret)
+			break;
+		krn_vaddr = phys_to_virt(args[2]);
+		memcpy(ion_vaddr, krn_vaddr, len);
+		args[2] = ion_paddr;
+		break;
+
+	case IONIZE_IDX_2_1:
+		len = (size_t)args[1];
+		ret = scm_vaddr_map(&ion_paddr, &ion_vaddr,
+				&sgt, &attach, &dmabuf, len);
+		if (ret)
+			break;
+		krn_vaddr = phys_to_virt(args[2]);
+		memcpy(ion_vaddr, krn_vaddr, len);
+		args[2] = ion_paddr;
+		break;
+
+	case IONIZE_IDX_5:
+		len = (size_t)args[6];
+		ret = scm_vaddr_map(&ion_paddr, &ion_vaddr,
+				&sgt, &attach, &dmabuf, len);
+		if (ret)
+			break;
+		krn_vaddr = phys_to_virt(args[5]);
+		memcpy(ion_vaddr, krn_vaddr, len);
+		args[5] = ion_paddr;
+		break;
+	default:
+		break;
+	}
+	if (!ret)
+		**ion_map_addr = ion_vaddr;
+	return ret;
+}
+
+static int ionize_buffers(u32 fn_id,
+		struct smc_params_s *desc, void **ion_map_addr,
+		struct sg_table **sgt, struct dma_buf_attachment **attach,
+		struct dma_buf **dmabuf)
+{
+	int ret = 0;
+
+	switch (fn_id) {
+	case TZ_OS_APP_LOOKUP_ID:
+	case TZ_OS_KS_GEN_KEY_ID:
+	case TZ_OS_KS_DEL_KEY_ID:
+	case TZ_OS_KS_SET_PIPE_KEY_ID:
+	case TZ_OS_KS_UPDATE_KEY_ID:
+		ret = scm_ionize(IONIZE_IDX_0, desc->args, &ion_map_addr,
+				&sgt, &attach, &dmabuf);
+		break;
+
+	case TZ_ES_SAVE_PARTITION_HASH_ID:
+		ret = scm_ionize(IONIZE_IDX_1, desc->args, &ion_map_addr,
+				&sgt, &attach, &dmabuf);
+		break;
+
+	case TZ_OS_LISTENER_RESPONSE_HANDLER_WITH_WHITELIST_ID:
+		ret = scm_ionize(IONIZE_IDX_2, desc->args, &ion_map_addr,
+				&sgt, &attach, &dmabuf);
+		break;
+
+	case TZ_OS_LOAD_SERVICES_IMAGE_ID:
+		ret = scm_ionize(IONIZE_IDX_2_1, desc->args, &ion_map_addr,
+				&sgt, &attach, &dmabuf);
+		break;
+
+	case TZ_APP_QSAPP_SEND_DATA_WITH_WHITELIST_ID:
+	case TZ_APP_GPAPP_OPEN_SESSION_WITH_WHITELIST_ID:
+	case TZ_APP_GPAPP_INVOKE_COMMAND_WITH_WHITELIST_ID:
+		ret = scm_ionize(IONIZE_IDX_5, desc->args, &ion_map_addr,
+				&sgt, &attach, &dmabuf);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+#endif
 static int scm_call_qcpe(u32 fn_id, struct scm_desc *desc, bool atomic)
 {
 	u32 size_bytes;
@@ -232,21 +517,26 @@ static int scm_call_qcpe(u32 fn_id, struct scm_desc *desc, bool atomic)
 #ifdef CONFIG_GHS_VMM
 	int i;
 	uint64_t arglen = desc->arginfo & 0xf;
-	struct ion_handle *ihandle = NULL;
+	void *ion_map_addr = NULL;
+	struct sg_table *sgt = NULL;
+	struct dma_buf_attachment *attach = NULL;
+	struct dma_buf *dmabuf = NULL;
 #endif
 
-	pr_info("SCM IN [QCPE]: 0x%x, 0x%x, 0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx\n",
-			fn_id, desc->arginfo, desc->args[0], desc->args[1],
-			desc->args[2], desc->args[3], desc->x5);
+	pr_info("%s: SCM IN [QCPE]: 0x%x, 0x%x, 0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx\n",
+		__func__, fn_id, desc->arginfo, desc->args[0], desc->args[1],
+		desc->args[2], desc->args[3], desc->args[4], desc->args[5],
+		desc->args[6], desc->args[7], desc->x5);
 
 	if (!opened) {
 		if (!atomic) {
 			if (scm_qcpe_hab_open()) {
-				pr_err("HAB channel re-open failed\n");
+				pr_err("%s: HAB channel re-open failed\n",
+					 __func__);
 				return -ENODEV;
 			}
 		} else {
-			pr_err("HAB channel is not opened\n");
+			pr_err("%s: HAB channel is not opened\n", __func__);
 			return -ENODEV;
 		}
 	}
@@ -273,7 +563,8 @@ static int scm_call_qcpe(u32 fn_id, struct scm_desc *desc, bool atomic)
 				smc_params.args[i] = argbuf->args32[j++];
 	}
 
-	ret = ionize_buffers(fn_id & (~SMC64_MASK), &smc_params, &ihandle);
+	ret = ionize_buffers(fn_id & (~SMC64_MASK), &smc_params,
+				&ion_map_addr, &sgt, &attach, &dmabuf);
 	if (ret)
 		return ret;
 #else
@@ -284,23 +575,23 @@ static int scm_call_qcpe(u32 fn_id, struct scm_desc *desc, bool atomic)
 	if (!atomic) {
 		ret = scm_qcpe_hab_send_receive(&smc_params, &size_bytes);
 		if (ret) {
-			pr_err("send/receive failed, non-atomic, ret= 0x%x\n",
-				ret);
+			pr_err("%s: send/receive failed, non-atomic, ret= 0x%x\n",
+				__func__, ret);
 			goto err_ret;
 		}
 	} else {
 		ret = scm_qcpe_hab_send_receive_atomic(&smc_params,
 			&size_bytes);
 		if (ret) {
-			pr_err("send/receive failed, ret= 0x%x\n", ret);
+			pr_err("%s: send/receive failed, ret= 0x%x\n",
+				__func__, ret);
 			goto err_ret;
 		}
 	}
 
 	if (size_bytes != sizeof(smc_params)) {
-		pr_err("habmm_socket_recv expected size: %lu, actual=%u\n",
-				sizeof(smc_params),
-				size_bytes);
+		pr_err("%s: habmm_socket_recv expected size: %lu, actual=%u\n",
+				__func__, sizeof(smc_params), size_bytes);
 		ret = SCM_ERROR;
 		goto err_ret;
 	}
@@ -309,7 +600,7 @@ static int scm_call_qcpe(u32 fn_id, struct scm_desc *desc, bool atomic)
 	desc->ret[1] = smc_params.args[2];
 	desc->ret[2] = smc_params.args[3];
 	ret = smc_params.args[0];
-	pr_info("SCM OUT [QCPE]: 0x%llx, 0x%llx, 0x%llx, 0x%llx",
+	pr_info("%s: SCM OUT [QCPE]: 0x%llx, 0x%llx, 0x%llx, 0x%llx", __func__,
 		smc_params.args[0], desc->ret[0], desc->ret[1], desc->ret[2]);
 	goto no_err;
 
@@ -321,13 +612,13 @@ err_ret:
 		 */
 		scm_qcpe_hab_close();
 		if (scm_qcpe_hab_open())
-			pr_err("scm_qcpe_hab_open failed\n");
+			pr_err("%s: scm_qcpe_hab_open failed\n", __func__);
 		}
 
 no_err:
 #ifdef CONFIG_GHS_VMM
-	if (ihandle)
-		free_ion_buffers(ihandle);
+	if (dmabuf)
+		scm_vaddr_unmap(ion_map_addr, sgt, attach, dmabuf);
 #endif
 	return ret;
 }
@@ -761,7 +1052,6 @@ inline int scm_enable_mem_protection(void)
 	return 0;
 }
 #endif
-
 EXPORT_SYMBOL(scm_enable_mem_protection);
 
 static int __init scm_qcpe_init(void)
@@ -769,8 +1059,7 @@ static int __init scm_qcpe_init(void)
 	return scm_qcpe_hab_open();
 }
 /* Subsys sync is for init after HAB (subsys) and before kernel clients. */
-subsys_initcall_sync(scm_qcpe_init);
-
+module_init(scm_qcpe_init);
 static void __exit scm_qcpe_exit(void)
 {
 	scm_qcpe_hab_close();

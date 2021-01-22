@@ -49,6 +49,14 @@ struct wcnss_wlan_config {
 	struct vregs_level iris_vlevel[IRIS_REGULATORS];
 };
 
+struct bt_profile_state {
+	bool bt_enabled;
+	bool bt_ble;
+	bool bt_adv;
+	bool bt_a2dp;
+	bool bt_sco;
+};
+
 enum {
 	WCNSS_XO_48MHZ = 1,
 	WCNSS_XO_19MHZ,
@@ -109,6 +117,7 @@ struct wcnss_driver_ops {
 	char *name;
 	void *priv_data;
 	int (*driver_state)(void *priv, enum wcnss_driver_state state);
+	int (*bt_profile_state)(void *priv, struct bt_profile_state *state);
 };
 
 struct device *wcnss_wlan_get_device(void);
@@ -118,6 +127,7 @@ int wcnss_wlan_get_dxe_tx_irq(struct device *dev);
 int wcnss_wlan_get_dxe_rx_irq(struct device *dev);
 int wcnss_register_driver(struct wcnss_driver_ops *ops, void *priv);
 int wcnss_unregister_driver(struct wcnss_driver_ops *ops);
+void wcnss_update_bt_profile(void);
 void wcnss_wlan_register_pm_ops(struct device *dev,
 				const struct dev_pm_ops *pm_ops);
 void wcnss_wlan_unregister_pm_ops(struct device *dev,
@@ -184,6 +194,8 @@ struct rpmsg_endpoint *wcnss_open_channel(const char *name,
 					  rpmsg_rx_cb_t cb, void *priv);
 void wcnss_close_channel(struct rpmsg_endpoint *channel);
 int wcnss_smd_tx(struct rpmsg_endpoint *channel, void *data, int len);
+int wcnss_get_nv_name(char *nv_name);
+int wcnss_is_sw_pta_enabled(void);
 #define wcnss_wlan_get_drvdata(dev) dev_get_drvdata(dev)
 #define wcnss_wlan_set_drvdata(dev, data) dev_set_drvdata((dev), (data))
 /* WLAN driver uses these names */

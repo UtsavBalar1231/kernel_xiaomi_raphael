@@ -79,6 +79,10 @@ int ipa3_enable_data_path(u32 clnt_hdl)
 				holb_cfg.tmr_val = IPA_HOLB_TMR_VAL;
 			else
 				holb_cfg.tmr_val = IPA_HOLB_TMR_VAL_4_5;
+		} else if ((ipa3_ctx->ipa_hw_type == IPA_HW_v4_5) &&
+			(ep->client == IPA_CLIENT_USB_CONS)) {
+			holb_cfg.tmr_val = IPA_HOLB_TMR_VAL_4_5;
+			holb_cfg.en = IPA_HOLB_TMR_EN;
 		} else {
 			holb_cfg.en = IPA_HOLB_TMR_DIS;
 			holb_cfg.tmr_val = 0;
@@ -463,6 +467,51 @@ int ipa3_smmu_map_peer_buff(u64 iova, u32 size, bool map, struct sg_table *sgt,
 		}
 	}
 	IPADBG("Peer buff %s 0x%llx\n", map ? "map" : "unmap", iova);
+	return 0;
+}
+
+int ipa3_smmu_map_ctg(u64 iova, u32 size, bool map, phys_addr_t pa,
+	enum ipa_smmu_cb_type cb_type)
+{
+	struct iommu_domain *smmu_domain;
+	int res;
+	phys_addr_t phys;
+	unsigned long va;
+	size_t len;
+
+	if (cb_type >= IPA_SMMU_CB_MAX) {
+		IPAERR("invalid cb_type\n");
+		return -EINVAL;
+	}
+
+	if (ipa3_ctx->s1_bypass_arr[cb_type]) {
+		IPADBG("CB# %d is set to s1 bypass\n", cb_type);
+		return 0;
+	}
+
+	smmu_domain = ipa3_get_smmu_domain_by_type(cb_type);
+	if (!smmu_domain) {
+		IPAERR("invalid smmu domain\n");
+		return -EINVAL;
+	}
+
+	if (map) {
+		va = rounddown(iova, PAGE_SIZE);
+		phys = rounddown(pa, PAGE_SIZE);
+		len = size + ((iova - va > pa - phys) ?
+			(iova-va) : (pa - phys));
+		res = ipa3_iommu_map(smmu_domain, va, phys,
+			roundup(len, PAGE_SIZE),
+			IOMMU_READ | IOMMU_WRITE);
+	} else {
+		va = rounddown(iova, PAGE_SIZE);
+		phys = rounddown(pa, PAGE_SIZE);
+		len = size + ((iova - va > pa - phys) ?
+			(iova-va) : (pa - phys));
+		res = iommu_unmap(smmu_domain, va,
+					roundup(len, PAGE_SIZE));
+	}
+	IPADBG("ctg %s 0x%llx to 0x%llx\n", map ? "map" : "unmap", pa, iova);
 	return 0;
 }
 
@@ -1367,8 +1416,10 @@ int ipa3_set_reset_client_cons_pipe_sus_holb(bool set_reset,
 			IPA_ENDP_INIT_HOL_BLOCK_EN_n,
 			pipe_idx, &ep_holb);
 
-		/* IPA4.5 issue requires HOLB_EN to be written twice */
-		if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_5)
+		/* For targets > IPA_4.0 issue requires HOLB_EN to be
+		 * written twice.
+		 */
+		if (ipa3_ctx->ipa_hw_type >= IPA_HW_v4_0)
 			ipahal_write_reg_n_fields(
 				IPA_ENDP_INIT_HOL_BLOCK_EN_n,
 				pipe_idx, &ep_holb);
@@ -1493,7 +1544,10 @@ int ipa3_release_gsi_channel(u32 clnt_hdl)
 		IPA_ACTIVE_CLIENTS_INC_EP(ipa3_get_client_mapping(clnt_hdl));
 
 	/* Set the disconnect in progress flag to avoid calling cb.*/
+	spin_lock(&ipa3_ctx->disconnect_lock);
 	atomic_set(&ep->disconnect_in_progress, 1);
+	spin_unlock(&ipa3_ctx->disconnect_lock);
+
 
 	gsi_res = gsi_dealloc_channel(ep->gsi_chan_hdl);
 	if (gsi_res != GSI_STATUS_SUCCESS) {
@@ -1513,7 +1567,9 @@ int ipa3_release_gsi_channel(u32 clnt_hdl)
 	if (!ep->keep_ipa_awake)
 		IPA_ACTIVE_CLIENTS_DEC_EP(ipa3_get_client_mapping(clnt_hdl));
 
+	spin_lock(&ipa3_ctx->disconnect_lock);
 	memset(&ipa3_ctx->ep[clnt_hdl], 0, sizeof(struct ipa3_ep_context));
+	spin_unlock(&ipa3_ctx->disconnect_lock);
 
 	IPADBG("exit\n");
 	return 0;
@@ -1538,6 +1594,7 @@ int ipa3_xdci_suspend(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
 	struct gsi_chan_info ul_gsi_chan_info, dl_gsi_chan_info;
 	int aggr_active_bitmap = 0;
 	struct ipa_ep_cfg_ctrl ep_cfg_ctrl;
+	struct ipa_ep_cfg_holb holb_cfg;
 
 	/* In case of DPL, dl is the DPL channel/client */
 
@@ -1623,6 +1680,15 @@ int ipa3_xdci_suspend(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
 		goto unsuspend_dl_and_exit;
 	}
 
+	/*enable holb to discard the packets*/
+	if (ipa3_ctx->ipa_hw_type == IPA_HW_v4_5 &&
+		IPA_CLIENT_IS_CONS(dl_ep->client) && !is_dpl) {
+		memset(&holb_cfg, 0, sizeof(holb_cfg));
+		holb_cfg.en = IPA_HOLB_TMR_EN;
+		holb_cfg.tmr_val = IPA_HOLB_TMR_VAL_4_5;
+		result = ipa3_cfg_ep_holb(dl_clnt_hdl, &holb_cfg);
+	}
+
 	/* Stop DL channel */
 	result = ipa3_stop_gsi_channel(dl_clnt_hdl);
 	if (result) {
@@ -1652,6 +1718,14 @@ int ipa3_xdci_suspend(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
 start_dl_and_exit:
 	gsi_start_channel(dl_ep->gsi_chan_hdl);
 	ipa3_start_gsi_debug_monitor(dl_clnt_hdl);
+	/*disable holb to allow packets*/
+	if (ipa3_ctx->ipa_hw_type == IPA_HW_v4_5 &&
+		IPA_CLIENT_IS_CONS(dl_ep->client) && !is_dpl) {
+		memset(&holb_cfg, 0, sizeof(holb_cfg));
+		holb_cfg.en = IPA_HOLB_TMR_DIS;
+		holb_cfg.tmr_val = 0;
+		ipa3_cfg_ep_holb(dl_clnt_hdl, &holb_cfg);
+	}
 unsuspend_dl_and_exit:
 	if (ipa3_ctx->ipa_hw_type < IPA_HW_v4_0) {
 		/* Unsuspend the DL EP */
@@ -1708,6 +1782,7 @@ int ipa3_xdci_resume(u32 ul_clnt_hdl, u32 dl_clnt_hdl, bool is_dpl)
 	struct ipa3_ep_context *dl_ep = NULL;
 	enum gsi_status gsi_res;
 	struct ipa_ep_cfg_ctrl ep_cfg_ctrl;
+	struct ipa_ep_cfg_holb holb_cfg;
 
 	/* In case of DPL, dl is the DPL channel/client */
 
@@ -1737,6 +1812,15 @@ int ipa3_xdci_resume(u32 ul_clnt_hdl, u32 dl_clnt_hdl, bool is_dpl)
 	if (gsi_res != GSI_STATUS_SUCCESS)
 		IPAERR("Error starting DL channel: %d\n", gsi_res);
 	ipa3_start_gsi_debug_monitor(dl_clnt_hdl);
+
+	/*disable holb to allow packets*/
+	if (ipa3_ctx->ipa_hw_type == IPA_HW_v4_5 &&
+		IPA_CLIENT_IS_CONS(dl_ep->client) && !is_dpl) {
+		memset(&holb_cfg, 0, sizeof(holb_cfg));
+		holb_cfg.en = IPA_HOLB_TMR_DIS;
+		holb_cfg.tmr_val = 0;
+		ipa3_cfg_ep_holb(dl_clnt_hdl, &holb_cfg);
+	}
 
 	/* Start UL channel */
 	if (!is_dpl) {
@@ -1835,26 +1919,87 @@ int ipa3_get_aqc_gsi_stats(struct ipa_uc_dbg_ring_stats *stats)
 	}
 	IPA_ACTIVE_CLIENTS_INC_SIMPLE();
 	for (i = 0; i < MAX_AQC_CHANNELS; i++) {
-		stats->ring[i].ringFull = ioread32(
+		stats->u.ring[i].ringFull = ioread32(
 			ipa3_ctx->aqc_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGFULL_OFF);
-		stats->ring[i].ringEmpty = ioread32(
+		stats->u.ring[i].ringEmpty = ioread32(
 			ipa3_ctx->aqc_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGEMPTY_OFF);
-		stats->ring[i].ringUsageHigh = ioread32(
+		stats->u.ring[i].ringUsageHigh = ioread32(
 			ipa3_ctx->aqc_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGUSAGEHIGH_OFF);
-		stats->ring[i].ringUsageLow = ioread32(
+		stats->u.ring[i].ringUsageLow = ioread32(
 			ipa3_ctx->aqc_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGUSAGELOW_OFF);
-		stats->ring[i].RingUtilCount = ioread32(
+		stats->u.ring[i].RingUtilCount = ioread32(
 			ipa3_ctx->aqc_ctx.dbg_stats.uc_dbg_stats_mmio
 			+ i * IPA3_UC_DEBUG_STATS_OFF +
 			IPA3_UC_DEBUG_STATS_RINGUTILCOUNT_OFF);
+	}
+	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
+
+
+	return 0;
+}
+/**
+ * ipa3_get_rtk_gsi_stats() - Query RTK gsi stats from uc
+ * @stats:	[inout] stats blob from client populated by driver
+ *
+ * Returns:	0 on success, negative on failure
+ *
+ * @note Cannot be called from atomic context
+ *
+ */
+int ipa3_get_rtk_gsi_stats(struct ipa_uc_dbg_ring_stats *stats)
+{
+	int i;
+
+	if (!ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio) {
+		IPAERR("bad parms NULL eth_gsi_stats_mmio\n");
+		return -EINVAL;
+	}
+	IPA_ACTIVE_CLIENTS_INC_SIMPLE();
+	for (i = 0; i < MAX_RTK_CHANNELS; i++) {
+		stats->u.rtk[i].commStats.ringFull = ioread32(
+			ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio
+			+ i * IPA3_UC_DEBUG_STATS_RTK_OFF +
+			IPA3_UC_DEBUG_STATS_RINGFULL_OFF);
+		stats->u.rtk[i].commStats.ringEmpty = ioread32(
+			ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio
+			+ i * IPA3_UC_DEBUG_STATS_RTK_OFF +
+			IPA3_UC_DEBUG_STATS_RINGEMPTY_OFF);
+		stats->u.rtk[i].commStats.ringUsageHigh = ioread32(
+			ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio
+			+ i * IPA3_UC_DEBUG_STATS_RTK_OFF +
+			IPA3_UC_DEBUG_STATS_RINGUSAGEHIGH_OFF);
+		stats->u.rtk[i].commStats.ringUsageLow = ioread32(
+			ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio
+			+ i * IPA3_UC_DEBUG_STATS_RTK_OFF +
+			IPA3_UC_DEBUG_STATS_RINGUSAGELOW_OFF);
+		stats->u.rtk[i].commStats.RingUtilCount = ioread32(
+			ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio
+			+ i * IPA3_UC_DEBUG_STATS_RTK_OFF +
+			IPA3_UC_DEBUG_STATS_RINGUTILCOUNT_OFF);
+		stats->u.rtk[i].trCount = ioread32(
+			ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio
+			+ i * IPA3_UC_DEBUG_STATS_RTK_OFF +
+			IPA3_UC_DEBUG_STATS_TRCOUNT_OFF);
+		stats->u.rtk[i].erCount = ioread32(
+			ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio
+			+ i * IPA3_UC_DEBUG_STATS_RTK_OFF +
+			IPA3_UC_DEBUG_STATS_ERCOUNT_OFF);
+		stats->u.rtk[i].totalAosCount = ioread32(
+			ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio
+			+ i * IPA3_UC_DEBUG_STATS_RTK_OFF +
+			IPA3_UC_DEBUG_STATS_AOSCOUNT_OFF);
+		stats->u.rtk[i].busyTime = ioread64(
+			ipa3_ctx->rtk_ctx.dbg_stats.uc_dbg_stats_mmio
+			+ i * IPA3_UC_DEBUG_STATS_RTK_OFF +
+			IPA3_UC_DEBUG_STATS_BUSYTIME_OFF);
 	}
 	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
 

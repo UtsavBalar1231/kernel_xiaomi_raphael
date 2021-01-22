@@ -328,6 +328,7 @@ static int ipa3_smmu_map_uc_ntn_pipes(struct ipa_ntn_setup_info *params,
 		if (ipa3_ctx->uc_ntn_ctx.smmu_mapped == 0) {
 			IPAERR("Invalid smmu_mapped %d\n",
 					ipa3_ctx->uc_ntn_ctx.smmu_mapped);
+			result = -EINVAL;
 			goto fail;
 		} else {
 			ipa3_ctx->uc_ntn_ctx.smmu_mapped--;
@@ -338,13 +339,28 @@ static int ipa3_smmu_map_uc_ntn_pipes(struct ipa_ntn_setup_info *params,
 
 	if (params->smmu_enabled) {
 		IPADBG("smmu is enabled on EMAC\n");
-		result = ipa3_smmu_map_peer_buff((u64)params->ring_base_iova,
-			params->ntn_ring_size, map, params->ring_base_sgt,
-			IPA_SMMU_CB_UC);
-		if (result) {
-			IPAERR("failed to %s ntn ring %d\n",
-				map ? "map" : "unmap", result);
-			goto fail_map_ring;
+		if (params->ring_base_sgt) {
+			result = ipa3_smmu_map_peer_buff(
+				(u64)params->ring_base_iova,
+				params->ntn_ring_size, map,
+				params->ring_base_sgt,
+				IPA_SMMU_CB_UC);
+			if (result) {
+				IPAERR("failed to %s ntn ring %d\n",
+					map ? "map" : "unmap", result);
+				goto fail_map_ring;
+			}
+		} else {
+			result = ipa3_smmu_map_ctg(
+				(u64)params->ring_base_iova,
+				params->ntn_ring_size,
+				map, params->ring_base_pa,
+				IPA_SMMU_CB_UC);
+			if (result) {
+				IPAERR("failed to %s ntn ring %d\n",
+					map ? "map" : "unmap", result);
+				goto fail_map_ring;
+			}
 		}
 		result = ipa3_smmu_map_peer_buff(
 			(u64)params->buff_pool_base_iova,
@@ -418,9 +434,15 @@ fail_map_data_buff_smmu_disabled:
 		params->num_buffers * 4, !map, NULL, IPA_SMMU_CB_UC);
 	goto fail_map_buffer_smmu_disabled;
 fail_map_buffer_smmu_enabled:
-	ipa3_smmu_map_peer_buff((u64)params->ring_base_iova,
-		params->ntn_ring_size, !map, params->ring_base_sgt,
-		IPA_SMMU_CB_UC);
+	if (params->ring_base_sgt) {
+		ipa3_smmu_map_peer_buff((u64)params->ring_base_iova,
+			params->ntn_ring_size, !map, params->ring_base_sgt,
+			IPA_SMMU_CB_UC);
+	} else {
+		ipa3_smmu_map_ctg((u64)params->ring_base_iova,
+			params->ntn_ring_size, !map, params->ring_base_pa,
+			IPA_SMMU_CB_UC);
+	}
 	goto fail_map_ring;
 fail_map_buffer_smmu_disabled:
 	ipa3_smmu_map_peer_buff((u64)params->ring_base_pa,
@@ -516,18 +538,33 @@ int ipa3_setup_uc_ntn_pipes(struct ipa_ntn_conn_in_params *in,
 		result = -EFAULT;
 		goto fail_disable_dp_ul;
 	}
-	ipa3_install_dflt_flt_rules(ipa_ep_idx_ul);
+
 	/* Rx: IPA_UC_MAILBOX_m_n m = 1, n =3 mmio*/
 	outp->ul_uc_db_iomem = ipa3_ctx->mmio +
 		ipahal_get_reg_mn_ofst(IPA_UC_MAILBOX_m_n,
 		1, 3);
 	ep_ul->uc_offload_state |= IPA_UC_OFFLOAD_CONNECTED;
-	IPADBG("client %d (ep: %d) connected\n", in->ul.client,
+
+	/* special handling for v2x pipes */
+	if (in->ul.client == IPA_CLIENT_ETHERNET2_PROD) {
+		ep_ul->skip_ep_cfg = true;
+		ipa3_ctx->skip_ep_cfg_shadow[ipa_ep_idx_ul] =
+			ep_ul->skip_ep_cfg;
+		IPADBG("client %d (ep: %d) for v2x connected skip(%d)\n",
+			in->ul.client,
+			ipa_ep_idx_ul,
+			ep_ul->skip_ep_cfg);
+	} else {
+		ipa3_install_dflt_flt_rules(ipa_ep_idx_ul);
+		IPADBG("client %d (ep: %d) connected\n", in->ul.client,
 		ipa_ep_idx_ul);
+	}
 
 	/* setup dl ep cfg */
 	ep_dl->valid = 1;
 	ep_dl->client = in->dl.client;
+	ep_dl->client_notify = notify;
+	ep_dl->priv = priv;
 	memset(&ep_dl->cfg, 0, sizeof(ep_ul->cfg));
 	ep_dl->cfg.nat.nat_en = IPA_BYPASS_NAT;
 	ep_dl->cfg.hdr.hdr_len = hdr_len;
@@ -697,8 +734,10 @@ int ipa3_tear_down_uc_offload_pipes(int ipa_ep_idx_ul,
 		IPAERR("failed to unmap SMMU for UL %d\n", result);
 		goto fail;
 	}
+	/* special handling for v2x pipes */
+	if (ipa_ep_idx_ul != ipa_get_ep_mapping(IPA_CLIENT_ETHERNET2_PROD))
+		ipa3_delete_dflt_flt_rules(ipa_ep_idx_ul);
 
-	ipa3_delete_dflt_flt_rules(ipa_ep_idx_ul);
 	memset(&ipa3_ctx->ep[ipa_ep_idx_ul], 0, sizeof(struct ipa3_ep_context));
 	IPADBG("ul client (ep: %d) disconnected\n", ipa_ep_idx_ul);
 

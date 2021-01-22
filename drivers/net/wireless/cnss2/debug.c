@@ -609,6 +609,9 @@ static int cnss_show_quirks_state(struct seq_file *s,
 		case IGNORE_PCI_LINK_FAILURE:
 			seq_puts(s, "IGNORE_PCI_LINK_FAILURE");
 			continue;
+		case IGNORE_PROBE_FAIL_SHUTDOWN:
+			seq_puts(s, "IGNORE_PROBE_FAIL_SHUTDOWN");
+			continue;
 		}
 
 		seq_printf(s, "UNKNOWN-%d", i);

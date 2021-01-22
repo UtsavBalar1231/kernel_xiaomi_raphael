@@ -209,4 +209,5 @@ bool qcom_ethqos_ipa_enabled(void);
 u16 icmp_fast_csum(u16 old_csum);
 void swap_ip_port(struct sk_buff *skb, unsigned int eth_type);
 unsigned int dwmac_qcom_get_eth_type(unsigned char *buf);
+void stmmac_mac2mac_adjust_link(int speed, struct stmmac_priv *priv);
 #endif /* __STMMAC_H__ */

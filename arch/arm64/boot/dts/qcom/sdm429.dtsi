@@ -93,12 +93,6 @@
 			size = <0 0x0800000>;
 		};
 
-		secure_mem: secure_region@0 {
-			alignment = <0 0x400000>;
-			size = <0 0x800000>;
-			status = "okay";
-		};
-
 		qseecom_mem: qseecom_region@0 {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -1037,6 +1031,22 @@
 				qcom,net-id = <1>;
 				qcom,low-latency;
 			};
+
+			qcom,diag {
+				qcom,smd-channels = "DIAG";
+			};
+			qcom,diag_cntl {
+				qcom,smd-channels = "DIAG_CNTL";
+			};
+			qcom,diag_cmd {
+				qcom,smd-channels = "DIAG_CMD";
+			};
+			qcom,diag_dci {
+				qcom,smd-channels = "DIAG_2";
+			};
+			qcom.diag_dci_cmd {
+				qcom,smd-channels = "DIAG_2_CMD";
+			};
 		};
 
 		wcnss {
@@ -1169,6 +1179,25 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+
+		sleepstate_smp2p_out: sleepstate-out {
+			qcom,entry-name = "sleepstate";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		sleepstate_smp2p_in: qcom,sleepstate-in {
+			qcom,entry-name = "sleepstate_see";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	qcom,smp2p_sleepstate {
+		compatible = "qcom,smp2p-sleepstate";
+		qcom,smem-states = <&sleepstate_smp2p_out 0>;
+		interrupt-parent = <&sleepstate_smp2p_in>;
+		interrupts = <0 0>;
+		interrupt-names = "smp2p-sleepstate-in";
 	};
 
 	qcom,adsprpc-mem {
@@ -1380,7 +1409,7 @@
 		clock-names = "iface_clk";
 	};
 
-	qcom,wcnss-wlan@0a000000 {
+	wcnss_prima: qcom,wcnss-wlan@0a000000 {
 		compatible = "qcom,wcnss_wlan";
 		reg = <0x0a000000 0x280000>,
 		      <0xb011008 0x04>,
@@ -1452,8 +1481,10 @@
 
 		clock-names = "xo", "rf_clk", "snoc_wcnss";
 
-		qcom,smem-states = <&apps_smsm 10>, <&apps_smsm 9>;
-		qcom,smem-state-names = "tx-enable", "tx-rings-empty";
+		qcom,smem-states = <&apps_smsm 10>, <&apps_smsm 9>,
+				   <&apps_smsm 12>;
+		qcom,smem-state-names = "tx-enable", "tx-rings-empty",
+					"wake-state";
 
 		qcom,snoc-wcnss-clock-freq = <200000000>;
 
@@ -1461,6 +1492,7 @@
 		qcom,is-pronto-v3;
 		qcom,has-pronto-hw;
 		qcom,has-vsys-adc-channel;
+		qcom,sw_pta=<1>;
 	};
 
 	bluetooth: bt_wcn3990 {
@@ -1468,14 +1500,14 @@
 		qca,bt-3P3-en-gpio = <&tlmm 47 0>; /* WCN3980_3P3_EN_*/
 		qca,bt-1P3-en-gpio = <&tlmm 57 0>; /* WCN3980_1P3_EN */
 
-		qca,bt-vdd-xtal-supply = <&pm660_l12>;
 		qca,bt-vdd-io-supply = <&pm660_l13>;
+		qca,bt-vdd-s5-supply = <&pm660_s5>;
 
-		qca,bt-vdd-xtal-voltage-level = <1800000 1900000>;
 		qca,bt-vdd-io-voltage-level = <1800000 1900000>;
+		qca,bt-vdd-s5-voltage-level = <1352000 1352000>;
 
-		qca,bt-vdd-xtal-current-level = <80000>;
 		qca,bt-vdd-io-current-level = <10000>;
+		qca,bt-vdd-s5-current-level = <10000>;
 	};
 
 	qcom,bam_dmux@4044000 {

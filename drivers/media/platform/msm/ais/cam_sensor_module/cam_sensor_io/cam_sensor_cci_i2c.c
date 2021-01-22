@@ -39,7 +39,6 @@ int32_t cam_cci_i2c_read(struct cam_sensor_cci_client *cci_client,
 
 	rc = cam_cci_core_cfg(cci_client->cci_subdev, &cci_ctrl);
 	if (rc < 0) {
-		CAM_ERR(CAM_SENSOR, "rc = %d", rc);
 		return rc;
 	}
 

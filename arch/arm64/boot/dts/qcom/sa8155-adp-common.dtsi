@@ -70,7 +70,7 @@
 		vio-supply = <&pm8150_2_l7>;
 		vdd-supply = <&pm8150_2_l16>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <12 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sensor_int1_default
 			&sensor_int2_default>;
@@ -101,6 +101,7 @@
 		pinctrl-0 = <&ss5_pwr_ctrl_rst_on>;
 		ssVreset-gpio = <&tlmm 11 1>;
 		ssVonoff-gpio = <&tlmm 39 1>;
+		ssVboot-gpio = <&tlmm 40 1>;
 	};
 
 	qcom,turing@8300000 {
@@ -239,6 +240,9 @@
 	status = "ok";
 	qcom,default-mode-host;
 	qcom,ignore-wakeup-src-in-hostmode;
+	dwc3@a800000 {
+		snps,dis_u3_susphy_quirk;
+	};
 };
 
 &usb2_phy1 {

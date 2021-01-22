@@ -30,6 +30,9 @@
 extern void *ipc_stmmac_log_ctxt;
 extern void *ipc_stmmac_log_ctxt_low;
 
+#define SSR_EVENT_UP 20
+#define SSR_EVENT_DOWN 21
+
 #define QCOM_ETH_QOS_MAC_ADDR_LEN 6
 #define QCOM_ETH_QOS_MAC_ADDR_STR_LEN 18
 
@@ -115,6 +118,7 @@ do {\
 #define TTSL0				GENMASK(30, 0)
 #define MAC_PPSX_INTERVAL(x)		(0x00000b88 + ((x) * 0x10))
 #define MAC_PPSX_WIDTH(x)		(0x00000b8c + ((x) * 0x10))
+#define MAC_RXQCTRL_PSRQX_PRIO_SHIFT(x)	(1 << x)
 
 #define PPS_START_DELAY 100000000
 #define ONE_NS 1000000000
@@ -166,6 +170,8 @@ do {\
 #define SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_CODE	GENMASK(29, 27)
 #define SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_EN	BIT(30)
 #define SDCC_DDR_CONFIG_PRG_RCLK_DLY		GENMASK(8, 0)
+#define SDCC_DDR_CONFIG_TCXO_CYCLES_DLY_LINE	GENMASK(20, 12)
+#define SDCC_DDR_CONFIG_TCXO_CYCLES_CNT	GENMASK(11, 9)
 
 /* SDCC_HC_REG_DLL_CONFIG2 fields */
 #define SDCC_DLL_CONFIG2_DLL_CLOCK_DIS		BIT(21)
@@ -238,6 +244,10 @@ do {\
 //Mac config
 #define MAC_CONFIGURATION 0x0
 #define MAC_LM BIT(12)
+
+#define EMAC_QUEUE_0 0
+#define EMAC_CHANNEL_0 0
+#define EMAC_CHANNEL_1 1
 
 #define TLMM_BASE_ADDRESS (tlmm_central_base_addr)
 
@@ -398,6 +408,13 @@ enum current_phy_state {
 	RGMII_IO_MACRO_CONFIG_RGWR(v);\
 } while (0)
 
+#define RGMII_TCXO_CYCLES_DLY_LINE 64
+#define RGMII_TCXO_PERIOD_NS 52
+#define RGMII_TCXO_CYCLES_CNT 4
+
+#define RGMII_PRG_RCLK_CONST \
+	(RGMII_TCXO_PERIOD_NS * RGMII_TCXO_CYCLES_CNT / 2)
+
 enum CV2X_MODE {
 	CV2X_MODE_DISABLE = 0x0,
 	CV2X_MODE_MDM,
@@ -422,8 +439,12 @@ struct ethqos_emac_driver_data {
 };
 
 struct ethqos_io_macro {
+	unsigned int prg_rclk_dly;
+	u32 usr_ctl;
+	bool usr_ctl_set;
 	bool rx_prog_swap;
 	bool rx_dll_bypass;
+	bool clear_cdt_ext_en;
 };
 
 struct ethqos_extra_dma_stats {
@@ -537,7 +558,6 @@ struct qcom_ethqos {
 
 	unsigned int emac_phy_off_suspend;
 	int loopback_speed;
-	enum loopback_mode current_loopback;
 	enum phy_power_mode current_phy_mode;
 	enum current_phy_state phy_state;
 	/*Backup variable for phy loopback*/
@@ -560,6 +580,10 @@ struct qcom_ethqos {
 	unsigned char cv2x_dev_addr[ETH_ALEN];
 
 	struct ethqos_extra_dma_stats xstats;
+	struct notifier_block qti_nb;
+	/* SSR over ethernet parameters */
+	struct work_struct eth_ssr;
+	unsigned long action;
 };
 
 struct pps_cfg {

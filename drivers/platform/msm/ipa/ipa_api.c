@@ -126,7 +126,7 @@ const char *ipa_clients_strings[IPA_CLIENT_MAX] = {
 	__stringify(IPA_CLIENT_WLAN1_CONS),
 	__stringify(IPA_CLIENT_WLAN2_PROD),
 	__stringify(IPA_CLIENT_WLAN2_CONS),
-	__stringify(RESERVED_PROD_14),
+	__stringify(IPA_CLIENT_WLAN3_PROD),
 	__stringify(IPA_CLIENT_WLAN3_CONS),
 	__stringify(RESERVED_PROD_16),
 	__stringify(IPA_CLIENT_WLAN4_CONS),
@@ -226,6 +226,10 @@ const char *ipa_clients_strings[IPA_CLIENT_MAX] = {
 	__stringify(IPA_CLIENT_MHI_QDSS_CONS),
 	__stringify(IPA_CLIENT_ETHERNET2_PROD),
 	__stringify(IPA_CLIENT_ETHERNET2_CONS),
+	__stringify(RESERVERD_PROD_114),
+	__stringify(IPA_CLIENT_WLAN2_CONS1),
+	__stringify(IPA_CLIENT_RTK_ETHERNET_PROD),
+	__stringify(IPA_CLIENT_RTK_ETHERNET_CONS),
 };
 
 /**
@@ -3131,6 +3135,26 @@ const char *ipa_get_version_string(enum ipa_hw_type ver)
 }
 EXPORT_SYMBOL(ipa_get_version_string);
 
+/**
+ * ipa_get_default_aggr_time_limit() - provide default aggregation
+ * timeout for a supported client.
+ * @client: client type - currently USB is supported.
+ *
+ * Return value: 0 on Success, Negative on failure.
+ */
+int ipa_get_default_aggr_time_limit(enum ipa_client_type client,
+	u32 *default_aggr_time_limit)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_get_default_aggr_time_limit,
+		client, default_aggr_time_limit);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_get_default_aggr_time_limit);
+
+
 static const struct of_device_id ipa_plat_drv_match[] = {
 	{ .compatible = "qcom,ipa", },
 	{ .compatible = "qcom,ipa-smmu-ap-cb", },
@@ -3565,12 +3589,13 @@ int ipa_conn_wdi_pipes(struct ipa_wdi_conn_in_params *in,
 /**
  * ipa_disconn_wdi_pipes() - disconnect wdi pipes
  */
-int ipa_disconn_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
+int ipa_disconn_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1)
 {
 	int ret;
 
 	IPA_API_DISPATCH_RETURN(ipa_disconn_wdi_pipes, ipa_ep_idx_tx,
-		ipa_ep_idx_rx);
+		ipa_ep_idx_rx, ipa_ep_idx_tx1);
 
 	return ret;
 }
@@ -3578,12 +3603,13 @@ int ipa_disconn_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
 /**
  * ipa_enable_wdi_pipes() - enable wdi pipes
  */
-int ipa_enable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
+int ipa_enable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1)
 {
 	int ret;
 
 	IPA_API_DISPATCH_RETURN(ipa_enable_wdi_pipes, ipa_ep_idx_tx,
-		ipa_ep_idx_rx);
+		ipa_ep_idx_rx, ipa_ep_idx_tx1);
 
 	return ret;
 }
@@ -3591,16 +3617,16 @@ int ipa_enable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
 /**
  * ipa_disable_wdi_pipes() - disable wdi pipes
  */
-int ipa_disable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx)
+int ipa_disable_wdi_pipes(int ipa_ep_idx_tx, int ipa_ep_idx_rx,
+	int ipa_ep_idx_tx1)
 {
 	int ret;
 
 	IPA_API_DISPATCH_RETURN(ipa_disable_wdi_pipes, ipa_ep_idx_tx,
-		ipa_ep_idx_rx);
+		ipa_ep_idx_rx, ipa_ep_idx_tx1);
 
 	return ret;
 }
-
 
 /**
  * ipa_add_socksv5_conn()- Add socksv5 entry in IPA
@@ -3930,6 +3956,104 @@ static pci_ers_result_t ipa_pci_io_slot_reset(struct pci_dev *pci_dev)
 static void ipa_pci_io_resume(struct pci_dev *pci_dev)
 {
 }
+
+int ipa_eth_rtk_connect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_rtk_connect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_rtk_connect);
+
+int ipa_eth_aqc_connect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_aqc_connect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_aqc_connect);
+
+int ipa_eth_emac_connect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_emac_connect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_emac_connect);
+
+int ipa_eth_rtk_disconnect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_rtk_disconnect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_rtk_disconnect);
+
+int ipa_eth_aqc_disconnect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_aqc_disconnect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_aqc_disconnect);
+
+int ipa_eth_emac_disconnect(
+	struct ipa_eth_client_pipe_info *pipe,
+	enum ipa_client_type client_type)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_emac_disconnect, pipe,
+		client_type);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_emac_disconnect);
+
+int ipa_eth_client_conn_evt(struct ipa_ecm_msg *msg)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_client_conn_evt, msg);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_client_conn_evt);
+
+int ipa_eth_client_disconn_evt(struct ipa_ecm_msg *msg)
+{
+	int ret;
+
+	IPA_API_DISPATCH_RETURN(ipa_eth_client_disconn_evt, msg);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_eth_client_disconn_evt);
 
 static int __init ipa_module_init(void)
 {

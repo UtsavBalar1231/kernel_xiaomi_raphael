@@ -3013,7 +3013,7 @@
 			hs1_i2s_data0_sleep: hs1_i2s_data0_sleep {
 				mux {
 					pins = "gpio158";
-					function = "sleep";
+					function = "gpio";
 				};
 
 				config {
@@ -3631,12 +3631,38 @@
 
 		usb2phy_ac_en2_default: usb2phy_ac_en2_default {
 			mux {
+				pins = "gpio47";
+				function = "usb2phy_ac";
+			};
+
+			config {
+				pins = "gpio47";
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		usb2phy_ac_en3_default: usb2phy_ac_en3_default {
+			mux {
 				pins = "gpio123";
 				function = "usb2phy_ac";
 			};
 
 			config {
 				pins = "gpio123";
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		usb2phy_ac_en4_default: usb2phy_ac_en4_default {
+			mux {
+				pins = "gpio48";
+				function = "usb2phy_ac";
+			};
+
+			config {
+				pins = "gpio48";
 				drive-strength = <2>;
 				bias-disable;
 			};

@@ -43,7 +43,7 @@
 		mpss_adsp_mem: mpss_adsp_region@90800000 {
 			compatible = "removed-dma-pool";
 			no-map;
-			reg = <0x90800000 0xd800000>;
+			reg = <0x90800000 0xf800000>;
 			label = "mpss_adsp_mem";
 		};
 
@@ -69,6 +69,12 @@
 			no-map;
 			reg = <0x8fd00000 0x140000>;
 			label = "peripheral2_mem";
+		};
+
+		ipa_fw_mem: ipa_fw_region@8fced000 {
+			no-map;
+			reg = <0x8fced000 0x10000>;
+			label = "ipa_fw_mem";
 		};
 
 		secdata_mem: secdata_region@8fcfd000 {
@@ -562,8 +568,13 @@
 		qcom,msm-bus,name = "ipa";
 		qcom,ipa-wdi2_over_gsi;
 		qcom,ipa-endp-delay-wa;
+		qcom,ipa-wdi3-holb-2g = <8>;
+		qcom,ipa-wdi3-holb-5g = <15>;
 		qcom,msm-bus,num-cases = <5>;
 		qcom,msm-bus,num-paths = <5>;
+		qcom,wan-aggr-time-limit = <200>;
+		qcom,lan-aggr-time-limit = <200>;
+		qcom,rndis-aggr-time-limit = <200>;
 		qcom,msm-bus,vectors-KBps =
 		/* No vote */
 		<MSM_BUS_MASTER_IPA MSM_BUS_SLAVE_SNOC_MEM_NOC_GC 0 0>,
@@ -624,6 +635,7 @@
 		ipa_smmu_wlan: ipa_smmu_wlan {
 			compatible = "qcom,ipa-smmu-wlan-cb";
 			iommus = <&apps_smmu 0x5E1 0x0>;
+			qcom,iova-mapping = <0x60000000 0x10000000>;
 		};
 
 		ipa_smmu_uc: ipa_smmu_uc {
@@ -1046,20 +1058,20 @@
 
 	cpubw: qcom,cpubw {
 		compatible = "qcom,devbw";
-		governor = "performance";
+		governor = "cpufreq";
 		qcom,src-dst-ports = <1 512>;
 		qcom,active-only;
 		operating-points-v2 = <&ddr_bw_opp_table>;
 	};
 
-	devfreq_compute: qcom,devfreq-compute {
-		compatible = "qcom,arm-cpu-mon";
-		qcom,cpulist = <&CPU0>;
-		qcom,target-dev = <&cpubw>;
-		qcom,core-dev-table =
+	devfreq-cpufreq {
+		cpubw-cpufreq {
+			target-dev = <&cpubw>;
+			cpu-to-dev-map =
 				<  576000 MHZ_TO_MBPS( 300, 4) >,
 				< 1497600 MHZ_TO_MBPS(1017, 4) >,
 				< 1555200 MHZ_TO_MBPS(1804, 4)>;
+		};
 	};
 
 	cnss_qca6390: qcom,cnss-qca6390@a0000000 {
@@ -1542,7 +1554,11 @@
 			compatible = "qcom,emac-smmu-embedded";
 			iommus = <&apps_smmu 0x1c0 0xf>;
 			qcom,iova-mapping = <0x80000000 0x40000000>;
+			qcom,smmu-fastmap;
 			qcom,smmu-geometry;
+		};
+		io-macro-info {
+			prg-rclk-dly = <1500>;
 		};
 	};
 

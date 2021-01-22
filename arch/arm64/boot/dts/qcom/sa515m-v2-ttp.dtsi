@@ -506,3 +506,16 @@
 		qcom,asm330_hrtimer;
 	};
 };
+
+&ipa_hw {
+	qcom,ipa-config-is-sa;
+};
+
+&soc {
+	qcom,msm-imem@1468F000 {
+		dload_type@18 {
+			compatible = "qcom,msm-imem-dload-type";
+			reg = <0x18 0x4>;
+		};
+	};
+};

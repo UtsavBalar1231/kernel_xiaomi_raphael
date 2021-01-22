@@ -10,8 +10,6 @@
  * GNU General Public License for more details.
  */
 
-#include "qcs405.dtsi"
-
 &tlmm {
 	pinctrl-0 = <&status_gpio>;
 	pinctrl-names = "default";
@@ -213,12 +211,52 @@
 	qcom,ignore-wakeup-src-in-hostmode;
 };
 
+&usb2_phy1 {
+	qcom,snps-hs-phy-init-seq =
+		<0xc0 0x01 0>,
+		<0xe8 0x0d 0>,
+		<0x74 0x12 0>,
+		<0x98 0x65 0>, /* Compdistune0 set to 0x5 */
+		<0x9c 0xcc 0>, /* Pre-emph set to 0x3, Txvreftune set to 0xc */
+		<0xa0 0x1d 0>,
+		<0xa4 0x03 0>,
+		<0x8c 0x23 0>,
+		<0x78 0x08 0>,
+		<0x7c 0xdc 0>,
+		<0x90 0xe0 20>,
+		<0x74 0x10 0>,
+		<0x90 0x60 0>,
+		<0xffffffff 0xffffffff 0>;
+};
+
+&usb_ss_phy {
+	qcom,vdd-voltage-level = <0 1100000 1100000>;
+};
+
 &usb3_extcon {
 	id-gpio = <&tlmm 113 GPIO_ACTIVE_HIGH>;
 };
 
 &usb2s {
 	extcon = <&usb2_extcon>;
+};
+
+&usb2_phy0 {
+	qcom,snps-hs-phy-init-seq =
+		<0xc0 0x01 0>,
+		<0xe8 0x0d 0>,
+		<0x74 0x12 0>,
+		<0x98 0x63 0>,
+		<0x9c 0x88 0>, /* Pre-emph set to 0x2, Txvreftune set to 0x8 */
+		<0xa0 0x1d 0>,
+		<0xa4 0x03 0>,
+		<0x8c 0x23 0>,
+		<0x78 0x08 0>,
+		<0x7c 0xdc 0>,
+		<0x90 0xe0 20>,
+		<0x74 0x10 0>,
+		<0x90 0x60 0>,
+		<0xffffffff 0xffffffff 0>;
 };
 
 &ethqos_hw {
@@ -236,6 +274,13 @@
 		"dev-emac-rgmii_rxc_state", "dev-emac-rgmii_rx_ctl_state",
 		"dev-emac-phy_intr", "dev-emac-phy_reset_state";
 	pinctrl-15 = <&emac_phy_reset_state>;
+
+	io-macro-info {
+	    prg-rclk-dly = <1500>;
+	    rx-prog-swap;
+	    clear-cdr-ext-en;
+	    sdcc-usr-ctl = <0x00>;
+	};
 };
 
 &emac_hw {
@@ -262,6 +307,8 @@
 
 	perst-gpio = <&tlmm 107 0>;
 	wake-gpio = <&tlmm 115 0>;
+	/delete-property/ qcom,no-l0s-supported;
+	/delete-property/ qcom,no-l1-supported;
 };
 
 &sdhc_2 {

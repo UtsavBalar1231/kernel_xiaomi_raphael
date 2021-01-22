@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -668,7 +668,8 @@ static netdev_tx_t ecm_ipa_start_xmit
 
 fail_tx_packet:
 out:
-	resource_release(ecm_ipa_ctx);
+	if (atomic_read(&ecm_ipa_ctx->outstanding_pkts) == 0)
+		resource_release(ecm_ipa_ctx);
 resource_busy:
 	return status;
 }
@@ -699,13 +700,21 @@ static void ecm_ipa_packet_receive_notify
 	packet_len = skb->len;
 	ECM_IPA_DEBUG("packet RX, len=%d\n", skb->len);
 
+	if (unlikely(ecm_ipa_ctx == NULL)) {
+		ECM_IPA_DEBUG("Private context is NULL. Drop SKB.\n");
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
 	if (unlikely(ecm_ipa_ctx->state != ECM_IPA_CONNECTED_AND_UP)) {
 		ECM_IPA_DEBUG("Missing pipe connected and/or iface up\n");
+		dev_kfree_skb_any(skb);
 		return;
 	}
 
 	if (evt != IPA_RECEIVE)	{
 		ECM_IPA_ERROR("A none IPA_RECEIVE event in ecm_ipa_receive\n");
+		dev_kfree_skb_any(skb);
 		return;
 	}
 
@@ -868,7 +877,9 @@ void ecm_ipa_cleanup(void *priv)
 	ecm_ipa_rules_destroy(ecm_ipa_ctx);
 	ecm_ipa_debugfs_destroy(ecm_ipa_ctx);
 
+	ECM_IPA_DEBUG("ECM_IPA unregister_netdev started\n");
 	unregister_netdev(ecm_ipa_ctx->net);
+	ECM_IPA_DEBUG("ECM_IPA unregister_netdev completed\n");
 	free_netdev(ecm_ipa_ctx->net);
 
 	ECM_IPA_INFO("ECM_IPA was destroyed successfully\n");
@@ -1331,6 +1342,9 @@ static void ecm_ipa_tx_complete_notify
 			ecm_ipa_ctx->outstanding_low);
 		netif_wake_queue(ecm_ipa_ctx->net);
 	}
+
+	if (atomic_read(&ecm_ipa_ctx->outstanding_pkts) == 0)
+		resource_release(ecm_ipa_ctx);
 
 out:
 	dev_kfree_skb_any(skb);

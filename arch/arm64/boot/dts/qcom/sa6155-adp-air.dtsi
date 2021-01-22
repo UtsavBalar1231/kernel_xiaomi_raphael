@@ -53,6 +53,7 @@
 		pinctrl-0 = <&ss5_pwr_ctrl_rst_on>;
 		ssVreset-gpio = <&tlmm 87 1>;
 		ssVonoff-gpio = <&tlmm 18 1>;
+		ssVboot-gpio = <&tlmm 21 1>;
 	};
 
 	hsi2s: qcom,hsi2s {
@@ -288,6 +289,9 @@
 
 &usb0 {
 	qcom,ignore-wakeup-src-in-hostmode;
+	dwc3@a600000 {
+		snps,dis_u3_susphy_quirk;
+	};
 };
 
 &usb1 {

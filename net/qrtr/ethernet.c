@@ -30,6 +30,7 @@ struct qrtr_ethernet_dl_buf {
 	size_t saved;
 	size_t needed;
 	size_t pkt_len;
+	size_t head_required;
 };
 
 struct qrtr_ethernet_dev {
@@ -45,6 +46,9 @@ struct qrtr_ethernet_dev {
 	struct kthread_worker kworker;
 	struct task_struct *task;
 	struct kthread_work send_data;
+	struct kthread_work link_event;
+	struct list_head event_q;
+	spinlock_t event_lock;			/* lock to protect events */
 
 	struct qrtr_ethernet_dl_buf dlbuf;
 };
@@ -53,6 +57,11 @@ struct qrtr_ethernet_pkt {
 	struct list_head node;
 	struct sk_buff *skb;
 	struct kref refcount;
+};
+
+struct qrtr_event_t {
+	struct list_head list;
+	int event;
 };
 
 /* Buffer to parse packets from ethernet adaption layer to qrtr */
@@ -65,11 +74,6 @@ static void qrtr_ethernet_link_up(void)
 	struct qrtr_ethernet_dev *qdev = qrtr_ethernet_device_endpoint;
 	int rc;
 
-	if (!qdev) {
-		pr_err("%s: qrtr ep dev ptr not found\n", __func__);
-		return;
-	}
-
 	atomic_set(&qdev->in_reset, 0);
 
 	mutex_lock(&qdev->dlbuf.buf_lock);
@@ -77,6 +81,7 @@ static void qrtr_ethernet_link_up(void)
 	qdev->dlbuf.saved = 0;
 	qdev->dlbuf.needed = 0;
 	qdev->dlbuf.pkt_len = 0;
+	qdev->dlbuf.head_required = 0;
 	mutex_unlock(&qdev->dlbuf.buf_lock);
 
 	rc = qrtr_endpoint_register(&qdev->ep, qdev->net_id, qdev->rt);
@@ -93,7 +98,6 @@ static void qrtr_ethernet_link_down(void)
 	atomic_inc(&qdev->in_reset);
 
 	kthread_flush_work(&qdev->send_data);
-
 	mutex_lock(&qdev->dlbuf.buf_lock);
 	memset(qdev->dlbuf.buf, 0, MAX_BUFSIZE);
 	qdev->dlbuf.saved = 0;
@@ -102,6 +106,68 @@ static void qrtr_ethernet_link_down(void)
 	mutex_unlock(&qdev->dlbuf.buf_lock);
 
 	qrtr_endpoint_unregister(&qdev->ep);
+}
+
+static void eth_event_handler(struct kthread_work *work)
+{
+	struct qrtr_ethernet_dev *qdev = container_of(work,
+						      struct qrtr_ethernet_dev,
+						      link_event);
+	struct qrtr_event_t *entry = NULL;
+	unsigned long flags;
+
+	if (!qdev) {
+		pr_err("%s: qrtr ep dev ptr not found\n", __func__);
+		return;
+	}
+
+	spin_lock_irqsave(&qdev->event_lock, flags);
+	entry = list_first_entry(&qdev->event_q, struct qrtr_event_t, list);
+	spin_unlock_irqrestore(&qdev->event_lock, flags);
+	if (!entry)
+		return;
+
+	switch (entry->event) {
+	case NETDEV_UP:
+		pr_info("qrtr:%s link up event\n", __func__);
+		qrtr_ethernet_link_up();
+		break;
+	case NETDEV_DOWN:
+		pr_info("qrtr:%s link down event\n", __func__);
+		qrtr_ethernet_link_down();
+		break;
+	default:
+		pr_err("qrtr:%s Unknown event: %d\n", __func__, entry->event);
+		break;
+	}
+	spin_lock_irqsave(&qdev->event_lock, flags);
+	list_del(&entry->list);
+	kfree(entry);
+	spin_unlock_irqrestore(&qdev->event_lock, flags);
+}
+
+static void qrtr_queue_eth_event(unsigned int event)
+{
+	struct qrtr_ethernet_dev *qdev = qrtr_ethernet_device_endpoint;
+	struct qrtr_event_t *entry = NULL;
+	unsigned long flags;
+
+	if (!qdev) {
+		pr_err("qrtr:%s: ep dev ptr not found\n", __func__);
+		return;
+	}
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (!entry)
+		return;
+
+	entry->event = event;
+	INIT_LIST_HEAD(&entry->list);
+	spin_lock_irqsave(&qdev->event_lock, flags);
+	list_add_tail(&entry->list, &qdev->event_q);
+	spin_unlock_irqrestore(&qdev->event_lock, flags);
+
+	kthread_queue_work(&qdev->kworker, &qdev->link_event);
 }
 
 /**
@@ -115,12 +181,7 @@ static void qrtr_ethernet_link_down(void)
  */
 void qcom_ethernet_qrtr_status_cb(unsigned int event)
 {
-	if (event == NETDEV_UP)
-		qrtr_ethernet_link_up();
-	else if (event == NETDEV_DOWN)
-		qrtr_ethernet_link_down();
-	else
-		pr_err("%s: Unknown state: %d\n", __func__, event);
+	qrtr_queue_eth_event(event);
 }
 EXPORT_SYMBOL(qcom_ethernet_qrtr_status_cb);
 
@@ -143,7 +204,9 @@ void qcom_ethernet_qrtr_dl_cb(struct eth_adapt_result *eth_res)
 	struct qrtr_ethernet_dev *qdev = qrtr_ethernet_device_endpoint;
 	struct qrtr_ethernet_dl_buf *dlbuf;
 	size_t pkt_len, len;
+	size_t min_head_req;
 	void *src;
+	void *nw_buf = NULL;
 	int rc;
 
 	if (!eth_res)
@@ -203,6 +266,51 @@ void qcom_ethernet_qrtr_dl_cb(struct eth_adapt_result *eth_res)
 				break;
 			}
 		} else {
+			/**
+			 * If we haven't received partial header then check the
+			 * minimum header size required to find the packet size
+			 */
+			if (!dlbuf->head_required) {
+				min_head_req = qrtr_get_header_size(src);
+				if ((int)min_head_req < 0) {
+					dev_err(qdev->dev,
+						"Invalid header %zu\n",
+						min_head_req);
+					break;
+				}
+				/* handle partial header received case */
+				if (len < min_head_req) {
+					dlbuf->saved = len;
+					dlbuf->head_required =
+						min_head_req - len;
+					memcpy(dlbuf->buf, src, dlbuf->saved);
+					break;
+				}
+			} else {
+				if (len >= dlbuf->head_required) {
+					/* Received full header + some data */
+					nw_buf = kzalloc((len + dlbuf->saved),
+							 GFP_KERNEL);
+					if (!nw_buf)
+						goto exit;
+
+					memcpy(nw_buf, dlbuf->buf,
+					       dlbuf->saved);
+					memcpy((nw_buf + dlbuf->saved),
+					       src, len);
+					len += dlbuf->saved;
+					src = nw_buf;
+					dlbuf->head_required = 0;
+				} else {
+					/* still waiting for full header */
+					memcpy((dlbuf->buf + dlbuf->saved),
+					       src, len);
+					dlbuf->saved += len;
+					dlbuf->head_required -= len;
+					break;
+				}
+			}
+
 			pkt_len = qrtr_peek_pkt_size(src);
 			if ((int)pkt_len < 0) {
 				dev_err(qdev->dev,
@@ -246,6 +354,7 @@ void qcom_ethernet_qrtr_dl_cb(struct eth_adapt_result *eth_res)
 		}
 	}
 exit:
+	kfree(nw_buf);
 	mutex_unlock(&dlbuf->buf_lock);
 }
 EXPORT_SYMBOL(qcom_ethernet_qrtr_dl_cb);
@@ -313,6 +422,12 @@ static int qcom_ethernet_qrtr_send(struct qrtr_endpoint *ep,
 		return rc;
 	}
 
+	if (atomic_read(&qdev->in_reset) > 0) {
+		kfree_skb(skb);
+		dev_err(qdev->dev, "%s: link in reset\n", __func__);
+		return -ECONNRESET;
+	}
+
 	pkt = kzalloc(sizeof(*pkt), GFP_ATOMIC);
 	if (!pkt) {
 		kfree_skb(skb);
@@ -321,9 +436,9 @@ static int qcom_ethernet_qrtr_send(struct qrtr_endpoint *ep,
 	}
 
 	pkt->skb = skb;
-
 	kref_init(&pkt->refcount);
-	kref_get(&pkt->refcount);
+	if (skb->sk)
+		sock_hold(skb->sk);
 
 	spin_lock_irqsave(&qdev->ul_lock, flags);
 	list_add_tail(&pkt->node, &qdev->ul_pkts);
@@ -354,8 +469,8 @@ void qcom_ethernet_init_cb(struct qrtr_ethernet_cb_info *cbinfo)
 		return;
 	}
 
+	pr_info("qrtr:%s link up event\n", __func__);
 	qdev->cb_info = cbinfo;
-
 	qrtr_ethernet_link_up();
 }
 EXPORT_SYMBOL(qcom_ethernet_init_cb);
@@ -387,7 +502,9 @@ static int qcom_ethernet_qrtr_probe(struct platform_device *pdev)
 	atomic_set(&qdev->in_reset, 0);
 
 	INIT_LIST_HEAD(&qdev->ul_pkts);
+	INIT_LIST_HEAD(&qdev->event_q);
 	spin_lock_init(&qdev->ul_lock);
+	spin_lock_init(&qdev->event_lock);
 
 	rc = of_property_read_u32(node, "qcom,net-id", &qdev->net_id);
 	if (rc < 0)
@@ -396,10 +513,12 @@ static int qcom_ethernet_qrtr_probe(struct platform_device *pdev)
 	qdev->rt = of_property_read_bool(node, "qcom,low-latency");
 
 	kthread_init_work(&qdev->send_data, eth_tx_data);
+	kthread_init_work(&qdev->link_event, eth_event_handler);
 	kthread_init_worker(&qdev->kworker);
 	qdev->task = kthread_run(kthread_worker_fn, &qdev->kworker, "eth_tx");
 	if (IS_ERR(qdev->task)) {
 		dev_err(qdev->dev, "%s: Error starting eth_tx\n", __func__);
+		kfree(qdev->dlbuf.buf);
 		kfree(qdev);
 		return PTR_ERR(qdev->task);
 	}
@@ -417,7 +536,7 @@ static int qcom_ethernet_qrtr_remove(struct platform_device *pdev)
 	struct qrtr_ethernet_dev *qdev = dev_get_drvdata(&pdev->dev);
 
 	kthread_cancel_work_sync(&qdev->send_data);
-
+	kthread_cancel_work_sync(&qdev->link_event);
 	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;

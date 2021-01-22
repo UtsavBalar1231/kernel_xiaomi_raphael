@@ -96,6 +96,11 @@
 
 };
 
+&emac_hw{
+	qcom,phyvoltage_min = <3300000>;
+	qcom,phyvoltage_max = <3300000>;
+};
+
 &fsa_usbc_ana_en {
 	mux {
 		pins = "gpio66";

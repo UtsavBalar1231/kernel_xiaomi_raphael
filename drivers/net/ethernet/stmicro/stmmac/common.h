@@ -438,6 +438,7 @@ struct stmmac_dma_ops {
 	void (*init_tx_chan)(void __iomem *ioaddr,
 			     struct stmmac_dma_cfg *dma_cfg,
 			     u32 dma_tx_phy, u32 chan);
+	void (*set_rx_buff)(void __iomem *ioaddr, u32 buff_size, u32 chan);
 	/* Configure the AXI Bus Mode Register */
 	void (*axi)(void __iomem *ioaddr, struct stmmac_axi *axi);
 	/* Dump DMA registers */
@@ -460,6 +461,10 @@ struct stmmac_dma_ops {
 	void (*stop_tx)(void __iomem *ioaddr, u32 chan);
 	void (*start_rx)(void __iomem *ioaddr, u32 chan);
 	void (*stop_rx)(void __iomem *ioaddr, u32 chan);
+	void (*start_tx_chan)(void __iomem *ioaddr, u32 chan);
+	void (*stop_tx_chan)(void __iomem *ioaddr, u32 chan);
+	void (*start_rx_chan)(void __iomem *ioaddr, u32 chan);
+	void (*stop_rx_chan)(void __iomem *ioaddr, u32 chan);
 	int (*dma_interrupt) (void __iomem *ioaddr,
 			      struct stmmac_extra_stats *x, u32 chan);
 	/* If supported then get the optional core features */

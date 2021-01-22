@@ -111,6 +111,8 @@ static void diag_bridge_delete(struct kref *kref)
 	usb_kill_anchored_urbs(&dev->submitted);
 	usb_put_intf(ifc);
 	dev->ifc = NULL;
+	dev->in_epAddr = 0;
+	dev->out_epAddr = 0;
 	usb_put_dev(dev->udev);
 }
 
@@ -387,7 +389,7 @@ static ssize_t diag_read_stats(struct file *file, char __user *ubuf,
 				size_t count, loff_t *ppos)
 {
 	char			*buf;
-	int			i, ret = 0;
+	int			i, ret, temp = 0;
 
 	buf = kzalloc(sizeof(char) * DEBUG_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -396,8 +398,8 @@ static ssize_t diag_read_stats(struct file *file, char __user *ubuf,
 	for (i = 0; i < MAX_DIAG_BRIDGE_DEVS; i++) {
 		struct diag_bridge *dev = __dev[i];
 
-		ret += scnprintf(buf, DEBUG_BUF_SIZE,
-				"epin:%d, epout:%d\n"
+		temp += scnprintf(buf + temp, DEBUG_BUF_SIZE - temp,
+				"\nepin:%d, epout:%d\n"
 				"bytes to host: %lu\n"
 				"bytes to mdm: %lu\n"
 				"pending reads: %u\n"
@@ -411,7 +413,7 @@ static ssize_t diag_read_stats(struct file *file, char __user *ubuf,
 				dev->err);
 	}
 
-	ret = simple_read_from_buffer(ubuf, count, ppos, buf, ret);
+	ret = simple_read_from_buffer(ubuf, count, ppos, buf, temp);
 	kfree(buf);
 	return ret;
 }
@@ -448,8 +450,10 @@ static void diag_bridge_debugfs_init(void)
 		return;
 
 	dfile = debugfs_create_file("status", 0444, dent, 0, &diag_stats_ops);
-	if (!dfile || IS_ERR(dfile))
-		debugfs_remove(dent);
+	if (!dfile || IS_ERR(dfile)) {
+		debugfs_remove_recursive(dent);
+		dent = NULL;
+	}
 }
 
 static void diag_bridge_debugfs_cleanup(void)
@@ -495,7 +499,7 @@ diag_bridge_probe(struct usb_interface *ifc, const struct usb_device_id *id)
 	dev->id = devid;
 	dev->udev = usb_get_dev(udev);
 	dev->ifc = usb_get_intf(ifc);
-	kref_get(&dev->kref);
+	kref_init(&dev->kref);
 	init_usb_anchor(&dev->submitted);
 
 	ifc_desc = ifc->cur_altsetting;
@@ -588,8 +592,34 @@ static int diag_bridge_resume(struct usb_interface *ifc)
 static const struct usb_device_id diag_bridge_ids[] = {
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x901F, 0),
 	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x90EF, 4),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x90F0, 4),
+	.driver_info =  DEV_ID(0), },
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x90F3, 0),
-	.driver_info =	DEV_ID(0), },
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x90FD, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9102, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9103, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9104, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9105, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9106, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x9107, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x910A, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x910B, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x910C, 0),
+	.driver_info =  DEV_ID(0), },
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5c6, 0x910D, 0),
+	.driver_info =  DEV_ID(0), },
 
 	{} /* terminating entry */
 };

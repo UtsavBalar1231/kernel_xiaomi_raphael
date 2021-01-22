@@ -11,8 +11,14 @@
  */
 
 #include "sdxprairie-v2.dtsi"
-#include "sdxprairie-cpe-memory-map.dtsi"
 #include "sdxprairie-mtp.dtsi"
+
+/delete-node/ &pm8150b_fg;
+/delete-node/ &pm8150b_bcl;
+/delete-node/ &pm8150b_pdphy;
+/delete-node/ &pm8150b_charger;
+/delete-node/ &pm8150b_adc_tm;
+/delete-node/ &pm8150b_vadc;
 
 &qnand_1 {
 	status = "ok";
@@ -20,6 +26,35 @@
 
 &restart_pshold {
 	qcom,force-warm-reboot;
+};
+
+/* delete pm8150b nodes */
+&thermal_zones {
+	/delete-node/ pm8150b-wp-therm;
+	/delete-node/ pm8150b_tz;
+	/delete-node/ pm8150b-ibat-lvl0;
+	/delete-node/ pm8150b-ibat-lvl1;
+	/delete-node/ pm8150b-vbat-lvl0;
+	/delete-node/ pm8150b-vbat-lvl1;
+	/delete-node/ pm8150b-vbat-lvl2;
+	/delete-node/ pm8150b-bcl-lvl0;
+	/delete-node/ pm8150b-bcl-lvl1;
+	/delete-node/ pm8150b-bcl-lvl2;
+	/delete-node/ soc;
+};
+
+&usb {
+	extcon = <&vbus_detect>;
+	qcom,smmu-s1-bypass;
+};
+
+&spmi_bus {
+	/delete-node/ qcom,pm8150b@2;
+	/delete-node/ qcom,pm8150b@3;
+};
+
+&vbus_detect {
+	status = "ok";
 };
 
 &sdx_ext_ipc {
@@ -30,6 +65,10 @@
 	tavil_codec {
 		status = "disabled";
 	};
+};
+
+&blsp1_uart2b_hs {
+	status = "disabled";
 };
 
 &soc {
@@ -44,6 +83,7 @@
 
 &ipa_hw {
 	qcom,use-ipa-in-mhi-mode;
+	qcom,use-ipa-in-cpe-config;
 };
 
 &pcie0 {
@@ -52,10 +92,12 @@
 
 &pcie_ep {
 	status = "ok";
+	qcom,pcie-perst-enum;
 };
 
 &mhi_device {
 	status = "ok";
+	qcom,no-m0-timeout;
 };
 
 &mhi_net_device {

@@ -174,7 +174,7 @@
 /**
  * Max number of clients supported for mac based exception
  */
-#define IPA_MAX_NUM_MAC_FLT 5
+#define IPA_MAX_NUM_MAC_FLT 32
 
 /**
  * MAX number of the FLT_RT stats counter supported.
@@ -237,7 +237,7 @@
 /**
  * maximal number of NAT PDNs in the PDN config table
  */
-#define IPA_MAX_PDN_NUM 7
+#define IPA_MAX_PDN_NUM 16
 #define IPA_MAX_PDN_NUM_v4 5
 
 /**
@@ -272,7 +272,7 @@ enum ipa_client_type {
 	IPA_CLIENT_A5_WLAN_AMPDU_PROD		= 12,
 	IPA_CLIENT_WLAN2_CONS			= 13,
 
-	/* RESERVED PROD			= 14, */
+	IPA_CLIENT_WLAN3_PROD			= 14,
 	IPA_CLIENT_WLAN3_CONS			= 15,
 
 	/* RESERVED PROD			= 16, */
@@ -422,9 +422,15 @@ enum ipa_client_type {
 
 	IPA_CLIENT_ETHERNET2_PROD		= 112,
 	IPA_CLIENT_ETHERNET2_CONS		= 113,
+
+	/* RESERVERD PROD			= 114, */
+	IPA_CLIENT_WLAN2_CONS1			= 115,
+
+	IPA_CLIENT_RTK_ETHERNET_PROD = 116,
+	IPA_CLIENT_RTK_ETHERNET_CONS = 117,
 };
 
-#define IPA_CLIENT_MAX (IPA_CLIENT_ETHERNET2_CONS + 1)
+#define IPA_CLIENT_MAX (IPA_CLIENT_RTK_ETHERNET_CONS + 1)
 
 #define IPA_CLIENT_WLAN2_PROD IPA_CLIENT_A5_WLAN_AMPDU_PROD
 #define IPA_CLIENT_Q6_DL_NLO_DATA_PROD IPA_CLIENT_Q6_DL_NLO_DATA_PROD
@@ -447,6 +453,7 @@ enum ipa_client_type {
 #define IPA_CLIENT_MHI_PRIME_DPL_PROD IPA_CLIENT_MHI_PRIME_DPL_PROD
 #define IPA_CLIENT_MHI_QDSS_CONS IPA_CLIENT_MHI_QDSS_CONS
 #define IPA_CLIENT_QDSS_PROD IPA_CLIENT_QDSS_PROD
+
 
 #define IPA_CLIENT_IS_APPS_CONS(client) \
 	((client) == IPA_CLIENT_APPS_LAN_CONS || \
@@ -472,6 +479,7 @@ enum ipa_client_type {
 	((client) == IPA_CLIENT_WLAN1_CONS || \
 	(client) == IPA_CLIENT_WLAN2_CONS || \
 	(client) == IPA_CLIENT_WLAN3_CONS || \
+	(client) == IPA_CLIENT_WLAN2_CONS1 || \
 	(client) == IPA_CLIENT_WLAN4_CONS)
 
 #define IPA_CLIENT_IS_ODU_CONS(client) \
@@ -2294,7 +2302,7 @@ struct ipa_ioc_nat_pdn_entry {
  */
 struct ipa_ioc_vlan_iface_info {
 	char name[IPA_RESOURCE_NAME_MAX];
-	uint8_t vlan_id;
+	uint16_t vlan_id;
 };
 
 /**
@@ -2894,6 +2902,7 @@ struct ipa_odl_modem_config {
  * @u.passthrough_cfg.client_mac_addr: client mac for which passthough
  *	is enabled.
  * @u.passthrough_cfg.skip_nat: skip NAT processing.
+ * @default_pdn: bool to indicate the config is for default pdn.
  */
 struct ipa_ioc_pdn_config {
 	char dev_name[IPA_RESOURCE_NAME_MAX];
@@ -2913,6 +2922,7 @@ struct ipa_ioc_pdn_config {
 			uint8_t skip_nat;
 		} passthrough_cfg;
 	} u;
+	uint8_t default_pdn;
 };
 
 /**

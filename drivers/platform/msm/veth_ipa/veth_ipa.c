@@ -127,6 +127,8 @@ static const char * const IPA_OFFLOAD_EVENT_string[] = {
 	"EV_EMAC_DEINIT"
 };
 
+static bool veth_ipa_init_flag;
+
 
 /**
  * veth_ipa_offload_init() - Called from driver to initialize
@@ -1582,7 +1584,6 @@ static int veth_ipa_init(struct platform_device *pdev)
 		goto fail_netdev_priv;
 	}
 
-	veth_pdata_p = veth_ipa_pdata;
 
 	memset(veth_ipa_pdata, 0, sizeof(*veth_ipa_pdata));
 	VETH_IPA_DEBUG("veth_ipa_pdata; (private) = %pK\n", veth_ipa_pdata);
@@ -1634,8 +1635,10 @@ static int veth_ipa_init(struct platform_device *pdev)
 	mutex_init(&veth_ipa_pdata->prv_ipa.ipa_lock);
 	veth_ipa_pdata->prv_ipa.emac_init = false;
 	veth_ipa_pdata->veth_emac_mem.init_complete = false;
+	pr_info("VETH_IPA init flag set to false\n");
+	veth_ipa_init_flag = false;
 	VETH_IPA_STATE_DEBUG(veth_ipa_pdata);
-
+	veth_pdata_p = veth_ipa_pdata;
 	VETH_IPA_INFO("VETH_IPA was initialized successfully\n");
 
 
@@ -1714,6 +1717,8 @@ static int veth_ipa_open(struct net_device *net)
 		VETH_IPA_INFO("%s: Starting EMAC kthread\n", __func__);
 		veth_ipa_ctx->veth_emac_mem.init_complete = true;
 	}
+	veth_ipa_init_flag = true;
+	pr_info("VETH_IPA init flag set to true\n");
 	veth_ipa_offload_event_handler(veth_ipa_ctx, EV_DEV_OPEN);
 
 
@@ -1915,7 +1920,7 @@ static int veth_ipa_stop(struct net_device *net)
 
 	if (pdata->state == VETH_IPA_DOWN) {
 		VETH_IPA_ERROR("can't do network interface down without up\n");
-		return -EPERM;
+		return 0;
 	}
 
 	pdata->state = VETH_IPA_DOWN;
@@ -2251,6 +2256,7 @@ static int veth_ipa_remove(struct platform_device *pdev)
 		pr_err("%s: failed");
 		return ret;
 	}
+	habmm_socket_close(pdata->veth_emac_mem.vc_id);
 
 	veth_ipa_cleanup(pdata);
 	return 0;
@@ -2262,6 +2268,9 @@ static int veth_ipa_ap_suspend(struct device *dev)
 	int    ret = 0;
 	struct veth_ipa_dev *pdata = veth_pdata_p;
 
+	pr_info("VETH_IPA suspend init flag check\n");
+	if (!veth_ipa_init_flag)
+		return 0;
 
 	pr_info("%s: veth_global_pdata->state = %d\n",
 			__func__,
@@ -2279,6 +2288,10 @@ static int veth_ipa_ap_resume(struct device *dev)
 	struct veth_ipa_dev *pdata = veth_pdata_p;
 
 	pr_info("veth_ipa_ap_resume\n");
+	pr_info("VETH_IPA resume init flag check\n");
+
+	if (!veth_ipa_init_flag)
+		return 0;
 	pr_info("%s: veth_global_pdata->state = %d\n",
 			__func__,
 			veth_pdata_p->state);

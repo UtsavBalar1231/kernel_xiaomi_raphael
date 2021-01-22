@@ -2359,6 +2359,10 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 						    priv->plat->dma_cfg,
 						    rx_q->dma_rx_phy, chan);
 
+			priv->hw->dma->set_rx_buff(priv->ioaddr,
+						    priv->dma_buf_sz,
+						    chan);
+
 			rx_q->rx_tail_addr = rx_q->dma_rx_phy +
 				    (DMA_RX_SIZE * sizeof(struct dma_desc));
 			priv->hw->dma->set_rx_tail_ptr(priv->ioaddr,
@@ -2373,7 +2377,6 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 			priv->hw->dma->init_chan(priv->ioaddr,
 						 priv->plat->dma_cfg,
 						 chan);
-
 			priv->hw->dma->init_tx_chan(priv->ioaddr,
 						    priv->plat->dma_cfg,
 						    tx_q->dma_tx_phy, chan);
@@ -2746,6 +2749,27 @@ static void stmmac_hw_teardown(struct net_device *dev)
 	clk_disable_unprepare(priv->plat->clk_ptp_ref);
 }
 
+void stmmac_mac2mac_adjust_link(int speed, struct stmmac_priv *priv)
+{
+	u32 ctrl = readl_relaxed(priv->ioaddr + MAC_CTRL_REG);
+
+	ctrl &= ~priv->hw->link.speed_mask;
+
+	if (speed == SPEED_1000) {
+		ctrl |= priv->hw->link.speed1000;
+		priv->speed = SPEED_1000;
+	} else if (speed == SPEED_100) {
+		ctrl |= priv->hw->link.speed100;
+		priv->speed = SPEED_100;
+	} else {
+		ctrl |= priv->hw->link.speed10;
+		priv->speed = SPEED_10;
+	}
+
+	stmmac_hw_fix_mac_speed(priv);
+	writel_relaxed(ctrl, priv->ioaddr + MAC_CTRL_REG);
+}
+
 /**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
@@ -2852,23 +2876,9 @@ static int stmmac_open(struct net_device *dev)
 		ethqos_ipa_offload_event_handler(priv, EV_DEV_OPEN);
 
 	if (priv->plat->mac2mac_en) {
-		u32 ctrl = readl_relaxed(priv->ioaddr + MAC_CTRL_REG);
-
-		ctrl &= ~priv->hw->link.speed_mask;
-
-		if (priv->plat->mac2mac_rgmii_speed == SPEED_1000) {
-			ctrl |= priv->hw->link.speed1000;
-			priv->speed = SPEED_1000;
-		} else if (priv->plat->mac2mac_rgmii_speed == SPEED_100) {
-			ctrl |= priv->hw->link.speed100;
-			priv->speed = SPEED_100;
-		} else {
-			ctrl |= priv->hw->link.speed10;
-			priv->speed = SPEED_10;
-		}
-
-		stmmac_hw_fix_mac_speed(priv);
-		writel_relaxed(ctrl, priv->ioaddr + MAC_CTRL_REG);
+		stmmac_mac2mac_adjust_link(priv->plat->mac2mac_rgmii_speed,
+					   priv);
+		priv->plat->mac2mac_link = true;
 	}
 
 	return 0;
@@ -3501,7 +3511,6 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 	struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
 	int dirty = stmmac_rx_dirty(priv, queue);
 	unsigned int entry = rx_q->dirty_rx;
-
 	int bfsize = priv->dma_buf_sz;
 
 	while (dirty-- > 0) {
@@ -3536,22 +3545,23 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 				dev_kfree_skb(skb);
 				break;
 			}
-
-			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00)) {
-				p->des0 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
-				p->des1 = 0;
-			} else {
-				p->des2 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
-			}
-			if (priv->hw->mode->refill_desc3)
-				priv->hw->mode->refill_desc3(rx_q, p);
-
-			if (rx_q->rx_zeroc_thresh > 0)
-				rx_q->rx_zeroc_thresh--;
-
-			netif_dbg(priv, rx_status, priv->dev,
-				  "refill entry #%d\n", entry);
 		}
+
+		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00)) {
+			p->des0 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
+			p->des1 = 0;
+		} else {
+			p->des2 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
+		}
+		if (priv->hw->mode->refill_desc3)
+			priv->hw->mode->refill_desc3(rx_q, p);
+
+		if (rx_q->rx_zeroc_thresh > 0)
+			rx_q->rx_zeroc_thresh--;
+
+		netif_dbg(priv, rx_status, priv->dev,
+			  "refill entry #%d\n", entry);
+
 		dma_wmb();
 
 		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
@@ -3621,9 +3631,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 	int coe = priv->hw->rx_csum;
 	unsigned int next_entry = rx_q->cur_rx;
 	unsigned int count = 0;
-#ifndef CONFIG_ETH_IPA_OFFLOAD
 	unsigned int eth_type;
-#endif
 
 	if (netif_msg_rx_status(priv)) {
 		void *rx_head;
@@ -3798,13 +3806,13 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			stmmac_get_rx_hwtstamp(priv, p, np, skb);
 
 			stmmac_rx_vlan(priv->dev, skb);
-#ifndef CONFIG_ETH_IPA_OFFLOAD
-			eth_type = dwmac_qcom_get_eth_type(skb->data);
 
-			if (priv->current_loopback > 0 &&
-			    eth_type == ETH_P_IP)
-				swap_ip_port(skb, eth_type);
-#endif
+			if (priv->current_loopback > 0) {
+				eth_type = dwmac_qcom_get_eth_type(skb->data);
+				if (eth_type == ETH_P_IP)
+					swap_ip_port(skb, eth_type);
+			}
+
 			skb->protocol = eth_type_trans(skb, priv->dev);
 
 			if (unlikely(!coe))

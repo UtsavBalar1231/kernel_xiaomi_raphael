@@ -258,10 +258,24 @@ config ARCH_SDM429W
 	select MSM_QDSP6V2_CODECS
 	select MSM_AUDIO_QDSP6V2 if SND_SOC
 	select MSM_RPM_SMD
-	select PCI
 	select MSM_JTAG_MM if CORESIGHT_ETM
 	select MSM_RPM_LOG
 	select MSM_RPM_STATS_LOG
+
+config ARCH_SA515
+	bool "Enable support for SA515"
+	select CPU_V7
+	select HAVE_ARM_ARCH_TIMER
+	select MSM_CORTEX_A7
+	select PINCTRL
+	select PCI
+	select QCOM_SCM if SMP
+	select MSM_JTAG_MM if CORESIGHT_ETM
+	select PM_DEVFREQ
+	select COMMON_CLK
+	select COMMON_CLK_QCOM
+	select QCOM_GDSC
+	select GENERIC_CLOCKEVENTS_BROADCAST
 
 endmenu
 endif

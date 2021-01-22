@@ -301,6 +301,8 @@ static void qcom_usb_qrtr_disconnect(struct usb_interface *interface)
 	usb_put_intf(interface);
 	qdev->iface = NULL;
 	usb_put_dev(qdev->udev);
+	qdev->in_pipe = 0;
+	qdev->out_pipe = 0;
 	__qdev = NULL;
 }
 

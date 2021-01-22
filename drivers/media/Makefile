@@ -22,6 +22,7 @@ endif
 obj-$(CONFIG_VIDEO_DEV) += v4l2-core/
 obj-$(CONFIG_DVB_CORE)  += dvb-core/
 obj-$(CONFIG_VIDEO_DEV) += v4l2loopback-master/
+obj-$(CONFIG_VIDEO_DEV) += v4l2loopback-master_v2/
 
 # There are both core and drivers at RC subtree - merge before drivers
 obj-y += rc/

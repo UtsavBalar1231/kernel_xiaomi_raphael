@@ -265,9 +265,13 @@ static int msm_snps_phy_block_reset(struct msm_snps_hsphy *phy)
 static void msm_snps_hsphy_por(struct msm_snps_hsphy *phy)
 {
 	struct hsphy_reg_val *reg = NULL;
-	u32 aseq[20];
+	u32 aseq[100];
 	u32 *seq, tmp;
 
+	/*
+	 * Enter PHY init sequence in series of tuples (offset, val, delay).
+	 * Keep a (-1, -1, 0) to denote the end of the sequence.
+	 */
 	if (override_phy_init) {
 		dev_dbg(phy->phy.dev, "Override HS PHY Init:%s\n",
 							override_phy_init);

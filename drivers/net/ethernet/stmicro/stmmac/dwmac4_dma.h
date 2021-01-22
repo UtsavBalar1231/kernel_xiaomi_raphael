@@ -35,6 +35,8 @@
 #define DMA_BUS_MODE_PBL		BIT(16)
 #define DMA_BUS_MODE_PBL_SHIFT		16
 #define DMA_BUS_MODE_RPBL_SHIFT		16
+#define DMA_BUS_MODE_RBSZ4_SHIFT	4
+#define DMA_BUS_MODE_RBSZ3_SHIFT	3
 #define DMA_BUS_MODE_MB			BIT(14)
 #define DMA_BUS_MODE_FB			BIT(0)
 
@@ -192,6 +194,10 @@ void dwmac4_dma_start_tx(void __iomem *ioaddr, u32 chan);
 void dwmac4_dma_stop_tx(void __iomem *ioaddr, u32 chan);
 void dwmac4_dma_start_rx(void __iomem *ioaddr, u32 chan);
 void dwmac4_dma_stop_rx(void __iomem *ioaddr, u32 chan);
+void dwmac4_dma_start_tx_chan(void __iomem *ioaddr, u32 chan);
+void dwmac4_dma_stop_tx_chan(void __iomem *ioaddr, u32 chan);
+void dwmac4_dma_start_rx_chan(void __iomem *ioaddr, u32 chan);
+void dwmac4_dma_stop_rx_chan(void __iomem *ioaddr, u32 chan);
 int dwmac4_dma_interrupt(void __iomem *ioaddr,
 			 struct stmmac_extra_stats *x, u32 chan);
 void dwmac4_set_rx_ring_len(void __iomem *ioaddr, u32 len, u32 chan);

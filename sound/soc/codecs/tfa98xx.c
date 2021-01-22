@@ -21,6 +21,7 @@
 #include <linux/debugfs.h>
 #include <linux/version.h>
 #include <linux/input.h>
+#include <linux/regulator/driver.h>
 #include "config.h"
 #include "tfa98xx.h"
 #include "tfa.h"
@@ -3008,6 +3009,15 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 			return ret;
 	}
 
+	if (of_property_read_bool(np, "dvdd-supply")) {
+		tfa98xx->vdd = devm_regulator_get(&i2c->dev, "dvdd");
+		if (IS_ERR(tfa98xx->vdd))
+			return PTR_ERR(tfa98xx->vdd);
+		ret = regulator_enable(tfa98xx->vdd);
+		if (ret)
+			return ret;
+	}
+
 	/* Power up! */
 	tfa98xx_ext_reset(tfa98xx);
 
@@ -3198,6 +3208,9 @@ static int tfa98xx_i2c_remove(struct i2c_client *i2c)
 		tfa98xx_container = NULL;
 	}
 	mutex_unlock(&tfa98xx_mutex);
+
+	if (tfa98xx->vdd)
+		regulator_disable(tfa98xx->vdd);
 
 	return 0;
 }

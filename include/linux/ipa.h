@@ -377,18 +377,28 @@ struct ipa_ep_cfg_holb {
  * struct ipa_ep_cfg_deaggr - deaggregation configuration in IPA end-point
  * @deaggr_hdr_len: Deaggregation Header length in bytes. Valid only for Input
  *	Pipes, which are configured for 'Generic' deaggregation.
+ * @syspipe_err_detection - If set to 1, enables error detection for
+ *	de-aggregration. Valid only for Input Pipes, which are configured
+ *	for 'Generic' deaggregation.
+ *	Note: if this bit is set, de-aggregated frames must be contiguous
+ *	in memory.
  * @packet_offset_valid: - 0: PACKET_OFFSET is not used, 1: PACKET_OFFSET is
  *	used.
  * @packet_offset_location: Location of packet offset field, which specifies
  *	the offset to the packet from the start of the packet offset field.
+ * @ignore_min_pkt_err - Ignore packets smaller than header. This is intended
+ *	for use in RNDIS de-aggregated pipes, to silently ignore a redundant
+ *	1-byte trailer in MSFT implementation.
  * @max_packet_len: DEAGGR Max Packet Length in Bytes. A Packet with higher
  *	size wil be treated as an error. 0 - Packet Length is not Bound,
  *	IPA should not check for a Max Packet Length.
  */
 struct ipa_ep_cfg_deaggr {
 	u32 deaggr_hdr_len;
+	bool syspipe_err_detection;
 	bool packet_offset_valid;
 	u32 packet_offset_location;
+	bool ignore_min_pkt_err;
 	u32 max_packet_len;
 };
 
@@ -1033,13 +1043,34 @@ struct IpaHwRingStats_t {
 } __packed;
 
 /**
+* struct ipa_uc_dbg_rtk_ring_stats - uC dbg stats info for RTK
+* offloading protocol
+* @commStats: common stats
+* @trCount: transfer ring count
+* @erCount: event ring count
+* @totalAosCount: total AoS completion count
+* @busyTime: total busy time
+*/
+struct ipa_uc_dbg_rtk_ring_stats {
+	struct IpaHwRingStats_t commStats;
+	u32 trCount;
+	u32 erCount;
+	u32 totalAosCount;
+	u64 busyTime;
+} __packed;
+
+/**
  * struct ipa_uc_dbg_ring_stats - uC dbg stats info for each
  * offloading protocol
  * @ring: ring stats for each channel
  * @ch_num: number of ch supported for given protocol
  */
 struct ipa_uc_dbg_ring_stats {
-	struct IpaHwRingStats_t ring[IPA_MAX_CH_STATS_SUPPORTED];
+	union {
+		struct IpaHwRingStats_t ring[IPA_MAX_CH_STATS_SUPPORTED];
+		struct ipa_uc_dbg_rtk_ring_stats
+			rtk[IPA_MAX_CH_STATS_SUPPORTED];
+	} u;
 	u8 num_ch;
 };
 
@@ -1752,6 +1783,9 @@ int teth_bridge_connect(struct teth_bridge_connect_params *connect_params);
 void ipa_set_client(int index, enum ipacm_client_enum client, bool uplink);
 
 enum ipacm_client_enum ipa_get_client(int pipe_idx);
+
+int ipa_get_default_aggr_time_limit(enum ipa_client_type client,
+	u32 *default_aggr_time_limit);
 
 bool ipa_get_client_uplink(int pipe_idx);
 
@@ -2552,6 +2586,12 @@ static inline void ipa_set_client(int index, enum ipacm_client_enum client,
 }
 
 static inline enum ipacm_client_enum ipa_get_client(int pipe_idx)
+{
+	return -EPERM;
+}
+
+static inline int ipa_get_default_aggr_time_limit(enum ipa_client_type client,
+	u32 *default_aggr_time_limit)
 {
 	return -EPERM;
 }

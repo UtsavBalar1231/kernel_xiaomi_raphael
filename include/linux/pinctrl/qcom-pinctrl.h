@@ -1,4 +1,5 @@
-/* Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,6 +11,10 @@
  * GNU General Public License for more details.
  */
 
-&mpss_adsp_mem {
-	reg = <0x90800000 0xf800000>;
-};
+#ifndef __LINUX_PINCTRL_MSM_H__
+#define __LINUX_PINCTRL_MSM_H__
+
+/* API to write to mpm_wakeup registers */
+int msm_gpio_mpm_wake_set(unsigned int gpio, bool enable);
+
+#endif /* __LINUX_PINCTRL_MSM_H__ */

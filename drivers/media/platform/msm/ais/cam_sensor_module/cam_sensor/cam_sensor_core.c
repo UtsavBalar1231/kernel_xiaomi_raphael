@@ -19,6 +19,7 @@
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
 
+
 static int32_t cam_sensor_update_i2c_slave_info(
 	struct camera_io_master *io_master,
 	struct cam_sensor_i2c_slave_info *slave_info);
@@ -471,7 +472,7 @@ static void bridge_irq_work(struct work_struct *work)
 
 	/* Queue the event */
 	memset(&event, 0, sizeof(struct v4l2_event));
-	event.id = s_intr->gpio_array[0].gpio;
+	event.id = s_intr->gpio_idx;
 	event.type = AIS_SENSOR_EVENT_TYPE;
 	v4l2_event_queue(s_ctrl->v4l2_dev_str.sd.devnode, &event);
 
@@ -488,33 +489,55 @@ static irqreturn_t bridge_irq(int irq_num, void *dev)
 	return IRQ_HANDLED;
 }
 
+static int32_t cam_sensor_get_intr_gpio(int32_t *gpio_num,
+	struct cam_sensor_ctrl_t *s_ctrl, uint32_t idx)
+{
+	int32_t num = of_get_named_gpio(s_ctrl->soc_info.dev->of_node,
+		"sensor-intr-gpios", idx);
+
+	if (num < 0) {
+		CAM_ERR(CAM_SENSOR,
+				"sensor-intr-gpios not provided in device tree");
+		return -EINVAL;
+	}
+
+	if (gpio_num)
+		*gpio_num = num;
+
+	return 0;
+}
+
 static int32_t cam_sensor_init_gpio_intr(
 	struct ais_sensor_gpio_intr_config *gpio_intr_info,
 	struct cam_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0;
 	int32_t gpio_num = 0;
+	int32_t gpio_id = 0;
 	int32_t gpio_cfg0 = 0;
 	int32_t idx = 0;
 
 	for (idx = 0; idx < AIS_MAX_INTR_GPIO; idx++) {
 		if (!s_ctrl->s_intr[idx].work_inited &&
 			gpio_intr_info->gpio_num != -1) {
-			gpio_num = gpio_intr_info->gpio_num;
-
+			/* gpio_intr_info->gpio_num is gpio idx */
+			gpio_id = gpio_intr_info->gpio_num;
 			gpio_cfg0 = gpio_intr_info->gpio_cfg0;
 
 			s_ctrl->s_intr[idx].sctrl = s_ctrl;
 
-			s_ctrl->s_intr[idx].gpio_array[0].gpio = gpio_num;
-
 			INIT_WORK(&s_ctrl->s_intr[idx].irq_work,
 				bridge_irq_work);
 
-			rc = gpio_request_one(gpio_num,
-						GPIOF_DIR_IN, "camera_intr");
-
+			/* get the gpio num from devicetree,
+			 * don't use the passed gpio_num from userspace
+			 */
+			rc = cam_sensor_get_intr_gpio(&gpio_num,
+				s_ctrl, gpio_id);
 			if (!rc) {
+				s_ctrl->s_intr[idx].gpio_array[0].gpio =
+					gpio_num;
+				s_ctrl->s_intr[idx].gpio_idx = gpio_id;
 				rc = request_irq(gpio_to_irq(gpio_num),
 					bridge_irq,
 					IRQF_ONESHOT | gpio_cfg0,
@@ -539,7 +562,6 @@ static int32_t cam_sensor_init_gpio_intr(
 
 	return rc;
 }
-
 
 int32_t cam_handle_cmd_buffers_for_probe(void *cmd_buf,
 	struct cam_sensor_ctrl_t *s_ctrl,
@@ -1095,8 +1117,8 @@ free_probe_cmd:
 			i2c_read.reg_addr, &i2c_read.reg_data,
 			i2c_read.addr_type, i2c_read.data_type);
 		if (rc < 0) {
-			CAM_ERR(CAM_SENSOR, "Failed to read 0x%x:0x%x",
-				slave_info.slave_addr, i2c_read.reg_addr);
+			CAM_ERR(CAM_SENSOR, "Failed to read 0x%x:0x%x, rc = %d",
+				slave_info.slave_addr, i2c_read.reg_addr, rc);
 			(void)cam_sensor_restore_slave_info(s_ctrl);
 			goto release_mutex;
 		}
