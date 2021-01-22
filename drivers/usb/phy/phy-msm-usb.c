@@ -3016,7 +3016,7 @@ msm_otg_phy_drive_dp_pulse(struct msm_otg *motg, unsigned int pulse_width)
 
 	val = readb_relaxed(USB_PHY_CSR_PHY_UTMI_CTRL0);
 	val &= ~OP_MODE_MASK;
-	val |= (TERM_SEL | SLEEP_M | 0x2);
+	val |= (TERM_SEL | SLEEP_M | 0x20);
 	writeb_relaxed(val, USB_PHY_CSR_PHY_UTMI_CTRL0);
 
 	val = readb_relaxed(USB_PHY_CSR_PHY_CFG0);
