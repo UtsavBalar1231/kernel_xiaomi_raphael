@@ -587,9 +587,11 @@ static int _sde_connector_update_dirty_properties(
 	return 0;
 }
 
+extern bool is_dimlayer_hbm_enabled;
+bool last_dimlayer_hbm_enabled;
+bool last_dimlayer_status;
 void sde_connector_update_hbm(struct drm_connector *connector)
 {
-	static atomic_t effective_status = ATOMIC_INIT(false);
 	struct sde_crtc_state *cstate;
 	struct sde_connector *c_conn;
 	struct dsi_display *display;
@@ -612,14 +614,20 @@ void sde_connector_update_hbm(struct drm_connector *connector)
 
 	cstate = to_sde_crtc_state(c_conn->encoder->crtc->state);
 	status = cstate->fod_dim_layer != NULL;
-	if (atomic_xchg(&effective_status, status) == status)
+
+	if (last_dimlayer_hbm_enabled == is_dimlayer_hbm_enabled &&
+			status == last_dimlayer_status)
 		return;
 
 	mutex_lock(&display->panel->panel_lock);
-	dsi_panel_set_fod_hbm(display->panel, status);
+	dsi_panel_set_fod_hbm(display->panel,
+			status ? is_dimlayer_hbm_enabled : false);
+	last_dimlayer_hbm_enabled = is_dimlayer_hbm_enabled;
+	last_dimlayer_status = status;
 	mutex_unlock(&display->panel->panel_lock);
 
-	dsi_display_set_fod_ui(display, status);
+	dsi_display_set_fod_ui(display,
+			status ? is_dimlayer_hbm_enabled : false);
 }
 
 int sde_connector_pre_kickoff(struct drm_connector *connector)
