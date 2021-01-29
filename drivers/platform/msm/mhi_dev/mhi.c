@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -3510,11 +3510,12 @@ static int mhi_dev_recover(struct mhi_dev *mhi)
 static void mhi_dev_enable(struct work_struct *work)
 {
 	int rc = 0;
+	struct ep_pcie_msi_config msi_cfg;
 	struct mhi_dev *mhi = container_of(work,
 				struct mhi_dev, ring_init_cb_work);
 	u32 mhi_reset;
 	enum mhi_dev_state state;
-	uint32_t max_cnt = 0;
+	uint32_t max_cnt = 0, bhi_intvec = 0;
 
 	if (mhi->use_ipa) {
 		rc = ipa_dma_init();
@@ -3536,6 +3537,23 @@ static void mhi_dev_enable(struct work_struct *work)
 		return;
 	}
 
+	rc = mhi_dev_mmio_read(mhi, BHI_INTVEC, &bhi_intvec);
+	if (rc)
+		return;
+
+	if (bhi_intvec != 0xffffffff) {
+		/* Indicate the host that the device is ready */
+		rc = ep_pcie_get_msi_config(mhi->phandle, &msi_cfg);
+		if (!rc) {
+			rc = ep_pcie_trigger_msi(mhi_ctx->phandle, bhi_intvec);
+			if (rc) {
+				pr_err("%s: error sending msi\n", __func__);
+				return;
+			}
+		} else {
+			pr_err("MHI: error geting msi configs\n");
+		}
+	}
 
 	rc = mhi_dev_mmio_get_mhi_state(mhi, &state, &mhi_reset);
 	if (rc) {
