@@ -46,7 +46,7 @@
 #include <linux/regulator/consumer.h>
 #include "uapi/linux/akm09970.h"
 
-#define CLEAR_IRQ_TIME 20
+#define CLEAR_IRQ_TIME 500
 
 static DECLARE_WAIT_QUEUE_HEAD(poll_wait_queue);
 
