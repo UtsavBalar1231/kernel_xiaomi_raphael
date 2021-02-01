@@ -2829,267 +2829,9 @@ static void smblib_reg_work(struct work_struct *work)
 	}
 }
 
-#define ADAPTER_NONE 0x00
-#define ADAPTER_SDP  0x01
-#define ADAPTER_CDP  0x02
-#define ADAPTER_DCP  0x03
-#define ADAPTER_QC2  0x05
-#define ADAPTER_QC3  0x06
-#define ADAPTER_PD   0x07
-#define ADAPTER_AUTH_FAILED   0x08
-#define ADAPTER_XIAOMI_QC3    0x09
-#define ADAPTER_XIAOMI_PD     0x0a
-#define ADAPTER_ZIMI_CAR_POWER    0x0b
-
-#ifdef CONFIG_THERMAL
-static int smblib_dc_therm_charging(struct smb_charger *chg,
-					int temp_level)
-{
-	int thermal_icl_ua = 0;
-	int rc;
-	union power_supply_propval pval = {0, };
-	union power_supply_propval val = {0, };
-
-	if (!chg->wls_psy) {
-		chg->wls_psy = power_supply_get_by_name("wireless");
-		if (!chg->wls_psy)
-			return -ENODEV;
-	}
-	rc = power_supply_get_property(chg->wls_psy,
-				POWER_SUPPLY_PROP_TX_ADAPTER,
-				&pval);
-
-	rc = power_supply_get_property(chg->wls_psy,
-				POWER_SUPPLY_PROP_WIRELESS_VERSION,
-				&val);
-		switch (pval.intval) {
-		case ADAPTER_XIAOMI_QC3:
-		case ADAPTER_ZIMI_CAR_POWER:
-			thermal_icl_ua = chg->thermal_mitigation_dc[temp_level];
-			break;
-		case ADAPTER_QC2:
-			thermal_icl_ua = chg->thermal_mitigation_bpp_qc2[temp_level];
-			break;
-		case ADAPTER_QC3:
-			if (val.intval == 1)/*is epp*/
-				thermal_icl_ua = chg->thermal_mitigation_epp[temp_level];
-			else
-				thermal_icl_ua = chg->thermal_mitigation_bpp_qc3[temp_level];
-			break;
-		case ADAPTER_XIAOMI_PD:
-		case ADAPTER_PD:
-			if (val.intval == 1)/*is epp*/
-				thermal_icl_ua = chg->thermal_mitigation_epp[temp_level];
-			else
-				thermal_icl_ua = chg->thermal_mitigation_bpp[temp_level];
-			break;
-		case ADAPTER_AUTH_FAILED:
-			if (val.intval == 1)/*is epp*/
-				thermal_icl_ua = chg->thermal_mitigation_epp[temp_level];
-			else
-				thermal_icl_ua = chg->thermal_mitigation_bpp[temp_level];
-			break;
-		case ADAPTER_CDP:
-		case ADAPTER_DCP:
-			thermal_icl_ua = chg->thermal_mitigation_bpp[temp_level];
-			break;
-		default:
-			thermal_icl_ua = chg->thermal_mitigation_bpp[temp_level];
-			break;
-	}
-	vote(chg->dc_icl_votable, THERMAL_DAEMON_VOTER, true, thermal_icl_ua);
-
-	return rc;
-}
-#endif
-int smblib_set_prop_dc_temp_level(struct smb_charger *chg,
-				const union power_supply_propval *val)
-{
-	union power_supply_propval dc_present;
-	union power_supply_propval batt_temp;
-	int rc;
-
-	rc = smblib_get_prop_dc_present(chg, &dc_present);
-	if (rc < 0) {
-		pr_err("Couldn't get dc present rc=%d\n", rc);
-		return -EINVAL;
-	}
-
-	rc = smblib_get_prop_from_bms(chg,
-				POWER_SUPPLY_PROP_TEMP, &batt_temp);
-	if (rc < 0) {
-		pr_err("Couldn't get batt temp rc=%d\n", rc);
-		return -EINVAL;
-	}
-
-	if (val->intval < 0)
-		return -EINVAL;
-	if (chg->dc_thermal_levels <= 0)
-		return -EINVAL;
-	if (val->intval > chg->dc_thermal_levels)
-		return -EINVAL;
-	chg->dc_temp_level = val->intval;
-
-	if (chg->dc_temp_level == chg->dc_thermal_levels)
-		return vote(chg->chg_disable_votable,
-			THERMAL_DAEMON_VOTER, true, 0);
-
-	vote(chg->chg_disable_votable, THERMAL_DAEMON_VOTER, false, 0);
-	if (chg->dc_temp_level == 0)
-		return vote(chg->dc_icl_votable, THERMAL_DAEMON_VOTER, false, 0);
-
-	smblib_dbg(chg, PR_OEM, "thermal level:%d, batt temp:%d, thermal_levels:%d dc_present=%d\n",
-			val->intval, batt_temp.intval, chg->dc_thermal_levels,dc_present.intval);
-#ifdef CONFIG_THERMAL
-	smblib_dc_therm_charging(chg, val->intval);
-#else
-	vote(chg->dc_icl_votable, THERMAL_DAEMON_VOTER, true,
-		chg->thermal_mitigation_dc[chg->dc_temp_level]);
-
-#endif
-	return 0;
-}
-
-#ifdef CONFIG_THERMAL
-static int smblib_therm_charging(struct smb_charger *chg)
-{
-	int thermal_icl_ua = 0;
-	int thermal_fcc_ua = 0;
-	int rc;
-
-	if (chg->system_temp_level >= MAX_TEMP_LEVEL)
-		return 0;
-
-	switch (chg->real_charger_type) {
-	case POWER_SUPPLY_TYPE_USB_HVDCP:
-		thermal_icl_ua = chg->thermal_mitigation_qc2[chg->system_temp_level];
-		break;
-	case POWER_SUPPLY_TYPE_USB_HVDCP_3:
-		if (chg->cp_reason == POWER_SUPPLY_CP_HVDCP3) {
-			if (chg->is_qc_class_a)
-				thermal_fcc_ua =
-					chg->thermal_fcc_qc3_cp[chg->system_temp_level];
-			else
-				thermal_fcc_ua =
-					chg->thermal_fcc_qc3_classb_cp[chg->system_temp_level];
-		} else {
-			thermal_fcc_ua =
-				chg->thermal_fcc_qc3_normal[chg->system_temp_level];
-		}
-		break;
-	case POWER_SUPPLY_TYPE_USB_PD:
-		if (chg->cp_reason == POWER_SUPPLY_CP_PPS) {
-			thermal_fcc_ua =
-				chg->thermal_fcc_pps_cp[chg->system_temp_level];
-		} else {
-			if (chg->voltage_min_uv >= PD_MICRO_5V
-					&& chg->voltage_min_uv < PD_MICRO_5P9V)
-				thermal_icl_ua =
-						chg->thermal_mitigation_pd_base[chg->system_temp_level];
-			else if (chg->voltage_min_uv >= PD_MICRO_5P9V
-						&& chg->voltage_min_uv < PD_MICRO_6P5V)
-				thermal_icl_ua =
-						chg->thermal_mitigation_pd_base[chg->system_temp_level]
-							* PD_6P5V_PERCENT / 100;
-			else if (chg->voltage_min_uv >= PD_MICRO_6P5V
-						&& chg->voltage_min_uv < PD_MICRO_7P5V)
-				thermal_icl_ua =
-						chg->thermal_mitigation_pd_base[chg->system_temp_level]
-							* PD_7P5V_PERCENT / 100;
-			else if (chg->voltage_min_uv >= PD_MICRO_7P5V
-						&& chg->voltage_min_uv <= PD_MICRO_8P5V)
-				thermal_icl_ua =
-						chg->thermal_mitigation_pd_base[chg->system_temp_level]
-							* PD_8P5V_PERCENT / 100;
-			else if (chg->voltage_min_uv >= PD_MICRO_8P5V)
-				thermal_icl_ua =
-						chg->thermal_mitigation_pd_base[chg->system_temp_level]
-							* PD_9V_PERCENT / 100;
-			else
-				thermal_icl_ua =
-						chg->thermal_mitigation_pd_base[chg->system_temp_level];
-		}
-		break;
-	case POWER_SUPPLY_TYPE_USB_DCP:
-	default:
-		thermal_icl_ua = chg->thermal_mitigation_dcp[chg->system_temp_level];
-		break;
-	}
-
-	if (chg->system_temp_level == 0) {
-		/* if therm_lvl_sel is 0, clear thermal voter */
-		rc = vote(chg->usb_icl_votable, THERMAL_DAEMON_VOTER, false, 0);
-		if (rc < 0)
-			pr_err("Couldn't disable USB thermal ICL vote rc=%d\n",
-				rc);
-		rc = vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, false, 0);
-		if (rc < 0)
-			pr_err("Couldn't disable USB thermal ICL vote rc=%d\n",
-				rc);
-	} else {
-		pr_info("thermal_icl_ua is %d, chg->system_temp_level: %d\n",
-				thermal_icl_ua, chg->system_temp_level);
-		pr_info("thermal_fcc_ua is %d\n", thermal_fcc_ua);
-
-		if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP_3
-			|| (chg->cp_reason == POWER_SUPPLY_CP_PPS
-				&& chg->real_charger_type == POWER_SUPPLY_TYPE_USB_PD)) {
-			if (chg->system_temp_level >= ICL_LIMIT_LEVEL_THR)
-				thermal_icl_ua =
-						chg->thermal_mitigation_icl[chg->system_temp_level];
-			if (chg->system_temp_level >= ICL_LIMIT_LEVEL_THR) {
-				rc = vote(chg->usb_icl_votable, THERMAL_DAEMON_VOTER,
-						true, thermal_icl_ua);
-				if (rc < 0)
-					pr_err("Couldn't enable USB thermal ICL vote rc=%d\n",
-						rc);
-			} else {
-				rc = vote(chg->usb_icl_votable, THERMAL_DAEMON_VOTER,
-					false, 0);
-				if (rc < 0)
-					pr_err("Couldn't disable USB thermal ICL vote rc=%d\n",
-						rc);
-			}
-		} else {
-			if (thermal_icl_ua > 0) {
-				rc = vote(chg->usb_icl_votable, THERMAL_DAEMON_VOTER, true,
-						thermal_icl_ua);
-				if (rc < 0)
-					pr_err("Couldn't enable USB thermal ICL vote rc=%d\n",
-						rc);
-			}
-		}
-		if (thermal_fcc_ua > 0) {
-			rc = vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, true,
-					thermal_fcc_ua);
-			if (rc < 0)
-				pr_err("Couldn't enable USB thermal ICL vote rc=%d\n",
-						rc);
-		}
-	}
-
-	return rc;
-}
-#endif
-
 int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 				const union power_supply_propval *val)
 {
-	int rc;
-	union power_supply_propval batt_temp = {0, };
-
-	rc = smblib_get_prop_from_bms(chg,
-				POWER_SUPPLY_PROP_TEMP, &batt_temp);
-	if (rc < 0) {
-		pr_err("Couldn't get batt temp rc=%d\n", rc);
-		return -EINVAL;
-	}
-
-	smblib_dbg(chg, PR_OEM, "thermal level:%d, batt temp:%d, thermal_levels:%d "
-			"chg->system_temp_level:%d, charger_type:%d\n",
-			val->intval, batt_temp.intval, chg->thermal_levels,
-			chg->system_temp_level, chg->real_charger_type);
-
 	if (val->intval < 0)
 		return -EINVAL;
 
@@ -3101,21 +2843,16 @@ int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 
 	chg->system_temp_level = val->intval;
 
-	if (chg->system_temp_level >= (chg->thermal_levels - 1))
+	if (chg->system_temp_level == chg->thermal_levels)
 		return vote(chg->chg_disable_votable,
 			THERMAL_DAEMON_VOTER, true, 0);
 
 	vote(chg->chg_disable_votable, THERMAL_DAEMON_VOTER, false, 0);
-
-#ifdef CONFIG_THERMAL
-	smblib_therm_charging(chg);
-#else
 	if (chg->system_temp_level == 0)
 		return vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, false, 0);
 
 	vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, true,
 			chg->thermal_mitigation[chg->system_temp_level]);
-#endif
 	return 0;
 }
 
@@ -5546,9 +5283,6 @@ int smblib_set_prop_pd_active(struct smb_charger *chg,
 	if (!chg->fake_usb_insertion)
 		smblib_update_usb_type(chg);
 
-#ifdef CONFIG_THERMAL
-	smblib_therm_charging(chg);
-#endif
 	smblib_usb_pd_adapter_allowance_override(chg,
 			!!chg->pd_active ? FORCE_5V : FORCE_NULL);
 	smblib_update_usb_type(chg);
@@ -6616,10 +6350,6 @@ static void smblib_raise_qc3_vbus_work(struct work_struct *work)
 		if (rc < 0)
 				dev_err(chg->dev,
 					"Couldn't enable secondary chargers  rc=%d\n", rc);
-#ifdef CONFIG_THERMAL
-		if (chg->cp_reason == POWER_SUPPLY_CP_HVDCP3)
-			smblib_therm_charging(chg);
-#endif
 		chg->raise_vbus_to_detect = false;
 	}
 }
@@ -6867,20 +6597,6 @@ static void update_sw_icl_max(struct smb_charger *chg, int pst)
 	}
 }
 
-#ifdef CONFIG_THERMAL
-static void determine_thermal_current(struct smb_charger *chg)
-{
-	if (chg->system_temp_level > 0
-			&& chg->system_temp_level < (chg->thermal_levels - 1)) {
-		/*
-		 * consider thermal limit only when it is active and not at
-		 * the highest level
-		 */
-		smblib_therm_charging(chg);
-	}
-}
-#endif
-
 static void smblib_handle_apsd_done(struct smb_charger *chg, bool rising)
 {
 	const struct apsd_result *apsd_result;
@@ -6918,11 +6634,7 @@ static void smblib_handle_apsd_done(struct smb_charger *chg, bool rising)
 		break;
 	}
 
-#ifdef CONFIG_THERMAL
-	determine_thermal_current(chg);
-#endif
-
-	smblib_dbg(chg, PR_OEM, "IRQ: apsd-done rising; %s detected\n",
+	smblib_dbg(chg, PR_INTERRUPT, "IRQ: apsd-done rising; %s detected\n",
 		   apsd_result->name);
 }
 

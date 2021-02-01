@@ -115,8 +115,6 @@ enum print_reason {
 #define HIGH_NUM_PULSE_THR		12
 #define PD_UNVERIFED_CURRENT		3000000
 
-/* thermal micros */
-#define MAX_TEMP_LEVEL		16
 /* percent of ICL compared to base 5V for different PD voltage_min voltage */
 #define PD_6P5V_PERCENT		85
 #define PD_7P5V_PERCENT		75
@@ -598,24 +596,8 @@ struct smb_charger {
 	int			lpd_levels;
 	int			dc_temp_level;
 	int			dc_thermal_levels;
-#ifdef CONFIG_THERMAL
-	int 		*thermal_mitigation_dcp;
-	int 		*thermal_mitigation_qc2;
-	int 		*thermal_mitigation_pd_base;
-	int 		*thermal_mitigation_icl;
-	int 		*thermal_fcc_qc3_normal;
-	int 		*thermal_fcc_qc3_cp;
-	int 		*thermal_fcc_qc3_classb_cp;
-	int 		*thermal_fcc_pps_cp;
-	int 		*thermal_mitigation_dc;
-	int 		*lpd_hwversion;
-	int 		*thermal_mitigation_epp;
-	int 		*thermal_mitigation_bpp_qc3;
-	int 		*thermal_mitigation_bpp_qc2;
-	int 		*thermal_mitigation_bpp;
-#else
+	int 			*lpd_hwversion;
 	int			*thermal_mitigation;
-#endif
 	int			dcp_icl_ua;
 	int			fake_capacity;
 	int			fake_batt_status;
