@@ -493,8 +493,51 @@ static ssize_t akm09970_chip_rev_show(struct device *dev,
 }
 static DEVICE_ATTR(chip_rev, 0444, akm09970_chip_rev_show, NULL);
 
+static ssize_t akm09970_debug_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct akm09970_soc_ctrl *c_ctrl = dev_get_drvdata(dev);
+	short hall_data[3];
+
+	hall_data[0] =
+		(short)((c_ctrl->chip_data[2] << 8) | c_ctrl->chip_data[3]);
+	hall_data[1] =
+		(short)((c_ctrl->chip_data[4] << 8) | c_ctrl->chip_data[5]);
+	hall_data[2] =
+		(short)((c_ctrl->chip_data[6] << 8) | c_ctrl->chip_data[7]);
+
+	return snprintf(buf, PAGE_SIZE, "X:%d, Y:%d, Z:%d\n",
+			hall_data[0], hall_data[1], hall_data[2]);
+}
+
+static ssize_t akm09970_debug_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int enable;
+	int ret = 0;
+	struct akm09970_soc_ctrl *c_ctrl = dev_get_drvdata(dev);
+
+	ret = sscanf(buf, "%d", &enable);
+	if (0 == ret)
+		pr_err("Input %d\n", enable);
+
+	if (10 == enable)
+		akm09970_active(c_ctrl, true);
+	else
+		akm09970_active(c_ctrl, false);
+
+	return count;
+}
+
+static DEVICE_ATTR(debug,
+			S_IRUGO | S_IWUSR,
+			akm09970_debug_show,
+			akm09970_debug_store);
+
 static struct device_attribute *akm_attrs[] = {
 	&dev_attr_chip_rev,
+	&dev_attr_debug,
+	NULL
 };
 
 static int akm09970_regulator_init(struct akm09970_soc_ctrl *c_ctrl, bool on)
