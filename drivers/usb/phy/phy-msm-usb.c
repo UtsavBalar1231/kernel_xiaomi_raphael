@@ -4598,7 +4598,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(pdev->dev.of_node, "extcon")) {
 		if (extcon_get_state(motg->phy.edev, EXTCON_USB_HOST)) {
-			msm_otg_vbus_notifier(&motg->phy.id_nb,
+			msm_otg_id_notifier(&motg->phy.id_nb,
 							1, motg->phy.edev);
 		} else if (extcon_get_state(motg->phy.edev, EXTCON_USB)) {
 			msm_otg_vbus_notifier(&motg->phy.vbus_nb,
