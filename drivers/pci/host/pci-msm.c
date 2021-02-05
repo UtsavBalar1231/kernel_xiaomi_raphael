@@ -1184,6 +1184,11 @@ static void msm_pcie_cfg_recover(struct msm_pcie_dev_t *dev, bool rc)
 			cfg = dev->dm_core;
 			shadow = dev->rc_shadow;
 		} else {
+			/* do not restore for endpoints (Type 0) */
+			if (dev->pcidev_table[i].dev->hdr_type ==
+			    PCI_HEADER_TYPE_NORMAL)
+				continue;
+
 			if (!msm_pcie_confirm_linkup(dev, false, true,
 				dev->pcidev_table[i].conf_base))
 				continue;
