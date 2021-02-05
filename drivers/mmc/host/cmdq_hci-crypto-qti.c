@@ -29,8 +29,6 @@
 #define MINIMUM_DUN_SIZE 512
 #define MAXIMUM_DUN_SIZE 65536
 
-static struct mmc_host *mmc_host;
-
 static struct cmdq_host_crypto_variant_ops cmdq_crypto_qti_variant_ops = {
 	.host_init_crypto = cmdq_crypto_qti_init_crypto,
 	.enable = cmdq_crypto_qti_enable,
@@ -244,11 +242,6 @@ int cmdq_host_init_crypto_qti_spec(struct cmdq_host *host,
 	 * descriptor would be used to pass crypto specific informaton.
 	 */
 	host->caps |= CMDQ_TASK_DESC_SZ_128;
-	mmc_host = host->mmc;
-	if (!mmc_host) {
-		err = -ENODEV;
-		goto out;
-	}
 
 	return 0;
 out:
@@ -331,11 +324,6 @@ int cmdq_host_init_crypto_qti_spec(struct cmdq_host *host,
 	 * descriptor would be used to pass crypto specific informaton.
 	 */
 	host->caps |= CMDQ_TASK_DESC_SZ_128;
-	mmc_host = host->mmc;
-	if (!mmc_host) {
-		err = -ENODEV;
-		goto out;
-	}
 
 	return 0;
 
