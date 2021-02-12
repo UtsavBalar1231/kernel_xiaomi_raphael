@@ -14,12 +14,16 @@
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include "bpf_service.h"
+#include <linux/bpf.h>
 
 /* for service lookup for eBPF */
 static RADIX_TREE(service_lookup, GFP_KERNEL);
 
 /* mutex to lock service lookup */
 static DEFINE_MUTEX(service_lookup_lock);
+
+/* variable to hold bpf filter object */
+static struct sk_filter __rcu *bpf_filter;
 
 /**
  * Add service information (service id & instance id) to lookup table
@@ -111,6 +115,69 @@ void qrtr_service_node_remove(u32 src_node)
 	mutex_unlock(&service_lookup_lock);
 }
 EXPORT_SYMBOL(qrtr_service_node_remove);
+
+/**
+ * Get eBPF filter object from eBPF framework using filter fd
+ * passed by the user space program. QRTR will allow to attach
+ * eBPF filter only for privileged user space program. This
+ * attached filter then executed on different qrtr events.
+ */
+int qrtr_bpf_filter_attach(int ufd)
+{
+	struct sk_filter *filter = NULL;
+	struct bpf_prog *prog = NULL;
+	int rc = 0;
+
+	/* return invalid error if fd is not valid */
+	if (ufd < 0)
+		return -EINVAL;
+
+	/* return -EEXIST if ebpf filter is already attached */
+	if (bpf_filter)
+		return -EEXIST;
+
+	if (!uid_eq(current_euid(), GLOBAL_ROOT_UID))
+		return -EPERM;
+
+	prog = bpf_prog_get_type(ufd, BPF_PROG_TYPE_SOCKET_FILTER);
+	if (prog) {
+		pr_info("%s bpf filter with fd %d attached with qrtr\n",
+			__func__, ufd);
+		filter = kzalloc(sizeof(*bpf_filter), GFP_KERNEL);
+		if (!filter)
+			return -ENOMEM;
+		filter->prog = prog;
+		rcu_assign_pointer(bpf_filter, filter);
+	} else {
+		rc = -EFAULT;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(qrtr_bpf_filter_attach);
+
+/* Detach previous attached eBPF filter program */
+int qrtr_bpf_filter_detach(void)
+{
+	struct sk_filter *filter = NULL;
+	int rc = -EFAULT;
+
+	rcu_read_lock();
+	filter = rcu_dereference(bpf_filter);
+	rcu_read_unlock();
+
+	if (filter && filter->prog) {
+		pr_info("%s bpf filter program detached\n",
+			__func__);
+		bpf_filter = NULL;
+		bpf_prog_put(filter->prog);
+		kfree(filter);
+		rc = 0;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(qrtr_bpf_filter_detach);
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. QRTR filter driver");
 MODULE_LICENSE("GPL v2");
