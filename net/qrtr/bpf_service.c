@@ -10,11 +10,29 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/soc/qcom/qmi.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include "bpf_service.h"
 #include <linux/bpf.h>
+
+/* qrtr filter (based on eBPF) related declarations */
+#define MAX_GID_SUPPORTED	16
+#define QMI_HEADER_SIZE		sizeof(struct qmi_header)
+
+/* filter argument to be passed while executing eBPF filter */
+struct bpf_data {
+	struct service_info svc_info;
+	u16 pkt_type;
+	u16 direction;
+	unsigned char data[QMI_HEADER_SIZE];
+	u32 gid_len;
+	uid_t gid[MAX_GID_SUPPORTED];
+	u32 dest_node;
+} __packed;
+
+#define BPF_DATA_SIZE	sizeof(struct bpf_data)
 
 /* for service lookup for eBPF */
 static RADIX_TREE(service_lookup, GFP_KERNEL);
@@ -178,6 +196,101 @@ int qrtr_bpf_filter_detach(void)
 	return rc;
 }
 EXPORT_SYMBOL(qrtr_bpf_filter_detach);
+
+/**
+ * This will populate argument structure for eBPF filter input and
+ * execute filter for both data packet & new server control packet
+ */
+int qrtr_run_bpf_filter(struct sk_buff *skb, u32 service_id, u32 instance_id,
+			u8 pkt_type, u32 dest_node)
+{
+	struct sk_buff *skb_bpf = NULL;
+	struct group_info *group_info;
+	struct bpf_data filter_arg;
+	struct sk_filter *filter;
+	int err = 0;
+	kuid_t euid;
+	kgid_t egid;
+	uid_t kgid;
+	int i = 0;
+
+	/* populate filter argument with service & pkt type information */
+	filter_arg.svc_info.service_id = service_id;
+	filter_arg.svc_info.instance_id = instance_id;
+	filter_arg.pkt_type = pkt_type;
+
+	/* gid information is required only for data packet filtration */
+	if (pkt_type == QRTR_TYPE_DATA) {
+		/* Copy qmi header from original skbuff to bpf skbuff */
+		skb_copy_bits(skb, 0, &filter_arg.data[0], QMI_HEADER_SIZE);
+
+		/* Check effective group id of client */
+		current_euid_egid(&euid, &egid);
+		kgid = from_kgid(&init_user_ns, egid);
+		filter_arg.gid[0] = kgid;
+
+		/* Check supplimentary group id's of client */
+		group_info = get_current_groups();
+		for (i = 0; i < group_info->ngroups; i++) {
+			if (i >= (MAX_GID_SUPPORTED - 1))
+				break;
+			egid = group_info->gid[i];
+			filter_arg.gid[i + 1] = from_kgid(&init_user_ns, egid);
+		}
+
+		if (group_info->ngroups > 0)
+			filter_arg.gid_len = group_info->ngroups + 1;
+		else
+			filter_arg.gid_len = 1;
+
+		put_group_info(group_info);
+	} else {
+		filter_arg.dest_node = dest_node;
+	}
+
+	/* Run bpf filter program if it is already attached */
+	if (bpf_filter) {
+		/**
+		 * Allocate dummy skb to pass required arguments to bpf
+		 * filter program
+		 */
+		skb_bpf = alloc_skb(BPF_DATA_SIZE, GFP_ATOMIC);
+		if (skb_bpf) {
+			/* copy filter argument to skb */
+			memcpy(skb_put(skb_bpf, BPF_DATA_SIZE), &filter_arg,
+			       BPF_DATA_SIZE);
+
+			/* execute eBPF filter here */
+			rcu_read_lock();
+			filter = rcu_dereference(bpf_filter);
+			if (filter) {
+				u32 status;
+				/**
+				 * Deny/grant permission based on return
+				 * value of the filter
+				 */
+				status = bpf_prog_run_save_cb(filter->prog,
+							      skb_bpf);
+				err = status ? 0 : -EPERM;
+			}
+			rcu_read_unlock();
+			kfree_skb(skb_bpf);
+			if (err) {
+				if (pkt_type == QRTR_TYPE_DATA)
+					pr_err("qrtr: %s permission denied for client '%s' to SVC<0x%x:0x%x>\n",
+					       __func__, current->comm,
+					       service_id, instance_id);
+				else
+					pr_err("qrtr: %s SVC<0x%x:0x%x> broadcast denied to node %d\n",
+					       __func__, service_id,
+					       instance_id, dest_node);
+			}
+		}
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(qrtr_run_bpf_filter);
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. QRTR filter driver");
 MODULE_LICENSE("GPL v2");
