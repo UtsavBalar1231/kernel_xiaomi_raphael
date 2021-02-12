@@ -33,7 +33,7 @@
 //#include <linux/hwinfo.h>
 
 #ifdef CONFIG_DRM
-#include <drm/drm_notifier.h>
+#include <linux/msm_drm_notify.h>
 #include <drm/drm_panel.h>
 #include <linux/fb.h>
 #endif
@@ -72,7 +72,7 @@ extern void Boot_Update_Firmware(struct work_struct *work);
 static void nvt_resume_work(struct work_struct *work);
 
 #if defined(CONFIG_DRM)
-static int drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data);
+static int msm_drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data);
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 static void nvt_ts_early_suspend(struct early_suspend *h);
 static void nvt_ts_late_resume(struct early_suspend *h);
@@ -1915,10 +1915,10 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 #endif
 
 #if defined(CONFIG_DRM)
-	ts->notifier.notifier_call = drm_notifier_callback;
-	ret = drm_register_client(&ts->notifier);
+	ts->notifier.notifier_call = msm_drm_notifier_callback;
+	ret = msm_drm_register_client(&ts->notifier);
 	if(ret) {
-		NVT_ERR("register drm_notifier failed. ret=%d\n", ret);
+		NVT_ERR("register msm_drm_notifier failed. ret=%d\n", ret);
 		goto err_register_drm_notif_failed;
 	}
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
@@ -1991,7 +1991,7 @@ err_register_tp_class:
 
 #if defined(CONFIG_DRM)
 err_register_drm_notif_failed:
-	drm_unregister_client(&ts->notifier);
+	msm_drm_unregister_client(&ts->notifier);
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 err_register_early_suspend_failed:
 #endif
@@ -2031,8 +2031,8 @@ static int32_t nvt_ts_remove(struct i2c_client *client)
 	/*struct nvt_ts_data *ts = i2c_get_clientdata(client);*/
 
 #if defined(CONFIG_DRM)
-	if (drm_unregister_client(&ts->notifier))
-		NVT_ERR("Error occurred while unregistering drm_notifier.\n");
+	if (msm_drm_unregister_client(&ts->notifier))
+		NVT_ERR("Error occurred while unregistering msm_drm_notifier.\n");
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	unregister_early_suspend(&ts->early_suspend);
 #endif
@@ -2215,16 +2215,16 @@ static void nvt_resume_work(struct work_struct *work)
 }
 
 #if defined(CONFIG_DRM)
-static int drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
+static int msm_drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
-	struct fb_event *evdata = data;
+	struct msm_drm_notifier *evdata = data;
 	int *blank;
 	struct nvt_ts_data *ts =
 		container_of(self, struct nvt_ts_data, notifier);
 
-	if (evdata && evdata->data && event == DRM_EARLY_EVENT_BLANK) {
+	if (evdata && evdata->data && event == MSM_DRM_EARLY_EVENT_BLANK) {
 		blank = evdata->data;
-		if (*blank == DRM_BLANK_POWERDOWN) {
+		if (*blank == MSM_DRM_BLANK_POWERDOWN) {
 			if (ts->gesture_enabled) {
 				nvt_enable_reg(ts, true);
 				//drm_panel_reset_skip_enable(true);
@@ -2238,7 +2238,7 @@ static int drm_notifier_callback(struct notifier_block *self, unsigned long even
 					 "touch_suspend_notify");
 #endif
 
-		} else if (*blank == DRM_BLANK_UNBLANK) {
+		} else if (*blank == MSM_DRM_BLANK_UNBLANK) {
 			if (ts->gesture_enabled) {
 				gpio_direction_output(ts->reset_tddi, 0);
 				msleep(15);
@@ -2246,9 +2246,9 @@ static int drm_notifier_callback(struct notifier_block *self, unsigned long even
 				msleep(20);
 			}
 		}
-	} else if (evdata && evdata->data && event == DRM_EVENT_BLANK) {
+	} else if (evdata && evdata->data && event == MSM_DRM_EVENT_BLANK) {
 		blank = evdata->data;
-		if (*blank == DRM_BLANK_UNBLANK) {
+		if (*blank == MSM_DRM_BLANK_UNBLANK) {
 			if (ts->gesture_enabled) {
 				//drm_panel_reset_skip_enable(false);
 				/*drm_dsi_ulps_enable(false);*/
