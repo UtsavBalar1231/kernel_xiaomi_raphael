@@ -39,6 +39,7 @@
 #include "dsi-panel-samsung-fhd-ea8076-f1p2-cmd.dtsi"
 #include "dsi-panel-samsung-fhd-ea8076-f1p2-2-cmd.dtsi"
 #include "dsi-panel-samsung-fhd-ea8076-f1mp-cmd.dtsi"
+#include "dsi-panel-samsung-fhd-ea8076-f1s-cmd.dtsi"
 #include <dt-bindings/clock/mdss-10nm-pll-clk.h>
 
 /*
@@ -553,6 +554,17 @@
 		qcom,dsi-panel = <&dsi_samsung_fhd_ea8076_f1p2_cmd>;
 	};
 
+	dsi_samsung_fhd_ea8076_f1s_cmd_display: qcom,dsi-display@30 {
+		label = "dsi_samsung_fhd_ea8076_f1s_cmd_display";
+		qcom,display-type = "primary";
+
+		qcom,dsi-ctrl-num = <0>;
+		qcom,dsi-phy-num = <0>;
+		qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+
+		qcom,dsi-panel = <&dsi_samsung_fhd_ea8076_f1s_cmd>;
+	};
+
 	sde_dsi: qcom,dsi-display-primary {
 		compatible = "qcom,dsi-display";
 		label = "primary";
@@ -613,7 +625,8 @@
 			&dsi_samsung_fhd_ea8076_f1_cmd_display
 			&dsi_samsung_fhd_ea8076_f1mp_cmd_display
 			&dsi_samsung_fhd_ea8076_f1p2_2_cmd_display
-			&dsi_samsung_fhd_ea8076_f1p2_cmd_display>;
+			&dsi_samsung_fhd_ea8076_f1p2_cmd_display
+			&dsi_samsung_fhd_ea8076_f1s_cmd_display>;
 	};
 
 	sde_dsi1: qcom,dsi-display-secondary {
