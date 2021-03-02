@@ -1080,8 +1080,10 @@ static void msm_vidc_detach_context_banks(
 
 	list_for_each_entry(cb, &res->context_banks, list) {
 		arm_iommu_detach_device(cb->dev);
-		if (cb->mapping)
+		if (cb->mapping) {
 			arm_iommu_release_mapping(cb->mapping);
+			cb->mapping = NULL;
+		}
 	}
 }
 
