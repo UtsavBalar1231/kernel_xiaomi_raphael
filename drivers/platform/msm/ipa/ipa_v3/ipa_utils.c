@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -6847,7 +6847,7 @@ int ipa3_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 	api_ctrl->ipa_eth_aqc_disconnect = ipa3_eth_aqc_disconnect;
 	api_ctrl->ipa_eth_emac_disconnect = ipa3_eth_emac_disconnect;
 	api_ctrl->ipa_eth_client_conn_evt = ipa3_eth_client_conn_evt;
-	api_ctrl->ipa_eth_client_disconn_evt = ipa3_eth_client_conn_evt;
+	api_ctrl->ipa_eth_client_disconn_evt = ipa3_eth_client_disconn_evt;
 	return 0;
 }
 
