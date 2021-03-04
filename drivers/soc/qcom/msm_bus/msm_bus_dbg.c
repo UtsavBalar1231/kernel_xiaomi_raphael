@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2012, 2014-2018, 2020, The Linux Foundation. All rights
+/* Copyright (c) 2010-2012, 2014-2018, 2020-2021, The Linux Foundation. All rights
  * reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -329,7 +329,7 @@ struct dentry *msm_bus_dbg_create(const char *name, mode_t mode,
 	struct dentry *dent, uint32_t clid)
 {
 	if (dent == NULL) {
-		MSM_BUS_DBG("debugfs not ready yet\n");
+		MSM_BUS_ERR("debugfs not ready yet\n");
 		return NULL;
 	}
 	return debugfs_create_file(name, mode, dent, (void *)(uintptr_t)clid,
@@ -346,6 +346,7 @@ int msm_bus_dbg_add_client(const struct msm_bus_client_handle *pdata)
 		MSM_BUS_DBG("Failed to allocate memory for client data\n");
 		return -ENOMEM;
 	}
+	memset(cldata, 0, sizeof(struct msm_bus_cldata));
 	cldata->handle = pdata;
 	rt_mutex_lock(&msm_bus_dbg_cllist_lock);
 	list_add_tail(&cldata->list, &cl_list);
@@ -441,6 +442,7 @@ static int msm_bus_dbg_record_client(const struct msm_bus_scale_pdata *pdata,
 		MSM_BUS_DBG("Failed to allocate memory for client data\n");
 		return -ENOMEM;
 	}
+	memset(cldata, 0, sizeof(struct msm_bus_cldata));
 	cldata->pdata = pdata;
 	cldata->index = index;
 	cldata->clid = clid;
