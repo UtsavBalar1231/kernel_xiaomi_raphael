@@ -224,10 +224,63 @@
 				qcom,mdss-dsi-dispparam-acl-l3-command = [39 01 00 00 00 00 02 55 03];/* 30% */
 				qcom,mdss-dsi-dispparam-acl-l3-command-state = "dsi_lp_mode";
 
-				qcom,mdss-dsi-dispparam-hbm-off-command = [39 01 00 00 00 00 02 53 28];
-				qcom,mdss-dsi-dispparam-hbm-off-command-state = "dsi_lp_mode";
-				qcom,mdss-dsi-dispparam-hbm-on-command = [39 01 00 00 00 00 02 53 E8];
-				qcom,mdss-dsi-dispparam-hbm-on-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-dispparam-hbm-off-command = [
+					/* DLY On */
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 B0 02
+					39 00 00 00 00 00 02 B5 53
+					39 01 00 00 00 00 03 F0 A5 A5
+					/* HBM mode off */
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 C7 23
+					39 00 00 00 00 00 02 B0 34
+					39 00 00 00 00 00 02 B1 5D
+					39 00 00 00 00 00 02 B0 06
+					39 00 00 00 00 00 20 B1
+					30 00 00 16 0F 85 08 29
+					52 7B CD 9A 65 FF 00 00
+					01 12 23 30 08 29 52 7B
+					CD 1F 9A 15 90 0A 85
+					39 00 00 00 00 00 02 B0 03
+					39 00 00 00 00 00 1B B5
+					50 50 50 50 50 50 50 50
+					50 50 50 50 50 50 50 50
+					50 50 50 50 50 50 50 50
+					50 50
+					39 00 00 00 00 00 02 B0 17
+					39 00 00 00 00 00 02 95 00
+					39 01 00 00 00 00 03 F0 A5 A5
+					15 01 00 00 00 00 02 53 28
+				];
+				qcom,mdss-dsi-dispparam-hbm-off-command-state = "dsi_hs_mode";
+				qcom,mdss-dsi-dispparam-hbm-on-command = [
+					/* ELVSS DIM On */
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 B0 02
+					39 00 00 00 00 00 02 B5 53
+					/* HBM mode setting */
+					39 00 00 00 00 00 02 C7 27
+					39 00 00 00 00 00 02 B0 34
+					39 00 00 00 00 00 02 B1 4B
+					39 00 00 00 00 00 02 B0 06
+					39 00 00 00 00 00 20 B1
+					00 00 00 0F 03 E1 02 0A
+					14 1E 33 66 00 FF 00 00
+					00 00 00 00 02 0A 14 1E
+					33 47 66 85 A4 C2 E1
+					39 00 00 00 00 00 02 B0 03
+					39 00 00 00 00 00 1B B5
+					14 14 14 14 14 14 14 14
+					14 14 14 14 14 14 14 14
+					14 14 14 14 14 14 14 14
+					14 14
+					39 00 00 00 00 00 02 B0 17
+					39 00 00 00 00 00 02 95 30
+					39 01 00 00 11 00 03 F0 A5 A5
+					/* HBM mode on */
+					15 01 00 00 00 00 02 53 E8
+				];
+				qcom,mdss-dsi-dispparam-hbm-on-command-state = "dsi_hs_mode";
 
 				qcom,mdss-dsi-dispparam-dimmingon-command = [39 01 00 00 01 00 02 53 28];
 				qcom,mdss-dsi-dispparam-dimmingon-command-state = "dsi_lp_mode";
@@ -289,20 +342,62 @@
 				qcom,mdss-dsi-h-sync-pulse = <0>;
 
 				qcom,mdss-dsi-dispparam-hbm-fod-off-command = [
-					/* HBM off + Disable brightness dimming */
-					15 01 00 00 10 00 02 53 20
+					/* DLY On */
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 B0 02
+					39 00 00 00 00 00 02 B5 13
+					39 01 00 00 07 00 03 F0 A5 A5
+					/* HBM mode off */
+					15 00 00 00 00 00 02 53 20
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 C7 23
+					39 00 00 00 00 00 02 B0 34
+					39 00 00 00 00 00 02 B1 5D
+					39 00 00 00 00 00 02 B0 06
+					39 00 00 00 00 00 20 B1
+					30 00 00 16 0F 85 08 29
+					52 7B CD 9A 65 FF 00 00
+					01 12 23 30 08 29 52 7B
+					CD 1F 9A 15 90 0A 85
+					39 00 00 00 00 00 02 B0 03
+					39 00 00 00 00 00 1B B5
+					50 50 50 50 50 50 50 50
+					50 50 50 50 50 50 50 50
+					50 50 50 50 50 50 50 50
+					50 50
+					39 00 00 00 00 00 02 B0 17
+					39 00 00 00 00 00 02 95 00
+					39 01 00 00 00 00 03 F0 A5 A5
 				];
 				qcom,mdss-dsi-dispparam-hbm-fod-off-command-state = "dsi_hs_mode";
 				qcom,mdss-dsi-dispparam-hbm-fod-on-command = [
-					/* Test Key Enable: F0 */
+					/* ELVSS DIM Off */
 					39 00 00 00 00 00 03 F0 5A 5A
-					/* Elvss Dimming Setting */
-					15 00 00 00 00 00 02 B0 03
-					15 00 00 00 00 00 02 B7 C9
-					/* Test Key Disable: F0 */
-					39 00 00 00 00 00 03 F0 A5 A5
-					/* HBM on + Disable brightness dimming */
-					15 01 00 00 10 00 02 53 E0
+					39 00 00 00 00 00 02 B0 02
+					39 00 00 00 00 00 02 B5 93
+					39 01 00 00 07 00 03 F0 A5 A5
+					/* HBM mode On */
+					15 01 00 00 11 00 02 53 E0
+					/* HBM mode setting */
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 C7 27
+					39 00 00 00 00 00 02 B0 34
+					39 00 00 00 00 00 02 B1 4B
+					39 00 00 00 00 00 02 B0 06
+					39 00 00 00 00 00 20 B1
+					00 00 00 0F 03 E1 02 0A
+					14 1E 33 66 00 FF 00 00
+					00 00 00 00 02 0A 14 1E
+					33 47 66 85 A4 C2 E1
+					39 00 00 00 00 00 02 B0 03
+					39 00 00 00 00 00 1B B5
+					14 14 14 14 14 14 14 14
+					14 14 14 14 14 14 14 14
+					14 14 14 14 14 14 14 14
+					14 14
+					39 00 00 00 00 00 02 B0 17
+					39 00 00 00 00 00 02 95 30
+					39 01 00 00 00 00 03 F0 A5 A5
 				];
 				qcom,mdss-dsi-dispparam-hbm-fod-on-command-state = "dsi_hs_mode";
 			};
