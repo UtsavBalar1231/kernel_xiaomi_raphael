@@ -207,13 +207,13 @@
 					/* Display Off (Wait 16ms: 0x10) */
 					05 01 00 00 10 00 02 28 00
 					/* HBM off + Disable brightness dimming */
-					39 01 00 00 00 00 02 53 20
+					15 01 00 00 00 00 02 53 20
 					/* Display on (29h) */
 					05 01 00 00 00 00 02 29 00
 				];
 				qcom,mdss-dsi-doze-hbm-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-doze-lbm-command-state = "dsi_lp_mode";
-				qcom,mdss-dsi-nolp-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-nolp-command-state = "dsi_hs_mode";
 
 				qcom,mdss-dsi-dispparam-acl-off-command = [39 01 00 00 00 00 02 55 00];
 				qcom,mdss-dsi-dispparam-acl-off-command-state = "dsi_lp_mode";
