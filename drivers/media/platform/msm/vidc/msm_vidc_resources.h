@@ -65,6 +65,7 @@ struct context_bank_info {
 	const char *name;
 	u32 buffer_type;
 	bool is_secure;
+	bool secure_vmid_switch;
 	struct addr_range addr_range;
 	struct device *dev;
 	struct dma_iommu_mapping *mapping;

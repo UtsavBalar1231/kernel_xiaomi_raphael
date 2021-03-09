@@ -2002,11 +2002,12 @@ void *msm_vidc_open(int core_id, int session_type)
 		core->state = VIDC_CORE_UNINIT;
 		kfree(core->capabilities);
 		core->capabilities = NULL;
-		msm_vidc_enable_cma(&core->resources, !is_cma_enabled);
+		rc = msm_vidc_enable_cma(&core->resources, !is_cma_enabled);
 		if (rc) {
 			dprintk(VIDC_ERR,
 				"%s CMA failed\n", is_cma_enabled ?
 							"enable":"disable");
+			msm_vidc_enable_cma(&core->resources, is_cma_enabled);
 			mutex_unlock(&core->lock);
 			goto fail_toggle_cma;
 		}
