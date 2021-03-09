@@ -3993,46 +3993,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		mdwc->lpm_to_suspend_delay = 0;
 	}
 
-	memcpy(mdwc->wakeup_irq, usb_irq_info, sizeof(usb_irq_info));
-	for (i = 0; i < USB_MAX_IRQ; i++) {
-		irq_type = IRQF_TRIGGER_RISING | IRQF_EARLY_RESUME |
-						IRQF_ONESHOT;
-		mdwc->wakeup_irq[i].irq = platform_get_irq_byname(pdev,
-					mdwc->wakeup_irq[i].name);
-		/* pwr_evnt_irq is only mandatory irq for single port core */
-		if (mdwc->wakeup_irq[i].irq < 0) {
-			if (!mdwc->dual_port &&
-				!strcmp(mdwc->wakeup_irq[i].name,
-						"pwr_event_irq")) {
-				dev_err(&pdev->dev, "get_irq for %s failed\n\n",
-						mdwc->wakeup_irq[i].name);
-				ret = -EINVAL;
-				goto err;
-			}
-			mdwc->wakeup_irq[i].irq = 0;
-		} else {
-			irq_set_status_flags(mdwc->wakeup_irq[i].irq,
-						IRQ_NOAUTOEN);
-			/* ss_phy_irq is level trigger interrupt */
-			if (!strncmp(mdwc->wakeup_irq[i].name,
-						"ss_phy_irq", 10))
-				irq_type = IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
-					IRQ_TYPE_LEVEL_HIGH | IRQF_EARLY_RESUME;
-
-			ret = devm_request_threaded_irq(&pdev->dev,
-					mdwc->wakeup_irq[i].irq,
-					msm_dwc3_pwr_irq,
-					msm_dwc3_pwr_irq_thread,
-					irq_type,
-					mdwc->wakeup_irq[i].name, mdwc);
-			if (ret) {
-				dev_err(&pdev->dev, "irq req %s failed: %d\n\n",
-						mdwc->wakeup_irq[i].name, ret);
-				goto err;
-			}
-		}
-	}
-
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core_base");
 	if (!res) {
 		dev_err(&pdev->dev, "missing memory base resource\n");
@@ -4076,23 +4036,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 			}
 			clk_disable_unprepare(mdwc->cfg_ahb_clk);
 			dwc3_msm_config_gdsc(mdwc, 0);
-		}
-	}
-
-	mdwc->dbm = dwc3_init_dbm(&pdev->dev, mdwc->base);
-	if (IS_ERR(mdwc->dbm)) {
-		dev_warn(&pdev->dev, "unable to init dbm device, skipping...\n");
-		mdwc->dbm = NULL;
-	}
-
-	/* Add power event if the dbm indicates coming out of L1 by interrupt */
-	if (mdwc->dbm && dbm_l1_lpm_interrupt(mdwc->dbm)) {
-		/* Dual port core does not need pwr_evnt_irq */
-		if (!mdwc->dual_port && !mdwc->wakeup_irq[PWR_EVNT_IRQ].irq) {
-			dev_err(&pdev->dev,
-				"need pwr_event_irq exiting L1\n");
-			ret = -EINVAL;
-			goto err;
 		}
 	}
 
@@ -4217,6 +4160,67 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get dwc3 device\n");
 		ret = -ENODEV;
 		goto put_dwc3;
+	}
+
+	memcpy(mdwc->wakeup_irq, usb_irq_info, sizeof(usb_irq_info));
+	for (i = 0; i < USB_MAX_IRQ; i++) {
+		irq_type = IRQF_TRIGGER_RISING | IRQF_EARLY_RESUME |
+						IRQF_ONESHOT;
+		mdwc->wakeup_irq[i].irq = platform_get_irq_byname(pdev,
+					mdwc->wakeup_irq[i].name);
+		/* pwr_evnt_irq is mandatory for cores allowing SSPHY suspend */
+		if (mdwc->wakeup_irq[i].irq < 0) {
+			if (!dwc->dis_u3_susphy_quirk &&
+				!strcmp(mdwc->wakeup_irq[i].name,
+						"pwr_event_irq")) {
+				dev_err(&pdev->dev, "get_irq for %s failed\n\n",
+						mdwc->wakeup_irq[i].name);
+				ret = -EINVAL;
+				goto put_dwc3;
+			}
+			mdwc->wakeup_irq[i].irq = 0;
+		} else {
+			irq_set_status_flags(mdwc->wakeup_irq[i].irq,
+						IRQ_NOAUTOEN);
+			/*
+			 * ss_phy_irq is level trigger interrupt.
+			 * Run prefix check to cover for 2nd SS irq on dual port
+			 */
+			if (!strncmp(mdwc->wakeup_irq[i].name,
+						"ss_phy_irq", 10))
+				irq_type = IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
+					IRQ_TYPE_LEVEL_HIGH | IRQF_EARLY_RESUME;
+
+			ret = devm_request_threaded_irq(&pdev->dev,
+					mdwc->wakeup_irq[i].irq,
+					msm_dwc3_pwr_irq,
+					msm_dwc3_pwr_irq_thread,
+					irq_type,
+					mdwc->wakeup_irq[i].name, mdwc);
+			if (ret) {
+				dev_err(&pdev->dev, "irq req %s failed: %d\n\n",
+						mdwc->wakeup_irq[i].name, ret);
+				goto put_dwc3;
+			}
+		}
+	}
+
+	mdwc->dbm = dwc3_init_dbm(&pdev->dev, mdwc->base);
+	if (IS_ERR(mdwc->dbm)) {
+		dev_warn(&pdev->dev, "unable to init dbm device, skipping...\n");
+		mdwc->dbm = NULL;
+	}
+
+	/* Add power event if the dbm indicates coming out of L1 by interrupt */
+	if (mdwc->dbm && dbm_l1_lpm_interrupt(mdwc->dbm)) {
+		/* pwr_evnt_irq is mandatory for cores allowing SSPHY suspend */
+		if (!dwc->dis_u3_susphy_quirk &&
+				!mdwc->wakeup_irq[PWR_EVNT_IRQ].irq) {
+			dev_err(&pdev->dev,
+				"need pwr_event_irq exiting L1\n");
+			ret = -EINVAL;
+			goto put_dwc3;
+		}
 	}
 
 	/*
