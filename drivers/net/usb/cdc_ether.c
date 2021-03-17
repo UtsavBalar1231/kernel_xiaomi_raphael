@@ -528,7 +528,7 @@ static void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
 
 static const struct driver_info	cdc_info = {
 	.description =	"CDC Ethernet Device",
-	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT,
+	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_THROTTLE_RX,
 	.bind =		usbnet_cdc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	usbnet_cdc_status,

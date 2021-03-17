@@ -122,6 +122,10 @@ static int debug_mask;
 module_param(debug_mask, int, 0644);
 MODULE_PARM_DESC(debug_mask, "Control data packet IPC logging");
 
+static int usb0_rx_skb_threshold = 500;
+module_param(usb0_rx_skb_threshold, int, 0644);
+MODULE_PARM_DESC(usb0_rx_skb_threshold, "Throttle rx traffic in USB3");
+
 #define dbg_log_string(fmt, ...) do { \
 if ((dev->netdev_id == USBNET_RMNET_USB1 && debug_mask == 1) || \
 					debug_mask == 2) \
@@ -729,9 +733,21 @@ block:
 	state = defer_bh(dev, skb, &dev->rxq, state);
 
 	if (urb) {
+		/* In high throughput ECM usecases (which does not support
+		 * aggregation) in USB3 and on systems with slower cores, the
+		 * huge number of DownLink packets can lead to a scenario where
+		 * the usbnet_bh tasklet stays suspended due to rx_complete
+		 * occupying most of the CPU cycles. That leads to OOM and WD
+		 * bark issues. Add mechanism to throttle the DL traffic based
+		 * on the size of pending SKB list. This will allow usbnet_bh
+		 * tasklet to resume execution.
+		 */
 		if (netif_running (dev->net) &&
 		    !test_bit (EVENT_RX_HALT, &dev->flags) &&
-		    state != unlink_start) {
+		    state != unlink_start &&
+		    ((dev->driver_info->flags & FLAG_THROTTLE_RX) &&
+		    (dev->udev->speed > USB_SPEED_HIGH) &&
+		    (dev->done.qlen < usb0_rx_skb_threshold))) {
 			rx_submit (dev, urb, GFP_ATOMIC);
 			usb_mark_last_busy(dev->udev);
 			return;
