@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2010, 2013-2018, 2020 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2010, 2013-2018, 2020-2021 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -447,8 +447,6 @@ static int bluetooth_power(int on)
 gpio_fail:
 		if (bt_power_pdata->bt_gpio_sys_rst > 0)
 			gpio_free(bt_power_pdata->bt_gpio_sys_rst);
-		if  (bt_power_pdata->bt_gpio_sw_ctrl  >  0)
-			gpio_free(bt_power_pdata->bt_gpio_sw_ctrl);
 		if (bt_power_pdata->bt_gpio_3p3_en > 0)
 			gpio_free(bt_power_pdata->bt_gpio_3p3_en);
 		if (bt_power_pdata->bt_gpio_1p3_en > 0)
