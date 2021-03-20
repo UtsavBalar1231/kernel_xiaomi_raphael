@@ -77,10 +77,6 @@ void dwmac4_dma_stop_tx(void __iomem *ioaddr, u32 chan)
 	u32 value = 0;
 
 	dwmac4_dma_stop_tx_chan(ioaddr, chan);
-
-	value = readl(ioaddr + GMAC_CONFIG);
-	value &= ~GMAC_CONFIG_TE;
-	writel(value, ioaddr + GMAC_CONFIG);
 }
 
 void dwmac4_dma_start_rx_chan(void __iomem *ioaddr, u32 chan)
