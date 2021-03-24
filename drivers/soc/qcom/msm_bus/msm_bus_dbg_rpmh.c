@@ -580,7 +580,7 @@ static ssize_t  msm_bus_dbg_update_request_write(struct file *file,
 	uint32_t clid;
 	ssize_t res = cnt;
 
-	dbg_buf = kmalloc((sizeof(char) * (cnt + 1)), GFP_KERNEL);
+	dbg_buf = kzalloc((sizeof(char) * (cnt + 1)), GFP_KERNEL);
 
 	if (!dbg_buf || IS_ERR(dbg_buf)) {
 		MSM_BUS_ERR("Memory allocation for buffer failed\n");
@@ -702,7 +702,7 @@ static int msm_bus_dbg_record_fabric(const char *fabname, struct dentry *file)
 	int ret = 0;
 
 	mutex_lock(&msm_bus_dbg_fablist_lock);
-	dbg_fablist = kmalloc(sizeof(struct msm_bus_fab_list), GFP_KERNEL);
+	dbg_fablist = kzalloc(sizeof(struct msm_bus_fab_list), GFP_KERNEL);
 	if (!dbg_fablist) {
 		MSM_BUS_DBG("Failed to allocate memory for commit data\n");
 		ret =  -ENOMEM;
