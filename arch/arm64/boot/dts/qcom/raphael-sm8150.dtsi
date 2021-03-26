@@ -661,54 +661,6 @@ And public attribution of xiaomi platforms(like F1 and so and)
 
 &pm8150b_haptics {
 	qcom,actuator-type = "erm";
-	qcom,vmax-mv = <3000>;
-
-	wf_0 {
-		/* CLICK */
-		qcom,effect-id = <0>;
-		qcom,wf-vmax-mv = <3000>;
-		qcom,wf-pattern = [3e 3e 3e];
-		qcom,wf-brake-pattern = [01 00 00 00];
-		qcom,lra-auto-resonance-disable;
-	};
-	wf_1 {
-		/* DOUBLE CLICK */
-		qcom,effect-id = <1>;
-		qcom,wf-vmax-mv = <3000>;
-		qcom,wf-pattern = [7e 7e 02 02 02 02 02 02];
-		qcom,wf-repeat-count = <2>;
-		qcom,wf-s-repeat-count = <1>;
-		qcom,lra-auto-resonance-disable;
-	};
-	wf_2 {
-		/* TICK */
-		qcom,effect-id = <2>;
-		qcom,wf-vmax-mv = <3000>;
-		qcom,wf-pattern = [7e 7e];
-		qcom,lra-auto-resonance-disable;
-	};
-	wf_3 {
-		/* THUD */
-		qcom,effect-id = <3>;
-		qcom,wf-vmax-mv = <3000>;
-		qcom,wf-pattern = [7e 7e 7e];
-		qcom,lra-auto-resonance-disable;
-	};
-	wf_4 {
-		/* POP */
-		qcom,effect-id = <4>;
-		qcom,wf-vmax-mv = <3000>;
-		qcom,wf-pattern = [7e 7e];
-		qcom,lra-auto-resonance-disable;
-	};
-	wf_5 {
-		/* HEAVY CLICK */
-		qcom,effect-id = <5>;
-		qcom,wf-vmax-mv = <3000>;
-		qcom,wf-pattern = [7e 7e 7e];
-		qcom,wf-brake-pattern = [03 00 00 00];
-		qcom,lra-auto-resonance-disable;
-	};
 };
 
 &pm8150l_lpg {
