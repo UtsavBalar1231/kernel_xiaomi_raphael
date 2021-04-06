@@ -264,6 +264,7 @@
 		      <0x00786070 0x4>;
 		reg-names = "pshold-base", "tcsr-boot-misc-detect",
 				"boot-config";
+		qcom,boot-config-shift = <4>;
 	};
 
 	qcom,wdt@17817000 {
