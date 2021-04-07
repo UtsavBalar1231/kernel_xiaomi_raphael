@@ -61,6 +61,7 @@ void qrtr_service_add(struct qrtr_ctrl_pkt *pkt)
 		if (info) {
 			info->service_id = le32_to_cpu(pkt->server.service);
 			info->instance_id = le32_to_cpu(pkt->server.instance);
+			info->node_id = le32_to_cpu(pkt->server.node);
 			radix_tree_insert(&service_lookup, key, info);
 		} else {
 			pr_err("%s svc<0x%x:0x%x> adding to lookup failed\n",
@@ -114,16 +115,16 @@ void qrtr_service_node_remove(u32 src_node)
 	struct radix_tree_iter iter;
 	struct service_info *info;
 	void __rcu **slot;
-	unsigned long node_id;
+	u32 node_id;
 
 	mutex_lock(&service_lookup_lock);
 	radix_tree_for_each_slot(slot, &service_lookup, &iter, 0) {
 		info = rcu_dereference(*slot);
 		/**
-		 * extract node id from the index key & remove service
+		 * get node id from info structure & remove service
 		 * info only for matching node_id
 		 */
-		node_id = (iter.index & 0xFFFFFFFF00000000) >> 32;
+		node_id = info->node_id;
 		if (node_id != src_node)
 			continue;
 

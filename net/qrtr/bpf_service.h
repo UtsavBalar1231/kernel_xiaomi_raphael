@@ -22,6 +22,7 @@
 struct service_info {
 	u32 service_id;
 	u32 instance_id;
+	u32 node_id;
 };
 
 void qrtr_service_add(struct qrtr_ctrl_pkt *pkt);
