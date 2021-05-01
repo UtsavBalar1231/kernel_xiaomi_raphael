@@ -558,6 +558,7 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
+
 		if (!*p)
 			continue;
 		/*
@@ -1865,6 +1866,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 	set_opt(sbi, NOHEAP);
 	sbi->sb->s_flags |= MS_LAZYTIME;
 	clear_opt(sbi, DISABLE_CHECKPOINT);
+	set_opt(sbi, MERGE_CHECKPOINT);
 	F2FS_OPTION(sbi).unusable_cap = 0;
 	set_opt(sbi, FLUSH_MERGE);
 	set_opt(sbi, DISCARD);
@@ -1916,7 +1918,7 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 
 	ret = sync_filesystem(sbi->sb);
 	if (ret || err) {
-		err = ret ? ret: err;
+		err = ret ? ret : err;
 		goto restore_flag;
 	}
 
@@ -3782,7 +3784,7 @@ try_onemore:
 	sbi->iostat_period_ms = DEFAULT_IOSTAT_PERIOD_MS;
 
 	for (i = 0; i < NR_PAGE_TYPE; i++) {
-		int n = (i == META) ? 1: NR_TEMP_TYPE;
+		int n = (i == META) ? 1 : NR_TEMP_TYPE;
 		int j;
 
 		sbi->write_io[i] =

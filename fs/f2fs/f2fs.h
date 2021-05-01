@@ -1306,14 +1306,6 @@ enum {
 #define IS_DUMMY_WRITTEN_PAGE(page)			\
 		(page_private(page) == DUMMY_WRITTEN_PAGE)
 
-#ifdef CONFIG_F2FS_IO_TRACE
-#define IS_IO_TRACED_PAGE(page)			\
-		(page_private(page) > 0 &&		\
-		 page_private(page) < (unsigned long)PID_MAX_LIMIT)
-#else
-#define IS_IO_TRACED_PAGE(page) (0)
-#endif
-
 #ifdef CONFIG_FS_ENCRYPTION
 #define DUMMY_ENCRYPTION_ENABLED(sbi) \
 	(unlikely(F2FS_OPTION(sbi).dummy_enc_ctx.ctx != NULL))
@@ -3325,7 +3317,6 @@ void f2fs_hash_filename(const struct inode *dir, struct f2fs_filename *fname);
 /*
  * node.c
  */
-struct dnode_of_data;
 struct node_info;
 
 int f2fs_check_nid_range(struct f2fs_sb_info *sbi, nid_t nid);
@@ -3410,7 +3401,7 @@ void f2fs_get_new_segment(struct f2fs_sb_info *sbi,
 			unsigned int *newseg, bool new_sec, int dir);
 void f2fs_allocate_segment_for_resize(struct f2fs_sb_info *sbi, int type,
 					unsigned int start, unsigned int end);
-void f2fs_allocate_new_section(struct f2fs_sb_info *sbi, int type);
+void f2fs_allocate_new_section(struct f2fs_sb_info *sbi, int type, bool force);
 void f2fs_allocate_new_segments(struct f2fs_sb_info *sbi);
 int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range);
 bool f2fs_exist_trim_candidates(struct f2fs_sb_info *sbi,
