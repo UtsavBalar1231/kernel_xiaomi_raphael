@@ -235,8 +235,7 @@ out:
 
 	f2fs_put_page(page, 1);
 
-	if (!err)
-		f2fs_balance_fs(sbi, dn.node_changed);
+	f2fs_balance_fs(sbi, dn.node_changed);
 
 	return err;
 }
