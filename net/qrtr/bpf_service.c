@@ -16,6 +16,7 @@
 #include <net/sock.h>
 #include "bpf_service.h"
 #include <linux/bpf.h>
+#include "qrtr.h"
 
 /* qrtr filter (based on eBPF) related declarations */
 #define MAX_GID_SUPPORTED	16
@@ -155,7 +156,8 @@ int qrtr_bpf_filter_attach(int ufd)
 	if (bpf_filter)
 		return -EEXIST;
 
-	if (!uid_eq(current_euid(), GLOBAL_ROOT_UID))
+	if (!(in_egroup_p(AID_VENDOR_QRTR) ||
+	      in_egroup_p(GLOBAL_ROOT_GID)))
 		return -EPERM;
 
 	prog = bpf_prog_get_type(ufd, BPF_PROG_TYPE_SOCKET_FILTER);
