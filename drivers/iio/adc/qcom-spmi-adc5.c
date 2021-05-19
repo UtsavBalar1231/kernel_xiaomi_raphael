@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -786,7 +786,11 @@ static const struct adc_channels adc_chans_rev2[ADC_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_PMIC_THERM)
 	[ADC_AMUX_THM1_PU2]	= ADC_CHAN_TEMP("amux_thm1_pu2", 1,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC_AMUX_THM2_PU2]	= ADC_CHAN_TEMP("amux_thm2_pu2", 1,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC_AMUX_THM3_PU2]	= ADC_CHAN_TEMP("amux_thm3_pu2", 1,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC_AMUX_THM4_PU2]	= ADC_CHAN_TEMP("amux_thm4_pu2", 1,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC_AMUX_THM5_PU2]	= ADC_CHAN_TEMP("amux_thm5_pu2", 1,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)

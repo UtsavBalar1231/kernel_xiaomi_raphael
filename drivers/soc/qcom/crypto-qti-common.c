@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020, Linux Foundation. All rights reserved.
+ * Copyright (c) 2020,2021 Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,6 +60,8 @@ static int ice_check_version(struct crypto_vops_qti_entry *ice_entry)
 	}
 
 	ice_entry->ice_hw_version = version;
+	ice_entry->major = major;
+	ice_entry->minor = minor;
 
 	return 0;
 }
@@ -162,6 +164,66 @@ static void ice_disable_intr(struct crypto_vops_qti_entry *ice_entry)
 	wmb();
 }
 
+static int ice_enable_reset(struct crypto_vops_qti_entry *ice_entry)
+{
+	unsigned int reg;
+	uint32_t major, minor;
+
+	major = ice_entry->major;
+	minor = ice_entry->minor;
+
+	/*
+	 * Starting ICE v3 enabling is done at storage controller (UFS/SDCC)
+	 */
+	if (major >= 3)
+		return 0;
+
+	/*
+	 * To enable ICE, perform following
+	 * 1. Set IGNORE_CONTROLLER_RESET to USE in ICE_RESET register
+	 * 2. Disable GLOBAL_BYPASS bit in ICE_CONTROL register
+	 */
+	reg = ice_readl(ice_entry, ICE_REGS_RESET);
+
+	if (major >= 2)
+		reg &= 0x0;
+	else if (major == 1)
+		reg &= ~0x100;
+	else {
+		pr_err("Invalid ICE version\n");
+		return -EINVAL;
+	}
+
+	ice_writel(ice_entry, reg, ICE_REGS_RESET);
+	if (ice_readl(ice_entry, ICE_REGS_RESET) != reg)
+		return -EIO;
+
+	reg = ice_readl(ice_entry, ICE_REGS_CONTROL);
+
+	if (major >= 2)
+		reg &= 0xFFFE;
+	else if (major == 1)
+		reg &= ~0x7;
+	else {
+		pr_err("Invalid ICE version\n");
+		return -EINVAL;
+	}
+
+	ice_writel(ice_entry, reg, ICE_REGS_CONTROL);
+	if (ice_readl(ice_entry, ICE_REGS_CONTROL) != reg)
+		return -EIO;
+
+	if ((major == 2) && (minor >= 1)) {
+		reg = ice_readl(ice_entry, ICE_REGS_BYPASS_STATUS);
+		if ((reg & QTI_ICE_BYPASS_STATUS) != 0x0) {
+			pr_err("%s: Bypass failed for ice = %pK",
+					__func__, (void *)ice_entry);
+			WARN_ON(1);
+		}
+	}
+	return 0;
+}
+
 int crypto_qti_enable(void *priv_data)
 {
 	int err = 0;
@@ -177,6 +239,11 @@ int crypto_qti_enable(void *priv_data)
 	err = ice_wait_bist_status(ice_entry);
 	if (err)
 		return err;
+
+	err = ice_enable_reset(ice_entry);
+	if (err)
+		return err;
+
 	ice_enable_intr(ice_entry);
 
 	return err;

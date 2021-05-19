@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2356,7 +2356,7 @@ static int dwc3_msm_prepare_suspend(struct dwc3_msm *mdwc, bool ignore_p3_state)
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 	unsigned long timeout;
 	u32 reg = 0;
-	bool ssphy0_sus, ssphy1_sus;
+	bool ssphy0_sus = false, ssphy1_sus = false;
 
 	/* Allow SSPHY(s) to go to P3 state if SSPHY autosuspend is disabled */
 	if (dwc->dis_u3_susphy_quirk) {
@@ -2494,7 +2494,7 @@ static void dwc3_set_phy_speed_flags(struct dwc3_msm *mdwc)
 		for (i = 0; i < num_ports; i++) {
 			reg = dwc3_msm_read_reg(mdwc->base,
 					USB3_PORTSC + i*0x10);
-			if (reg & PORT_PE) {
+			if (reg & PORT_CONNECT) {
 				if (DEV_HIGHSPEED(reg) || DEV_FULLSPEED(reg)) {
 					if (i % (num_ports / 2))
 						mdwc->hs_phy1->flags |=
@@ -3686,10 +3686,17 @@ static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 
 	if (sysfs_streq(buf, "peripheral")) {
-		mdwc->vbus_active = true;
-		mdwc->id_state = DWC3_ID_FLOAT;
+		if (dwc->dr_mode != USB_DR_MODE_HOST) {
+			mdwc->vbus_active = true;
+			mdwc->id_state = DWC3_ID_FLOAT;
+		} else {
+			dev_err(dev, "Core supports host mode only.\n");
+			return -EINVAL;
+		}
+
 	} else if (sysfs_streq(buf, "host")) {
 		mdwc->vbus_active = false;
 		mdwc->id_state = DWC3_ID_GROUND;
@@ -3986,46 +3993,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		mdwc->lpm_to_suspend_delay = 0;
 	}
 
-	memcpy(mdwc->wakeup_irq, usb_irq_info, sizeof(usb_irq_info));
-	for (i = 0; i < USB_MAX_IRQ; i++) {
-		irq_type = IRQF_TRIGGER_RISING | IRQF_EARLY_RESUME |
-						IRQF_ONESHOT;
-		mdwc->wakeup_irq[i].irq = platform_get_irq_byname(pdev,
-					mdwc->wakeup_irq[i].name);
-		/* pwr_evnt_irq is only mandatory irq for single port core */
-		if (mdwc->wakeup_irq[i].irq < 0) {
-			if (!mdwc->dual_port &&
-				!strcmp(mdwc->wakeup_irq[i].name,
-						"pwr_event_irq")) {
-				dev_err(&pdev->dev, "get_irq for %s failed\n\n",
-						mdwc->wakeup_irq[i].name);
-				ret = -EINVAL;
-				goto err;
-			}
-			mdwc->wakeup_irq[i].irq = 0;
-		} else {
-			irq_set_status_flags(mdwc->wakeup_irq[i].irq,
-						IRQ_NOAUTOEN);
-			/* ss_phy_irq is level trigger interrupt */
-			if (!strncmp(mdwc->wakeup_irq[i].name,
-						"ss_phy_irq", 10))
-				irq_type = IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
-					IRQ_TYPE_LEVEL_HIGH | IRQF_EARLY_RESUME;
-
-			ret = devm_request_threaded_irq(&pdev->dev,
-					mdwc->wakeup_irq[i].irq,
-					msm_dwc3_pwr_irq,
-					msm_dwc3_pwr_irq_thread,
-					irq_type,
-					mdwc->wakeup_irq[i].name, mdwc);
-			if (ret) {
-				dev_err(&pdev->dev, "irq req %s failed: %d\n\n",
-						mdwc->wakeup_irq[i].name, ret);
-				goto err;
-			}
-		}
-	}
-
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core_base");
 	if (!res) {
 		dev_err(&pdev->dev, "missing memory base resource\n");
@@ -4069,23 +4036,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 			}
 			clk_disable_unprepare(mdwc->cfg_ahb_clk);
 			dwc3_msm_config_gdsc(mdwc, 0);
-		}
-	}
-
-	mdwc->dbm = dwc3_init_dbm(&pdev->dev, mdwc->base);
-	if (IS_ERR(mdwc->dbm)) {
-		dev_warn(&pdev->dev, "unable to init dbm device, skipping...\n");
-		mdwc->dbm = NULL;
-	}
-
-	/* Add power event if the dbm indicates coming out of L1 by interrupt */
-	if (mdwc->dbm && dbm_l1_lpm_interrupt(mdwc->dbm)) {
-		/* Dual port core does not need pwr_evnt_irq */
-		if (!mdwc->dual_port && !mdwc->wakeup_irq[PWR_EVNT_IRQ].irq) {
-			dev_err(&pdev->dev,
-				"need pwr_event_irq exiting L1\n");
-			ret = -EINVAL;
-			goto err;
 		}
 	}
 
@@ -4210,6 +4160,67 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get dwc3 device\n");
 		ret = -ENODEV;
 		goto put_dwc3;
+	}
+
+	memcpy(mdwc->wakeup_irq, usb_irq_info, sizeof(usb_irq_info));
+	for (i = 0; i < USB_MAX_IRQ; i++) {
+		irq_type = IRQF_TRIGGER_RISING | IRQF_EARLY_RESUME |
+						IRQF_ONESHOT;
+		mdwc->wakeup_irq[i].irq = platform_get_irq_byname(pdev,
+					mdwc->wakeup_irq[i].name);
+		/* pwr_evnt_irq is mandatory for cores allowing SSPHY suspend */
+		if (mdwc->wakeup_irq[i].irq < 0) {
+			if (!dwc->dis_u3_susphy_quirk &&
+				!strcmp(mdwc->wakeup_irq[i].name,
+						"pwr_event_irq")) {
+				dev_err(&pdev->dev, "get_irq for %s failed\n\n",
+						mdwc->wakeup_irq[i].name);
+				ret = -EINVAL;
+				goto put_dwc3;
+			}
+			mdwc->wakeup_irq[i].irq = 0;
+		} else {
+			irq_set_status_flags(mdwc->wakeup_irq[i].irq,
+						IRQ_NOAUTOEN);
+			/*
+			 * ss_phy_irq is level trigger interrupt.
+			 * Run prefix check to cover for 2nd SS irq on dual port
+			 */
+			if (!strncmp(mdwc->wakeup_irq[i].name,
+						"ss_phy_irq", 10))
+				irq_type = IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
+					IRQ_TYPE_LEVEL_HIGH | IRQF_EARLY_RESUME;
+
+			ret = devm_request_threaded_irq(&pdev->dev,
+					mdwc->wakeup_irq[i].irq,
+					msm_dwc3_pwr_irq,
+					msm_dwc3_pwr_irq_thread,
+					irq_type,
+					mdwc->wakeup_irq[i].name, mdwc);
+			if (ret) {
+				dev_err(&pdev->dev, "irq req %s failed: %d\n\n",
+						mdwc->wakeup_irq[i].name, ret);
+				goto put_dwc3;
+			}
+		}
+	}
+
+	mdwc->dbm = dwc3_init_dbm(&pdev->dev, mdwc->base);
+	if (IS_ERR(mdwc->dbm)) {
+		dev_warn(&pdev->dev, "unable to init dbm device, skipping...\n");
+		mdwc->dbm = NULL;
+	}
+
+	/* Add power event if the dbm indicates coming out of L1 by interrupt */
+	if (mdwc->dbm && dbm_l1_lpm_interrupt(mdwc->dbm)) {
+		/* pwr_evnt_irq is mandatory for cores allowing SSPHY suspend */
+		if (!dwc->dis_u3_susphy_quirk &&
+				!mdwc->wakeup_irq[PWR_EVNT_IRQ].irq) {
+			dev_err(&pdev->dev,
+				"need pwr_event_irq exiting L1\n");
+			ret = -EINVAL;
+			goto put_dwc3;
+		}
 	}
 
 	/*
@@ -5148,8 +5159,6 @@ static int dwc3_msm_pm_suspend(struct device *dev)
 	dev_dbg(dev, "dwc3-msm PM suspend\n");
 	dbg_event(0xFF, "PM Sus", 0);
 
-	flush_workqueue(mdwc->dwc3_wq);
-
 	/*
 	 * Check if pm_suspend can proceed irrespective of runtimePM state of
 	 * host.
@@ -5181,8 +5190,6 @@ static int dwc3_msm_pm_resume(struct device *dev)
 	dev_dbg(dev, "dwc3-msm PM resume\n");
 	dbg_event(0xFF, "PM Res", 0);
 
-	/* flush to avoid race in read/write of pm_suspended */
-	flush_workqueue(mdwc->dwc3_wq);
 	atomic_set(&mdwc->pm_suspended, 0);
 
 	if (atomic_read(&dwc->in_lpm) &&
@@ -5218,8 +5225,6 @@ static int dwc3_msm_pm_freeze(struct device *dev)
 
 	dev_dbg(dev, "dwc3-msm PM freeze\n");
 	dbg_event(0xFF, "PM Freeze", 0);
-
-	flush_workqueue(mdwc->dwc3_wq);
 
 	/*
 	 * Check if pm_freeze can proceed irrespective of runtimePM state of
@@ -5266,8 +5271,6 @@ static int dwc3_msm_pm_restore(struct device *dev)
 	dev_dbg(dev, "dwc3-msm PM restore\n");
 	dbg_event(0xFF, "PM Restore", 0);
 
-	/* flush to avoid race in read/write of pm_suspended */
-	flush_workqueue(mdwc->dwc3_wq);
 	atomic_set(&mdwc->pm_suspended, 0);
 
 	if (!dwc->ignore_wakeup_src_in_hostmode || !mdwc->in_host_mode) {

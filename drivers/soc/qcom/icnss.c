@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1328,32 +1328,6 @@ out:
 	return 0;
 }
 
-static int icnss_call_driver_remove(struct icnss_priv *priv)
-{
-	icnss_pr_dbg("Calling driver remove state: 0x%lx\n", priv->state);
-
-	clear_bit(ICNSS_FW_READY, &priv->state);
-
-	if (test_bit(ICNSS_DRIVER_UNLOADING, &priv->state))
-		return 0;
-
-	if (!test_bit(ICNSS_DRIVER_PROBED, &priv->state))
-		return 0;
-
-	if (!priv->ops || !priv->ops->remove)
-		return 0;
-
-	set_bit(ICNSS_DRIVER_UNLOADING, &priv->state);
-	priv->ops->remove(&priv->pdev->dev);
-
-	clear_bit(ICNSS_DRIVER_UNLOADING, &priv->state);
-	clear_bit(ICNSS_DRIVER_PROBED, &priv->state);
-
-	icnss_hw_power_off(priv);
-
-	return 0;
-}
-
 static int icnss_fw_crashed(struct icnss_priv *priv,
 			    struct icnss_event_pd_service_down_data *event_data)
 {
@@ -1614,7 +1588,11 @@ static int icnss_modem_notifier_nb(struct notifier_block *nb,
 		atomic_set(&priv->is_shutdown, false);
 		if (!test_bit(ICNSS_PD_RESTART, &priv->state) &&
 		    !test_bit(ICNSS_SHUTDOWN_DONE, &priv->state)) {
-			icnss_call_driver_remove(priv);
+			clear_bit(ICNSS_FW_READY, &priv->state);
+			icnss_driver_event_post(
+				ICNSS_DRIVER_EVENT_UNREGISTER_DRIVER,
+				ICNSS_EVENT_SYNC_UNINTERRUPTIBLE,
+				NULL);
 		}
 	}
 

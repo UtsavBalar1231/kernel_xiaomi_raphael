@@ -11,6 +11,7 @@ struct sk_buff;
 #define QRTR_EP_NET_ID_AUTO (1)
 
 #define QRTR_DEL_PROC_MAGIC	0xe111
+#define AID_VENDOR_QRTR	KGIDT_INIT(2906)
 
 /**
  * struct qrtr_endpoint - endpoint handle

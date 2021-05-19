@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -260,6 +260,12 @@ static void usb_event_work_fn(struct work_struct *work)
 
 		wait_event_interruptible(ch->wait_q, ch->enabled > 0);
 		ch->max_size = usb_diag_request_size(ch->hdl);
+		if (ch->max_size <= 0) {
+			DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
+			"diag: USB channel %s: invalid max size,returning..\n",
+			ch->name);
+			break;
+		}
 		atomic_set(&ch->connected, 1);
 
 		DIAG_LOG(DIAG_DEBUG_PERIPHERALS,

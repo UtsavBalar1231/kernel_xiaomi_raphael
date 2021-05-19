@@ -8,6 +8,15 @@
 #define QRTR_NODE_BCAST	0xffffffffu
 #define QRTR_PORT_CTRL	0xfffffffeu
 
+/* use reserved ioctl value from protocol private area */
+#define QRTR_IOCTL_TYPE		((SIOCPROTOPRIVATE >> 8) & 0xFF)
+#define QRTR_IOCTL_SEQ_BASE	(SIOCPROTOPRIVATE & 0xFF)
+
+#define QRTR_ATTACH_BPF	\
+	_IOR(QRTR_IOCTL_TYPE, QRTR_IOCTL_SEQ_BASE, int)
+#define QRTR_DETTACH_BPF	\
+	_IO(QRTR_IOCTL_TYPE, QRTR_IOCTL_SEQ_BASE + 1)
+
 struct sockaddr_qrtr {
 	__kernel_sa_family_t sq_family;
 	__u32 sq_node;

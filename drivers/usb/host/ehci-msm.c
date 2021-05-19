@@ -176,7 +176,7 @@ static int ehci_msm_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int ehci_msm_pm_suspend(struct device *dev)
+static int ehci_msm_runtime_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
@@ -191,7 +191,7 @@ static int ehci_msm_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int ehci_msm_pm_resume(struct device *dev)
+static int ehci_msm_runtime_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
@@ -211,8 +211,8 @@ static int ehci_msm_pm_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops ehci_msm_dev_pm_ops = {
-	.suspend         = ehci_msm_pm_suspend,
-	.resume          = ehci_msm_pm_resume,
+	SET_RUNTIME_PM_OPS(ehci_msm_runtime_suspend, ehci_msm_runtime_resume,
+			   NULL)
 };
 
 static const struct acpi_device_id msm_ehci_acpi_ids[] = {

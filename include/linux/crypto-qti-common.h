@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2020,2021 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,12 +22,15 @@
 #define RAW_SECRET_SIZE 32
 #define QTI_ICE_MAX_BIST_CHECK_COUNT 100
 #define QTI_ICE_TYPE_NAME_LEN 8
+#define QTI_ICE_BYPASS_STATUS 0x80000000
 
 struct crypto_vops_qti_entry {
 	void __iomem *icemmio_base;
 	uint32_t ice_hw_version;
 	uint8_t ice_dev_type[QTI_ICE_TYPE_NAME_LEN];
 	uint32_t flags;
+	uint32_t major;
+	uint32_t minor;
 };
 
 #if IS_ENABLED(CONFIG_QTI_CRYPTO_COMMON)

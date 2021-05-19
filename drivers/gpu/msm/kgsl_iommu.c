@@ -226,8 +226,9 @@ static void kgsl_iommu_remove_global(struct kgsl_mmu *mmu,
 static void kgsl_iommu_add_global(struct kgsl_mmu *mmu,
 		struct kgsl_memdesc *memdesc, const char *name)
 {
-	u32 bit, start = 0;
+	u32 bit;
 	u64 size = kgsl_memdesc_footprint(memdesc);
+	int start = 0;
 
 	if (memdesc->gpuaddr != 0)
 		return;
@@ -776,21 +777,23 @@ static bool kgsl_iommu_suppress_pagefault(uint64_t faultaddr, int write,
 	return kgsl_iommu_uche_overfetch(private, faultaddr);
 }
 
-static struct kgsl_process_private *kgsl_iommu_identify_process(u64 ptbase)
+static struct kgsl_process_private *kgsl_iommu_get_process(u64 ptbase)
 {
 	struct kgsl_process_private *p = NULL;
 	struct kgsl_iommu_pt *iommu_pt;
 
-	mutex_lock(&kgsl_driver.process_mutex);
+	spin_lock(&kgsl_driver.proclist_lock);
 	list_for_each_entry(p, &kgsl_driver.process_list, list) {
 		iommu_pt = p->pagetable->priv;
 		if (iommu_pt->ttbr0 == ptbase) {
-			mutex_unlock(&kgsl_driver.process_mutex);
+			if (!kgsl_process_private_get(p))
+				p = NULL;
+			spin_unlock(&kgsl_driver.proclist_lock);
 			return p;
 		}
 	}
 
-	mutex_unlock(&kgsl_driver.process_mutex);
+	spin_unlock(&kgsl_driver.proclist_lock);
 	return p;
 }
 
@@ -839,15 +842,14 @@ static int kgsl_iommu_fault_handler(struct iommu_domain *domain,
 		fault_type = "transaction stalled";
 
 	ptbase = KGSL_IOMMU_GET_CTX_REG_Q(ctx, TTBR0);
-	private = kgsl_iommu_identify_process(ptbase);
+	private = kgsl_iommu_get_process(ptbase);
 
-	if (!kgsl_process_private_get(private))
-		private = NULL;
-	else
+	if (private)
 		pid = pid_nr(private->pid);
 
 	if (kgsl_iommu_suppress_pagefault(addr, write, private)) {
 		iommu->pagefault_suppression_count++;
+		kgsl_process_private_put(private);
 		return ret;
 	}
 
