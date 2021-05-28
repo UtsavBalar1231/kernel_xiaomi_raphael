@@ -5137,10 +5137,6 @@ static inline void wma_update_target_services(struct wmi_unified *wmi_handle,
 		cfg->is_roam_scan_ch_to_host = true;
 	if (wmi_service_enabled(wmi_handle, wmi_service_suiteb_roam_support))
 		cfg->akm_service_bitmap |= (1 << AKM_SUITEB);
-
-	cfg->ll_stats_per_chan_rx_tx_time =
-		wmi_service_enabled(wmi_handle,
-				    wmi_service_ll_stats_per_chan_rx_tx_time);
 }
 
 /**
@@ -7420,7 +7416,7 @@ static void wma_set_wifi_start_packet_stats(void *wma_handle,
 		return;
 	}
 
-	if (start_log->verbose_level == WLAN_LOG_LEVEL_ACTIVE) {
+	if (start_log->verbose_level >= WLAN_LOG_LEVEL_REPRO) {
 		pktlog_enable(scn, log_state, start_log->ini_triggered,
 			      start_log->user_triggered,
 			      start_log->is_iwpriv_command);
@@ -8475,7 +8471,8 @@ static QDF_STATUS wma_mc_process_msg(struct scheduler_msg *msg)
 
 #ifdef FEATURE_WLAN_TDLS
 	case WMA_UPDATE_TDLS_PEER_STATE:
-		wma_update_tdls_peer_state(wma_handle, msg->bodyptr);
+		wma_update_tdls_peer_state(wma_handle,
+				(tTdlsPeerStateParams *) msg->bodyptr);
 		break;
 	case WMA_TDLS_SET_OFFCHAN_MODE:
 		wma_set_tdls_offchan_mode(wma_handle,

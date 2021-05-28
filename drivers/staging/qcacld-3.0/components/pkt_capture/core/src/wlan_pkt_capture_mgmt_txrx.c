@@ -434,7 +434,6 @@ pkt_capture_mgmt_rx_data_cb(struct wlan_objmgr_psoc *psoc,
 	uint8_t type, sub_type;
 	qdf_nbuf_t nbuf;
 	int buf_len;
-	struct wlan_objmgr_vdev *vdev;
 
 	if (!(pkt_capture_get_pktcap_mode() & PACKET_CAPTURE_MODE_MGMT_ONLY)) {
 		qdf_nbuf_free(wbuf);
@@ -465,8 +464,7 @@ pkt_capture_mgmt_rx_data_cb(struct wlan_objmgr_psoc *psoc,
 	     sub_type == MGMT_SUBTYPE_ACTION)) {
 		struct wlan_objmgr_pdev *pdev;
 
-		vdev = pkt_capture_get_vdev();
-		pdev = wlan_vdev_get_pdev(vdev);
+		pdev = wlan_vdev_get_pdev(peer->peer_objmgr.vdev);
 		if (pkt_capture_is_rmf_enabled(pdev, psoc, wh->i_addr1)) {
 			QDF_STATUS status;
 

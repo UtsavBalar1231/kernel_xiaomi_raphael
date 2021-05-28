@@ -360,15 +360,15 @@ static const u32 hdd_sta_akm_suites[] = {
 	WLAN_AKM_SUITE_TDLS,
 	WLAN_AKM_SUITE_SAE,
 	WLAN_AKM_SUITE_FT_OVER_SAE,
-	WLAN_AKM_SUITE_EAP_SHA256,
-	WLAN_AKM_SUITE_EAP_SHA384,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
+	WLAN_AKM_SUITE_8021X_SUITE_B,
+	WLAN_AKM_SUITE_8021X_SUITE_B_192,
+#endif
 	WLAN_AKM_SUITE_FILS_SHA256,
 	WLAN_AKM_SUITE_FILS_SHA384,
 	WLAN_AKM_SUITE_FT_FILS_SHA256,
 	WLAN_AKM_SUITE_FT_FILS_SHA384,
 	WLAN_AKM_SUITE_OWE,
-	WLAN_AKM_SUITE_DPP_RSN,
-	WLAN_AKM_SUITE_FT_EAP_SHA_384,
 };
 
 /*akm suits supported by AP*/
@@ -2755,7 +2755,9 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 							    PM_STA_MODE);
 	if ((hdd_ctx->config->external_acs_policy ==
 	    HDD_EXTERNAL_ACS_PCL_MANDATORY) && conc_channel) {
-		if ((conc_channel <= WLAN_REG_CH_NUM(CHAN_ENUM_14) &&
+		if ((conc_channel >= WLAN_REG_CH_NUM(CHAN_ENUM_36) &&
+		     sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211A) ||
+		     (conc_channel <= WLAN_REG_CH_NUM(CHAN_ENUM_14) &&
 		      (sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211B ||
 		       sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211G))) {
 			sap_config->acs_cfg.pri_ch = conc_channel;
@@ -21647,9 +21649,9 @@ static int wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
  * Return: string conversion of reason code, if match found;
  *         "Unknown" otherwise.
  */
-#ifdef WLAN_DEBUG
 static const char *hdd_ieee80211_reason_code_to_str(uint16_t reason)
 {
+#ifdef WLAN_DEBUG
 	switch (reason) {
 	CASE_RETURN_STRING(WLAN_REASON_UNSPECIFIED);
 	CASE_RETURN_STRING(WLAN_REASON_PREV_AUTH_NOT_VALID);
@@ -21701,8 +21703,9 @@ static const char *hdd_ieee80211_reason_code_to_str(uint16_t reason)
 	default:
 		return "Unknown";
 	}
-}
 #endif
+	return "";
+}
 
 /**
  * hdd_qca_reason_to_str() - return string conversion of qca reason code
@@ -21713,10 +21716,10 @@ static const char *hdd_ieee80211_reason_code_to_str(uint16_t reason)
  * Return: string conversion of reason code, if match found;
  *         "Unknown" otherwise.
  */
-#ifdef WLAN_DEBUG
 static const char *
 hdd_qca_reason_to_str(enum qca_disconnect_reason_codes reason)
 {
+#ifdef WLAN_DEBUG
 	switch (reason) {
 	CASE_RETURN_STRING(QCA_DISCONNECT_REASON_INTERNAL_ROAM_FAILURE);
 	CASE_RETURN_STRING(QCA_DISCONNECT_REASON_EXTERNAL_ROAM_FAILURE);
@@ -21739,8 +21742,9 @@ hdd_qca_reason_to_str(enum qca_disconnect_reason_codes reason)
 	default:
 		return "Unknown";
 	}
-}
 #endif
+	return "";
+}
 
 /**
  * wlan_hdd_sir_mac_to_qca_reason() - Convert to qca internal disconnect reason

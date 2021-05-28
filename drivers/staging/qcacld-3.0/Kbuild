@@ -491,7 +491,6 @@ QDF_INC :=	-I$(WLAN_COMMON_INC)/$(QDF_OS_INC_DIR) \
 QDF_OBJS := 	$(QDF_LINUX_OBJ_DIR)/qdf_defer.o \
 		$(QDF_LINUX_OBJ_DIR)/qdf_event.o \
 		$(QDF_LINUX_OBJ_DIR)/qdf_file.o \
-		$(QDF_LINUX_OBJ_DIR)/qdf_func_tracker.o \
 		$(QDF_LINUX_OBJ_DIR)/qdf_list.o \
 		$(QDF_LINUX_OBJ_DIR)/qdf_lock.o \
 		$(QDF_LINUX_OBJ_DIR)/qdf_mc_timer.o \
@@ -2189,8 +2188,6 @@ cppflags-$(CONFIG_ENABLE_SMMU_S1_TRANSLATION) += -DENABLE_SMMU_S1_TRANSLATION
 #Flag to enable/disable MTRACE feature
 cppflags-$(CONFIG_ENABLE_MTRACE_LOG) += -DENABLE_MTRACE_LOG
 
-cppflags-$(CONFIG_FUNC_CALL_MAP) += -DFUNC_CALL_MAP
-
 #Flag to enable/disable Adaptive 11r feature
 cppflags-$(CONFIG_ADAPTIVE_11R) += -DWLAN_ADAPTIVE_11R
 
@@ -2258,16 +2255,6 @@ ccflags-y += -DWLAN_MAX_VDEVS=$(CONFIG_WLAN_MAX_VDEVS)
 
 KBUILD_CPPFLAGS += $(cppflags-y)
 
-# Currently, for versions of gcc which support it, the kernel Makefile
-# is disabling the maybe-uninitialized warning.  Re-enable it for the
-# WLAN driver.  Note that we must use ccflags-y here so that it
-# will override the kernel settings.
-ifeq ($(call cc-option-yn, -Wmaybe-uninitialized), y)
-ccflags-y += -Wmaybe-uninitialized
-ifneq (y,$(CONFIG_ARCH_MSM))
-ccflags-y += -Wframe-larger-than=4096
-endif
-endif
 ccflags-y += -Wmissing-prototypes
 
 ifeq ($(call cc-option-yn, -Wheader-guard), y)

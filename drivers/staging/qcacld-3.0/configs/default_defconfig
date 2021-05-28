@@ -42,12 +42,8 @@ ifeq ($(CONFIG_ICNSS), y)
 	endif
 endif
 
-DEVELOPER_DISABLE_BUILD_TIMESTAMP := y
-ifneq ($(DEVELOPER_DISABLE_BUILD_TIMESTAMP), y)
-ifneq ($(WLAN_DISABLE_BUILD_TAG), y)
-CONFIG_BUILD_TAG := y
-endif
-endif
+# Do not inject timestamps, we do not need them.
+CONFIG_BUILD_TAG := n
 
 ifeq ($(CONFIG_ARCH_MDM9630), y)
 CONFIG_MOBILE_ROUTER := y
@@ -307,9 +303,7 @@ CONFIG_WLAN_CLD_PM_QOS := y
 endif
 
 #Enable WLAN/Power debugfs feature only if debug_fs is enabled
-ifeq ($(CONFIG_DEBUG_FS), y)
-       # Flag to enable debugfs. Depends on CONFIG_DEBUG_FS in kernel
-       # configuration.
+ifeq ($(CONFIG_ANDROID), y)
        CONFIG_WLAN_DEBUGFS := y
 
        CONFIG_WLAN_POWER_DEBUGFS := y
@@ -333,21 +327,18 @@ CONFIG_FEATURE_FW_LOG_PARSING := n
 CONFIG_DP_TRACE := n
 
 ifeq ($(CONFIG_SLUB_DEBUG), y)
-	PANIC_ON_BUG := y
 	WLAN_WARN_ON_ASSERT := y
 else ifeq ($(CONFIG_PERF_DEBUG), y)
-	PANIC_ON_BUG := y
 	WLAN_WARN_ON_ASSERT := y
 else
-	PANIC_ON_BUG := n
 	WLAN_WARN_ON_ASSERT := n
 endif
 
 # Compile all log levels by default
-CONFIG_WLAN_LOG_FATAL := y
-CONFIG_WLAN_LOG_ERROR := y
-CONFIG_WLAN_LOG_WARN := y
-CONFIG_WLAN_LOG_INFO := y
+CONFIG_WLAN_LOG_FATAL := n
+CONFIG_WLAN_LOG_ERROR := n
+CONFIG_WLAN_LOG_WARN := n
+CONFIG_WLAN_LOG_INFO := n
 
 #Enable OL debug and wmi unified functions
 CONFIG_ATH_PERF_PWR_OFFLOAD := y
@@ -527,9 +518,6 @@ CONFIG_WLAN_DFS_MASTER_ENABLE := y
 #Flag to enable nud tracking feature
 CONFIG_WLAN_NUD_TRACKING := n
 
-#Flag to enable/Disable Function call trace
-CONFIG_FUNC_CALL_MAP := n
-
 #Flag to enable wbuff feature
 CONFIG_WLAN_WBUFF := y
 
@@ -623,8 +611,16 @@ ifeq ($(CONFIG_ARCH_MSM8996), y)
 CONFIG_CHANNEL_HOPPING_ALL_BANDS := y
 endif
 
+ifneq ($(CONFIG_HIF_USB), y)
 CONFIG_WLAN_LOGGING_SOCK_SVC := n
+endif
 
+ifneq ($(TARGET_BUILD_VARIANT),user)
+CONFIG_DESC_DUP_DETECT_DEBUG := n
+endif
+
+CONFIG_DP_TRACE := n
+#Enable Beacon Reception Stats
 CONFIG_FEATURE_BECN_STATS := n
 
 #enable MPTA helper for QCS405
@@ -648,10 +644,20 @@ ifeq ($(CONFIG_ARCH_SDM660), y)
 CONFIG_WLAN_FEATURE_PKT_CAPTURE := y
 endif
 
+#Flag to enable/disable kernel panic calls
+CONFIG_PANIC_ON_WLAN_QDF_BUG=y
+PANIC_ON_BUG := n
+
+ifeq ($(CONFIG_SLUB_DEBUG), y)
+	ifeq ($(CONFIG_PANIC_ON_WLAN_QDF_BUG), y)
+		PANIC_ON_BUG := y
+	endif
+endif
+
 #Enable RX RING buffers debug
-CONFIG_DEBUG_RX_RING_BUFFER := y
+CONFIG_DEBUG_RX_RING_BUFFER := n
 
 #Enable Hash debug
-CONFIG_RX_HASH_DEBUG := y
+CONFIG_RX_HASH_DEBUG := n
 
 CONFIG_WLAN_HANG_EVENT := n

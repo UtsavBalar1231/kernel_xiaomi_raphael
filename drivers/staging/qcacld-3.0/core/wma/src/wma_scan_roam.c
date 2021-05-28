@@ -546,12 +546,6 @@ QDF_STATUS wma_roam_scan_offload_rssi_thresh(tp_wma_handle wma_handle,
 				roam_params->roam_bad_rssi_thresh_offset_2g;
 	if (params.roam_bad_rssi_thresh_offset_2g)
 		params.flags |= WMI_ROAM_BG_SCAN_FLAGS_2G_TO_5G_ONLY;
-	params.roam_data_rssi_threshold_triggers =
-		roam_params->roam_data_rssi_threshold_triggers;
-	params.roam_data_rssi_threshold =
-		roam_params->roam_data_rssi_threshold -
-		WMA_NOISE_FLOOR_DBM_DEFAULT;
-	params.rx_data_inactivity_time = roam_params->rx_data_inactivity_time;
 
 	/*
 	 * The current Noise floor in firmware is -96dBm. Penalty/Boost
@@ -3328,22 +3322,16 @@ static char *wma_get_sub_reason_str(uint32_t sub_reason)
 	switch (sub_reason) {
 	case WMI_ROAM_TRIGGER_SUB_REASON_PERIODIC_TIMER:
 		return "PERIODIC TIMER";
-	case WMI_ROAM_TRIGGER_SUB_REASON_LOW_RSSI_PERIODIC:
-		return "LOW RSSI PERIODIC TIMER1";
+	case WMI_ROAM_TRIGGER_SUB_REASON_INACTIVITY_TIMER:
+		return "INACTIVITY TIMER";
 	case WMI_ROAM_TRIGGER_SUB_REASON_BTM_DI_TIMER:
-		return "BTM DISASSOC IMMINENT TIMER";
+		return "BTM DISASSOC TIMER";
 	case WMI_ROAM_TRIGGER_SUB_REASON_FULL_SCAN:
 		return "FULL SCAN";
+	case WMI_ROAM_TRIGGER_SUB_REASON_LOW_RSSI_PERIODIC:
+		return "LOW RSSI PERIODIC SCAN";
 	case WMI_ROAM_TRIGGER_SUB_REASON_CU_PERIODIC:
-		return "CU PERIODIC Timer1";
-	case WMI_ROAM_TRIGGER_SUB_REASON_INACTIVITY_TIMER_LOW_RSSI:
-		return "LOW RSSI INACTIVE TIMER";
-	case WMI_ROAM_TRIGGER_SUB_REASON_PERIODIC_TIMER_AFTER_INACTIVITY_CU:
-		return "CU PERIODIC TIMER2";
-	case WMI_ROAM_TRIGGER_SUB_REASON_PERIODIC_TIMER_AFTER_INACTIVITY_LOW_RSSI:
-		return "LOW RSSI PERIODIC TIMER2";
-	case WMI_ROAM_TRIGGER_SUB_REASON_INACTIVITY_TIMER_CU:
-		return "CU INACTIVITY TIMER";
+		return "CU PERIODIC SCAN";
 	default:
 		return "NONE";
 	}

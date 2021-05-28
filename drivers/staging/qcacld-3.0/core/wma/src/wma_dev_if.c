@@ -989,7 +989,6 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 		 BSS_OPERATIONAL_MODE_IBSS ? "IBSS" : "non-IBSS");
 #endif /* QCA_IBSS_SUPPORT */
 
-	add_bss->bssIdx = resp_event->vdev_id;
 	if (resp_event->status) {
 		add_bss->status = QDF_STATUS_E_FAILURE;
 		goto send_fail_resp;
@@ -1027,8 +1026,11 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 			 __func__, wma->interfaces[resp_event->vdev_id].type,
 			 wma->interfaces[resp_event->vdev_id].sub_type);
 
+		WMA_LOGD("%s: Allocated beacon struct %pK, template memory %pK",
+			 __func__, bcn, bcn->buf);
 	}
 	add_bss->status = QDF_STATUS_SUCCESS;
+	add_bss->bssIdx = resp_event->vdev_id;
 	add_bss->chainMask = resp_event->chain_mask;
 	if ((2 != resp_event->cfgd_rx_streams) ||
 		(2 != resp_event->cfgd_tx_streams)) {
@@ -3843,7 +3845,7 @@ void wma_vdev_resp_timer(void *data)
 		if (wma_send_vdev_stop_to_fw(wma, tgt_req->vdev_id))
 			WMA_LOGE("%s: Failed to send vdev stop to fw",
 				 __func__);
-		params->bssIdx = tgt_req->vdev_id;
+
 		wma_remove_peer_on_add_bss_failure(params);
 
 		wma_send_msg_high_priority(wma, WMA_ADD_BSS_RSP,
@@ -4972,7 +4974,7 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 	uint8_t peer_id;
 	QDF_STATUS status;
 	int32_t ret;
-	struct tdls_peer_update_state *peer_state;
+	tTdlsPeerStateParams *peerStateParams;
 	struct wma_target_req *msg;
 	bool peer_assoc_cnf = false;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
@@ -5036,8 +5038,8 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 		WMA_LOGD("%s: addSta, after calling cdp_local_peer_id, staIdx: %d, staMac: %pM",
 			 __func__, add_sta->staIdx, add_sta->staMac);
 
-		peer_state = qdf_mem_malloc(sizeof(*peer_state));
-		if (!peer_state) {
+		peerStateParams = qdf_mem_malloc(sizeof(tTdlsPeerStateParams));
+		if (!peerStateParams) {
 			WMA_LOGE
 				("%s: Failed to allocate memory for peerStateParams for %pM",
 				__func__, add_sta->staMac);
@@ -5045,11 +5047,11 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 			goto send_rsp;
 		}
 
-		peer_state->peer_state = WMI_TDLS_PEER_STATE_PEERING;
-		peer_state->vdev_id = add_sta->smesessionId;
-		qdf_mem_copy(&peer_state->peer_macaddr,
+		peerStateParams->peerState = WMI_TDLS_PEER_STATE_PEERING;
+		peerStateParams->vdevId = add_sta->smesessionId;
+		qdf_mem_copy(&peerStateParams->peerMacAddr,
 			     &add_sta->staMac, sizeof(tSirMacAddr));
-		wma_update_tdls_peer_state(wma, peer_state);
+		wma_update_tdls_peer_state(wma, peerStateParams);
 	} else {
 		/* its a change sta request * */
 		peer =
@@ -5522,12 +5524,12 @@ send_del_rsp:
  */
 static void wma_del_tdls_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 {
-	struct tdls_peer_update_state *peer_state;
+	tTdlsPeerStateParams *peerStateParams;
 	struct wma_target_req *msg;
 	int status;
 
-	peer_state = qdf_mem_malloc(sizeof(*peer_state));
-	if (!peer_state) {
+	peerStateParams = qdf_mem_malloc(sizeof(tTdlsPeerStateParams));
+	if (!peerStateParams) {
 		WMA_LOGE("%s: Failed to allocate memory for peerStateParams for: %pM",
 			__func__, del_sta->staMac);
 		del_sta->status = QDF_STATUS_E_NOMEM;
@@ -5537,21 +5539,21 @@ static void wma_del_tdls_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 	if (wma_is_roam_synch_in_progress(wma, del_sta->smesessionId)) {
 		WMA_LOGE("%s: roaming in progress, reject del sta!", __func__);
 		del_sta->status = QDF_STATUS_E_PERM;
-		qdf_mem_free(peer_state);
+		qdf_mem_free(peerStateParams);
 		goto send_del_rsp;
 	}
 
-	peer_state->peer_state = TDLS_PEER_STATE_TEARDOWN;
-	peer_state->vdev_id = del_sta->smesessionId;
-	peer_state->resp_reqd = del_sta->respReqd;
-	qdf_mem_copy(&peer_state->peer_macaddr,
+	peerStateParams->peerState = WMA_TDLS_PEER_STATE_TEARDOWN;
+	peerStateParams->vdevId = del_sta->smesessionId;
+	peerStateParams->resp_reqd = del_sta->respReqd;
+	qdf_mem_copy(&peerStateParams->peerMacAddr,
 		     &del_sta->staMac, sizeof(tSirMacAddr));
 
 	WMA_LOGD("%s: sending tdls_peer_state for peer mac: %pM, peerState: %d",
-		 __func__, peer_state->peer_macaddr,
-		 peer_state->peer_state);
+		 __func__, peerStateParams->peerMacAddr,
+		 peerStateParams->peerState);
 
-	status = wma_update_tdls_peer_state(wma, peer_state);
+	status = wma_update_tdls_peer_state(wma, peerStateParams);
 
 	if (status < 0) {
 		WMA_LOGE("%s: wma_update_tdls_peer_state returned failure",

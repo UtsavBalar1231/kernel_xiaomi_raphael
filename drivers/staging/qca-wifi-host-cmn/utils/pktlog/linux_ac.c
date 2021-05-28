@@ -120,7 +120,7 @@ int pktlog_alloc_buf(struct hif_opaque_softc *scn)
 	}
 	qdf_spin_unlock_bh(&pl_info->log_lock);
 
-	buffer = vmalloc((page_cnt + 2) * PAGE_SIZE);
+	buffer = vmalloc(array_size((page_cnt + 2), PAGE_SIZE));
 	if (buffer == NULL) {
 		printk(PKTLOG_TAG
 		       "%s: Unable to allocate buffer "

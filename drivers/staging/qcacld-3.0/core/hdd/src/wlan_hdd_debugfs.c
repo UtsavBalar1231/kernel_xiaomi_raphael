@@ -26,6 +26,9 @@
  */
 
 #ifdef WLAN_OPEN_SOURCE
+#if defined(CONFIG_ANDROID) && !defined(CONFIG_DEBUG_FS)
+#define CONFIG_DEBUG_FS
+#endif
 #include <wlan_hdd_includes.h>
 #include <wlan_hdd_debugfs.h>
 #include <wlan_osif_request_manager.h>
