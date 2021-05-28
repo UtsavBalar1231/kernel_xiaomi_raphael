@@ -22,9 +22,13 @@
 
 enum {
 	/* panel: power on */
-	MSM_DRM_BLANK_UNBLANK,
+	MSM_DRM_BLANK_UNBLANK = 0,
 	/* panel: power off */
 	MSM_DRM_BLANK_POWERDOWN,
+	/* panel: lp1 state */
+	MSM_DRM_BLANK_LP1,
+	/* panel: lp2 state */
+	MSM_DRM_BLANK_LP2,
 };
 
 enum msm_drm_display_id {
