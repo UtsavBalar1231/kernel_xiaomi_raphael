@@ -2055,16 +2055,17 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		inv_args(ctx);
 	PERF_END);
 
-	VERIFY(err, 0 == (err = ctx->retval));
-	if (err)
-		goto bail;
-
 	PERF(fl->profile, GET_COUNTER(perf_counter, PERF_PUTARGS),
 	VERIFY(err, 0 == put_args(kernel, ctx, invoke->pra));
 	PERF_END);
 	if (err)
 		goto bail;
- bail:
+
+	VERIFY(err, 0 == (err = ctx->retval));
+	if (err)
+		goto bail;
+
+bail:
 	if (ctx && interrupted == -ERESTARTSYS)
 		context_save_interrupted(ctx);
 	else if (ctx)
@@ -2608,17 +2609,12 @@ static int fastrpc_mmap_remove_ssr(struct fastrpc_file *fl)
 					kfree(ramdump_segments_rh);
 				}
 			}
-			mutex_lock(&fl->map_mutex);
 			fastrpc_mmap_free(match, 0);
-			mutex_unlock(&fl->map_mutex);
 		}
 	} while (match);
 bail:
-	if (err && match) {
-		mutex_lock(&fl->map_mutex);
+	if (err && match)
 		fastrpc_mmap_add(match);
-		mutex_unlock(&fl->map_mutex);
-	}
 	return err;
 }
 
@@ -2689,7 +2685,9 @@ static int fastrpc_internal_munmap(struct fastrpc_file *fl,
 
 	VERIFY(err, fl->dsp_proc_init == 1);
 	if (err) {
-		err = -EHOSTDOWN;
+		pr_err("adsprpc: ERROR: %s: user application %s trying to unmap without initialization\n",
+			 __func__, current->comm);
+		err = -EBADR;
 		return err;
 	}
 	mutex_lock(&fl->internal_map_mutex);
@@ -2721,15 +2719,18 @@ static int fastrpc_internal_munmap(struct fastrpc_file *fl,
 	mutex_unlock(&fl->map_mutex);
 	if (err)
 		goto bail;
-	if (map) {
-		VERIFY(err, !fastrpc_munmap_on_dsp(fl, map->raddr,
-					map->phys, map->size, map->flags));
-		if (err)
-			goto bail;
-		mutex_lock(&fl->map_mutex);
-		fastrpc_mmap_free(map, 0);
-		mutex_unlock(&fl->map_mutex);
+	VERIFY(err, map != NULL);
+	if (err) {
+		err = -EINVAL;
+		goto bail;
 	}
+	VERIFY(err, !fastrpc_munmap_on_dsp(fl, map->raddr,
+			map->phys, map->size, map->flags));
+	if (err)
+		goto bail;
+	mutex_lock(&fl->map_mutex);
+	fastrpc_mmap_free(map, 0);
+	mutex_unlock(&fl->map_mutex);
 bail:
 	if (err && map) {
 		mutex_lock(&fl->map_mutex);
@@ -2756,7 +2757,9 @@ static int fastrpc_internal_munmap_fd(struct fastrpc_file *fl,
 		return err;
 	VERIFY(err, fl->dsp_proc_init == 1);
 	if (err) {
-		err = -EHOSTDOWN;
+		pr_err("adsprpc: ERROR: %s: user application %s trying to unmap without initialization\n",
+			__func__, current->comm);
+		err = -EBADR;
 		return err;
 	}
 	mutex_lock(&fl->internal_map_mutex);
@@ -2791,7 +2794,9 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 
 	VERIFY(err, fl->dsp_proc_init == 1);
 	if (err) {
-		err = -EHOSTDOWN;
+		pr_err("adsprpc: ERROR: %s: user application %s trying to map without initialization\n",
+			__func__, current->comm);
+		err = -EBADR;
 		return err;
 	}
 	mutex_lock(&fl->internal_map_mutex);
@@ -3360,12 +3365,11 @@ static int fastrpc_channel_open(struct fastrpc_file *fl)
 
 	if (cid == ADSP_DOMAIN_ID && me->channel[cid].ssrcount !=
 			 me->channel[cid].prevssrcount) {
-		mutex_unlock(&me->channel[cid].smd_mutex);
-		if (fastrpc_mmap_remove_ssr(fl)) {
+		mutex_lock(&fl->map_mutex);
+		if (fastrpc_mmap_remove_ssr(fl))
 			pr_err("adsprpc: %s: SSR: Failed to unmap remote heap for %s\n",
 				__func__, me->channel[cid].name);
-		}
-		mutex_lock(&me->channel[cid].smd_mutex);
+		mutex_unlock(&fl->map_mutex);
 		me->channel[cid].prevssrcount =
 					me->channel[cid].ssrcount;
 	}
@@ -3439,7 +3443,6 @@ static int fastrpc_set_process_info(struct fastrpc_file *fl)
 	if (debugfs_root) {
 		buf_size = strlen(cur_comm) + strlen("_")
 			+ strlen(strpid) + 1;
-
 		spin_lock(&fl->hlock);
 		if (fl->debug_buf_alloced_attempted) {
 			spin_unlock(&fl->hlock);
@@ -3918,8 +3921,6 @@ static const struct of_device_id fastrpc_match_table[] = {
 	{ .compatible = "qcom,msm-fastrpc-adsp", },
 	{ .compatible = "qcom,msm-fastrpc-compute", },
 	{ .compatible = "qcom,msm-fastrpc-compute-cb", },
-	{ .compatible = "qcom,msm-fastrpc-legacy-compute", },
-	{ .compatible = "qcom,msm-fastrpc-legacy-compute-cb", },
 	{ .compatible = "qcom,msm-adsprpc-mem-region", },
 	{}
 };
@@ -4071,7 +4072,7 @@ static int fastrpc_cb_probe(struct device *dev)
 	}
 
 	chan->sesscount++;
-	if (debugfs_root && !debugfs_global_file) {
+	if (debugfs_root) {
 		debugfs_global_file = debugfs_create_file("global", 0644,
 			debugfs_root, NULL, &debugfs_fops);
 		if (IS_ERR_OR_NULL(debugfs_global_file)) {
