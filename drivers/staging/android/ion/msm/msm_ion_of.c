@@ -333,7 +333,7 @@ static int msm_ion_probe(struct platform_device *pdev)
 					heap_data->name);
 		}
 
-		ion_device_add_heap(new_dev, heaps[i]);
+		ion_add_heap(new_dev, heaps[i]);
 	}
 	free_pdata(pdata);
 
