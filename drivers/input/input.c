@@ -27,6 +27,11 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
+
+#ifdef CONFIG_TOUCH_COUNT_DUMP
+#include <linux/input/touch_common_info.h>
+#include <asm/hwconf_manager.h>
+#endif
 #include "input-compat.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
@@ -48,6 +53,11 @@ static LIST_HEAD(input_handler_list);
  */
 static DEFINE_MUTEX(input_mutex);
 static const struct input_value input_value_sync = { EV_SYN, SYN_REPORT, 1 };
+
+#ifdef CONFIG_TOUCH_COUNT_DUMP
+static struct touch_event_info *touch_info;
+#endif
+
 
 static inline int is_event_supported(unsigned int code,
 				     unsigned long *bm, unsigned int max)
@@ -434,6 +444,9 @@ void input_event(struct input_dev *dev,
 		spin_lock_irqsave(&dev->event_lock, flags);
 		input_handle_event(dev, type, code, value);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
+#ifdef CONFIG_LAST_TOUCH_EVENTS
+		touch_press_release_events_collect(dev, type, code, value);
+#endif
 	}
 }
 EXPORT_SYMBOL(input_event);
@@ -1260,6 +1273,8 @@ static const struct file_operations input_handlers_fileops = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
+
+
 
 static int __init input_proc_init(void)
 {
@@ -2166,6 +2181,7 @@ int input_register_device(struct input_dev *dev)
 			__func__, dev_name(&dev->dev));
 		devres_add(dev->dev.parent, devres);
 	}
+
 	return 0;
 
 err_device_del:
@@ -2188,6 +2204,7 @@ EXPORT_SYMBOL(input_register_device);
  */
 void input_unregister_device(struct input_dev *dev)
 {
+
 	if (dev->devres_managed) {
 		WARN_ON(devres_destroy(dev->dev.parent,
 					devm_input_device_unregister,

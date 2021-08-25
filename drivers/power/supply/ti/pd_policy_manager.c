@@ -54,7 +54,9 @@
 #define BAT_CURR_LOOP_LMT		BATT_FAST_CHG_CURR
 #define BUS_VOLT_LOOP_LMT		BUS_OVP_THRESHOLD
 
-#define PM_WORK_RUN_INTERVAL		500
+#define PM_WORK_RUN_NORMAL_INTERVAL		500
+#define PM_WORK_RUN_QUICK_INTERVAL		200
+#define PM_WORK_RUN_CRITICAL_INTERVAL		100
 
 enum {
 	PM_ALGO_RET_OK,
@@ -344,7 +346,11 @@ static void usbpd_check_cp_psy(struct usbpd_pm *pdpm)
 		else
 			pdpm->cp_psy = power_supply_get_by_name("bq2597x-standalone");
 		if (!pdpm->cp_psy)
-			pr_err("cp_psy not found\n");
+		{
+			pdpm->cp_psy = power_supply_get_by_name("ln8000");
+			if (!pdpm->cp_psy)
+				pr_err("cp_psy not found\n");
+		}
 	}
 }
 
@@ -753,8 +759,8 @@ static void usbpd_update_pps_status(struct usbpd_pm *pdpm)
 	}
 }
 
-#define TAPER_TIMEOUT	(25000 / PM_WORK_RUN_INTERVAL)
-#define IBUS_CHANGE_TIMEOUT  (2500 / PM_WORK_RUN_INTERVAL)
+#define TAPER_TIMEOUT	(25000 / PM_WORK_RUN_NORMAL_INTERVAL)
+#define IBUS_CHANGE_TIMEOUT  (2500 / PM_WORK_RUN_NORMAL_INTERVAL)
 static int usbpd_pm_fc2_charge_algo(struct usbpd_pm *pdpm)
 {
 	int steps;
@@ -1194,6 +1200,7 @@ static void usbpd_pm_workfunc(struct work_struct *work)
 {
 	struct usbpd_pm *pdpm = container_of(work, struct usbpd_pm,
 					pm_work.work);
+	int internal = PM_WORK_RUN_NORMAL_INTERVAL;
 
 	usbpd_pm_update_sw_status(pdpm);
 	usbpd_pm_update_cp_status(pdpm);
@@ -1203,9 +1210,15 @@ static void usbpd_pm_workfunc(struct work_struct *work)
 	pr_info("%s:pd_bat_volt_lp_lmt=%d, vbatt_now=%d\n",
 			__func__, pm_config.bat_volt_lp_lmt, pdpm->cp.vbat_volt);
 
-	if (!usbpd_pm_sm(pdpm) && pdpm->pd_active)
+	if (!usbpd_pm_sm(pdpm) && pdpm->pd_active) {
+		if (pdpm->state == PD_PM_STATE_FC2_ENTRY_2)
+			internal = PM_WORK_RUN_QUICK_INTERVAL;
+		else
+			internal = PM_WORK_RUN_NORMAL_INTERVAL;
+
 		schedule_delayed_work(&pdpm->pm_work,
-				msecs_to_jiffies(PM_WORK_RUN_INTERVAL));
+				msecs_to_jiffies(internal));
+	}
 }
 
 static void usbpd_pm_disconnect(struct usbpd_pm *pdpm)

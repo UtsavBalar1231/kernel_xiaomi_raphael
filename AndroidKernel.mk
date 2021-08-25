@@ -155,7 +155,26 @@ $(KERNEL_USR): $(KERNEL_HEADERS_INSTALL)
 $(TARGET_PREBUILT_INT_KERNEL): $(KERNEL_USR)
 endif
 
-$(KERNEL_OUT):
+KERNEL_EXTLINK_FILES := $(TARGET_KERNEL_SOURCE)/drivers/staging/rtmm \
+                        $(TARGET_KERNEL_SOURCE)/include/linux/rtmm.h \
+			$(TARGET_KERNEL_SOURCE)/drivers/staging/ktrace \
+			$(TARGET_KERNEL_SOURCE)/include/linux/ktrace.h
+
+TZ ?= $(shell cat /etc/timezone)
+$(warning TZ for kernel build: $(TZ))
+
+link_ext:
+	echo "Creating kernel symbol link to miui/kernel."
+	rm -rf $(KERNEL_EXTLINK_FILES)
+	if [ -f "$(abspath miui/kernel/memory/rtmm/include/linux/rtmm.h)" ]; then \
+		ln -s -f $(abspath miui/kernel/memory/rtmm) $(TARGET_KERNEL_SOURCE)/drivers/staging/rtmm; \
+		ln -s -f $(abspath miui/kernel/trace/ktrace) $(TARGET_KERNEL_SOURCE)/drivers/staging/ktrace; \
+		ln -s -f $(abspath miui/kernel/memory/rtmm/include/linux/rtmm.h) $(TARGET_KERNEL_SOURCE)/include/linux/rtmm.h; \
+		ln -s -f $(abspath miui/kernel/trace/ktrace/include/linux/ktrace.h) $(TARGET_KERNEL_SOURCE)/include/linux/ktrace.h;  fi
+
+.PHONY:link_ext
+
+$(KERNEL_OUT): link_ext
 	mkdir -p $(KERNEL_OUT)
 
 $(KERNEL_CONFIG): $(KERNEL_OUT)

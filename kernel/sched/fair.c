@@ -76,6 +76,8 @@ walt_dec_cfs_rq_stats(struct cfs_rq *cfs_rq, struct task_struct *p) {}
 
 #endif
 
+unsigned int super_big_cpu = 7;
+
 /*
  * Targeted preemption latency for CPU-bound tasks:
  *
@@ -7446,6 +7448,7 @@ enum fastpaths {
 	NONE = 0,
 	SYNC_WAKEUP,
 	PREV_CPU_FASTPATH,
+	SCHED_BIG_TOP,
 };
 
 static inline int find_best_target(struct task_struct *p, int *backup_cpu,
@@ -7473,6 +7476,7 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 	int prev_cpu = task_cpu(p);
 	bool next_group_higher_cap = false;
 	int isolated_candidate = -1;
+	struct root_domain *rd;
 
 	*backup_cpu = -1;
 
@@ -7493,6 +7497,7 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 	if (cpu < 0)
 		return -1;
 
+	 rd = cpu_rq(cpu)->rd;
 	/* Find SD for the start CPU */
 	sd = rcu_dereference(per_cpu(sd_ea, cpu));
 	if (!sd)
@@ -7545,6 +7550,11 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 
 			if (sched_cpu_high_irqload(i))
 				continue;
+
+			if (sched_boost_top_app() && rd->mid_cap_orig_cpu != -1 &&
+				((i < rd->mid_cap_orig_cpu && MAX_USER_RT_PRIO <= p->prio && p->prio < DEFAULT_PRIO) ||
+				(i >= rd->mid_cap_orig_cpu && p->prio > DEFAULT_PRIO)))
+				break;
 
 			/*
 			 * p's blocked utilization is still accounted for on prev_cpu
@@ -8146,6 +8156,13 @@ static int find_energy_efficient_cpu(struct sched_domain *sd,
 				bias_to_waker_cpu(p, cpu, rtg_target)) {
 		target_cpu = cpu;
 		fbt_env.fastpath = SYNC_WAKEUP;
+		goto out;
+	}
+
+	if (sched_boost_top_app() && p->top_app && cpu_online(super_big_cpu) &&
+		!cpu_isolated(super_big_cpu) && cpumask_test_cpu(super_big_cpu, &p->cpus_allowed)) {
+		target_cpu = super_big_cpu;
+		fbt_env.fastpath = SCHED_BIG_TOP;
 		goto out;
 	}
 
@@ -9316,6 +9333,10 @@ redo:
 			env->loop_break += sched_nr_migrate_break;
 			env->flags |= LBF_NEED_BREAK;
 			break;
+		}
+
+		if (sched_boost_top_app() && super_big_cpu == env->src_cpu && p->top_app) {
+			goto next;
 		}
 
 		if (!can_migrate_task(p, env))

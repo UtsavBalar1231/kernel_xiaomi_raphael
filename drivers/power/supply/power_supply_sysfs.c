@@ -160,7 +160,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 			       power_supply_health_text[value.intval]);
 	else if (off >= POWER_SUPPLY_PROP_MODEL_NAME)
 		return sprintf(buf, "%s\n", value.strval);
-#ifdef CONFIG_BATT_VERIFY_BY_DS28E16
+#if (defined CONFIG_BATT_VERIFY_BY_DS28E16 || defined CONFIG_BATT_VERIFY_BY_DS28E16_NABU)
 	else if ((off == POWER_SUPPLY_PROP_ROMID) || (off == POWER_SUPPLY_PROP_DS_STATUS))
 		return scnprintf(buf, PAGE_SIZE, "%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x\n",
 			value.arrayval[0], value.arrayval[1], value.arrayval[2], value.arrayval[3],
@@ -196,6 +196,18 @@ static ssize_t power_supply_show_property(struct device *dev,
 	else if (off == POWER_SUPPLY_PROP_TX_MAC)
 		return scnprintf(buf, PAGE_SIZE, "%llx\n",
 				value.int64val);
+	else if (off == POWER_SUPPLY_PROP_PEN_MAC)
+		return scnprintf(buf, PAGE_SIZE, "%llx\n",
+				value.int64val);
+	else if (off ==  POWER_SUPPLY_PROP_REVERSE_PEN_SOC)
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+				value.intval);
+	else if (off ==  POWER_SUPPLY_PROP_REVERSE_CHG_STATE)
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+				value.intval);
+	else if (off == POWER_SUPPLY_PROP_REVERSE_PEN_CHG_STATE)
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+				value.intval);
 	else if (off == POWER_SUPPLY_PROP_RX_CR)
 		return scnprintf(buf, PAGE_SIZE, "%llx\n",
 				value.int64val);
@@ -253,6 +265,18 @@ static ssize_t power_supply_store_property(struct device *dev,
 		ret = val;
 		break;
 	case POWER_SUPPLY_PROP_TX_MAC:
+		ret = kstrtoll(buf, 16, &num_long);
+		if (ret < 0)
+			return ret;
+		value.int64val = num_long;
+		ret = power_supply_set_property(psy, off, &value);
+		if (ret < 0)
+			return ret;
+		else
+			return count;
+
+		break;
+	case POWER_SUPPLY_PROP_PEN_MAC:
 		ret = kstrtoll(buf, 16, &num_long);
 		if (ret < 0)
 			return ret;
@@ -383,6 +407,8 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(pin_enabled),
 	POWER_SUPPLY_ATTR(input_suspend),
 	POWER_SUPPLY_ATTR(input_voltage_regulation),
+	POWER_SUPPLY_ATTR(input_voltage_vrect),
+	POWER_SUPPLY_ATTR(rx_iout),
 	POWER_SUPPLY_ATTR(input_current_max),
 	POWER_SUPPLY_ATTR(input_current_trim),
 	POWER_SUPPLY_ATTR(input_current_settled),
@@ -461,16 +487,19 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(parallel_batfet_mode),
 	POWER_SUPPLY_ATTR(parallel_fcc_max),
 	POWER_SUPPLY_ATTR(wireless_version),
+	POWER_SUPPLY_ATTR(wireless_fw_version),
 	POWER_SUPPLY_ATTR(signal_strength),
 	POWER_SUPPLY_ATTR(wireless_cp_en),
 	POWER_SUPPLY_ATTR(wireless_power_good_en),
 	POWER_SUPPLY_ATTR(sw_disabel_dc_en),
 	POWER_SUPPLY_ATTR(wireless_wakelock),
+	POWER_SUPPLY_ATTR(wireless_tx_id),
 	POWER_SUPPLY_ATTR(tx_adapter),
 	POWER_SUPPLY_ATTR(tx_mac),
 	POWER_SUPPLY_ATTR(rx_cr),
 	POWER_SUPPLY_ATTR(rx_cep),
 	POWER_SUPPLY_ATTR(bt_state),
+	POWER_SUPPLY_ATTR(pen_mac),
 	POWER_SUPPLY_ATTR(min_icl),
 	POWER_SUPPLY_ATTR(moisture_detected),
 	POWER_SUPPLY_ATTR(batt_profile_version),
@@ -485,7 +514,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(vbatt_full_vol),
 	POWER_SUPPLY_ATTR(fcc_vbatt_full_vol),
 	POWER_SUPPLY_ATTR(ki_coeff_current),
-#ifdef CONFIG_BATT_VERIFY_BY_DS28E16
+#if (defined CONFIG_BATT_VERIFY_BY_DS28E16 || defined CONFIG_BATT_VERIFY_BY_DS28E16_NABU)
 	/* battery verify properties */
 	POWER_SUPPLY_ATTR(romid),
 	POWER_SUPPLY_ATTR(ds_status),
@@ -570,10 +599,19 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(div_2_mode),
 	POWER_SUPPLY_ATTR(reverse_chg_mode),
 	POWER_SUPPLY_ATTR(reverse_chg_state),
+	POWER_SUPPLY_ATTR(reverse_pen_chg_state),
+	POWER_SUPPLY_ATTR(reverse_gpio_state),
 	POWER_SUPPLY_ATTR(reset_div_2_mode),
+	POWER_SUPPLY_ATTR(aicl_enable),
+	POWER_SUPPLY_ATTR(otg_state),
+	POWER_SUPPLY_ATTR(reverse_chg_hall3),
+	POWER_SUPPLY_ATTR(reverse_chg_hall4),
+	POWER_SUPPLY_ATTR(reverse_pen_soc),
+	POWER_SUPPLY_ATTR(reverse_vout),
+	POWER_SUPPLY_ATTR(reverse_iout),
 	POWER_SUPPLY_ATTR(rx_op_ble),
 	POWER_SUPPLY_ATTR(op_ble),
-	
+
 	/* Local extensions of type int64_t */
 	POWER_SUPPLY_ATTR(charge_counter_ext),
 	/* Properties of type `const char *' */

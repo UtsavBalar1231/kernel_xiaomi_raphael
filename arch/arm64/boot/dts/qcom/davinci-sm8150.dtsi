@@ -1,6 +1,6 @@
 /*
 this file is for attribution only of davinci
-And public attribution of xiaomi platforms
+And public attribution of xiaomi platforms(like F1 and so and)
 */
 #include "davinci-pinctrl.dtsi"
 #include "xiaomi-sm8150-common.dtsi"

@@ -1207,6 +1207,7 @@ static void sde_kms_wait_for_commit_done(struct msm_kms *kms,
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc != crtc)
 			continue;
+
 		/*
 		 * Wait for post-flush if necessary to delay before
 		 * plane_cleanup. For example, wait for vsync in case of video

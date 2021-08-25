@@ -36,6 +36,9 @@ struct input_value {
 	__s32 value;
 };
 
+
+
+
 /**
  * struct input_dev - represents an input device
  * @name: name of the device
@@ -191,6 +194,7 @@ struct input_dev {
 #ifdef CONFIG_LAST_TOUCH_EVENTS
 	struct touch_event_info *touch_events;
 #endif
+
 };
 
 #define to_input_dev(d) container_of(d, struct input_dev, dev)

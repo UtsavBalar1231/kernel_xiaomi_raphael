@@ -19,6 +19,7 @@
 #include <crypto/hash.h>
 #include <linux/pfk.h>
 
+<<<<<<< HEAD
 /* Encryption parameters */
 #define FS_KEY_DERIVATION_NONCE_SIZE	16
 
@@ -43,6 +44,108 @@ struct fscrypt_context {
 } __packed;
 
 #define FS_ENCRYPTION_CONTEXT_FORMAT_V1		1
+=======
+#define FSCRYPT_MIN_KEY_SIZE		16
+#define FSCRYPT_MAX_HW_WRAPPED_KEY_SIZE	128
+
+/*
+ * Return the size expected for the given fscrypt_context based on its version
+ * number, or 0 if the context version is unrecognized.
+ */
+static inline int fscrypt_context_size(const union fscrypt_context *ctx)
+{
+	switch (ctx->version) {
+	case FSCRYPT_CONTEXT_V1:
+		BUILD_BUG_ON(sizeof(ctx->v1) != 28);
+		return sizeof(ctx->v1);
+	case FSCRYPT_CONTEXT_V2:
+		BUILD_BUG_ON(sizeof(ctx->v2) != 40);
+		return sizeof(ctx->v2);
+	}
+	return 0;
+}
+
+/* Check whether an fscrypt_context has a recognized version number and size */
+static inline bool fscrypt_context_is_valid(const union fscrypt_context *ctx,
+					    int ctx_size)
+{
+	return ctx_size >= 1 && ctx_size == fscrypt_context_size(ctx);
+}
+
+/* Retrieve the context's nonce, assuming the context was already validated */
+static inline const u8 *fscrypt_context_nonce(const union fscrypt_context *ctx)
+{
+	switch (ctx->version) {
+	case FSCRYPT_CONTEXT_V1:
+		return ctx->v1.nonce;
+	case FSCRYPT_CONTEXT_V2:
+		return ctx->v2.nonce;
+	}
+	WARN_ON(1);
+	return NULL;
+}
+
+#undef fscrypt_policy
+union fscrypt_policy {
+	u8 version;
+	struct fscrypt_policy_v1 v1;
+	struct fscrypt_policy_v2 v2;
+};
+
+/*
+ * Return the size expected for the given fscrypt_policy based on its version
+ * number, or 0 if the policy version is unrecognized.
+ */
+static inline int fscrypt_policy_size(const union fscrypt_policy *policy)
+{
+	switch (policy->version) {
+	case FSCRYPT_POLICY_V1:
+		return sizeof(policy->v1);
+	case FSCRYPT_POLICY_V2:
+		return sizeof(policy->v2);
+	}
+	return 0;
+}
+
+/* Return the contents encryption mode of a valid encryption policy */
+static inline u8
+fscrypt_policy_contents_mode(const union fscrypt_policy *policy)
+{
+	switch (policy->version) {
+	case FSCRYPT_POLICY_V1:
+		return policy->v1.contents_encryption_mode;
+	case FSCRYPT_POLICY_V2:
+		return policy->v2.contents_encryption_mode;
+	}
+	BUG();
+}
+
+/* Return the filenames encryption mode of a valid encryption policy */
+static inline u8
+fscrypt_policy_fnames_mode(const union fscrypt_policy *policy)
+{
+	switch (policy->version) {
+	case FSCRYPT_POLICY_V1:
+		return policy->v1.filenames_encryption_mode;
+	case FSCRYPT_POLICY_V2:
+		return policy->v2.filenames_encryption_mode;
+	}
+	BUG();
+}
+
+/* Return the flags (FSCRYPT_POLICY_FLAG*) of a valid encryption policy */
+static inline u8
+fscrypt_policy_flags(const union fscrypt_policy *policy)
+{
+	switch (policy->version) {
+	case FSCRYPT_POLICY_V1:
+		return policy->v1.flags;
+	case FSCRYPT_POLICY_V2:
+		return policy->v2.flags;
+	}
+	BUG();
+}
+>>>>>>> 40b55d19f57f... Kernel: Xiaomi kernel changes for Xiaomi Pad 5 Android R
 
 /**
  * For encrypted symlinks, the ciphertext length is stored at the beginning
@@ -183,6 +286,45 @@ struct fscrypt_mode {
 	bool needs_essiv;
 };
 
+<<<<<<< HEAD
 extern void __exit fscrypt_essiv_cleanup(void);
+=======
+extern struct fscrypt_mode fscrypt_modes[];
+
+extern int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
+			       const u8 *raw_key, unsigned int raw_key_size,
+			       bool is_hw_wrapped,
+			       const struct fscrypt_info *ci);
+
+extern void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key);
+
+extern int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci,
+					const u8 *raw_key);
+
+extern int fscrypt_derive_dirhash_key(struct fscrypt_info *ci,
+				      const struct fscrypt_master_key *mk);
+
+/* keysetup_v1.c */
+
+extern void fscrypt_put_direct_key(struct fscrypt_direct_key *dk);
+
+extern int fscrypt_setup_v1_file_key(struct fscrypt_info *ci,
+				     const u8 *raw_master_key);
+
+extern int fscrypt_setup_v1_file_key_via_subscribed_keyrings(
+					struct fscrypt_info *ci);
+/* policy.c */
+
+bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
+			    const union fscrypt_policy *policy2);
+bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
+			      const struct inode *inode);
+int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
+				const union fscrypt_context *ctx_u,
+				int ctx_size);
+extern void put_crypt_info(struct fscrypt_info *ci);
+extern struct fscrypt_mode * select_encryption_mode(const union fscrypt_policy *policy, const struct inode *inode);
+extern int setup_file_encryption_key(struct fscrypt_info *ci, struct key **master_key_ret);
+>>>>>>> 40b55d19f57f... Kernel: Xiaomi kernel changes for Xiaomi Pad 5 Android R
 
 #endif /* _FSCRYPT_PRIVATE_H */

@@ -105,6 +105,10 @@ EXPORT_SYMBOL(jbd2_inode_cache);
 static void __journal_abort_soft (journal_t *journal, int errno);
 static int jbd2_journal_create_slab(size_t slab_size);
 
+#ifdef CONFIG_EXT4_FS_DYN_BARRIER
+int jbd2_bar = 1;
+#endif
+
 #ifdef CONFIG_JBD2_DEBUG
 void __jbd2_debug(int level, const char *file, const char *func,
 		  unsigned int line, const char *fmt, ...)
@@ -662,7 +666,11 @@ int jbd2_trans_will_send_data_barrier(journal_t *journal, tid_t tid)
 	int ret = 0;
 	transaction_t *commit_trans;
 
+#ifdef CONFIG_EXT4_FS_DYN_BARRIER
+	if (!(journal->j_flags & JBD2_BARRIER) || !jbd2_bar)
+#else
 	if (!(journal->j_flags & JBD2_BARRIER))
+#endif
 		return 0;
 	read_lock(&journal->j_state_lock);
 	/* Transaction already committed? */
@@ -738,6 +746,23 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 	return err;
 }
 
+int jbd2_transaction_need_wait(journal_t *journal, tid_t tid)
+{
+    int need_to_wait = 1;
+    read_lock(&journal->j_state_lock);
+    if (journal->j_running_transaction &&
+        journal->j_running_transaction->t_tid == tid) {
+        if (journal->j_commit_request != tid) {
+            /* transaction not yet started, so request it */
+            need_to_wait = 1;
+        }
+    } else if (!(journal->j_committing_transaction &&
+             journal->j_committing_transaction->t_tid == tid))
+        need_to_wait = 0;
+    read_unlock(&journal->j_state_lock);
+    return need_to_wait;
+}
+
 /*
  * When this function returns the transaction corresponding to tid
  * will be completed.  If the transaction has currently running, start
@@ -747,24 +772,11 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
  */
 int jbd2_complete_transaction(journal_t *journal, tid_t tid)
 {
-	int	need_to_wait = 1;
-
-	read_lock(&journal->j_state_lock);
-	if (journal->j_running_transaction &&
-	    journal->j_running_transaction->t_tid == tid) {
-		if (journal->j_commit_request != tid) {
-			/* transaction not yet started, so request it */
-			read_unlock(&journal->j_state_lock);
-			jbd2_log_start_commit(journal, tid);
-			goto wait_commit;
-		}
-	} else if (!(journal->j_committing_transaction &&
-		     journal->j_committing_transaction->t_tid == tid))
-		need_to_wait = 0;
-	read_unlock(&journal->j_state_lock);
-	if (!need_to_wait)
+	if (!jbd2_transaction_need_wait(journal, tid))
 		return 0;
-wait_commit:
+	else
+		jbd2_log_start_commit(journal, tid);
+
 	return jbd2_log_wait_commit(journal, tid);
 }
 EXPORT_SYMBOL(jbd2_complete_transaction);
@@ -1354,7 +1366,11 @@ static int jbd2_write_superblock(journal_t *journal, int write_flags)
 	int ret;
 
 	trace_jbd2_write_superblock(journal, write_flags);
+#ifdef CONFIG_EXT4_FS_DYN_BARRIER
+	if (!(journal->j_flags & JBD2_BARRIER) || !jbd2_bar)
+#else
 	if (!(journal->j_flags & JBD2_BARRIER))
+#endif
 		write_flags &= ~(REQ_FUA | REQ_PREFLUSH);
 	if (buffer_write_io_error(bh)) {
 		/*

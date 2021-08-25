@@ -369,13 +369,21 @@ void drm_bridge_pre_enable(struct drm_bridge *bridge)
 }
 EXPORT_SYMBOL(drm_bridge_pre_enable);
 
+ssize_t drm_bridge_disp_param_get(struct drm_bridge *bridge, char *buf)
+{
+	ssize_t ret = 0;
+	if (!bridge)
+		return 0;
+	ret = drm_bridge_disp_param_get(bridge->next, buf);
+	if (bridge->funcs->disp_param_get)
+		ret = bridge->funcs->disp_param_get(bridge, buf);
+	return ret;
+}
 void drm_bridge_disp_param_set(struct drm_bridge *bridge, int cmd)
 {
 	if (!bridge)
 		return;
-
 	drm_bridge_disp_param_set(bridge->next, cmd);
-
 	if (bridge->funcs->disp_param_set)
 		bridge->funcs->disp_param_set(bridge, cmd);
 }
