@@ -723,5 +723,6 @@ struct dsi_display *get_primary_display(void);
 int dsi_display_cmd_engine_enable(struct dsi_display *display);
 int dsi_display_cmd_engine_disable(struct dsi_display *display);
 int dsi_host_alloc_cmd_tx_buffer(struct dsi_display *display);
+int dsi_display_esd_irq_ctrl(struct dsi_display *display, bool enable);
 
 #endif /* _DSI_DISPLAY_H_ */

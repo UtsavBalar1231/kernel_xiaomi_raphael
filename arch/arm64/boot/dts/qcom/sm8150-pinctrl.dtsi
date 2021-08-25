@@ -2218,7 +2218,7 @@
 			quat_aux_pcm_sleep: quat_aux_pcm_sleep {
 				mux {
 					pins = "gpio137", "gpio138";
-					function = "gpio";
+					function = "func2";
 				};
 
 				config {
@@ -2232,7 +2232,7 @@
 			quat_aux_pcm_active: quat_aux_pcm_active {
 				mux {
 					pins = "gpio137", "gpio138";
-					function = "qua_mi2s";
+					function = "func2";
 				};
 
 				config {
@@ -2248,7 +2248,7 @@
 			quat_aux_pcm_din_sleep: quat_aux_pcm_din_sleep {
 				mux {
 					pins = "gpio139";
-					function = "gpio";
+					function = "func2";
 				};
 
 				config {
@@ -2262,7 +2262,7 @@
 			quat_aux_pcm_din_active: quat_aux_pcm_din_active {
 				mux {
 					pins = "gpio139";
-					function = "qua_mi2s";
+					function = "func2";
 				};
 
 				config {
@@ -2277,7 +2277,7 @@
 			quat_aux_pcm_dout_sleep: quat_aux_pcm_dout_sleep {
 				mux {
 					pins = "gpio140";
-					function = "gpio";
+					function = "func2";
 				};
 
 				config {
@@ -2291,7 +2291,7 @@
 			quat_aux_pcm_dout_active: quat_aux_pcm_dout_active {
 				mux {
 					pins = "gpio140";
-					function = "qua_mi2s";
+					function = "func2";
 				};
 
 				config {

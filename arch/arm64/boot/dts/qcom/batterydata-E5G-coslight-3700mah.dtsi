@@ -1,4 +1,3 @@
-
 qcom,3811462_xiaomi_bm3gcos_3700mah_slave_jan3rd2019 {
 	qcom,profile-revision = <24>;
 	/* #3811462_Xiaomi_BM3Gcos_3700mAh_Slave_Jan3rd2019*/

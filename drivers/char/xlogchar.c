@@ -26,6 +26,7 @@
 #include <linux/atomic.h>
 #include <linux/poll.h>
 #include "xlogchar.h"
+#include <linux/string.h>
 
 static struct xlogchar_dev *xlogdriver;
 
@@ -112,6 +113,40 @@ static ssize_t xlogchar_write(struct file *file, const char __user *buf,
 	wake_up_interruptible(&xlogdriver->wait_q);
 	return count;
 }
+
+ssize_t xlogchar_kwrite(const char *buf, size_t count)
+{
+	size_t copy_bytes;
+	u64 temp = count;
+	pr_err("%s start\n", __func__);
+	pr_info("%s: count is %zu\n", __func__, count);
+	if (do_div(temp, XLOGPKG_SIZE) || (count > XLOGBUF_SIZE)) {
+		pr_err("xlog: invalide count %zu\n", count);
+		return -EBADMSG;
+	}
+	mutex_lock(&xlogdriver->xlog_mutex);
+	if (xlogdriver->free_size < count) {
+		pr_err("xlog: no more space to write free: %zu, count %zu\n", xlogdriver->free_size, count);
+		mutex_unlock(&xlogdriver->xlog_mutex);
+		return  -EIO;
+	}
+	if (XLOGBUF_SIZE < xlogdriver->writeindex + count) {
+		copy_bytes = XLOGBUF_SIZE - xlogdriver->writeindex;
+		memcpy(xlogdriver->buf + xlogdriver->writeindex, buf, copy_bytes);
+		memcpy(xlogdriver->buf, buf + copy_bytes,  count - copy_bytes);
+		xlogdriver->writeindex = count - copy_bytes;
+	} else {
+		memcpy(xlogdriver->buf + xlogdriver->writeindex, buf, count);
+		xlogdriver->writeindex += count;
+	}
+	xlogdriver->free_size -= count;
+	mutex_unlock(&xlogdriver->xlog_mutex);
+	pr_info("%s  wakeup reader \n", __func__);
+	wake_up_interruptible(&xlogdriver->wait_q);
+	return count;
+}
+
+EXPORT_SYMBOL(xlogchar_kwrite);
 
 static unsigned int xlogchar_poll(struct file *file, poll_table *wait)
 {

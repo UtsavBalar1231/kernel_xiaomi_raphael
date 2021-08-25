@@ -29,6 +29,9 @@
 #include <linux/bitops.h>
 #include <trace/events/jbd2.h>
 
+#ifdef CONFIG_EXT4_FS_DYN_BARRIER
+extern int jbd2_bar;
+#endif
 /*
  * IO end handler for temporary buffer_heads handling writes to the journal.
  */
@@ -154,6 +157,9 @@ static int journal_submit_commit_record(journal_t *journal,
 	bh->b_end_io = journal_end_buffer_io_sync;
 
 	if (journal->j_flags & JBD2_BARRIER &&
+#ifdef CONFIG_EXT4_FS_DYN_BARRIER
+		jbd2_bar &&
+#endif
 	    !jbd2_has_feature_async_commit(journal))
 		ret = submit_bh(REQ_OP_WRITE,
 			REQ_SYNC | REQ_PREFLUSH | REQ_FUA, bh);
@@ -788,6 +794,9 @@ start_journal_io:
 	 */
 	if (commit_transaction->t_need_data_flush &&
 	    (journal->j_fs_dev != journal->j_dev) &&
+#ifdef CONFIG_EXT4_FS_DYN_BARRIER
+		jbd2_bar &&
+#endif
 	    (journal->j_flags & JBD2_BARRIER))
 		blkdev_issue_flush(journal->j_fs_dev, GFP_NOFS, NULL);
 
@@ -898,6 +907,9 @@ start_journal_io:
 		err = journal_wait_on_commit_record(journal, cbh);
 	stats.run.rs_blocks_logged++;
 	if (jbd2_has_feature_async_commit(journal) &&
+#ifdef CONFIG_EXT4_FS_DYN_BARRIER
+		jbd2_bar &&
+#endif
 	    journal->j_flags & JBD2_BARRIER) {
 		blkdev_issue_flush(journal->j_dev, GFP_NOFS, NULL);
 	}

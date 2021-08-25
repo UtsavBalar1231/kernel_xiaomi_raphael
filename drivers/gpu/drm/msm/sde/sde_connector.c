@@ -2165,29 +2165,45 @@ static irqreturn_t esd_err_irq_handle(int irq, void *data)
 	struct sde_connector *c_conn = data;
 	struct drm_event event;
 	bool panel_on = false;
+	struct dsi_display *display = c_conn->display;
 
-	if (!c_conn && !c_conn->display) {
-		SDE_DEFERRED_ERROR("not able to get connector object\n");
+	if (!display || !display->panel) {
+		SDE_ERROR("invalid display/panel\n");
 		return IRQ_HANDLED;
 	}
+
+	if (gpio_get_value(display->panel->esd_config.esd_err_irq_gpio) && display->panel->cphy_esd_check) {
+		SDE_ERROR("trigger esd by mistake,return\n");
+		return IRQ_HANDLED;
+	}
+
+	SDE_INFO("panel ESD irq trigging\n");
 
 	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI) {
 		struct dsi_display * dsi_display = (struct dsi_display *)(c_conn->display);
 		if (dsi_display && dsi_display->panel) {
 			panel_on = dsi_display->panel->panel_initialized;
 		}
+
+		if (atomic_read(&(display->panel->esd_recovery_pending))) {
+			SDE_ERROR("ESD recovery already pending\n");
+			return IRQ_HANDLED;
+		}
+
+		if (panel_on && (c_conn->panel_dead == false)) {
+			SDE_ERROR("esd check irq report PANEL_DEAD"
+					"conn_id: %d enc_id: %d, panel_status[%d]\n",
+					c_conn->base.base.id, c_conn->encoder->base.id, panel_on);
+			atomic_set(&display->panel->esd_recovery_pending, 1);
+			c_conn->panel_dead = true;
+			event.type = DRM_EVENT_PANEL_DEAD;
+			event.length = sizeof(bool);
+			msm_mode_object_event_notify(&c_conn->base.base,
+				c_conn->base.dev, &event, (u8 *)&c_conn->panel_dead);
+			sde_encoder_display_failure_notification(c_conn->encoder,false);
+		}
 	}
 
-	if (panel_on && (c_conn->panel_dead == false)) {
-		SDE_DEFERRED_ERROR("esd check irq report PANEL_DEAD conn_id: %d enc_id: %d, panel_status[%d]\n",
-			c_conn->base.base.id, c_conn->encoder->base.id, panel_on);
-		c_conn->panel_dead = true;
-		event.type = DRM_EVENT_PANEL_DEAD;
-		event.length = sizeof(bool);
-		msm_mode_object_event_notify(&c_conn->base.base,
-			c_conn->base.dev, &event, (u8 *)&c_conn->panel_dead);
-		sde_encoder_display_failure_notification(c_conn->encoder,false);
-	}
 	return IRQ_HANDLED;
 }
 

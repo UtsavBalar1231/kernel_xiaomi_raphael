@@ -7720,7 +7720,13 @@ int dsi_display_enable(struct dsi_display *display)
 			((u8 *)panel->hbm_fod_off_doze_lbm_on.cmds[6].msg.tx_buf)[1] = panel->elvss_dimming_cmds.rbuf[0];
 			pr_info("fod hbm off doze lbm on change to %x\n", ((u8 *)panel->hbm_fod_off_doze_lbm_on.cmds[6].msg.tx_buf)[1]);
 		}
-
+		if (display->panel->is_tddi_flag) {
+			rc = dsi_panel_lockdowninfo_param_read(display->panel);
+			if (!rc) {
+				pr_err("[%s] failed to read lockdowninfo para, rc=%d\n",
+					display->name, rc);
+			}
+		}
 		dsi_panel_release_panel_lock(display->panel);
 		return 0;
 	}
@@ -7996,6 +8002,28 @@ int dsi_display_unprepare(struct dsi_display *display)
 
 	SDE_EVT32(SDE_EVTLOG_FUNC_EXIT);
 	return rc;
+}
+
+int dsi_display_esd_irq_ctrl(struct dsi_display *display,
+			bool enable)
+{
+	int ret = 0;
+
+	if (!display) {
+		pr_err("Invalid display ptr\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&display->display_lock);
+
+	ret = dsi_panel_esd_irq_ctrl(display->panel, enable);
+	if (ret)
+		pr_err("[%s] failed to set esd irq, rc=%d\n",
+				display->name, ret);
+
+	mutex_unlock(&display->display_lock);
+
+	return ret;
 }
 
 static int __init dsi_display_register(void)

@@ -156,8 +156,7 @@
 				"msm-dai-q6-tdm.36912", "msm-dai-q6-tdm.36913",
 				"msm-dai-q6-tdm.36914",
 				"msm-dai-q6-tdm.36928", "msm-dai-q6-tdm.36929";
-
-		/*fsa4480-i2c-handle = <&fsa4480>;*/
+				/*fsa4480-i2c-handle = <&fsa4480>;*/
 	};
 };
 

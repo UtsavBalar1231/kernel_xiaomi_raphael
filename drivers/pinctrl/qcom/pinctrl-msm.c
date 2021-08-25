@@ -628,10 +628,10 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 
 	io_reg = readl(pctrl->regs + g->io_reg);
 	value = (is_out ? io_reg >> g->out_bit : io_reg >> g->in_bit) & 0x1;
-	msm_gpio_debug_output(s, 1, " %-8s: %-3s %d", g->name, is_out ? "out" : "in", func);
-	msm_gpio_debug_output(s, 1, " %dmA", msm_regval_to_drive(drive));
-	msm_gpio_debug_output(s, 1, " %s", pulls[pull]);
-	msm_gpio_debug_output(s, 1, " %s", value ? "high":"low");
+	seq_printf(s, " %-8s: %-3s %d", g->name, is_out ? "out" : "in", func);
+	seq_printf(s, " %dmA", msm_regval_to_drive(drive));
+	seq_printf(s, " %s", pulls[pull]);
+	seq_printf(s, " %s", value ? "high":"low");
 }
 
 static void msm_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)

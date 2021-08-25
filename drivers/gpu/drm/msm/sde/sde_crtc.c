@@ -3913,8 +3913,10 @@ static void sde_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct drm_device *dev;
 	struct sde_kms *sde_kms;
 	struct sde_splash_display *splash_display;
+	struct sde_crtc_state *cstate;
 	bool cont_splash_enabled = false;
 	size_t i;
+	int idle_time = 0;
 
 	if (!crtc) {
 		SDE_ERROR("invalid crtc\n");
@@ -3972,12 +3974,15 @@ static void sde_crtc_atomic_begin(struct drm_crtc *crtc,
 	}
 
 	_sde_crtc_dest_scaler_setup(crtc);
+	cstate = to_sde_crtc_state(crtc->state);
+	idle_time = sde_crtc_get_property(cstate, CRTC_PROP_IDLE_TIMEOUT);
 
 	/* cancel the idle notify delayed work */
 	if (sde_encoder_check_curr_mode(sde_crtc->mixers[0].encoder,
-					MSM_DISPLAY_VIDEO_MODE) &&
-		kthread_cancel_delayed_work_sync(&sde_crtc->idle_notify_work))
+					MSM_DISPLAY_VIDEO_MODE) && idle_time) {
+		kthread_cancel_delayed_work_sync(&sde_crtc->idle_notify_work);
 		SDE_DEBUG("idle notify work cancelled\n");
+	}
 
 	/*
 	 * Since CP properties use AXI buffer to program the

@@ -7785,6 +7785,15 @@ irqreturn_t typec_attach_detach_irq_handler(int irq, void *data)
 	} else {
 		switch (chg->sink_src_mode) {
 		case SRC_MODE:
+			/* rerun APSD */
+			rc = smblib_masked_write(chg, CMD_APSD_REG, APSD_RERUN_BIT,
+				APSD_RERUN_BIT);
+			if(rc < 0){
+				smblib_err(chg, "Rerun APSD failed rc=%d\n",
+					rc);
+			}
+			rc = smblib_read(chg, APSD_RESULT_STATUS_REG, &stat);
+			smblib_err(chg, "read APSD_RESULT_STATUS stat=0x%x\n", stat);
 			typec_sink_removal(chg);
 			break;
 		case SINK_MODE:

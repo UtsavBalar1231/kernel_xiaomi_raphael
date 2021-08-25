@@ -13,6 +13,7 @@
 #include <linux/workqueue.h>
 #include <linux/kref.h>
 #include <linux/mi_iolimit.h>
+#include <linux/mi_iolimit_step.h>
 
 struct page;
 struct device;

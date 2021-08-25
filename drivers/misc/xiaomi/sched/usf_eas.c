@@ -395,5 +395,8 @@ static void __exit intera_monitor_exit(void)
 module_exit(intera_monitor_exit);
 
 MODULE_LICENSE("GPL");
+<<<<<<< HEAD
 MODULE_DESCRIPTION("XiaoMi USF EAS");
 MODULE_AUTHOR("XiaoMi Inc.");
+=======
+>>>>>>> 3a5a99291cac... Kernel: Xiaomi kernel changes for Xiaomi Pad 5 Android R

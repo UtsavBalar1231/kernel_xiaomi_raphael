@@ -362,6 +362,14 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_DISP_CRC_OFF,
 	DSI_CMD_SET_DISP_ELVSS_DIMMING_OFF,
 	DSI_CMD_SET_MI_READ_LOCKDOWN_INFO,
+	DSI_CMD_SET_MI_MAX_LUMINANCE_WRITE,
+	DSI_CMD_SET_MI_MAX_LUMINANCE_READ,
+	DSI_CMD_SET_DISP_PEN_120HZ,
+	DSI_CMD_SET_DISP_PEN_60HZ,
+	DSI_CMD_SET_DISP_PEN_30HZ,
+	DSI_CMD_SET_ESD_CHECK,
+	DSI_CMD_SET_DISABLE_INSERT_BLACK,
+	DSI_CMD_SET_INSERT_BLACK,
 	DSI_CMD_SET_MAX
 };
 
@@ -561,6 +569,7 @@ struct dsi_host_common_cfg {
 	bool force_hs_clk_lane;
 	enum dsi_phy_type phy_type;
 	struct dsi_split_link_config split_link;
+	bool cphy_strength;
 };
 
 /**

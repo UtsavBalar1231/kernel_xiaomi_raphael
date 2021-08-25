@@ -570,10 +570,10 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	down_read(&EXT4_I(inode)->i_data_sem);
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
 		retval = ext4_ext_map_blocks(handle, inode, map, flags &
-					     EXT4_GET_BLOCKS_KEEP_SIZE);
+					     (EXT4_GET_BLOCKS_KEEP_SIZE | EXT4_GET_BLOCKS_USED_EXTENTS));
 	} else {
 		retval = ext4_ind_map_blocks(handle, inode, map, flags &
-					     EXT4_GET_BLOCKS_KEEP_SIZE);
+					     (EXT4_GET_BLOCKS_KEEP_SIZE | EXT4_GET_BLOCKS_USED_EXTENTS));
 	}
 	if (retval > 0) {
 		unsigned int status;

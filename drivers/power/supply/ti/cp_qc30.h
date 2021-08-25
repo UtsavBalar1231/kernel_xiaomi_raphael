@@ -70,12 +70,31 @@ enum hvdcp3_type {
 	HVDCP3_NONE = 0,
 	HVDCP3_CLASSA_18W,
 	HVDCP3_CLASSB_27W,
+        HVDCP3P5_CLASSA_18W,
+	HVDCP3P5_CLASSB_27W,
 };
 
 #define HVDCP3_CLASS_B_BAT_CURRENT_MA			5400
 #define HVDCP3_CLASS_B_BUS_CURRENT_MA			2700
 #define HVDCP3_CLASS_A_BAT_CURRENT_MA			3600
 #define HVDCP3_CLASS_A_BUS_CURRENT_MA			2100
+#define MAX_PLUSE_COUNT_ALLOWED			23
+#define HVDCP3_IBUS_MINUS_DEV_VAL			550
+#define HVDCP3_IBUS_PLUS_DEV_VAL			200
+#define HVDCP3_IBAT_MINUS_DEV_VAL			600
+#define HVDCP3_IBAT_PLUS_DEV_VAL			500
+
+/* QC3.5 */
+#define HVDCP3P5_CLASS_B_BAT_CURRENT_MA		5400
+#define HVDCP3P5_CLASS_B_BUS_CURRENT_MA		2700
+#define HVDCP3P5_CLASS_A_BAT_CURRENT_MA		4200
+#define HVDCP3P5_CLASS_A_BUS_CURRENT_MA		2100
+#define MAX_HVDCP3P5_PLUSE_COUNT_ALLOWED	300
+#define HVDCP3P5_IBUS_MINUS_DEV_VAL			200
+#define HVDCP3P5_IBUS_PLUS_DEV_VAL			150
+#define HVDCP3P5_IBAT_MINUS_DEV_VAL			300
+#define HVDCP3P5_IBAT_PLUS_DEV_VAL			200
+
 #define MAX_THERMAL_LEVEL			13
 /* jeita related */
 #define JEITA_WARM_THR			450
@@ -88,7 +107,7 @@ enum hvdcp3_type {
 #define JEITA_HYSTERESIS			20
 
 #define HIGH_CAPACITY_TRH			90
-
+#define PM_WORK_TIME_100MS	100
 
 struct flash2_policy {
 	int down_steps;
@@ -167,6 +186,7 @@ struct bq2597x {
 	int  bat_temp;
 	int  bus_temp;
 	int  die_temp;
+	int  bus_error_status;
 };
 
 struct sw_charger {
@@ -226,6 +246,7 @@ struct sys_config {
 
 	uint16_t min_vbat_start_flash2;
 	bool	cp_sec_enable;
+	bool	qc3p5_supported;
 };
 
 #endif /* SRC_PDLIB_USB_PD_POLICY_MANAGER_H_ */

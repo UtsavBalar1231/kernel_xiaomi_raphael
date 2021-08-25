@@ -72,6 +72,7 @@ enum {
 	HW_PLATFORM_IOT = 32,
 	HW_PLATFORM_IDP = 34,
 	HW_PLATFORM_J20S = 47,
+	HW_PLATFORM_K82 = 48,
 	HW_PLATFORM_INVALID
 };
 
@@ -97,7 +98,8 @@ const char *hw_platform[] = {
 	[HW_PLATFORM_HDK] = "HDK",
 	[HW_PLATFORM_IOT] = "IOT",
 	[HW_PLATFORM_IDP] = "IDP",
-	[HW_PLATFORM_J20S] = "VAYU"
+	[HW_PLATFORM_J20S] = "VAYU",
+	[HW_PLATFORM_K82] = "NABU"
 };
 
 enum {
@@ -1849,6 +1851,8 @@ uint32_t get_hw_version_platform(void)
 	uint32_t hw_type = socinfo_get_platform_type();
 	if (hw_type == HW_PLATFORM_J20S)
 		return HARDWARE_PLATFORM_VAYU;
+	else if (hw_type == HW_PLATFORM_K82)
+		return HARDWARE_PLATFORM_NABU;
 	else
 		return HARDWARE_PLATFORM_UNKNOWN;
 }

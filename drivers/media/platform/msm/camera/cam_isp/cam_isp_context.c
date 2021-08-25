@@ -406,6 +406,9 @@ static void __cam_isp_ctx_send_sof_boot_timestamp(
 {
 	struct cam_req_mgr_message   req_msg;
 
+	if(0 == request_id)
+		return;
+
 	req_msg.session_hdl = ctx_isp->base->session_hdl;
 	req_msg.u.frame_msg.frame_id = ctx_isp->frame_id;
 	req_msg.u.frame_msg.request_id = request_id;

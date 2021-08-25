@@ -420,32 +420,6 @@ And public attribution of xiaomi platforms(like J20S and so and)
 		gpio = <&tlmm 21 0>;
 	};
 
-	dsi_amoled_panel_pwr_external_supply: dsi_amoled_panel_pwr_external_supply {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		qcom,panel-supply-entry@0 {
-			reg = <0>;
-			qcom,supply-name = "vddio";
-			qcom,supply-min-voltage = <1800000>;
-			qcom,supply-max-voltage = <1800000>;
-			qcom,supply-enable-load = <62000>;
-			qcom,supply-disable-load = <80>;
-			//qcom,supply-post-on-sleep = <20>;
-		};
-
-		qcom,panel-supply-entry@1 {
-			reg = <1>;
-			qcom,supply-name = "vcie";
-			qcom,supply-min-voltage = <3000000>;
-			qcom,supply-max-voltage = <3000000>;
-			qcom,supply-enable-load = <62000>;
-			qcom,supply-disable-load = <80>;
-			qcom,supply-post-on-sleep = <10>;
-			qcom,supply-pre-off-sleep = <10>;
-		};
-	};
-
 	fingerprint_goodix {
 		compatible = "goodix,fingerprint";
 		goodix,gpio-reset = <&tlmm 37 0x0>;
@@ -1470,6 +1444,62 @@ And public attribution of xiaomi platforms(like J20S and so and)
 	};
 };
 
+&qupv3_se17_i2c {
+	status = "ok";
+	fts@49 {
+		compatible = "st,fts";
+		reg = <0x49>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <122 0x2008>;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		vdd-supply = <&touch_vddio_vreg>;
+		avdd-supply = <&pm8150l_l1>;
+		fts,pwr-reg-name = "avdd";
+		fts,bus-reg-name = "vdd";
+		fts,irq-gpio = <&tlmm 122 0x2008>;
+		fts,irq-gpio-name = "fts_irq";
+		fts,reset-gpio-enable;
+		fts,reset-gpio = <&tlmm 12 0x00>;
+		fts,reset-gpio-name = "fts_rst";
+		fts,irq-flags = <0x2008>; // IRQF_ONESHOT | IRQF_TRIGGER_LOW
+		fts,x-max = <1080>;
+		fts,y-max = <2340>;
+		fts,default-fw-name = "st_fts_f1.ftb";
+		fts,config-array-size = <1>;
+		fts,dump-click-count;
+		fts,touch-up-threshold-min = <40>;
+		fts,touch-up-threshold-max = <120>;
+		fts,touch-up-threshold-def = <80>;
+		fts,touch-tolerance-min = <5>;
+		fts,touch-tolerance-max = <35>;
+		fts,touch-tolerance-def = <25>;
+		fts,touch-wgh-min-def = <1>;
+		fts,touch-wgh-min-max = <15>;
+		fts,touch-wgh-min-min = <0>;
+		fts,touch-wgh-max-def = <5>;
+		fts,touch-wgh-max-max = <15>;
+		fts,touch-wgh-max-min = <0>;
+		fts,touch-wgh-step-def = <1>;
+		fts,touch-wgh-step-max = <2>;
+		fts,touch-wgh-step-min = <0>;
+		fts,edgefilter-leftrigt-def = <45>;
+		fts,edgefilter-topbottom-def = <0>;
+		fts,edgefilter-top-ingamemode = <0>;
+		fts,edgefilter-bottom-ingamemode = <0>;
+		fts,edgefilter-area-step1 = <100>;
+		fts,edgefilter-area-step2 = <170>;
+		fts,edgefilter-area-step3 = <250>;
+		fts,cfg_0 {
+			fts,tp-vendor = <0x48>;
+			fts,fw-name = "st_fts_f1.ftb";
+			fts,limit-name = "stm_fts_production_limits.csv";
+			fts,clicknum-file-name = "fts+sdc";
+		};
+	};
+};
+
 &qupv3_se9_i2c {
 	status = "ok";
 	nq@28 {
@@ -1536,6 +1566,18 @@ And public attribution of xiaomi platforms(like J20S and so and)
 
 &sde_dsi {
 	vcie-supply = <&disp_vci_vreg>;
+};
+
+&dsi_samsung_fhd_ea8076_f1mp_cmd {
+	qcom,panel-supply-entries = <&dsi_amoled_panel_pwr_external_supply>;
+};
+
+&dsi_samsung_fhd_ea8076_f1p2_2_cmd {
+	qcom,panel-supply-entries = <&dsi_amoled_panel_pwr_external_supply>;
+};
+
+&dsi_samsung_fhd_ea8076_f1p2_cmd {
+	qcom,panel-supply-entries = <&dsi_amoled_panel_pwr_external_supply>;
 };
 
 &dsi_j20s_36_02_0a_video {
