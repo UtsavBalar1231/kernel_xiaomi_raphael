@@ -1,5 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,7 +28,7 @@ static struct i2c_settings_list*
 	struct i2c_settings_list *tmp;
 
 	tmp = (struct i2c_settings_list *)
-		kvzalloc(sizeof(struct i2c_settings_list), GFP_KERNEL);
+		kzalloc(sizeof(struct i2c_settings_list), GFP_KERNEL);
 
 	if (tmp != NULL)
 		list_add_tail(&(tmp->list),
@@ -37,17 +36,11 @@ static struct i2c_settings_list*
 	else
 		return NULL;
 
-	// MI MOD: START
-	// tmp->i2c_settings.reg_setting = (struct cam_sensor_i2c_reg_array *)
-	// kcalloc(size, sizeof(struct cam_sensor_i2c_reg_array),
-	//	GFP_KERNEL);
 	tmp->i2c_settings.reg_setting = (struct cam_sensor_i2c_reg_array *)
-		vzalloc(sizeof(struct cam_sensor_i2c_reg_array) * size);
-	// END
-
+		vzalloc(size * sizeof(struct cam_sensor_i2c_reg_array));
 	if (tmp->i2c_settings.reg_setting == NULL) {
 		list_del(&(tmp->list));
-		kvfree(tmp);
+		kfree(tmp);
 		return NULL;
 	}
 	tmp->i2c_settings.size = size;
@@ -67,11 +60,9 @@ int32_t delete_request(struct i2c_settings_array *i2c_array)
 
 	list_for_each_entry_safe(i2c_list, i2c_next,
 		&(i2c_array->list_head), list) {
-		// MI MOD
-		// kfree(i2c_list->i2c_settings.reg_setting);
 		vfree(i2c_list->i2c_settings.reg_setting);
 		list_del(&(i2c_list->list));
-		kvfree(i2c_list);
+		kfree(i2c_list);
 	}
 	INIT_LIST_HEAD(&(i2c_array->list_head));
 	i2c_array->is_settings_valid = 0;
@@ -346,6 +337,7 @@ int cam_sensor_i2c_command_parser(
 		cmd_buf = (uint32_t *)generic_ptr;
 		cmd_buf += cmd_desc[i].offset / sizeof(uint32_t);
 
+		remain_len -= cmd_desc[i].offset;
 		if (remain_len < cmd_desc[i].length) {
 			CAM_ERR(CAM_SENSOR, "buffer provided too small");
 			return -EINVAL;

@@ -4,7 +4,6 @@
  * Written by Stephen C. Tweedie <sct@redhat.com>
  *
  * Copyright 1998-2000 Red Hat, Inc --- All Rights Reserved
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
@@ -455,6 +454,41 @@ struct jbd2_inode {
 	 * @i_flags: Flags of inode [j_list_lock]
 	 */
 	unsigned long i_flags;
+<<<<<<< HEAD
+=======
+
+	/**
+	 * @i_dirty_start:
+	 *
+	 * Offset in bytes where the dirty range for this inode starts.
+	 * [j_list_lock]
+	 */
+	loff_t i_dirty_start;
+
+	/**
+	 * @i_dirty_end:
+	 *
+	 * Inclusive offset in bytes where the dirty range for this inode
+	 * ends. [j_list_lock]
+	 */
+	loff_t i_dirty_end;
+
+	/**
+	 * @i_next_dirty_start:
+	 *
+	 * Offset in bytes where the dirty range for this inode starts in next transaction.
+	 * [j_list_lock]
+	 */
+	loff_t i_next_dirty_start;
+
+	/**
+	 * @i_next_dirty_end:
+	 *
+	 * Inclusive offset in bytes where the dirty range for this inode in next transaction
+	 * ends. [j_list_lock]
+	 */
+	loff_t i_next_dirty_end;
+>>>>>>> 0c9888aa2373... Kernel: Xiaomi kernel changes for Redmi POCO X3 Pro Android R
 };
 
 struct jbd2_revoke_table_s;
@@ -674,6 +708,18 @@ struct transaction_s
 	atomic_t		t_outstanding_credits;
 
 	/*
+	 * Number of inodes need to write
+	 * [t_handle_lock]
+	 */
+	atomic_t		t_write_inodes;
+
+	/*
+	 * Number of inodes need to wait
+	 * [t_handle_lock]
+	 */
+	atomic_t		t_wait_inodes;
+
+	/*
 	 * Forward and backward links for the circular list of all transactions
 	 * awaiting checkpoint. [j_list_lock]
 	 */
@@ -718,6 +764,10 @@ struct transaction_run_stats_s {
 	unsigned long		rs_locked;
 	unsigned long		rs_flushing;
 	unsigned long		rs_logging;
+	unsigned long		rs_data_flushed;
+	unsigned long		rs_metadata_flushed;
+	unsigned long		rs_committing;
+	unsigned long		rs_callback;
 
 	__u32			rs_handle_count;
 	__u32			rs_blocks;

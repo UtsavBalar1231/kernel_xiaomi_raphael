@@ -1,7 +1,6 @@
 /* drivers/misc/uid_sys_stats.c
  *
  * Copyright (C) 2014 - 2015 Google, Inc.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -506,12 +505,12 @@ static int sys_app_cputime_show(struct seq_file *m, void *v)
 		u64 total_stime = pid_entry->stime +
 						pid_entry->active_stime;
 		seq_printf(m, "%s %llu %llu\n", pid_entry->package,
-			   ktime_to_us(total_utime), ktime_to_us(total_stime));
+			   ktime_to_ms(total_utime), ktime_to_ms(total_stime));
 		sum_utime += total_utime;
 		sum_stime += total_stime;
 	}
 	seq_printf(m, "total %llu %llu\n",
-			ktime_to_us(sum_utime), ktime_to_us(sum_stime));
+			ktime_to_ms(sum_utime), ktime_to_ms(sum_stime));
 	rt_mutex_unlock(&pid_lock);
 	return 0;
 }

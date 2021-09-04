@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -321,10 +320,15 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_DISP_ACL_L1,
 	DSI_CMD_SET_DISP_ACL_L2,
 	DSI_CMD_SET_DISP_ACL_L3,
+	DSI_CMD_SET_DISP_LCD_HBM_L1_ON,
+	DSI_CMD_SET_DISP_LCD_HBM_L2_ON,
+	DSI_CMD_SET_DISP_LCD_HBM_OFF,
 	DSI_CMD_SET_DISP_HBM_ON,
 	DSI_CMD_SET_DISP_HBM_OFF,
 	DSI_CMD_SET_DISP_HBM_FOD_ON,
 	DSI_CMD_SET_DISP_HBM_FOD_OFF,
+	DSI_CMD_SET_DISP_HBM_FOD_OFF_DOZE_HBM_ON,
+	DSI_CMD_SET_DISP_HBM_FOD_OFF_DOZE_LBM_ON,
 	DSI_CMD_SET_DISP_HBM_FOD2NORM,
 	DSI_CMD_SET_DISP_OFF_MODE,
 	DSI_CMD_SET_DISP_ON_MODE,
@@ -337,6 +341,7 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_DISP_CRC_DCIP3,
 	DSI_CMD_SET_DISP_CRC_OFF,
 	DSI_CMD_SET_DISP_ELVSS_DIMMING_OFF,
+	DSI_CMD_SET_MI_READ_LOCKDOWN_INFO,
 	DSI_CMD_SET_MAX
 };
 

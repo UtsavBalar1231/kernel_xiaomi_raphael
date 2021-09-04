@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -59,6 +58,14 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{.compatible = "qcom,dsi-display"},
 	{}
 };
+
+struct dsi_display *primary_display;
+struct dsi_display *get_primary_display(void)
+{
+	return primary_display;
+}
+
+EXPORT_SYMBOL(get_primary_display);
 
 static void dsi_display_mask_ctrl_error_interrupts(struct dsi_display *display,
 			u32 mask, bool enable)
@@ -227,19 +234,12 @@ int dsi_display_set_backlight(struct drm_connector *connector,
 		goto error;
 	}
 
-	if (drm_dev && (drm_dev->doze_state == DRM_BLANK_LP1 || drm_dev->doze_state == DRM_BLANK_LP2)) {
-		rc = dsi_panel_set_doze_backlight(display, (u32)bl_temp);
-		if (rc)
-			pr_err("unable to set doze backlight\n");
-		rc = dsi_panel_enable_doze_backlight(panel, (u32)bl_temp);
-		if (rc)
-			pr_err("unable to enable doze backlight\n");
-	} else {
-		drm_dev->doze_brightness = DOZE_BRIGHTNESS_INVALID;
-		rc = dsi_panel_set_backlight(panel, (u32)bl_temp);
-		if (rc)
-			pr_err("unable to set backlight\n");
-	}
+	rc = dsi_panel_set_backlight(panel, (u32)bl_temp);
+	if (rc)
+		pr_err("unable to set backlight\n");
+	else
+		pr_info("set backlight successfully at: bl_scale = %u, bl_scale_ad = %u, bl_lvl = %u\n", bl_scale, bl_scale_ad, (u32)bl_temp);
+
 	rc = dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
 			DSI_CORE_CLK, DSI_CLK_OFF);
 	if (rc) {
@@ -253,7 +253,7 @@ error:
 	return rc;
 }
 
-static int dsi_display_cmd_engine_enable(struct dsi_display *display)
+int dsi_display_cmd_engine_enable(struct dsi_display *display)
 {
 	int rc = 0;
 	int i;
@@ -297,7 +297,7 @@ done:
 	return rc;
 }
 
-static int dsi_display_cmd_engine_disable(struct dsi_display *display)
+int dsi_display_cmd_engine_disable(struct dsi_display *display)
 {
 	int rc = 0;
 	int i;
@@ -500,7 +500,7 @@ static bool dsi_display_is_te_based_esd(struct dsi_display *display)
 }
 
 /* Allocate memory for cmd dma tx buffer */
-static int dsi_host_alloc_cmd_tx_buffer(struct dsi_display *display)
+int dsi_host_alloc_cmd_tx_buffer(struct dsi_display *display)
 {
 	int rc = 0, cnt = 0;
 	struct dsi_display_ctrl *display_ctrl;
@@ -771,6 +771,7 @@ exit:
 done:
 	return rc;
 }
+EXPORT_SYMBOL(dsi_display_status_reg_read);
 
 static int dsi_display_status_bta_request(struct dsi_display *display)
 {
@@ -1255,6 +1256,8 @@ int dsi_display_set_power(struct drm_connector *connector,
 	case SDE_MODE_DPMS_LP1:
 		drm_notifier_call_chain(DRM_EARLY_EVENT_BLANK, &g_notify_data);
 		rc = dsi_panel_set_lp1(display->panel);
+		if (!rc)
+			dsi_panel_set_doze_backlight(display);
 		drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
 		break;
 	case SDE_MODE_DPMS_LP2:
@@ -5429,6 +5432,8 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 	dsi_type = of_get_property(pdev->dev.of_node, "label", NULL);
 	if (!dsi_type)
 		dsi_type = "primary";
+	else
+		pr_info("label not found\n");
 
 	if (!strcmp(dsi_type, "primary"))
 		index = DSI_PRIMARY;
@@ -5494,6 +5499,8 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 
 	display->disp_node = disp_node;
 	display->name = name;
+	pr_info("panel name is %s\n", display->name);
+
 	display->pdev = pdev;
 	display->boot_disp = boot_disp;
 	display->is_prim_display = true;
@@ -6369,7 +6376,7 @@ int dsi_display_get_modes(struct dsi_display *display,
 exit:
 	*out_modes = display->modes;
 	rc = 0;
-
+	primary_display = display;
 error:
 	if (rc)
 		kfree(display->modes);
@@ -7473,6 +7480,10 @@ int dsi_display_enable(struct dsi_display *display)
 			pr_info("fod hbm on change to %x\n", ((u8 *)panel->hbm_fod_on.cmds[4].msg.tx_buf)[1]);
 			((u8 *)panel->hbm_fod_off.cmds[6].msg.tx_buf)[1] = panel->elvss_dimming_cmds.rbuf[0];
 			pr_info("fod hbm off change to %x\n", ((u8 *)panel->hbm_fod_off.cmds[6].msg.tx_buf)[1]);
+			((u8 *)panel->hbm_fod_off_doze_hbm_on.cmds[6].msg.tx_buf)[1] = panel->elvss_dimming_cmds.rbuf[0];
+			pr_info("fod hbm off doze hbm on change to %x\n", ((u8 *)panel->hbm_fod_off_doze_hbm_on.cmds[6].msg.tx_buf)[1]);
+			((u8 *)panel->hbm_fod_off_doze_lbm_on.cmds[6].msg.tx_buf)[1] = panel->elvss_dimming_cmds.rbuf[0];
+			pr_info("fod hbm off doze lbm on change to %x\n", ((u8 *)panel->hbm_fod_off_doze_lbm_on.cmds[6].msg.tx_buf)[1]);
 		}
 
 		dsi_panel_release_panel_lock(display->panel);

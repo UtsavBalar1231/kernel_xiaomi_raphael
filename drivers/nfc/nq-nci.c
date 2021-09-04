@@ -1,5 +1,4 @@
 /* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -787,19 +786,9 @@ static long nfc_ioctl(struct file *pfile, unsigned int cmd,
 		r = nfc_ioctl_power_states(pfile, arg);
 		break;
 	case ESE_SET_PWR:
-		if ((nqx_dev->nqx_info.info.chip_type == NFCC_SN100_A) ||
-			(nqx_dev->nqx_info.info.chip_type == NFCC_SN100_B))
-			r = sn100_ese_pwr(nqx_dev, arg);
-		else
-			r = nqx_ese_pwr(nqx_dev, arg);
-		break;
+		r = sn100_ese_pwr(nqx_dev, arg);
 	case ESE_GET_PWR:
-		if ((nqx_dev->nqx_info.info.chip_type == NFCC_SN100_A) ||
-			(nqx_dev->nqx_info.info.chip_type == NFCC_SN100_B))
-			r = sn100_ese_pwr(nqx_dev, 3);
-		else
-			r = nqx_ese_pwr(nqx_dev, 3);
-		break;
+		r = sn100_ese_pwr(nqx_dev, 3);
 	case SET_RX_BLOCK:
 		break;
 	case SET_EMULATOR_TEST_POINT:
@@ -828,11 +817,6 @@ static const struct file_operations nfc_dev_fops = {
 	.compat_ioctl = nfc_compat_ioctl
 #endif
 };
-
-/**
- * Do not need check availability of NFCC.
- * This function will block NFCC to enter FW download mode.
- */
 
 #if 0
 /* Check for availability of NQ_ NFC controller hardware */
@@ -884,8 +868,6 @@ static int nfcc_hw_check(struct i2c_client *client, struct nqx_dev *nqx_dev)
 	}
 
 reset_enable_gpio:
-	dev_err(&client->dev,
-		"%s: - reset NFCC 1 - pull down and pull up VEN\n", __func__);
 	/* making sure that the NFCC starts in a clean state. */
 	gpio_set_value(enable_gpio, 1);/* HPD : Enable*/
 	/* hardware dependent delay */
@@ -977,8 +959,6 @@ reset_enable_gpio:
 	nqx_enable_irq(nqx_dev);
 	ret = wait_event_interruptible(nqx_dev->read_wq, !nqx_dev->irq_enabled);
 	if (ret < 0) {
-		dev_err(&client->dev,
-		"%s: - wait_event_interruptible failed\n", __func__);
 		nqx_disable_irq(nqx_dev);
 		goto err_nfcc_hw_check;
 	}
@@ -1120,7 +1100,6 @@ static int nfc_parse_dt(struct device *dev, struct nqx_platform_data *pdata)
 	if ((!gpio_is_valid(pdata->en_gpio)))
 		return -EINVAL;
 	disable_ctrl = pdata->en_gpio;
-
 	pdata->irq_gpio = of_get_named_gpio(np, "qcom,nq-irq", 0);
 	if ((!gpio_is_valid(pdata->irq_gpio)))
 		return -EINVAL;
@@ -1580,8 +1559,13 @@ static int nfcc_reboot(struct notifier_block *notifier, unsigned long val,
 /*
  * module load/unload record keeping
  */
+extern char *saved_command_line;
 static int __init nqx_dev_init(void)
 {
+	if (strstr(saved_command_line, "androidboot.product.hardware.sku=bhima")) {
+		printk(KERN_ERR "not nfc phone!");
+		return -1;
+	}
 	return i2c_add_driver(&nqx);
 }
 module_init(nqx_dev_init);

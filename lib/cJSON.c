@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2009 Dave Gamble
- * Copyright (C) 2019 XiaoMi, Inc.
  */
 
 #include <linux/string.h>

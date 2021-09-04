@@ -1,5 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -269,6 +268,7 @@ int cam_a5_init_hw(void *device_priv,
 	cpas_vote.ahb_vote.type = CAM_VOTE_ABSOLUTE;
 	cpas_vote.ahb_vote.vote.level = CAM_SVS_VOTE;
 	cpas_vote.axi_vote.compressed_bw = CAM_ICP_A5_BW_BYTES_VOTE;
+	cpas_vote.axi_vote.compressed_bw_ab = CAM_ICP_A5_BW_BYTES_VOTE;
 	cpas_vote.axi_vote.uncompressed_bw = CAM_ICP_A5_BW_BYTES_VOTE;
 
 	rc = cam_cpas_start(core_info->cpas_handle,
@@ -464,7 +464,11 @@ int cam_a5_process_cmd(void *device_priv, uint32_t cmd_type,
 
 	case CAM_ICP_A5_CMD_CPAS_STOP:
 		if (core_info->cpas_start) {
-			cam_cpas_stop(core_info->cpas_handle);
+			rc = cam_cpas_stop(core_info->cpas_handle);
+			if (rc) {
+				CAM_ERR(CAM_ICP, "cpas stop failed %d", rc);
+				return rc;
+			}
 			core_info->cpas_start = false;
 		}
 		break;

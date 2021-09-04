@@ -1,5 +1,4 @@
 /* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,8 +33,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/input/qpnp-power-on.h>
-#include <linux/power_supply.h>
 #include <asm/bootinfo.h>
 #include <linux/syscalls.h>
 
@@ -1048,18 +1045,6 @@ static int qpnp_pon_store_and_clear_warm_reset(struct qpnp_pon *pon)
 	return 0;
 }
 
-static struct qpnp_pon_config *qpnp_get_cfg(struct qpnp_pon *pon, u32 pon_type)
-{
-	int i;
-
-	for (i = 0; i < pon->num_pon_config; i++) {
-		if (pon_type == pon->pon_cfg[i].pon_type)
-			return &pon->pon_cfg[i];
-	}
-
-	return NULL;
-}
-
 static void fs_sync_func(struct work_struct *work)
 {
 	struct qpnp_pon *pon = sys_reset_dev;
@@ -1094,6 +1079,18 @@ static void fs_sync_func(struct work_struct *work)
 		pon->fs_sync_counter = 0;
 		spin_unlock_irq(&pon->fs_sync_lock);
 	}
+}
+
+static struct qpnp_pon_config *qpnp_get_cfg(struct qpnp_pon *pon, u32 pon_type)
+{
+	int i;
+
+	for (i = 0; i < pon->num_pon_config; i++) {
+		if (pon_type == pon->pon_cfg[i].pon_type)
+			return &pon->pon_cfg[i];
+	}
+
+	return NULL;
 }
 
 static int qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)

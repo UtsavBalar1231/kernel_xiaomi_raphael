@@ -1,5 +1,4 @@
 /* Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -327,7 +326,7 @@ static ssize_t stat1_show(struct class *c, struct class_attribute *attr,
 	rc = smb1390_read(chip, CORE_STATUS1_REG, &val);
 	if (rc < 0)
 		return -EINVAL;
-
+	/*pr_info("smb1390 CORE_STATUS1_REG: 0x%x\n", val);*/
 	return snprintf(buf, PAGE_SIZE, "%x\n", val);
 }
 static CLASS_ATTR_RO(stat1);
@@ -341,7 +340,7 @@ static ssize_t stat2_show(struct class *c, struct class_attribute *attr,
 	rc = smb1390_read(chip, CORE_STATUS2_REG, &val);
 	if (rc < 0)
 		return -EINVAL;
-
+	/*pr_info("smb1390 CORE_STATUS2_REG: 0x%x\n", val);*/
 	return snprintf(buf, PAGE_SIZE, "%x\n", val);
 }
 static CLASS_ATTR_RO(stat2);
@@ -378,6 +377,7 @@ static ssize_t enable_store(struct class *c, struct class_attribute *attr,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
+	pr_info("enable smb1390: %d\n", val);
 	vote(chip->disable_votable, USER_VOTER, !val, 0);
 	return count;
 }
@@ -702,6 +702,13 @@ static void smb1390_status_change_work(struct work_struct *work)
 		pr_info("capacity:%d, batt_temp:%d, charge_type:%d\n",
 				capacity, batt_temp, charge_type);
 
+		/*
+		 * if taper happens too early due to battery esr is high caused by
+		 * battery temperature is cool, vbat is easy to reach to near to vfloat,
+		 * we will reset CP_VOTER here if early taper happens and battery
+		 * temp recover to normal(above 22 degree by test) and charge type
+		 * is FAST and battery capacity is below 55% to recover 1.5C charging
+		 */
 		if ((capacity < TAPER_CAPACITY_THR)
 			&& (batt_temp >= BATT_COOL_THR)
 			&& (charge_type == POWER_SUPPLY_CHARGE_TYPE_FAST)
@@ -768,6 +775,12 @@ static void smb1390_taper_work(struct work_struct *work)
 			goto out;
 		}
 		capacity = pval.intval;
+		/*
+		 * if capacity is lower than 55% - 1%(delta)  and taper charge comes
+		 * we think it is a early taper, normaly due to battery temperature is low
+		 * such as 10 to 22 degree, battery esr is high and high current charging
+		 * (charge pump is working during 10 to 22 degree, not working below 10)
+		 */
 		if ((capacity < (TAPER_CAPACITY_THR - TAPER_CAPCITY_DELTA))
 				&& !chip->taper_early_trigger)
 			chip->taper_early_trigger = true;

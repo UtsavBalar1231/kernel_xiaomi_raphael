@@ -301,6 +301,10 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	int ret;
 	u32 val;
 
+	/* gpio 0~3 is NFC spi, gpio 126~129 is FP spi */
+	if (group < 4 || (group > 125 && group < 130))
+		return 0;
+
 	g = &pctrl->soc->groups[group];
 	base = reassign_pctrl_reg(pctrl->soc, group);
 
@@ -638,13 +642,6 @@ static void msm_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		/* gpio 0~3 is NFC spi, gpio 126~129 is FP spi */
 		if (i < 4 || (i > 125 && i < 130))
 			continue;
-
-		/*only for E5G*/
-		if (HARDWARE_PLATFORM_ANDROMEDA == get_hw_version_platform()){
-		  /*skip 5G related gpio: 5G IPC HS-UART, 5G RF HS-UART*/
-		  if ((i >= 4 && i <= 7) || (i >= 83 && i <= 86))
-			continue;
-		}
 
 		msm_gpio_dbg_show_one(s, NULL, chip, i, gpio);
 		msm_gpio_debug_output(s, 1, "\n");
@@ -2000,7 +1997,7 @@ static void msm_pinctrl_resume(void)
 		val = readl_relaxed(pctrl->regs + g->intr_status_reg);
 		if (val & BIT(g->intr_status_bit)) {
 			irq = irq_find_mapping(pctrl->chip.irqdomain, i);
-			log_wakeup_reason(irq);
+			log_irq_wakeup_reason(irq);
 			desc = irq_to_desc(irq);
 			if (desc == NULL)
 				name = "stray irq";

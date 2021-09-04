@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -214,11 +213,7 @@ enum pmic_model {
 };
 
 #define HARDWARE_PLATFORM_UNKNOWN 0
-#define HARDWARE_PLATFORM_CEPHEUS 1
-#define HARDWARE_PLATFORM_DAVINCI 2
-#define HARDWARE_PLATFORM_ANDROMEDA 3
-#define HARDWARE_PLATFORM_RAPHAEL 4
-#define HARDWARE_PLATFORM_HERCULES 5
+#define HARDWARE_PLATFORM_VAYU 6
 
 #define HW_MAJOR_VERSION_SHIFT 16
 #define HW_MAJOR_VERSION_MASK  0xFFFF0000

@@ -200,6 +200,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 		pe = tmp;
 	}
 
+	mutex_lock(&sel_lock);
 	if (sel_cons != vc_cons[fg_console].d) {
 		clear_selection();
 		sel_cons = vc_cons[fg_console].d;
@@ -245,9 +246,10 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 			break;
 		case TIOCL_SELPOINTER:
 			highlight_pointer(pe);
-			return 0;
+			goto unlock;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 	}
 
 	/* remove the pointer */
@@ -269,7 +271,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	else if (new_sel_start == sel_start)
 	{
 		if (new_sel_end == sel_end)	/* no action required */
-			return 0;
+			goto unlock;
 		else if (new_sel_end > sel_end)	/* extend to right */
 			highlight(sel_end + 2, new_sel_end);
 		else				/* contract from right */
@@ -296,7 +298,8 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	if (!bp) {
 		printk(KERN_WARNING "selection: kmalloc() failed\n");
 		clear_selection();
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto unlock;
 	}
 	kfree(sel_buffer);
 	sel_buffer = bp;

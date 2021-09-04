@@ -636,8 +636,15 @@ config SIMTRAY_STATUS
 	help
 	  Say 'y' here to support SIM tray GPIO detection
 
+config GPIO_TESTING_MODE
+    tristate "A simple GPIO testing mode driver for sar controler"
+    default n
+    help
+      Enable driver for a simple testing mode detection
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
+source "drivers/misc/xiaomi/Kconfig"
 source "drivers/misc/cb710/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"

@@ -1,7 +1,6 @@
 /* drivers/intput/misc/akm09970.c - akm09970 compass driver
  *
  * Copyright (c) 2014-2015, Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and

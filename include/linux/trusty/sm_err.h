@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2013 Google Inc. All rights reserved
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files

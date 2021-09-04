@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -371,6 +370,53 @@ static int dsi_bridge_get_panel_info(struct drm_bridge *bridge, char *buf)
 		return snprintf(buf, PAGE_SIZE, c_bridge->display->name);
 
 	return rc;
+}
+
+int dsi_panel_set_doze_backlight(struct dsi_display *display);
+
+ssize_t dsi_panel_get_doze_backlight(struct dsi_display *display, char *buf);
+
+int dsi_bridge_disp_set_doze_backlight(struct drm_connector *connector,
+			int doze_backlight)
+{
+	struct dsi_display *display = NULL;
+	struct dsi_bridge *c_bridge = NULL;
+
+	if (!connector || !connector->encoder || !connector->encoder->bridge) {
+		pr_err("Invalid connector/encoder/bridge ptr\n");
+		return -EINVAL;
+	}
+
+	c_bridge =  to_dsi_bridge(connector->encoder->bridge);
+	display = c_bridge->display;
+	if (!display || !display->panel || !display->drm_dev) {
+		pr_err("Invalid display/panel/drm_dev ptr\n");
+		return -EINVAL;
+	} else
+		display->drm_dev->doze_brightness = doze_backlight;
+
+	return dsi_panel_set_doze_backlight(display);
+}
+
+ssize_t dsi_bridge_disp_get_doze_backlight(struct drm_connector *connector,
+			char *buf)
+{
+	struct dsi_display *display = NULL;
+	struct dsi_bridge *c_bridge = NULL;
+
+	if (!connector || !connector->encoder || !connector->encoder->bridge) {
+		pr_err("Invalid connector/encoder/bridge ptr\n");
+		return -EINVAL;
+	}
+
+	c_bridge =  to_dsi_bridge(connector->encoder->bridge);
+	display = c_bridge->display;
+	if (!display || !display->panel) {
+		pr_err("Invalid display/panel ptr\n");
+		return -EINVAL;
+	}
+
+	return dsi_panel_get_doze_backlight(display, buf);
 }
 
 static void dsi_bridge_enable(struct drm_bridge *bridge)

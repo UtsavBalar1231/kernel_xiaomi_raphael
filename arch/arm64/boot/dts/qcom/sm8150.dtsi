@@ -1,5 +1,4 @@
 /* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -597,111 +596,116 @@
 		#size-cells = <2>;
 		ranges;
 
-		hyp_mem: hyp_mem {
+		hyp_mem: hyp_mem@85700000 {
 			no-map;
 			reg = <0x0 0x85700000 0x0 0x600000>;
 		};
 
-		xbl_aop_mem: xbl_aop_mem {
+		xbl_dump_mem: xbl_dump_mem@85d00000 {
+			no-map;
+			reg = <0x0 0x85d00000 0x0 0x100000>;
+		};
+
+		xbl_aop_mem: xbl_aop_mem@85e00000 {
 			no-map;
 			reg = <0x0 0x85e00000 0x0 0x140000>;
 		};
 
-		smem_region: smem {
+		smem_region: smem@86000000 {
 			no-map;
 			reg = <0x0 0x86000000 0x0 0x200000>;
 		};
 
-		removed_regions: removed_regions {
+		removed_regions: removed_regions@86200000 {
 			no-map;
 			reg = <0x0 0x86200000 0x0 0x5500000>;
 		};
 
-		pil_camera_mem: camera_region {
+		pil_camera_mem: camera_region@8b700000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x8b700000 0x0 0x500000>;
 		};
 
-		pil_wlan_fw_mem: pil_wlan_fw_region {
+		pil_wlan_fw_mem: pil_wlan_fw_region@8bc00000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x8bc00000 0x0 0x180000>;
 		};
 
-		pil_npu_mem: pil_npu_region {
+		pil_npu_mem: pil_npu_region@8bd80000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x8bd80000 0x0 0x80000>;
 		};
 
-		pil_adsp_mem: pil_adsp_region {
+		pil_adsp_mem: pil_adsp_region@8be00000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x8be00000 0x0 0x2200000>;
 		};
 
-		pil_modem_mem: modem_region {
+		pil_modem_mem: modem_region@8e000000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x8e000000 0x0 0x9600000>;
 		};
 
-		pil_video_mem: pil_video_region {
+		pil_video_mem: pil_video_region@97600000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x97600000 0x0 0x500000>;
 		};
 
-		pil_slpi_mem: pil_slpi_region {
+		pil_slpi_mem: pil_slpi_region@97b00000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x97b00000 0x0 0x1400000>;
 		};
 
-		pil_ipa_fw_mem: pil_ipa_fw_region {
+		pil_ipa_fw_mem: pil_ipa_fw_region@98f00000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x98f00000 0x0 0x10000>;
 		};
 
-		pil_ipa_gsi_mem: pil_ipa_gsi_region {
+		pil_ipa_gsi_mem: pil_ipa_gsi_region@98f10000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x98f10000 0x0 0x5000>;
 		};
 
-		pil_gpu_mem: pil_gpu_region {
+		pil_gpu_mem: pil_gpu_region@98f15000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x98f15000 0x0 0x2000>;
 		};
 
-		pil_spss_mem: pil_spss_region {
+		pil_spss_mem: pil_spss_region@99000000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x99000000 0x0 0x100000>;
 		};
 
-		pil_cdsp_mem: cdsp_regions {
+		pil_cdsp_mem: cdsp_regions@99100000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0x99100000 0x0 0x1400000>;
 		};
 
-		qseecom_mem: qseecom_region {
+		qseecom_mem: qseecom_region@0x9e400000 {
 			compatible = "shared-dma-pool";
 			no-map;
 			reg = <0 0x9e400000 0 0x1400000>;
 		};
 
-		cdsp_sec_mem: cdsp_sec_regions {
+		cdsp_sec_mem: cdsp_sec_regions@0xa4c00000 {
 			compatible = "removed-dma-pool";
 			no-map;
 			reg = <0x0 0xa4c00000 0x0 0x3c00000>;
 		};
 
-		cont_splash_memory: cont_splash_region {
+		cont_splash_memory: cont_splash_region@9c000000 {
 			reg = <0x0 0x9c000000 0x0 0x02400000>;
 			label = "cont_splash_region";
 		};

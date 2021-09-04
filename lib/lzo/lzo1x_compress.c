@@ -2,7 +2,6 @@
  *  LZO1X Compressor from LZO
  *
  *  Copyright (C) 1996-2012 Markus F.X.J. Oberhumer <markus@oberhumer.com>
- *  Copyright (C) 2019 XiaoMi, Inc.
  *
  *  The full LZO package can be found at:
  *  http://www.oberhumer.com/opensource/lzo/

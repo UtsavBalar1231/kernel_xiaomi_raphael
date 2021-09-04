@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -57,8 +56,14 @@ enum DISPPARAM_MODE {
 	DISPPARAM_HBM_ON = 0x10000,
 	DISPPARAM_HBM_FOD_ON = 0x20000,
 	DISPPARAM_HBM_FOD2NORM = 0x30000,
+	DISPPARAM_DC_ON = 0x40000,
+	DISPPARAM_DC_OFF = 0x50000,
+	DISPPARAN_FOD_FLAG = 0x60000,
 	DISPPARAM_HBM_FOD_OFF = 0xE0000,
 	DISPPARAM_HBM_OFF = 0xF0000,
+	DISPPARAM_LCD_HBM_L1_ON = 0xB0000,
+	DISPPARAM_LCD_HBM_L2_ON = 0xC0000,
+	DISPPARAM_LCD_HBM_OFF = 0xA0000,
 	DISPPARAM_NORMALMODE1 = 0x100000,
 	DISPPARAM_P3 = 0x200000,
 	DISPPARAM_SRGB = 0x300000,

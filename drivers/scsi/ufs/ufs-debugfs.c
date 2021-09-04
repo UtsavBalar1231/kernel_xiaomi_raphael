@@ -1,5 +1,4 @@
 /* Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1051,7 +1050,6 @@ static int ufsdbg_dump_device_desc_open(struct inode *inode, struct file *file)
 static const struct file_operations ufsdbg_dump_device_desc = {
 	.open		= ufsdbg_dump_device_desc_open,
 	.read		= seq_read,
-	.release	= single_release,
 };
 
 static int ufsdbg_power_mode_show(struct seq_file *file, void *data)

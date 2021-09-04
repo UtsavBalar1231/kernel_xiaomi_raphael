@@ -60,8 +60,9 @@ static dev_t gpio_devt;
 static struct bus_type gpio_bus_type = {
 	.name = "gpio",
 };
-
+#ifdef CONFIG_DEBUG_FS
 static u32 gpio_debug_suspend = 0;
+#endif
 #define gpio_debug_output(m, c, fmt, ...)		\
 do {							\
 	if (m)						\
