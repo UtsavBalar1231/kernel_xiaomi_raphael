@@ -1,5 +1,4 @@
 /* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -348,7 +347,11 @@ int cam_bps_process_cmd(void *device_priv, uint32_t cmd_type,
 
 	case CAM_ICP_BPS_CMD_CPAS_STOP:
 		if (core_info->cpas_start) {
-			cam_cpas_stop(core_info->cpas_handle);
+			rc = cam_cpas_stop(core_info->cpas_handle);
+			if (rc) {
+				CAM_ERR(CAM_ICP, "cpas stop failed %d", rc);
+				return rc;
+			}
 			core_info->cpas_start = false;
 		}
 		break;

@@ -1,5 +1,4 @@
 /* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -354,7 +353,8 @@ static void *usbpd_ipc_log;
 #define ID_HDR_PRODUCT_AMA	5
 #define ID_HDR_PRODUCT_VPD	6
 
-#define PD_VBUS_MAX_VOLTAGE_LIMIT		9000000
+#define PD_VBUS_MAX_VOLTAGE_LIMIT	9000000
+#define PD_MAX_CURRENT_LIMIT		4000000
 #define MAX_FIXED_PDO_MA		2000
 #define MAX_NON_COMPLIANT_PPS_UA		2000000
 
@@ -454,8 +454,8 @@ struct usbpd {
 	bool			vbus_enabled;
 	bool			vconn_enabled;
 	bool			vconn_is_external;
-	u32			limit_pd_vbus;
-	u32			pd_vbus_max_limit;
+	u32			limit_curr;
+	u32			pd_max_curr_limit;
 
 	u8			tx_msgid[SOPII_MSG + 1];
 	u8			rx_msgid[SOPII_MSG + 1];
@@ -471,6 +471,7 @@ struct usbpd {
 	struct list_head	svid_handlers;
 	ktime_t			svdm_start_time;
 	bool			vdm_in_suspend;
+	bool			verify_process;
 
 	struct list_head	instance;
 
@@ -484,6 +485,10 @@ struct usbpd {
 	struct usbpd_svid_handler svid_handler;
 	bool			verifed;
 	int			uvdm_state;
+	bool			pps_weak_limit;
+
+	/* non-qcom pps control */
+	bool		non_qcom_pps_ctr;
 
 	/* ext msg support */
 	bool			send_get_src_cap_ext;
@@ -723,7 +728,8 @@ static int pd_send_msg(struct usbpd *pd, u8 msg_type, const u32 *data,
 		/* sending SOP'/SOP'' to a cable, PR/DR fields should be 0 */
 		hdr = PD_MSG_HDR(msg_type, 0, 0, pd->tx_msgid[sop], num_data,
 				pd->spec_rev);
-
+	pd->tx_msgid[sop] = (pd->tx_msgid[sop] + 1) & PD_MAX_MSG_ID;
+	usbpd_info(&pd->dev, "pd->tx_msgid[sop]:%d,hdr:%x\n", pd->tx_msgid[sop], hdr);
 	/* bail out and try again later if a message just arrived */
 	spin_lock_irqsave(&pd->rx_lock, flags);
 	if (!list_empty(&pd->rx_q)) {
@@ -742,8 +748,6 @@ static int pd_send_msg(struct usbpd *pd, u8 msg_type, const u32 *data,
 					ret);
 		return ret;
 	}
-
-	pd->tx_msgid[sop] = (pd->tx_msgid[sop] + 1) & PD_MAX_MSG_ID;
 	return 0;
 }
 
@@ -779,6 +783,7 @@ static int pd_send_ext_msg(struct usbpd *pd, u8 msg_type,
 		hdr = PD_MSG_HDR(msg_type, pd->current_dr, pd->current_pr,
 				pd->tx_msgid[sop], num_objs, pd->spec_rev) |
 			PD_MSG_HDR_EXTENDED;
+		pd->tx_msgid[sop] = (pd->tx_msgid[sop] + 1) & PD_MAX_MSG_ID;
 		ret = pd_phy_write(hdr, chunked_payload,
 				num_objs * sizeof(u32), sop);
 		if (ret) {
@@ -788,7 +793,6 @@ static int pd_send_ext_msg(struct usbpd *pd, u8 msg_type,
 			return ret;
 		}
 
-		pd->tx_msgid[sop] = (pd->tx_msgid[sop] + 1) & PD_MAX_MSG_ID;
 
 		/* Wait for request chunk */
 		if (len_remain &&
@@ -850,12 +854,116 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 			return -EINVAL;
 		}
 
-		curr = ua / 1000;
+		/* use xiaomi pps control state machine */
+		if (pd->non_qcom_pps_ctr) {
+			usbpd_err(&pd->dev,
+				"PPS is controlled by ourself, return not support\n");
+			return -ENOTSUPP;
+		}
 
 		/* if limit_pd_vbus is enabled, pd request uv will less than pd vbus max */
-		if (pd->limit_pd_vbus && uv > pd->pd_vbus_max_limit)
-			uv = pd->pd_vbus_max_limit;
+		if (pd->limit_curr && ua > pd->pd_max_curr_limit) {
+			ua = pd->pd_max_curr_limit;
+		}
 
+		if ((pd->pps_weak_limit) && (ua > USBPD_WAKK_PPS_CURR_LIMIT)) {
+			ua = USBPD_WAKK_PPS_CURR_LIMIT;
+		}
+
+		curr = ua / 1000;
+		/*
+		 * workaround for Zimi and similar non-compliant QC4+/PPS chargers:
+		 * if PPS power limit bit is set and QC4+ not compliant PPS chargers,
+		 * hvdcp_opti will set 0mA for these PPS chargers, we treat them as
+		 * maxium 2A PPS chargers to avoid not charging issue.
+		 */
+		if (curr == 0) {
+			ua = MAX_NON_COMPLIANT_PPS_UA;
+			curr = ua / 1000;
+		}
+		pd->requested_voltage = uv;
+		pd->rdo = PD_RDO_AUGMENTED(pdo_pos, mismatch, 1, 1,
+				uv / 20000, ua / 50000);
+	} else {
+		usbpd_err(&pd->dev, "Only Fixed or Programmable PDOs supported\n");
+		return -ENOTSUPP;
+	}
+
+	/* Can't sink more than 5V if VCONN is sourced from the VBUS input */
+	if (pd->vconn_enabled && !pd->vconn_is_external &&
+			pd->requested_voltage > 5000000)
+		return -ENOTSUPP;
+
+	pd->requested_current = curr;
+	pd->requested_pdo = pdo_pos;
+
+	return 0;
+}
+
+static int pd_select_pdo_for_bq(struct usbpd *pd, int pdo_pos, int uv, int ua)
+{
+	int curr;
+	int max_current;
+	bool mismatch = false;
+	u8 type;
+	u32 pdo = pd->received_pdos[pdo_pos - 1];
+
+	type = PD_SRC_PDO_TYPE(pdo);
+	if (type == PD_SRC_PDO_TYPE_FIXED) {
+		curr = max_current = PD_SRC_PDO_FIXED_MAX_CURR(pdo) * 10;
+
+		/*
+		 * Check if the PDO has enough current, otherwise set the
+		 * Capability Mismatch flag
+		 */
+		if (curr < min_sink_current) {
+			mismatch = true;
+			max_current = min_sink_current;
+		}
+
+		pd->requested_voltage =
+			PD_SRC_PDO_FIXED_VOLTAGE(pdo) * 50 * 1000;
+
+		/* pd request uv will less than pd vbus max 9V for fixed pdos */
+		if (pd->requested_voltage > PD_VBUS_MAX_VOLTAGE_LIMIT)
+			return -ENOTSUPP;
+
+		/*
+		 * set maxium allowed current for fixed pdo to 2A if request
+		 * voltage is 9V, as we should limit charger to 18W for more safety
+		 * both for charger and our device(such as charge ic inductor)
+		 */
+		if (pd->requested_voltage == PD_VBUS_MAX_VOLTAGE_LIMIT
+				&& curr >= MAX_FIXED_PDO_MA)
+			curr = MAX_FIXED_PDO_MA;
+
+		pd->rdo = PD_RDO_FIXED(pdo_pos, 0, mismatch, 1, 1, curr / 10,
+				max_current / 10);
+	} else if (type == PD_SRC_PDO_TYPE_AUGMENTED) {
+		if ((uv / 100000) > PD_APDO_MAX_VOLT(pdo) ||
+			(uv / 100000) < PD_APDO_MIN_VOLT(pdo) ||
+			(ua / 50000) > PD_APDO_MAX_CURR(pdo) || (ua < 0)) {
+			usbpd_err(&pd->dev, "uv (%d) and ua (%d) out of range of APDO\n",
+					uv, ua);
+			return -EINVAL;
+		}
+
+		/* if limit_pd_vbus is enabled, pd request uv will less than pd vbus max */
+		if (pd->limit_curr && ua > pd->pd_max_curr_limit) {
+			ua = pd->pd_max_curr_limit;
+		}
+		if ((pd->pps_weak_limit) && (ua > USBPD_WAKK_PPS_CURR_LIMIT)) {
+			ua = USBPD_WAKK_PPS_CURR_LIMIT;
+		}
+
+		curr = ua / 1000;
+
+		/*
+		 * workaround for Zimi and similar non-compliant QC4+/PPS chargers:
+		 * if PPS power limit bit is set and QC4+ not compliant PPS chargers,
+		 * hvdcp_opti will set 0mA for these PPS chargers, we treat them as
+		 * maxium 2A PPS chargers to avoid not charging issue.
+		 */
 		if (curr == 0) {
 			ua = MAX_NON_COMPLIANT_PPS_UA;
 			curr = ua / 1000;
@@ -886,6 +994,8 @@ static int pd_eval_src_caps(struct usbpd *pd)
 	union power_supply_propval val;
 	bool pps_found = false;
 	u32 first_pdo = pd->received_pdos[0];
+	int max_volt, min_volt, max_curr;
+	int pps_min_power = 0;
 
 	if (PD_SRC_PDO_TYPE(first_pdo) != PD_SRC_PDO_TYPE_FIXED) {
 		usbpd_err(&pd->dev, "First src_cap invalid! %08x\n", first_pdo);
@@ -910,6 +1020,32 @@ static int pd_eval_src_caps(struct usbpd *pd)
 				break;
 			}
 		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pd->received_pdos); i++) {
+		u32 pdo = pd->received_pdos[i];
+
+		if (pdo == 0)
+			break;
+
+		if (PD_SRC_PDO_TYPE(pdo) == PD_SRC_PDO_TYPE_FIXED) {
+			max_volt = PD_SRC_PDO_FIXED_VOLTAGE(pdo) * 50;
+			min_volt = PD_SRC_PDO_FIXED_VOLTAGE(pdo) * 50;
+			max_curr = PD_SRC_PDO_FIXED_MAX_CURR(pdo) * 10;
+		} else if (PD_SRC_PDO_TYPE(pdo) == PD_SRC_PDO_TYPE_AUGMENTED) {
+			max_volt = PD_APDO_MAX_VOLT(pdo) * 100;
+			min_volt = PD_APDO_MIN_VOLT(pdo) * 100;
+			max_curr = PD_APDO_MAX_CURR(pdo) * 50;
+
+			if (pps_min_power < max_volt * max_curr || pps_min_power == 0) {
+				pps_min_power = max_volt * max_curr;
+				if (pps_min_power < USBPD_WEAK_PPS_POWER)
+					pd->pps_weak_limit = true;
+			}
+		}
+		usbpd_info(&pd->dev, "%s max_volt:%d,min_volt:%d,max_curr:%d\n",
+				(PD_SRC_PDO_TYPE(pdo) == PD_SRC_PDO_TYPE_AUGMENTED) ? "PPS" : "PD2.0",
+				max_volt, min_volt, max_curr);
 	}
 
 	val.intval = pps_found ?
@@ -992,14 +1128,11 @@ static void pd_request_chunk_work(struct work_struct *w)
 	u16 hdr = PD_MSG_HDR(req->msg_type, pd->current_dr, pd->current_pr,
 				pd->tx_msgid[req->sop], 1, pd->spec_rev)
 		| PD_MSG_HDR_EXTENDED;
-
+	pd->tx_msgid[req->sop] = (pd->tx_msgid[req->sop] + 1) & PD_MAX_MSG_ID;
 	*(u16 *)payload = PD_MSG_EXT_HDR(1, req->chunk_num, 1, 0);
 
 	ret = pd_phy_write(hdr, payload, sizeof(payload), req->sop);
-	if (!ret) {
-		pd->tx_msgid[req->sop] =
-			(pd->tx_msgid[req->sop] + 1) & PD_MAX_MSG_ID;
-	} else {
+	if (ret) {
 		usbpd_err(&pd->dev, "could not send chunk request\n");
 
 		/* queue what we have anyway */
@@ -2566,6 +2699,8 @@ static void usbpd_sm(struct work_struct *w)
 		rx_msg_cleanup(pd);
 		pd->verifed = false;
 		pd->uvdm_state = USBPD_UVDM_DISCONNECT;
+		pd->verify_process = 0;
+		pd->pps_weak_limit = false;
 
 		power_supply_set_property(pd->usb_psy,
 				POWER_SUPPLY_PROP_PD_IN_HARD_RESET, &val);
@@ -4111,6 +4246,9 @@ static ssize_t select_pdo_store(struct device *dev,
 
 	mutex_lock(&pd->swap_lock);
 
+	if (pd->verify_process)
+		goto out;
+
 	/* Only allowed if we are already in explicit sink contract */
 	if (pd->current_state != PE_SNK_READY) {
 		usbpd_err(&pd->dev, "select_pdo: Cannot select new PDO yet\n");
@@ -4138,7 +4276,7 @@ static ssize_t select_pdo_store(struct device *dev,
 		goto out;
 	}
 
-	pr_info("pdo: %d, uv: %d, ua: %d\n", pdo, uv, ua);
+	pr_info("request pdo: %d, uv: %d, ua: %d\n", pdo, uv, ua);
 	ret = pd_select_pdo(pd, pdo, uv, ua);
 	if (ret)
 		goto out;
@@ -4294,6 +4432,9 @@ static ssize_t get_src_cap_ext_show(struct device *dev,
 	int i, ret, len = 0;
 	struct usbpd *pd = dev_get_drvdata(dev);
 
+	/* as some pps charger do not support this message, do not send */
+	return -EINVAL;
+
 	if (pd->spec_rev == USBPD_REV_20)
 		return -EINVAL;
 
@@ -4318,6 +4459,9 @@ static ssize_t get_status_show(struct device *dev,
 	int i, ret, len = 0;
 	struct usbpd *pd = dev_get_drvdata(dev);
 
+	/* as some pps charger do not support this message, do not send */
+	return -EINVAL;
+
 	if (pd->spec_rev == USBPD_REV_20)
 		return -EINVAL;
 
@@ -4341,6 +4485,9 @@ static ssize_t get_pps_status_show(struct device *dev,
 {
 	int ret;
 	struct usbpd *pd = dev_get_drvdata(dev);
+
+	/* as some pps charger do not support this message, do not send */
+	return -EINVAL;
 
 	if (pd->spec_rev == USBPD_REV_20)
 		return -EINVAL;
@@ -4441,7 +4588,7 @@ static ssize_t usbpd_verifed_store(struct device *dev,
 		pd->verifed = 0;
 		return -EINVAL;
 	}
-	usbpd_info(&pd->dev, "batteryd set usbpd verifyed :%d\n", val);
+	usbpd_err(&pd->dev, "batterysecret set usbpd verifed :%d\n", val);
 
 	pd->verifed = val;
 
@@ -4482,6 +4629,33 @@ static ssize_t adapter_svid_show(struct device *dev,
 			return snprintf(buf, PAGE_SIZE, "%04x", pd->adapter_svid);
 }
 static DEVICE_ATTR_RO(adapter_svid);
+
+static ssize_t verify_process_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct usbpd *pd = dev_get_drvdata(dev);
+	int val;
+
+	if (sscanf(buf, "%d\n", &val) != 1) {
+		pd->verify_process = 0;
+		return -EINVAL;
+	}
+
+	pd->verify_process = !!val;
+	usbpd_info(&pd->dev, "batterysecret verify process :%d\n", pd->verify_process);
+
+	return size;
+}
+
+static ssize_t verify_process_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct usbpd *pd = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", pd->verify_process);
+}
+static DEVICE_ATTR_RW(verify_process);
+
 static ssize_t adapter_version_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -4547,6 +4721,11 @@ static int usbpd_request_vdm_cmd(struct usbpd *pd, enum uvdm_state cmd, unsigned
 		}
 		break;
 	case USBPD_UVDM_VERIFIED:
+	case USBPD_UVDM_REMOVE_COMPENSATION:
+		if (pd->non_qcom_pps_ctr) {
+			if (cmd == USBPD_UVDM_REMOVE_COMPENSATION)
+				break;
+		}
 		rc = usbpd_send_vdm(pd, vdm_hdr, data, USBPD_UVDM_VERIFIED_LEN);
 		if (rc < 0) {
 			usbpd_err(&pd->dev, "failed to send %d\n", cmd);
@@ -4611,6 +4790,7 @@ static ssize_t request_vdm_cmd_show(struct device *dev,
 	case USBPD_UVDM_CONNECT:
 	case USBPD_UVDM_DISCONNECT:
 	case USBPD_UVDM_VERIFIED:
+	case USBPD_UVDM_REMOVE_COMPENSATION:
 	case USBPD_UVDM_NAN_ACK:
 		return snprintf(buf, PAGE_SIZE, "%d,Null", cmd);
 		break;
@@ -4660,6 +4840,7 @@ static struct attribute *usbpd_attrs[] = {
 	&dev_attr_adapter_id.attr,
 	&dev_attr_adapter_svid.attr,
 	&dev_attr_adapter_version.attr,
+	&dev_attr_verify_process.attr,
 	&dev_attr_usbpd_verifed.attr,
 	NULL,
 };
@@ -4761,6 +4942,7 @@ static void usbpd_mi_disconnect_cb(struct usbpd_svid_handler *hdlr)
 	pd->adapter_svid = 0;
 	pd->vdm_data.ta_version = 0;
 	pd->uvdm_state = USBPD_UVDM_DISCONNECT;
+	pd->verify_process = 0;
 	usbpd_info(&pd->dev, "hdlr->svid:%x has disconnect\n", hdlr->svid);
 
 	return;
@@ -4816,15 +4998,19 @@ static void usbpd_mi_vdm_received_cb(struct usbpd_svid_handler *hdlr, u32 vdm_hd
 		usbpd_dbg(&pd->dev, "usb r_cable now:%dmohm\n", r_cable);
 		break;
 	case USBPD_UVDM_SESSION_SEED:
-		for (i = 0; i < USBPD_UVDM_SS_LEN; i++) {
-			pd->vdm_data.s_secert[i] = vdos[i];
-			usbpd_dbg(&pd->dev, "usbpd s_secert vdos[%d]=0x%x", i, vdos[i]);
+		if (num_vdos != 0) {
+			for (i = 0; i < num_vdos; i++) {
+				pd->vdm_data.s_secert[i] = vdos[i];
+				usbpd_dbg(&pd->dev, "usbpd s_secert vdos[%d]=0x%x", i, vdos[i]);
+			}
 		}
 		break;
 	case USBPD_UVDM_AUTHENTICATION:
-		for (i = 0; i < USBPD_UVDM_SS_LEN; i++) {
-			pd->vdm_data.digest[i] = vdos[i];
-			usbpd_dbg(&pd->dev, "usbpd digest[%d]=0x%x", i, vdos[i]);
+		if (num_vdos != 0) {
+			for (i = 0; i < num_vdos; i++) {
+				pd->vdm_data.digest[i] = vdos[i];
+				usbpd_dbg(&pd->dev, "usbpd digest[%d]=0x%x", i, vdos[i]);
+			}
 		}
 		break;
 	default:
@@ -4832,6 +5018,133 @@ static void usbpd_mi_vdm_received_cb(struct usbpd_svid_handler *hdlr, u32 vdm_hd
 	}
 	pd->uvdm_state = cmd;
 }
+
+int usbpd_get_pps_status(struct usbpd *pd, u32 *pps_status)
+{
+	int ret;
+
+	if (pd->spec_rev == USBPD_REV_20)
+		return -EINVAL;
+
+	ret = trigger_tx_msg(pd, &pd->send_get_pps_status);
+	if (ret)
+		return ret;
+
+	*pps_status = pd->pps_status_db;
+
+	return ret;
+}
+EXPORT_SYMBOL(usbpd_get_pps_status);
+
+int usbpd_fetch_pdo(struct usbpd *pd, struct usbpd_pdo *pdos)
+{
+	int ret = 0;
+	int pdo;
+	int i;
+
+	if (!pd || !pdos)
+		return -EINVAL;
+
+	mutex_lock(&pd->swap_lock);
+
+	if (pd->current_pr == PR_SRC) {
+		usbpd_err(&pd->dev, "not support in SRC mode\n");
+		ret = -ENOTSUPP;
+		goto out;
+	}
+
+	for (i = 0; i < 7; i++) {
+		pdo = pd->received_pdos[i];
+		if (pdo == 0)
+			break;
+
+		pdos[i].pos = i + 1;
+		pdos[i].pps = PD_APDO_PPS(pdo) == 0;
+		pdos[i].type = PD_SRC_PDO_TYPE(pdo);
+
+		if (pdos[i].type == PD_SRC_PDO_TYPE_FIXED) {
+			pdos[i].curr_ma = PD_SRC_PDO_FIXED_MAX_CURR(pdo) * 10;
+			pdos[i].max_volt_mv = PD_SRC_PDO_FIXED_VOLTAGE(pdo) * 50;
+			pdos[i].min_volt_mv = PD_SRC_PDO_FIXED_VOLTAGE(pdo) * 50;
+			usbpd_info(&pd->dev,
+					"pdo:%d, Fixed supply, volt:%d(mv), max curr:%d\n",
+					i+1, pdos[i].max_volt_mv,
+					pdos[i].curr_ma);
+		} else if (pdos[i].type == PD_SRC_PDO_TYPE_AUGMENTED) {
+			pdos[i].max_volt_mv = PD_APDO_MAX_VOLT(pdo) * 100;
+			pdos[i].min_volt_mv = PD_APDO_MIN_VOLT(pdo) * 100;
+			pdos[i].curr_ma     = PD_APDO_MAX_CURR(pdo) * 50;
+			usbpd_info(&pd->dev,
+					"pdo:%d, PPS, volt: %d(mv), max curr:%d\n",
+					i+1, pdos[i].max_volt_mv,
+					pdos[i].curr_ma);
+		} else {
+			usbpd_err(&pd->dev, "only fixed and pps pdo supported\n");
+		}
+	}
+
+out:
+	mutex_unlock(&pd->swap_lock);
+	return ret;
+}
+EXPORT_SYMBOL(usbpd_fetch_pdo);
+
+int usbpd_select_pdo(struct usbpd *pd, int pdo, int uv, int ua)
+{
+	int ret;
+
+	mutex_lock(&pd->swap_lock);
+
+	if (pd->verify_process)
+		goto out;
+
+	if (pd->current_pr != PR_SINK) {
+		ret = -ENOTSUPP;
+		goto out;
+	}
+
+	/* Only allowed if we are already in explicit sink contract */
+	if (pd->current_state != PE_SNK_READY || !is_sink_tx_ok(pd)) {
+		usbpd_err(&pd->dev, "select_pdo: Cannot select new PDO yet\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	if (pdo < 1 || pdo > 7) {
+		usbpd_err(&pd->dev, "select_pdo: invalid PDO:%d\n", pdo);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = pd_select_pdo_for_bq(pd, pdo, uv, ua);
+	if (ret)
+		goto out;
+
+	reinit_completion(&pd->is_ready);
+	pd->send_request = true;
+	kick_sm(pd, 0);
+
+	/* wait for operation to complete */
+	if (!wait_for_completion_timeout(&pd->is_ready,
+			msecs_to_jiffies(1000))) {
+		usbpd_err(&pd->dev, "select_pdo: request timed out\n");
+		ret = -ETIMEDOUT;
+		goto out;
+	}
+
+	/* determine if request was accepted/rejected */
+	if (pd->selected_pdo != pd->requested_pdo ||
+			pd->current_voltage != pd->requested_voltage) {
+		usbpd_err(&pd->dev, "select_pdo: request rejected\n");
+		ret = -EINVAL;
+	}
+
+out:
+	pd->send_request = false;
+	mutex_unlock(&pd->swap_lock);
+	return ret;
+}
+EXPORT_SYMBOL(usbpd_select_pdo);
 
 static void usbpd_release(struct device *dev)
 {
@@ -4949,33 +5262,24 @@ struct usbpd *usbpd_create(struct device *parent)
 	extcon_set_property_capability(pd->extcon, EXTCON_USB_HOST,
 			EXTCON_PROP_USB_SS);
 
-	pd->vbus = devm_regulator_get(parent, "vbus");
-	if (IS_ERR(pd->vbus)) {
-		ret = PTR_ERR(pd->vbus);
-		goto put_psy;
-	}
-
-	pd->vconn = devm_regulator_get(parent, "vconn");
-	if (IS_ERR(pd->vconn)) {
-		ret = PTR_ERR(pd->vconn);
-		goto put_psy;
-	}
-
-	ret = of_property_read_u32(parent->of_node, "mi,limit_pd_vbus",
-			&pd->limit_pd_vbus);
+	ret = of_property_read_u32(parent->of_node, "mi,pd_curr_limit",
+			&pd->limit_curr);
 	if (ret) {
-		usbpd_err(&pd->dev, "failed to read pd vbus limit\n");
-		pd->limit_pd_vbus = false;
+		usbpd_err(&pd->dev, "do not limit current\n");
+		pd->limit_curr = false;
 	}
 
-	if (pd->limit_pd_vbus) {
-		ret = of_property_read_u32(parent->of_node, "mi,pd_vbus_max_limit",
-				&pd->pd_vbus_max_limit);
+	if (pd->limit_curr) {
+		ret = of_property_read_u32(parent->of_node, "mi,pd_max_curr_limit",
+				&pd->pd_max_curr_limit);
 		if (ret) {
 			usbpd_err(&pd->dev, "failed to read pd vbus max limit\n");
-			pd->pd_vbus_max_limit = PD_VBUS_MAX_VOLTAGE_LIMIT;
+			pd->pd_max_curr_limit = PD_MAX_CURRENT_LIMIT;
 		}
 	}
+
+	pd->non_qcom_pps_ctr = of_property_read_bool(parent->of_node,
+				"mi,non-qcom-pps-ctrl");
 
 	pd->vconn_is_external = device_property_present(parent,
 					"qcom,vconn-uses-external-source");

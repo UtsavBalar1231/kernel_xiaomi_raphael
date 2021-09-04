@@ -5,7 +5,6 @@
  *  Note that kmalloc() lives in slab.c
  *
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
- *  Copyright (C) 2019 XiaoMi, Inc.
  *  Swap reorganised 29.12.95, Stephen Tweedie
  *  Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999
  *  Reshaped it to be a zoned allocator, Ingo Molnar, Red Hat, 1999
@@ -70,6 +69,7 @@
 #include <linux/lockdep.h>
 #include <linux/nmi.h>
 #include <linux/psi.h>
+#include <linux/delayacct.h>
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -79,6 +79,8 @@
 /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
 static DEFINE_MUTEX(pcp_batch_high_lock);
 #define MIN_PERCPU_PAGELIST_FRACTION	(8)
+
+#define TRACE_SLOWPATH_THRESHOLD (50)
 
 #ifdef CONFIG_USE_PERCPU_NUMA_NODE_ID
 DEFINE_PER_CPU(int, numa_node);
@@ -4313,6 +4315,9 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
 	struct page *page;
 	unsigned int alloc_flags = ALLOC_WMARK_LOW;
 	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
+	unsigned long start_time;
+	u64 start_running;
+	u64 start_runnable;
 	struct alloc_context ac = { };
 
 	/*
@@ -4352,7 +4357,34 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
 	if (unlikely(ac.nodemask != nodemask))
 		ac.nodemask = nodemask;
 
+	start_time = jiffies;
+	start_runnable = current->sched_info.run_delay;
+	start_running = current->se.sum_exec_runtime;
+	delayacct_slowpath_start();
 	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
+	delayacct_slowpath_end();
+
+	if (jiffies != start_time) {
+		unsigned long duration;
+		unsigned int duration_ms;
+		duration = (jiffies > start_time) ? (jiffies - start_time) :
+			(jiffies + (MAX_JIFFY_OFFSET - start_time) + 1);
+		duration_ms = jiffies_to_msecs(duration);
+
+		if (duration_ms > TRACE_SLOWPATH_THRESHOLD) {
+			trace_printk("tracing_mark_write: B|%d|slowpath.duration(%dms)\n",
+				current->tgid, duration_ms);
+			pr_info("slowpath: %d(%s)(priority %d/%d) order=%d mask=0x%x"
+				" duration=%dms duration_runnable = %lldns"
+				" duration_running=%lldns\n",
+				current->pid, current->comm,
+				current->policy, PRIO_TO_NICE(current->static_prio),
+				order, gfp_mask, duration_ms,
+				current->sched_info.run_delay - start_runnable,
+				current->se.sum_exec_runtime - start_running);
+			trace_printk("tracing_mark_write: E\n");
+		}
+	}
 
 out:
 	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&

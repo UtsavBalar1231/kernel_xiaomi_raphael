@@ -3199,6 +3199,8 @@ static int sd_format_disk_name(char *prefix, int index, char *buf, int buflen)
 	return 0;
 }
 
+int ufs_ffu(struct scsi_device *sdev);
+
 /*
  * The asynchronous part of sd_probe
  */

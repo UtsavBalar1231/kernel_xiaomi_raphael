@@ -1,5 +1,4 @@
 /* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -55,6 +54,12 @@
 #include "dbm.h"
 #include "debug.h"
 #include "xhci.h"
+
+#undef dev_dbg
+#define dev_dbg dev_info
+#undef pr_debug
+#define pr_debug pr_info
+
 
 #define SDP_CONNETION_CHECK_TIME 10000 /* in ms */
 
@@ -3556,7 +3561,6 @@ static int dwc_dpdm_cb(struct notifier_block *nb, unsigned long evt, void *p)
 
 	return NOTIFY_OK;
 }
-
 static int dwc3_msm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node, *dwc3_node;

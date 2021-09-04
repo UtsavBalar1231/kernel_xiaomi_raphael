@@ -1,5 +1,4 @@
 /* Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1079,6 +1078,8 @@ static int usb_icl_vote_callback(struct votable *votable, void *data,
 			&pval);
 
 	vote(chip->pl_disable_votable, ICL_CHANGE_VOTER, false, 0);
+
+	cp_configure_ilim(chip, ICL_CHANGE_VOTER, icl_ua);
 
 	if (!chip->usb_psy)
 		chip->usb_psy = power_supply_get_by_name("usb");

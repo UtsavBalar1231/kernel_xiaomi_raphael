@@ -3,7 +3,6 @@
  *  linux/fs/ext4/sysfs.c
  *
  * Copyright (C) 1992, 1993, 1994, 1995
- * Copyright (C) 2019 XiaoMi, Inc.
  * Remy Card (card@masi.ibp.fr)
  * Theodore Ts'o (tytso@mit.edu)
  *

@@ -4904,9 +4904,9 @@ static void regulator_debug_print_regulators(struct seq_file *s)
 	regulator_debug_output(s, 0, "Enabled regulators:\n");
 	regulator_debug_output(s, 0, " regulator-dev                  regulator-name                      use open bypass voltage current     min     max    enabled   always_on\n");
 	regulator_debug_output(s, 0, "------------------------------------------------------------------------------------------------------------------------------------------\n");
-
+#ifdef CONFIG_DEBUG_FS
 	class_for_each_device(&regulator_class, NULL, s, regulator_summary_show_roots);
-
+#endif
 	mutex_unlock(&regulator_debug_lock);
 }
 

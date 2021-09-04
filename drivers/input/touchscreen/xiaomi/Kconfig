@@ -16,7 +16,7 @@ config TOUCHSCREEN_XIAOMI_TOUCHFEATURE_PALMSENSOR
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here:
-config TOUCHSCREEN_XIAOMI_TOUCHFEATURE_GAMEMODE
+config TOUCHSCREEN_SUPPORT_NEW_GAME_MODE
 	tristate "Xiaomi Touch GameMode"
 	depends on TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 	help

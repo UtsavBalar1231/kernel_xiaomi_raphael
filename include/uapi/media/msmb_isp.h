@@ -29,6 +29,12 @@
 #define DUAL_ISP_SYNC 1
 
 
+struct isp_kstate {
+	uint32_t kernel_sofid;
+	uint32_t drop_reconfig;
+	uint32_t vfeid;
+};
+
 struct msm_vfe_cfg_cmd_list;
 
 enum ISP_START_PIXEL_PATTERN {

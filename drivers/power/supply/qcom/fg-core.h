@@ -1,5 +1,4 @@
 /* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -319,6 +318,7 @@ struct fg_batt_props {
 	char		*batt_profile;
 	int		float_volt_uv;
 	int		vbatt_full_mv;
+	int		ffc_vbatt_full_mv;
 	int		fastchg_curr_ma;
 	int		nom_cap_uah;
 	int		*therm_coeffs;
@@ -326,6 +326,9 @@ struct fg_batt_props {
 	int		therm_pull_up_kohms;
 	int		*rslow_normal_coeffs;
 	int		*rslow_low_coeffs;
+	int		ffc_term_curr_ma;
+	int		ffc_low_temp_term_curr_ma;
+	int		ffc_high_temp_term_curr_ma;
 };
 
 struct fg_cyc_ctr_data {
@@ -409,11 +412,34 @@ static const struct fg_pt fg_tsmc_osc_table[] = {
 	{  90,		444992 },
 };
 
+#define BATT_MA_AVG_SAMPLES		8
+struct batt_params {
+	bool		update_now;
+	int		batt_raw_soc;
+	int		batt_soc;
+	int		samples_num;
+	int		samples_index;
+	int		batt_ma_avg_samples[BATT_MA_AVG_SAMPLES];
+	int		batt_ma_avg;
+	int		batt_ma_prev;
+	int		batt_ma;
+	int		batt_mv;
+	int		batt_temp;
+	struct timespec	last_soc_change_time;
+};
+
 struct fg_memif {
 	struct fg_dma_address	*addr_map;
 	int			num_partitions;
 	u16			address_max;
 	u8			num_bytes_per_word;
+};
+
+struct cold_thermal {
+	int index;
+	int temp_l;
+	int temp_h;
+	int curr_th;
 };
 
 struct fg_dev {
@@ -428,6 +454,12 @@ struct fg_dev {
 	struct power_supply	*dc_psy;
 	struct power_supply	*parallel_psy;
 	struct power_supply	*pc_port_psy;
+#if (defined CONFIG_BATT_VERIFY_BY_DS28E16 || defined CONFIG_BATT_VERIFY_BY_DS28E16_NABU)
+	struct power_supply *max_verify_psy;
+#endif
+#ifdef CONFIG_BATT_VERIFY_BY_DS28E16_NABU
+        struct power_supply *max_verify_slave_psy;
+#endif
 	struct fg_irq_info	*irqs;
 	struct votable		*awake_votable;
 	struct votable		*delta_bsoc_irq_en_votable;
@@ -447,6 +479,7 @@ struct fg_dev {
 	u32			mem_if_base;
 	u32			rradc_base;
 	u32			wa_flags;
+	int			cycle_count;
 	int			batt_id_ohms;
 	int			charge_status;
 	int			prev_charge_status;
@@ -474,13 +507,26 @@ struct fg_dev {
 	bool			use_dma;
 	bool			qnovo_enable;
 	bool			empty_restart_fg;
+	bool			profile_already_find;
 	bool			input_present;
+	bool			batt_temp_low;
+	bool			shutdown_delay;
+	/* cold thermal related */
+	struct cold_thermal *cold_thermal_seq;
+	int			cold_thermal_len;
+	int			curr_cold_thermal_level;
 	enum fg_version		version;
+	struct batt_params	param;
+	struct delayed_work	soc_monitor_work;
 	struct completion	soc_update;
 	struct completion	soc_ready;
 	struct delayed_work	profile_load_work;
 	struct work_struct	status_change_work;
 	struct delayed_work	sram_dump_work;
+	int			fake_authentic;
+	int			fake_chip_ok;
+	int			maxim_cycle_count;
+	int			batt_fake_temp;
 	struct delayed_work	empty_restart_fg_work;
 	struct delayed_work	soc_work;
 };

@@ -439,6 +439,8 @@ static struct ufs_dev_fix ufs_fixups[] = {
 		UFS_DEVICE_QUIRK_HS_G1_TO_HS_G3_SWITCH),
 	UFS_FIX(UFS_VENDOR_SKHYNIX, "hC8HL1",
 		UFS_DEVICE_QUIRK_HS_G1_TO_HS_G3_SWITCH),
+	UFS_FIX(UFS_VENDOR_SANDISK, UFS_ANY_MODEL,
+		UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE),
 
 	END_FIX
 };
@@ -8689,16 +8691,14 @@ static int ufs_read_device_desc_data(struct ufs_hba *hba)
 	hba->dev_info.b_device_sub_class =
 		desc_buf[DEVICE_DESC_PARAM_DEVICE_SUB_CLASS];
 	hba->dev_info.i_product_name = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
-	hba->dev_info.w_spec_version =
-		desc_buf[DEVICE_DESC_PARAM_SPEC_VER] << 8 |
-		desc_buf[DEVICE_DESC_PARAM_SPEC_VER + 1];
 
 out:
 	kfree(desc_buf);
 	return err;
 }
 
-/* ufshcd_probe_hba - probe hba to detect device and initialize
+/**
+ * ufshcd_probe_hba - probe hba to detect device and initialize
  * @hba: per-adapter instance
  *
  * Execute link-startup and verify device initialization
@@ -8779,7 +8779,6 @@ reinit:
 
 	ufs_fixup_device_setup(hba, &card);
 	ufshcd_tune_unipro_params(hba);
-
 	ufshcd_apply_pm_quirks(hba);
 	if (card.wspecversion < 0x300) {
 		ret = ufshcd_set_vccq_rail_unused(hba,

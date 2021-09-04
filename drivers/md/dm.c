@@ -1186,6 +1186,8 @@ static void __map_bio(struct dm_target_io *tio)
 	struct dm_offload o;
 	struct bio *clone = &tio->clone;
 	struct dm_target *ti = tio->ti;
+	u64 io_stime = 0;
+	u64 io_wtime = 0;
 
 	clone->bi_end_io = clone_endio;
 
@@ -1200,6 +1202,14 @@ static void __map_bio(struct dm_target_io *tio)
 	dm_offload_start(&o);
 	r = ti->type->map(ti, clone);
 	dm_offload_end(&o);
+
+	if (sysctl_mi_iolimit &&
+			NULL != tio->clone.bi_disk->queue && NULL != tio->io->md->queue) {
+		io_stime = atomic64_read(&tio->clone.bi_disk->queue->io_stime);
+		io_wtime = atomic64_read(&tio->clone.bi_disk->queue->io_wtime);
+		atomic64_set(&tio->io->md->queue->io_stime, io_stime);
+		atomic64_set(&tio->io->md->queue->io_wtime, io_wtime);
+	}
 
 	switch (r) {
 	case DM_MAPIO_SUBMITTED:

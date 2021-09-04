@@ -370,7 +370,11 @@ struct cam_sensor_acquire_dev {
 	uint32_t    handle_type;
 	uint32_t    reserved;
 	uint64_t    info_handle;
+<<<<<<< HEAD
+	uint32_t    operation_mode;
+=======
 	uint32_t    operation_mode;//XIAOMI: libin16 add for face unlock
+>>>>>>> 3a5a99291cac... Kernel: Xiaomi kernel changes for Xiaomi Pad 5 Android R
 } __attribute__((packed));
 
 /**

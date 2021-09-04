@@ -107,6 +107,7 @@ struct dsi_phy_cfg {
 	struct dsi_lane_map lane_map;
 	bool force_clk_lane_hs;
 	unsigned long bit_clk_rate_hz;
+	bool cphy_strength;
 };
 
 struct dsi_phy_hw;

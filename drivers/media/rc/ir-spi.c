@@ -1,6 +1,5 @@
  /*
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
- * Copyright (C) 2019 XiaoMi, Inc.
  * Author: Andi Shyti <andi.shyti@samsung.it>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -9,20 +8,43 @@
  *
  * SPI driven IR LED device driver
  */
+#include <linux/init.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/list.h>
+#include <linux/errno.h>
+#include <linux/compat.h>
+#include <linux/delay.h>
+#include <linux/kthread.h>
 
+#include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/types.h>
+
+#ifdef CONFIG_OF
+#include <linux/of_device.h>
+#include <linux/of.h>
+#endif
+#include <linux/gpio.h>
+
+#include <asm/delay.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
-#include "media/lirc_dev.h"
+#include <linux/miscdevice.h>
+#include <uapi/linux/lirc.h>
+#include <linux/uaccess.h>
 
 #define IR_SPI_DRIVER_NAME		"ir-spi"
 
 #define IR_SPI_DEFAULT_FREQUENCY	1920000
 #define IR_SPI_BIT_PER_WORD		    32
 #define IR_SPI_DATA_BUFFER		    150000
+
+struct ir_spi_data *ir_spi_data_g;
 
 struct ir_spi_data {
 	u16 nusers;
@@ -31,7 +53,7 @@ struct ir_spi_data {
 
 	u8 *buffer;
 
-	struct lirc_driver lirc_driver;
+	dev_t devt;
 	struct spi_device *spi;
 	struct spi_transfer xfer;
 	struct mutex mutex;
@@ -67,21 +89,11 @@ static ssize_t ir_spi_chardev_write(struct file *file,
 		ret = -EFAULT;
 		goto out_free;
 	}
-#if 0
-	ret = regulator_enable(idata->regulator);
-	if (ret) {
-		dev_err(&idata->spi->dev, "failed to power on the LED\n");
-		goto out_free;
-	}
-#endif
 	idata->xfer.tx_buf = idata->buffer;
 	dev_warn(&idata->spi->dev, "xfer.len%d buffer_size %d\n",(int)idata->xfer.len,idata->buffer_size);
 	ret = spi_sync_transfer(idata->spi, &idata->xfer, 1);
 	if (ret)
 		dev_err(&idata->spi->dev, "unable to deliver the signal\n");
-#if 0
-	regulator_disable(idata->regulator);
-#endif
 out_free:
 	if (please_free) {
 		kfree(idata->buffer);
@@ -97,7 +109,8 @@ out_unlock:
 
 static int ir_spi_chardev_open(struct inode *inode, struct file *file)
 {
-	struct ir_spi_data *idata = lirc_get_pdata(file);
+	struct ir_spi_data *idata;
+	idata = ir_spi_data_g;
 
 	if (unlikely(idata->nusers >= SHRT_MAX)) {
 		dev_err(&idata->spi->dev, "device busy\n");
@@ -115,7 +128,8 @@ static int ir_spi_chardev_open(struct inode *inode, struct file *file)
 
 static int ir_spi_chardev_close(struct inode *inode, struct file *file)
 {
-	struct ir_spi_data *idata = lirc_get_pdata(file);
+	struct ir_spi_data *idata;
+	idata = ir_spi_data_g;
 
 	mutex_lock(&idata->mutex);
 	idata->nusers--;
@@ -146,86 +160,57 @@ static long ir_spi_chardev_ioctl(struct file *file, unsigned int cmd,
 	struct ir_spi_data *idata = file->private_data;
 
 	switch (cmd) {
-	case LIRC_GET_FEATURES:
-		return put_user(idata->lirc_driver.features,
-					(__u32 __user *) arg);
+		case LIRC_SET_SEND_MODE: {
+			void *new;
 
-	case LIRC_GET_LENGTH:
-		return put_user(idata->xfer.len, (__u32 __user *) arg);
+			ret = get_user(p, (__u32 __user *) arg);
+			if (ret)
+				return ret;
 
-	case LIRC_SET_SEND_MODE: {
-		void *new;
+			/*
+			 * the user is trying to set the same
+			 * length of the current value
+			 */
+			if (idata->xfer.len == p)
+				return 0;
 
-		ret = get_user(p, (__u32 __user *) arg);
-		if (ret)
-			return ret;
+			/*
+			 * multiple users should use the driver with the
+			 * length, otherwise return EPERM same data
+			 */
+			if (idata->nusers > 1)
+				return -EPERM;
 
-		/*
-		 * the user is trying to set the same
-		 * length of the current value
-		 */
-		if (idata->xfer.len == p)
-			return 0;
-
-		/*
-		 * multiple users should use the driver with the
-		 * length, otherwise return EPERM same data
-		 */
-		if (idata->nusers > 1)
-			return -EPERM;
-
-		/*
-		 * if the buffer is already allocated, reallocate it with the
-		 * desired value. If the desired value is 0, then the buffer is
-		 * freed from krealloc()
-		 */
-		if (idata->xfer.len){
-			new = krealloc(idata->buffer, p, GFP_DMA);
-			}
-		else{
-			if ((p>idata->buffer_size) || (idata->buffer == NULL)){
-				printk ("IR new malloc %d",(int)idata->xfer.len);
-				if (idata->buffer != NULL)
-				{
-					kfree (idata->buffer);
-					idata->buffer = NULL;
+			/*
+			 * if the buffer is already allocated, reallocate it with the
+			 * desired value. If the desired value is 0, then the buffer is
+			 * freed from krealloc()
+			 */
+			if (idata->xfer.len){
+				new = krealloc(idata->buffer, p, GFP_DMA);
 				}
-				new = kmalloc(p, GFP_DMA);
-				if (!new)
-					return -ENOMEM;
-				idata->buffer = new;
-				idata->buffer_size = p;
+			else{
+				if ((p>idata->buffer_size) || (idata->buffer == NULL)){
+					printk ("IR new malloc %d",(int)idata->xfer.len);
+					if (idata->buffer != NULL)
+					{
+						kfree (idata->buffer);
+						idata->buffer = NULL;
+					}
+					new = kmalloc(p, GFP_DMA);
+					if (!new)
+						return -ENOMEM;
+					idata->buffer = new;
+					idata->buffer_size = p;
+				}
 			}
+
+			mutex_lock(&idata->mutex);
+			idata->xfer.len = p;
+			mutex_unlock(&idata->mutex);
+
+			return 0;
 		}
-
-		mutex_lock(&idata->mutex);
-		idata->xfer.len = p;
-		mutex_unlock(&idata->mutex);
-
-		return 0;
-	}
-
-	case LIRC_SET_SEND_CARRIER:
-		return put_user(idata->xfer.speed_hz, (__u32 __user *) arg);
-
-	case LIRC_SET_REC_CARRIER:
-		ret = get_user(p, (__u32 __user *) arg);
-		if (ret)
-			return ret;
-
-		/*
-		 * The frequency cannot be obviously set to '0',
-		 * while, as in the case of the data length,
-		 * multiple users should use the driver with the same
-		 * frequency value, otherwise return EPERM
-		 */
-		if (!p || ((idata->nusers > 1) && p != idata->xfer.speed_hz))
-			return -EPERM;
-
-		mutex_lock(&idata->mutex);
-		idata->xfer.speed_hz = p;
-		mutex_unlock(&idata->mutex);
-		return 0;
 	}
 
 	return -EINVAL;
@@ -233,14 +218,20 @@ static long ir_spi_chardev_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations ir_spi_fops = {
 	.owner   = THIS_MODULE,
-	.read    = lirc_dev_fop_read,
 	.write   = ir_spi_chardev_write,
-	.poll    = lirc_dev_fop_poll,
 	.open    = ir_spi_chardev_open,
 	.release = ir_spi_chardev_close,
 	.llseek  = noop_llseek,
 	.unlocked_ioctl = ir_spi_chardev_ioctl,
 	.compat_ioctl   = ir_spi_chardev_ioctl,
+};
+
+static struct miscdevice ir_spi_dev_drv = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "ir_spi",
+	.fops = &ir_spi_fops,
+	.nodename = "ir_spi",
+	.mode = 0666,
 };
 
 static int ir_spi_probe(struct spi_device *spi)
@@ -250,30 +241,12 @@ static int ir_spi_probe(struct spi_device *spi)
 	idata = devm_kzalloc(&spi->dev, sizeof(*idata), GFP_KERNEL);
 	if (!idata)
 		return -ENOMEM;
-#if 0
-	idata->regulator = devm_regulator_get(&spi->dev, "irda_regulator");
-	if (IS_ERR(idata->regulator))
-		return PTR_ERR(idata->regulator);
-#endif
-	snprintf(idata->lirc_driver.name, sizeof(idata->lirc_driver.name),
-							IR_SPI_DRIVER_NAME);
-	idata->lirc_driver.features    = LIRC_CAN_SEND_RAW;
-	idata->lirc_driver.code_length = 1;
-	idata->lirc_driver.fops        = &ir_spi_fops;
-	idata->lirc_driver.dev         = &spi->dev;
-	idata->lirc_driver.data        = idata;
-	idata->lirc_driver.owner       = THIS_MODULE;
-	idata->lirc_driver.minor       = -1;
-
-	idata->lirc_driver.minor = lirc_register_driver(&idata->lirc_driver);
-	if (idata->lirc_driver.minor < 0) {
-		dev_err(&spi->dev, "unable to generate character device\n");
-		return idata->lirc_driver.minor;
-	}
 
 	mutex_init(&idata->mutex);
 
 	idata->spi = spi;
+	spi_set_drvdata(spi, idata);
+	ir_spi_data_g = idata;
 
 	idata->xfer.bits_per_word = IR_SPI_BIT_PER_WORD;
 	idata->xfer.speed_hz = IR_SPI_DEFAULT_FREQUENCY;
@@ -284,6 +257,7 @@ static int ir_spi_probe(struct spi_device *spi)
 	}
 	idata->buffer = buffer;
 	idata->buffer_size = IR_SPI_DATA_BUFFER;
+	misc_register(&ir_spi_dev_drv);
 	return 0;
 }
 
@@ -294,7 +268,7 @@ static int ir_spi_remove(struct spi_device *spi)
 		kfree(idata->buffer);
 		idata->buffer = NULL;
 	}
-	lirc_unregister_driver(idata->lirc_driver.minor);
+	misc_deregister(&ir_spi_dev_drv);
 
 	return 0;
 }

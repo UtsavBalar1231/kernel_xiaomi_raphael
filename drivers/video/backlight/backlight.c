@@ -2,7 +2,6 @@
  * Backlight Lowlevel Control Abstraction
  *
  * Copyright (C) 2003,2004 Hewlett-Packard Company
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  */
 
@@ -328,9 +327,7 @@ static ssize_t brightness_clone_store(struct device *dev,
 	if (rc)
 		return rc;
 
-	bd->props.brightness_clone = (brightness <= bd->thermal_brightness_limit) ?
-				brightness :
-				bd->thermal_brightness_limit;
+	bd->props.brightness_clone = brightness;
 
 	envp[0] = "SOURCE=sysfs";
 	envp[1] = NULL;

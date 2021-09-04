@@ -116,7 +116,7 @@ static void dsi_phy_hw_v4_0_lane_swap_config(struct dsi_phy_hw *phy,
 		(lane_map->lane_map_v2[DSI_LOGICAL_LANE_2] |
 		(lane_map->lane_map_v2[DSI_LOGICAL_LANE_3] << 4)));
 }
-
+#if 0
 static void dsi_phy_hw_v4_0_lane_settings(struct dsi_phy_hw *phy,
 			    struct dsi_phy_cfg *cfg)
 {

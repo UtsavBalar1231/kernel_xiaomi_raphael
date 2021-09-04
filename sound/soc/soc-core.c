@@ -21,7 +21,6 @@
  *   o Add more codecs and platforms to ensure good API coverage.
  *   o Support TDM on PCM and I2S
  */
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>

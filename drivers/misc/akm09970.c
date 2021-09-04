@@ -1,7 +1,6 @@
 /* drivers/intput/misc/akm09970.c - akm09970 compass driver
  *
  * Copyright (c) 2018-2019, Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -250,21 +249,21 @@ static int akm09970_read_data(struct akm09970_soc_ctrl *c_ctrl)
 {
 	int rc = 0;
 
-	rc = i2c_smbus_read_i2c_block_data(c_ctrl->client, AK09970_REG_ST_XYZ, AKM_SENSOR_DATA_SIZE, c_ctrl->chip_data);
-	if (rc < 0) {
-		pr_err("read data failed!");
-		return rc;
-	}
+        rc = i2c_smbus_read_i2c_block_data(c_ctrl->client, AK09970_REG_ST_XYZ, AKM_SENSOR_DATA_SIZE, c_ctrl->chip_data);
+        if (rc < 0) {
+                pr_err("read data failed!");
+                return rc;
+        }
 
-	if (AKM_ERRADC_IS_HIGH(c_ctrl->chip_data[0])) {
-		pr_err("ADC over run!\n");
-		rc = -EIO;
-	}
+        if (AKM_ERRADC_IS_HIGH(c_ctrl->chip_data[0])) {
+                pr_err("ADC over run!\n");
+                rc = -EIO;
+        }
 
-	if (AKM_ERRXY_IS_HIGH(c_ctrl->chip_data[1])) {
-		pr_err("Errxy over run!\n");
-		rc = -EIO;
-	}
+        if (AKM_ERRXY_IS_HIGH(c_ctrl->chip_data[1])) {
+                pr_err("Errxy over run!\n");
+                rc = -EIO;
+        }
 
 	return 0;
 }
@@ -288,11 +287,11 @@ static void akm09970_dev_work_queue(struct work_struct *work)
 
 static irqreturn_t akm09970_irq_handler(int irq, void *dev_id)
 {
-	struct akm09970_soc_ctrl *c_ctrl = dev_id;
+        struct akm09970_soc_ctrl *c_ctrl = dev_id;
 
 	queue_work(c_ctrl->work_queue, &c_ctrl->report_work);
 
-	return IRQ_HANDLED;
+        return IRQ_HANDLED;
 }
 
 static int akm09970_release(struct inode *inp, struct file *filp)
@@ -352,7 +351,7 @@ static long akm09970_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	struct akm09970_soc_ctrl *c_ctrl = filp->private_data;
 
 	if (NULL == c_ctrl) {
-		pr_err("NULL");
+                pr_err("NULL");
 		return -EFAULT;
 	}
 
@@ -435,7 +434,7 @@ static const struct file_operations akm09970_fops = {
 
 
 static int akm09970_check_device_id(
-	struct akm09970_soc_ctrl *c_ctrl)
+        struct akm09970_soc_ctrl *c_ctrl)
 {
 	int rc = 0;
 
@@ -497,7 +496,7 @@ static int akm09970_regulator_init(struct akm09970_soc_ctrl *c_ctrl, bool on)
 	} else {
 		if (regulator_count_voltages(c_ctrl->vdd) > 0)
 			regulator_set_voltage(c_ctrl->vdd, 0,
-				AKM09970_VDD_MAX_UV);
+		        	AKM09970_VDD_MAX_UV);
 		
 		regulator_put(c_ctrl->vdd);
 	}
@@ -507,21 +506,21 @@ static int akm09970_regulator_init(struct akm09970_soc_ctrl *c_ctrl, bool on)
 
 static int akm09970_gpio_config(struct akm09970_soc_ctrl *c_ctrl)
 {
-	int32_t rc = 0;
+        int32_t rc = 0;
 
-	rc = gpio_request_one(c_ctrl->gpio_reset, GPIOF_OUT_INIT_LOW, "akm09970-reset");
-	if (rc < 0) {
-		pr_err("Failed to request power enable GPIO %d", c_ctrl->gpio_reset);
-		goto reset_gpio_req_err;
-	}
-	gpio_direction_output(c_ctrl->gpio_reset, 0);
+        rc = gpio_request_one(c_ctrl->gpio_reset, GPIOF_OUT_INIT_LOW, "akm09970-reset");
+        if (rc < 0) {
+                pr_err("Failed to request power enable GPIO %d", c_ctrl->gpio_reset);
+                goto reset_gpio_req_err;
+        }
+        gpio_direction_output(c_ctrl->gpio_reset, 0);
 
-	rc = gpio_request_one(c_ctrl->gpio_irq, GPIOF_IN, "akm09970-irq");
-	if (rc < 0) {
-		pr_err("Failed to request power enable GPIO %d", c_ctrl->gpio_irq);
-		goto irq_gpio_req_err;
-	} else {
-		gpio_direction_input(c_ctrl->gpio_irq);
+        rc = gpio_request_one(c_ctrl->gpio_irq, GPIOF_IN, "akm09970-irq");
+        if (rc < 0) {
+                pr_err("Failed to request power enable GPIO %d", c_ctrl->gpio_irq);
+                goto irq_gpio_req_err;
+        } else {
+        	gpio_direction_input(c_ctrl->gpio_irq);
 		c_ctrl->irq = gpio_to_irq(c_ctrl->gpio_irq);
 		rc = request_threaded_irq(c_ctrl->irq, akm09970_irq_handler, NULL,
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
@@ -533,7 +532,7 @@ static int akm09970_gpio_config(struct akm09970_soc_ctrl *c_ctrl)
 		disable_irq_nosync(c_ctrl->irq);
 	}
 
-	return 0;
+        return 0;
 
 irq_req_err:
 	if (gpio_is_valid(c_ctrl->gpio_irq)) {
@@ -543,11 +542,11 @@ irq_req_err:
 	}
 
 irq_gpio_req_err:
-	if (gpio_is_valid(c_ctrl->gpio_reset))
-		gpio_free(c_ctrl->gpio_reset);
+        if (gpio_is_valid(c_ctrl->gpio_reset))
+                gpio_free(c_ctrl->gpio_reset);
 
 reset_gpio_req_err:
-	return rc;
+        return rc;
 }
 
 
@@ -567,15 +566,15 @@ static int akm09970_pinctrl_select(struct akm09970_soc_ctrl *c_ctrl, bool state)
 
 static int akm09970_pinctrl_init(struct akm09970_soc_ctrl *c_ctrl)
 {
-	int rc = 0;
-	struct device *dev = c_ctrl->dev;
+        int rc = 0;
+        struct device *dev = c_ctrl->dev;
 
 	c_ctrl->pinctrl = devm_pinctrl_get(dev);
-	if (IS_ERR_OR_NULL(c_ctrl->pinctrl)) {
-		rc = PTR_ERR(c_ctrl->pinctrl);
-		pr_err("Unable to acquire pinctrl %d", rc);
-		goto err_pinctrl_get;
-	}
+        if (IS_ERR_OR_NULL(c_ctrl->pinctrl)) {
+                rc = PTR_ERR(c_ctrl->pinctrl);
+                pr_err("Unable to acquire pinctrl %d", rc);
+                goto err_pinctrl_get;
+        }
 
 	c_ctrl->gpio_state_active =
 		pinctrl_lookup_state(c_ctrl->pinctrl, "akm09970_gpio_active");
@@ -593,36 +592,36 @@ static int akm09970_pinctrl_init(struct akm09970_soc_ctrl *c_ctrl)
 		goto err_pinctrl_lookup;
 	}
 
-	return 0;
+        return 0;
 
 err_pinctrl_lookup:
-	devm_pinctrl_put(c_ctrl->pinctrl);
+        devm_pinctrl_put(c_ctrl->pinctrl);
 err_pinctrl_get:
-	c_ctrl->pinctrl = NULL;
+        c_ctrl->pinctrl = NULL;
 
-	return rc;
+        return rc;
 }
 
 static int akm09970_parse_dt(struct device *dev,
-			        struct akm09970_soc_ctrl *c_ctrl)
+                                struct akm09970_soc_ctrl *c_ctrl)
 {
-	int rc = 0;
+        int rc = 0;
 
-	c_ctrl->gpio_reset = of_get_named_gpio_flags(dev->of_node, "akm,gpio-reset", 0, NULL);
-	if (!gpio_is_valid(c_ctrl->gpio_reset)) {
-		pr_err("Gpio reset pin %d is invalid.",
-			c_ctrl->gpio_reset);
-		return -EINVAL;
-	}
+        c_ctrl->gpio_reset = of_get_named_gpio_flags(dev->of_node, "akm,gpio-reset", 0, NULL);
+        if (!gpio_is_valid(c_ctrl->gpio_reset)) {
+                pr_err("Gpio reset pin %d is invalid.",
+                        c_ctrl->gpio_reset);
+                return -EINVAL;
+        }
 
-	c_ctrl->gpio_irq = of_get_named_gpio_flags(dev->of_node, "akm,gpio-irq", 0, NULL);
-	if (!gpio_is_valid(c_ctrl->gpio_irq)) {
-		pr_err("gpio irq pin %d is invalid.",
-			c_ctrl->gpio_irq);
-		return -EINVAL;
-	}
+        c_ctrl->gpio_irq = of_get_named_gpio_flags(dev->of_node, "akm,gpio-irq", 0, NULL);
+        if (!gpio_is_valid(c_ctrl->gpio_irq)) {
+                pr_err("gpio irq pin %d is invalid.",
+                        c_ctrl->gpio_irq);
+                return -EINVAL;
+        }
 
-	return rc;
+        return rc;
 }
 
 static int akm09970_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -748,10 +747,10 @@ err_check_device:
 	akm09970_regulator_init(c_ctrl, false);
 
 err_regulator_init:
-	if (gpio_is_valid(c_ctrl->gpio_irq)) {
+        if (gpio_is_valid(c_ctrl->gpio_irq)) {
 		if (c_ctrl->irq)
 			free_irq(c_ctrl->irq, c_ctrl);
-		gpio_free(c_ctrl->gpio_irq);
+                gpio_free(c_ctrl->gpio_irq);
 	}
 
 	if (gpio_is_valid(c_ctrl->gpio_reset))
@@ -777,30 +776,30 @@ static int akm09970_remove(struct i2c_client *client)
 	if (&(c_ctrl->cdev))
 		cdev_del(&(c_ctrl->cdev));
 
-	if (c_ctrl->chr_dev)
-		device_destroy(c_ctrl->chr_class, c_ctrl->dev_num);
+        if (c_ctrl->chr_dev)
+                device_destroy(c_ctrl->chr_class, c_ctrl->dev_num);
 
-	unregister_chrdev_region(c_ctrl->dev_num, 1);
-	if (c_ctrl->chr_class)
-		class_destroy(c_ctrl->chr_class);
+        unregister_chrdev_region(c_ctrl->dev_num, 1);
+        if (c_ctrl->chr_class)
+                class_destroy(c_ctrl->chr_class);
 
 	akm09970_power_down(c_ctrl);
 
-	akm09970_regulator_init(c_ctrl, false);
+        akm09970_regulator_init(c_ctrl, false);
 
-	if (gpio_is_valid(c_ctrl->gpio_irq)) {
-		if (c_ctrl->irq)
-			free_irq(c_ctrl->irq, c_ctrl);
-		gpio_free(c_ctrl->gpio_irq);
-	}
+        if (gpio_is_valid(c_ctrl->gpio_irq)) {
+                if (c_ctrl->irq)
+                        free_irq(c_ctrl->irq, c_ctrl);
+                gpio_free(c_ctrl->gpio_irq);
+        }
 
-	if (gpio_is_valid(c_ctrl->gpio_reset))
-		gpio_free(c_ctrl->gpio_reset);
+        if (gpio_is_valid(c_ctrl->gpio_reset))
+                gpio_free(c_ctrl->gpio_reset);
 
-	if (c_ctrl->pinctrl) {
-		devm_pinctrl_put(c_ctrl->pinctrl);
-		c_ctrl->pinctrl = NULL;
-	}
+        if (c_ctrl->pinctrl) {
+                devm_pinctrl_put(c_ctrl->pinctrl);
+                c_ctrl->pinctrl = NULL;
+        }
 
 	pr_debug("Removed exit");
 

@@ -1,6 +1,5 @@
 /*
  * Copyright 2018 GoldenRiver Technologies Co., Ltd. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and

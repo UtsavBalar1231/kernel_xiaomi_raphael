@@ -5,7 +5,6 @@
  * the suspend mode.
  *
  * Copyright (C) 2014 Google, Inc.
- * Copyright (C) 2019 XiaoMi, Inc.
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.
@@ -112,8 +111,6 @@ static struct attribute_group attr_group = {
 void log_wakeup_reason(int irq)
 {
 	struct irq_desc *desc;
-        unsigned long flags;
-
 	desc = irq_to_desc(irq);
 	if (desc && desc->action && desc->action->name)
 		printk(KERN_INFO "Resume caused by IRQ %d, %s\n", irq,
@@ -121,16 +118,16 @@ void log_wakeup_reason(int irq)
 	else
 		printk(KERN_INFO "Resume caused by IRQ %d\n", irq);
 
-	spin_lock_irqsave(&resume_reason_lock, flags);
+	spin_lock(&resume_reason_lock);
 	if (irqcount == MAX_WAKEUP_REASON_IRQS) {
-		spin_unlock_irqrestore(&resume_reason_lock, flags);
+		spin_unlock(&resume_reason_lock);
 		printk(KERN_WARNING "Resume caused by more than %d IRQs\n",
 				MAX_WAKEUP_REASON_IRQS);
 		return;
 	}
 
 	irq_list[irqcount++] = irq;
-	spin_unlock_irqrestore(&resume_reason_lock, flags);
+	spin_unlock(&resume_reason_lock);
 }
 
 int check_wakeup_reason(int irq)
@@ -151,13 +148,12 @@ int check_wakeup_reason(int irq)
 void log_suspend_abort_reason(const char *fmt, ...)
 {
 	va_list args;
-        unsigned long flags;
 
-	spin_lock_irqsave(&resume_reason_lock, flags);
+	spin_lock(&resume_reason_lock);
 
 	//Suspend abort reason has already been logged.
 	if (suspend_abort) {
-		spin_unlock_irqrestore(&resume_reason_lock, flags);
+		spin_unlock(&resume_reason_lock);
 		return;
 	}
 
@@ -165,7 +161,7 @@ void log_suspend_abort_reason(const char *fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(abort_reason, MAX_SUSPEND_ABORT_LEN, fmt, args);
 	va_end(args);
-	spin_unlock_irqrestore(&resume_reason_lock, flags);
+	spin_unlock(&resume_reason_lock);
 }
 
 /* Detects a suspend and clears all the previous wake up reasons*/

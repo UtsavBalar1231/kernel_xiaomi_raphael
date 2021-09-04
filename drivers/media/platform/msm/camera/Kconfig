@@ -8,3 +8,7 @@ config VCM_AK7374
 	bool "use ak7374 vcm"
 	default n
 
+config COMBO_MODIFY_VAYU
+        bool "use combo midfy cayu"
+        default n
+

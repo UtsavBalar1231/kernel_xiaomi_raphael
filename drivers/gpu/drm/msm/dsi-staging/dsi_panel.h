@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,6 +36,8 @@
 #define DSI_CMD_PPS_SIZE 135
 
 #define DSI_MODE_MAX 5
+#define BUF_LEN_MAX    256
+#define MAX_READ_LOCKDOWN_COUNT 200
 
 enum dsi_panel_rotation {
 	DSI_PANEL_ROTATE_NONE = 0,
@@ -170,12 +171,18 @@ struct drm_panel_esd_config {
 	int esd_err_irq_flags;
 };
 
+
+struct lockdowninfo_cfg {
+	u8 lockdowninfo[16];
+	bool lockdowninfo_read_done;
+};
+
 struct dsi_read_config {
 	bool enabled;
 	struct dsi_panel_cmd_set read_cmd;
 	u32 cmds_rlen;
 	u32 valid_bits;
-	u8 rbuf[64];
+	u8 rbuf[BUF_LEN_MAX];
 };
 
 struct dsi_panel {
@@ -230,10 +237,17 @@ struct dsi_panel {
 
 	u32 panel_on_dimming_delay;
 	struct delayed_work cmds_work;
+	struct delayed_work fod_work;
+	struct delayed_work esd_work;
 	u32 last_bl_lvl;
+	u32 last_esd_bl_lvl;
 	s32 backlight_delta;
 
 	bool fod_hbm_enabled; /* prevent set DISPPARAM_DOZE_BRIGHTNESS_HBM/LBM in FOD HBM */
+	bool fod_dimlayer_enabled;
+	bool fod_dimlayer_hbm_enabled;
+	bool cphy_esd_check;
+	u32 fod_ui_ready;
 	u32 doze_backlight_threshold;
 	u32 fod_off_dimming_delay;
 	ktime_t fod_hbm_off_time;
@@ -247,11 +261,17 @@ struct dsi_panel {
 	struct dsi_panel_cmd_set elvss_dimming_offset;
 	struct dsi_panel_cmd_set hbm_fod_on;
 	struct dsi_panel_cmd_set hbm_fod_off;
+	struct dsi_panel_cmd_set hbm_fod_off_doze_hbm_on;
+	struct dsi_panel_cmd_set hbm_fod_off_doze_lbm_on;
 
 	bool fod_backlight_flag;
 	u32 fod_target_backlight;
 	bool fod_flag;
 	bool in_aod; /* set  DISPPARAM_DOZE_BRIGHTNESS_HBM/LBM only in AOD */
+	bool crc_flag;
+	bool is_tddi_flag;
+	bool tddi_doubleclick_flag;
+	bool panel_dead_flag;
 
 	/* Display count */
 	bool panel_active_count_enable;
@@ -266,9 +286,18 @@ struct dsi_panel {
 	u64 bl_lowlevel_duration;
 	u64 hbm_duration;
 	u64 hbm_times;
-
+	u32 dc_threshold;
+	bool dc_enable;
+	bool dim_layer_replace_dc;
+	bool fod_dimlayer_bl_block;
+	bool fodflag;
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;
+
+	u8 panel_read_data[BUF_LEN_MAX];
+	struct dsi_read_config xy_coordinate_cmds;
+	struct dsi_read_config max_luminance_cmds;
+	struct lockdowninfo_cfg lockdowninfo_read;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
@@ -345,6 +374,9 @@ int dsi_panel_enable(struct dsi_panel *panel);
 
 int dsi_panel_post_enable(struct dsi_panel *panel);
 
+int dsi_panel_match_fps_pen_setting(struct dsi_panel *panel,
+				struct dsi_display_mode *adj_mode);
+
 int dsi_panel_pre_disable(struct dsi_panel *panel);
 
 int dsi_panel_disable(struct dsi_panel *panel);
@@ -354,8 +386,6 @@ int dsi_panel_unprepare(struct dsi_panel *panel);
 int dsi_panel_post_unprepare(struct dsi_panel *panel);
 
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl);
-
-int dsi_panel_enable_doze_backlight(struct dsi_panel *panel, u32 bl_lvl);
 
 int dsi_panel_update_pps(struct dsi_panel *panel);
 
@@ -382,5 +412,13 @@ struct dsi_panel *dsi_panel_ext_bridge_get(struct device *parent,
 int dsi_panel_parse_esd_reg_read_configs(struct dsi_panel *panel);
 
 void dsi_panel_ext_bridge_put(struct dsi_panel *panel);
+
+int dsi_panel_write_cmd_set(struct dsi_panel *panel, struct dsi_panel_cmd_set *cmd_sets);
+
+int dsi_panel_read_cmd_set(struct dsi_panel *panel, struct dsi_read_config *read_config);
+
+int dsi_panel_lockdowninfo_param_read(struct dsi_panel *panel);
+int dsi_panel_esd_irq_ctrl(struct dsi_panel *panel, bool enable);
+
 
 #endif /* _DSI_PANEL_H_ */

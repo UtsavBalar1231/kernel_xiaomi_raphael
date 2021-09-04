@@ -1,5 +1,4 @@
 /* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -301,7 +300,7 @@ int fsa4480_switch_event(struct device_node *node,
 		else
 			switch_control = 0x7;
 		fsa4480_usbc_update_settings(fsa_priv, switch_control, 0x9F);
-		break;
+		return 1;
 	case FSA_USBC_ORIENTATION_CC1:
 		fsa4480_usbc_update_settings(fsa_priv, 0x18, 0xF8);
 		return fsa4480_validate_display_port_settings(fsa_priv);

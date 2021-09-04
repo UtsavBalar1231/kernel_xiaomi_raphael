@@ -1,5 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,7 +17,7 @@
 #include "cam_fd_context.h"
 #include "cam_trace.h"
 
-static const char fd_dev_name[] = "fd";
+static const char fd_dev_name[] = "cam-fd";
 
 /* Functions in Available state */
 static int __cam_fd_ctx_acquire_dev_in_available(struct cam_context *ctx,
@@ -132,7 +131,7 @@ static int __cam_fd_ctx_flush_dev_in_activated(struct cam_context *ctx,
 
 	rc = cam_context_flush_dev_to_hw(ctx, cmd);
 	if (rc)
-		CAM_ERR(CAM_ICP, "Failed to flush device, rc=%d", rc);
+		CAM_ERR(CAM_FD, "Failed to flush device, rc=%d", rc);
 
 	return rc;
 }

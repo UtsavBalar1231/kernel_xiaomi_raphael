@@ -135,6 +135,15 @@ static DECLARE_RWSEM(qrtr_node_lock);
 static DEFINE_IDR(qrtr_ports);
 static DEFINE_MUTEX(qrtr_port_lock);
 
+/* backup buffers */
+#define QRTR_BACKUP_HI_NUM	5
+#define QRTR_BACKUP_HI_SIZE	SZ_16K
+#define QRTR_BACKUP_LO_NUM	20
+#define QRTR_BACKUP_LO_SIZE	SZ_1K
+static struct sk_buff_head qrtr_backup_lo;
+static struct sk_buff_head qrtr_backup_hi;
+static struct work_struct qrtr_backup_work;
+
 /**
  * struct qrtr_node - endpoint node
  * @ep_lock: lock for endpoint management and callbacks
@@ -669,6 +678,58 @@ int qrtr_peek_pkt_size(const void *data)
 }
 EXPORT_SYMBOL(qrtr_peek_pkt_size);
 
+static void qrtr_alloc_backup(struct work_struct *work)
+{
+	struct sk_buff *skb;
+	int errcode;
+	while (skb_queue_len(&qrtr_backup_lo) < QRTR_BACKUP_LO_NUM) {
+		skb = alloc_skb_with_frags(sizeof(struct qrtr_hdr_v1),
+					   QRTR_BACKUP_LO_SIZE, 0, &errcode,
+					   GFP_KERNEL);
+		if (!skb)
+			break;
+		skb_queue_tail(&qrtr_backup_lo, skb);
+	}
+	while (skb_queue_len(&qrtr_backup_hi) < QRTR_BACKUP_HI_NUM) {
+		skb = alloc_skb_with_frags(sizeof(struct qrtr_hdr_v1),
+					   QRTR_BACKUP_HI_SIZE, 0, &errcode,
+					   GFP_KERNEL);
+		if (!skb)
+			break;
+		skb_queue_tail(&qrtr_backup_hi, skb);
+	}
+}
+
+static struct sk_buff *qrtr_get_backup(size_t len)
+{
+	struct sk_buff *skb = NULL;
+
+	if (len < QRTR_BACKUP_LO_SIZE)
+		skb = skb_dequeue(&qrtr_backup_lo);
+	else if (len < QRTR_BACKUP_HI_SIZE)
+		skb = skb_dequeue(&qrtr_backup_hi);
+
+	if (skb)
+		queue_work(system_unbound_wq, &qrtr_backup_work);
+
+	return skb;
+}
+
+static void qrtr_backup_init(void)
+{
+	skb_queue_head_init(&qrtr_backup_lo);
+	skb_queue_head_init(&qrtr_backup_hi);
+	INIT_WORK(&qrtr_backup_work, qrtr_alloc_backup);
+	queue_work(system_unbound_wq, &qrtr_backup_work);
+}
+
+static void qrtr_backup_deinit(void)
+{
+	cancel_work_sync(&qrtr_backup_work);
+	skb_queue_purge(&qrtr_backup_lo);
+	skb_queue_purge(&qrtr_backup_hi);
+}
+
 /**
  * qrtr_endpoint_post() - post incoming data
  * @ep: endpoint handle
@@ -696,6 +757,7 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	skb = netdev_alloc_skb(NULL, len);
 	if (!skb) {
 		skb = alloc_skb_with_frags(0, len, 0, &err, GFP_ATOMIC);
+		skb = qrtr_get_backup(len);
 		if (!skb) {
 			pr_err("%s memory allocation failed\n", __func__);
 			return -ENOMEM;
@@ -1838,7 +1900,10 @@ static int __init qrtr_proto_init(void)
 
 	rtnl_register(PF_QIPCRTR, RTM_NEWADDR, qrtr_addr_doit, NULL, 0);
 
+	qrtr_backup_init();
+
 	return 0;
+
 }
 postcore_initcall(qrtr_proto_init);
 
@@ -1847,6 +1912,8 @@ static void __exit qrtr_proto_fini(void)
 	rtnl_unregister(PF_QIPCRTR, RTM_NEWADDR);
 	sock_unregister(qrtr_family.family);
 	proto_unregister(&qrtr_proto);
+
+	qrtr_backup_deinit();
 }
 module_exit(qrtr_proto_fini);
 

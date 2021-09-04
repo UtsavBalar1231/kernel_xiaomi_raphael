@@ -894,6 +894,9 @@ static void mhi_netdev_create_debugfs(struct mhi_netdev *mhi_netdev)
 
 	debugfs_create_file_unsafe("stats", 0444, mhi_netdev->dentry,
 				   mhi_netdev, &debugfs_stats);
+
+	debugfs_create_file_unsafe("chain", 0444, mhi_netdev->dentry,
+				   mhi_netdev, &debugfs_chain);
 }
 
 static void mhi_netdev_create_debugfs_dir(void)

@@ -3,7 +3,6 @@
  * Backlight Lowlevel Control Abstraction
  *
  * Copyright (C) 2003,2004 Hewlett-Packard Company
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  */
 

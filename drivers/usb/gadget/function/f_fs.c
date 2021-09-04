@@ -1206,6 +1206,7 @@ static int ffs_aio_cancel(struct kiocb *kiocb)
 		value = -EINVAL;
 
 	spin_unlock_irq(&epfile->ffs->eps_lock);
+
 	ffs_log("exit: value %d", value);
 
 	return value;

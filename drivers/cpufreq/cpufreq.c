@@ -2,7 +2,6 @@
  *  linux/drivers/cpufreq/cpufreq.c
  *
  *  Copyright (C) 2001 Russell King
- *  Copyright (C) 2019 XiaoMi, Inc.
  *            (C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
  *            (C) 2013 Viresh Kumar <viresh.kumar@linaro.org>
  *

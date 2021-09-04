@@ -325,82 +325,82 @@ static void cleanup_uevent_env(struct subprocess_info *info)
 #ifdef CONFIG_UEVENTS_RECORD
 static void parse_event(struct kobj_uevent_env *uevent_env, struct uevent_info *uevent)
 {
-	char *msg;
+        char *msg;
 
-	uevent->action = "";
-	uevent->path = "";
-	uevent->subsystem = "";
-	uevent->firmware = "";
-	uevent->major = -1;
-	uevent->minor = -1;
-	uevent->partition_name = NULL;
-	uevent->partition_num = -1;
-	uevent->device_name = NULL;
+        uevent->action = "";
+        uevent->path = "";
+        uevent->subsystem = "";
+        uevent->firmware = "";
+        uevent->major = -1;
+        uevent->minor = -1;
+        uevent->partition_name = NULL;
+        uevent->partition_num = -1;
+        uevent->device_name = NULL;
 
-	msg = uevent_env->buf;
+        msg = uevent_env->buf;
 
-	/* currently ignoring SEQNUM */
-	while(*msg) {
-		if(!strncmp(msg, "ACTION=", 7)) {
-			msg += 7;
-			uevent->action = msg;
-		} else if(!strncmp(msg, "DEVPATH=", 8)) {
-			msg += 8;
-			uevent->path = msg;
-		} else if(!strncmp(msg, "SUBSYSTEM=", 10)) {
-			msg += 10;
-			uevent->subsystem = msg;
-		} else if(!strncmp(msg, "FIRMWARE=", 9)) {
-			msg += 9;
-			uevent->firmware = msg;
-		} else if(!strncmp(msg, "MAJOR=", 6)) {
-			msg += 6;
-		} else if(!strncmp(msg, "MINOR=", 6)) {
-			msg += 6;
-		} else if(!strncmp(msg, "PARTN=", 6)) {
-			msg += 6;
-		} else if(!strncmp(msg, "PARTNAME=", 9)) {
-			msg += 9;
-			uevent->partition_name = msg;
-		} else if(!strncmp(msg, "DEVNAME=", 8)) {
-			msg += 8;
-			uevent->device_name = msg;
-		}
+        /* currently ignoring SEQNUM */
+        while(*msg) {
+                if(!strncmp(msg, "ACTION=", 7)) {
+                        msg += 7;
+                        uevent->action = msg;
+                } else if(!strncmp(msg, "DEVPATH=", 8)) {
+                        msg += 8;
+                        uevent->path = msg;
+                } else if(!strncmp(msg, "SUBSYSTEM=", 10)) {
+                        msg += 10;
+                        uevent->subsystem = msg;
+                } else if(!strncmp(msg, "FIRMWARE=", 9)) {
+                        msg += 9;
+                        uevent->firmware = msg;
+                } else if(!strncmp(msg, "MAJOR=", 6)) {
+                        msg += 6;
+                } else if(!strncmp(msg, "MINOR=", 6)) {
+                        msg += 6;
+                } else if(!strncmp(msg, "PARTN=", 6)) {
+                        msg += 6;
+                } else if(!strncmp(msg, "PARTNAME=", 9)) {
+                        msg += 9;
+                        uevent->partition_name = msg;
+                } else if(!strncmp(msg, "DEVNAME=", 8)) {
+                        msg += 8;
+                        uevent->device_name = msg;
+                }
 
-		/* advance to after the next \0 */
-		while(*msg++)
-			;
-	}
+                /* advance to after the next \0 */
+                while(*msg++)
+                        ;
+        }
 }
 
 static void uevents_collect(struct kobj_uevent_env *uevent_env)
 {
-	static int m = 0;
-	struct uevent_info uevent;
+        static int m = 0;
+        struct uevent_info uevent;
 
-	if (!spin_trylock(&uevent_lock))
-		return;
+        if (!spin_trylock(&uevent_lock))
+                return;
 
-	if (uevent_env->buflen > 0) {
-		index_tail = m;
-		parse_event(uevent_env, &uevent);                                                          
-		pr_debug("Event { %s', '%s', '%s', '%s'}\n", uevent.action, uevent.path, uevent.subsystem, uevent.device_name);
-		getnstimeofday(&uevents_buff[m].uevent_report_time);
-		sprintf(uevents_buff[m++].event_msg, "%s, %s, %s, %s", uevent.action, uevent.path, uevent.subsystem, uevent.device_name);
+        if (uevent_env->buflen > 0) {
+                index_tail = m;
+                parse_event(uevent_env, &uevent);                                                          
+                pr_debug("Event { %s', '%s', '%s', '%s'}\n", uevent.action, uevent.path, uevent.subsystem, uevent.device_name);
+                getnstimeofday(&uevents_buff[m].uevent_report_time);
+                sprintf(uevents_buff[m++].event_msg, "%s, %s, %s, %s", uevent.action, uevent.path, uevent.subsystem, uevent.device_name);
 
-		if(m >= UEVENT_RECORD_MAX) {
-			m = 0;
-		}
+                if(m >= UEVENT_RECORD_MAX) {
+                        m = 0;
+                }
 
-		uevent_num++;
-		if (uevent_num >= UEVENT_RECORD_MAX) {
-			uevent_num = UEVENT_RECORD_MAX;
-			index_head = index_tail + 1;
-			if (index_head >= UEVENT_RECORD_MAX)
-				index_head = 0;
-		}
-	}
-	spin_unlock(&uevent_lock);
+                uevent_num++;
+                if (uevent_num >= UEVENT_RECORD_MAX) {
+                        uevent_num = UEVENT_RECORD_MAX;
+                        index_head = index_tail + 1;
+                        if (index_head >= UEVENT_RECORD_MAX)
+                                index_head = 0;
+                }
+        }
+        spin_unlock(&uevent_lock);
 }
 #endif
 

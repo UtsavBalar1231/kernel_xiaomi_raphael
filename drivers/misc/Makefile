@@ -57,6 +57,7 @@ obj-$(CONFIG_QSEECOM)		+= qseecom.o
 obj-$(CONFIG_ECHO)		+= echo/
 obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpress-syscfg.o
 obj-$(CONFIG_CXL_BASE)		+= cxl/
+obj-$(CONFIG_XIAOMI_SOLUTION)  += xiaomi/
 obj-$(CONFIG_ASPEED_LPC_CTRL)  += aspeed-lpc-ctrl.o
 obj-$(CONFIG_ASPEED_LPC_SNOOP) += aspeed-lpc-snoop.o
 obj-$(CONFIG_PCI_ENDPOINT_TEST)        += pci_endpoint_test.o
@@ -97,3 +98,4 @@ $(obj)/lkdtm_rodata_objcopy.o: $(obj)/lkdtm_rodata.o FORCE
 obj-$(CONFIG_OKL4_USER_VIPC)    += okl4-vipc.o
 obj-$(CONFIG_OKL4_GUEST)        += okl4-panic.o
 obj-$(CONFIG_OKL4_LINK_SHBUF)    += okl4-link-shbuf.o
+obj-$(CONFIG_GPIO_TESTING_MODE)    += gpio-testing-mode.o
