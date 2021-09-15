@@ -18,17 +18,17 @@ steps:
         from_secret: ci_channel_id
       BOT_API_KEY:
         from_secret: bot_api_key
-      TYPE: "REL-0.4.j-OSSFOD"
+      TYPE: "REL-0.5.d-OSSFOD"
       DEVICE: raphael
       KBUILD_BUILD_USER: UtsavTheCunt
       KBUILD_BUILD_HOST: CuntsSpace
     commands:
       - apt-get update && apt-get install -y bison build-essential bc bison curl libssl-dev git zip python flex cpio
       - git clone https://github.com/UtsavBalar1231/Drone-scripts.git -b master script && cd script
-      - ./setup-drone --raphael --proton
-      - ./build-kernel --proton --lto --raphael
+      - ./setup-drone --raphael
+      - ./build-kernel --lto --raphael
     when:
       branch:
-        - android11
+        - android11-ci
       event:
         - push
